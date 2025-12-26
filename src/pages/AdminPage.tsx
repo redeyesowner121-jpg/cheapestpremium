@@ -25,7 +25,14 @@ import {
   TrendingUp,
   MessageCircle,
   Shield,
-  Timer
+  Timer,
+  Phone,
+  Download,
+  ExternalLink,
+  Mail,
+  Calendar,
+  CreditCard,
+  Package
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +43,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Tabs,
@@ -57,26 +65,62 @@ const AdminPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [banners, setBanners] = useState<any[]>([]);
+  const [flashSales, setFlashSales] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [tempAdmins, setTempAdmins] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
   
   // Modals
   const [showUserModal, setShowUserModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showTempAdminModal, setShowTempAdminModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showBannerModal, setShowBannerModal] = useState(false);
+  const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   
   // Form states
   const [giftAmount, setGiftAmount] = useState('');
   const [adminNote, setAdminNote] = useState('');
+  const [accessLink, setAccessLink] = useState('');
   const [tempAdminEmail, setTempAdminEmail] = useState('');
   const [tempAdminHours, setTempAdminHours] = useState('24');
   const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcementMessage, setAnnouncementMessage] = useState('');
+  
+  // Product form
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    price: '',
+    original_price: '',
+    category: '',
+    image_url: '',
+    access_link: '',
+    is_active: true
+  });
+  
+  // Banner form
+  const [bannerForm, setBannerForm] = useState({
+    title: '',
+    image_url: '',
+    link: '',
+    is_active: true
+  });
+  
+  // Flash sale form
+  const [flashSaleForm, setFlashSaleForm] = useState({
+    product_id: '',
+    sale_price: '',
+    start_time: '',
+    end_time: '',
+    is_active: true
+  });
 
   useEffect(() => {
     if (!isAdmin && !isTempAdmin) {
@@ -96,12 +140,26 @@ const AdminPage: React.FC = () => {
       .order('created_at', { ascending: false });
     setUsers(usersData || []);
 
-    // Load orders
+    // Load orders with profile info
     const { data: ordersData } = await supabase
       .from('orders')
-      .select('*, profiles(name, email)')
+      .select('*')
       .order('created_at', { ascending: false });
-    setOrders(ordersData || []);
+    
+    // Fetch user profiles for orders
+    if (ordersData) {
+      const userIds = [...new Set(ordersData.map(o => o.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, email, phone')
+        .in('id', userIds);
+      
+      const ordersWithProfiles = ordersData.map(order => ({
+        ...order,
+        profiles: profiles?.find(p => p.id === order.user_id)
+      }));
+      setOrders(ordersWithProfiles);
+    }
 
     // Load products
     const { data: productsData } = await supabase
@@ -116,6 +174,13 @@ const AdminPage: React.FC = () => {
       .select('*')
       .order('sort_order', { ascending: true });
     setBanners(bannersData || []);
+    
+    // Load flash sales
+    const { data: flashSalesData } = await supabase
+      .from('flash_sales')
+      .select('*, products(name, image_url)')
+      .order('created_at', { ascending: false });
+    setFlashSales(flashSalesData || []);
 
     // Load announcements
     const { data: announcementsData } = await supabase
@@ -128,9 +193,22 @@ const AdminPage: React.FC = () => {
     if (isAdmin) {
       const { data: tempAdminsData } = await supabase
         .from('user_roles')
-        .select('*, profiles(name, email)')
+        .select('*')
         .eq('role', 'temp_admin');
-      setTempAdmins(tempAdminsData || []);
+      
+      if (tempAdminsData) {
+        const userIds = tempAdminsData.map(ta => ta.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', userIds);
+        
+        const tempAdminsWithProfiles = tempAdminsData.map(ta => ({
+          ...ta,
+          profiles: profiles?.find(p => p.id === ta.user_id)
+        }));
+        setTempAdmins(tempAdminsWithProfiles);
+      }
     }
 
     // Load settings
@@ -151,11 +229,34 @@ const AdminPage: React.FC = () => {
   const totalDeposits = users.reduce((sum, u) => sum + (u.total_deposit || 0), 0);
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
+  const blueTickUsers = users.filter(u => u.has_blue_check).length;
+  const todayOrders = orders.filter(o => {
+    const orderDate = new Date(o.created_at);
+    const today = new Date();
+    return orderDate.toDateString() === today.toDateString();
+  }).length;
+
+  // Filter users
+  const filteredUsers = users.filter(u => 
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  // Filter orders
+  const filteredOrders = orders.filter(o => {
+    if (orderStatusFilter === 'all') return true;
+    return o.status === orderStatusFilter;
+  });
 
   // User actions
   const handleGiftBlueTick = async (userId: string) => {
-    await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
-    toast.success('Blue Tick gifted!');
+    const { error } = await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
+    if (error) {
+      toast.error('Failed to gift blue tick');
+      return;
+    }
+    toast.success('Blue Tick gifted successfully!');
+    setShowUserModal(false);
     loadData();
   };
 
@@ -168,7 +269,17 @@ const AdminPage: React.FC = () => {
     }
 
     const newBalance = (selectedUser.wallet_balance || 0) + amount;
-    await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', selectedUser.id);
+    
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ wallet_balance: newBalance })
+      .eq('id', selectedUser.id);
+    
+    if (updateError) {
+      toast.error('Failed to gift money');
+      return;
+    }
+
     await supabase.from('transactions').insert({
       user_id: selectedUser.id,
       type: 'gift',
@@ -185,11 +296,22 @@ const AdminPage: React.FC = () => {
 
   // Order actions
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    await supabase.from('orders').update({ 
+    const updateData: any = { 
       status, 
-      admin_note: adminNote,
+      admin_note: adminNote || null,
       updated_at: new Date().toISOString()
-    }).eq('id', orderId);
+    };
+    
+    if (accessLink) {
+      updateData.access_link = accessLink;
+    }
+
+    const { error } = await supabase.from('orders').update(updateData).eq('id', orderId);
+    
+    if (error) {
+      toast.error('Failed to update order');
+      return;
+    }
 
     // If cancelled/rejected, refund
     if (status === 'cancelled' || status === 'refunded') {
@@ -219,6 +341,7 @@ const AdminPage: React.FC = () => {
 
     toast.success('Order updated!');
     setAdminNote('');
+    setAccessLink('');
     setShowOrderModal(false);
     loadData();
   };
@@ -241,11 +364,16 @@ const AdminPage: React.FC = () => {
     const expiryDate = new Date();
     expiryDate.setHours(expiryDate.getHours() + parseInt(tempAdminHours));
 
-    await supabase.from('user_roles').upsert({
+    const { error } = await supabase.from('user_roles').upsert({
       user_id: user.id,
       role: 'temp_admin',
       temp_admin_expiry: expiryDate.toISOString()
     });
+
+    if (error) {
+      toast.error('Failed to add temp admin');
+      return;
+    }
 
     toast.success('Temporary admin added!');
     setTempAdminEmail('');
@@ -277,6 +405,110 @@ const AdminPage: React.FC = () => {
     setShowAnnouncementModal(false);
     loadData();
   };
+  
+  // Product actions
+  const handleAddProduct = async () => {
+    if (!productForm.name || !productForm.price || !productForm.category) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    
+    const { error } = await supabase.from('products').insert({
+      name: productForm.name,
+      description: productForm.description,
+      price: parseFloat(productForm.price),
+      original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
+      category: productForm.category,
+      image_url: productForm.image_url,
+      access_link: productForm.access_link || null,
+      is_active: productForm.is_active
+    });
+    
+    if (error) {
+      toast.error('Failed to add product');
+      return;
+    }
+    
+    toast.success('Product added!');
+    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+    setShowProductModal(false);
+    loadData();
+  };
+  
+  const handleDeleteProduct = async (productId: string) => {
+    await supabase.from('products').delete().eq('id', productId);
+    toast.success('Product deleted!');
+    loadData();
+  };
+  
+  // Banner actions
+  const handleAddBanner = async () => {
+    if (!bannerForm.title || !bannerForm.image_url) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    
+    const { error } = await supabase.from('banners').insert({
+      title: bannerForm.title,
+      image_url: bannerForm.image_url,
+      link: bannerForm.link || null,
+      is_active: bannerForm.is_active,
+      sort_order: banners.length
+    });
+    
+    if (error) {
+      toast.error('Failed to add banner');
+      return;
+    }
+    
+    toast.success('Banner added!');
+    setBannerForm({ title: '', image_url: '', link: '', is_active: true });
+    setShowBannerModal(false);
+    loadData();
+  };
+  
+  const handleDeleteBanner = async (bannerId: string) => {
+    await supabase.from('banners').delete().eq('id', bannerId);
+    toast.success('Banner deleted!');
+    loadData();
+  };
+  
+  const handleToggleBanner = async (bannerId: string, isActive: boolean) => {
+    await supabase.from('banners').update({ is_active: !isActive }).eq('id', bannerId);
+    loadData();
+  };
+  
+  // Flash sale actions
+  const handleAddFlashSale = async () => {
+    if (!flashSaleForm.product_id || !flashSaleForm.sale_price || !flashSaleForm.end_time) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    
+    const { error } = await supabase.from('flash_sales').insert({
+      product_id: flashSaleForm.product_id,
+      sale_price: parseFloat(flashSaleForm.sale_price),
+      start_time: flashSaleForm.start_time || new Date().toISOString(),
+      end_time: flashSaleForm.end_time,
+      is_active: flashSaleForm.is_active
+    });
+    
+    if (error) {
+      toast.error('Failed to add flash sale');
+      return;
+    }
+    
+    toast.success('Flash sale added!');
+    setFlashSaleForm({ product_id: '', sale_price: '', start_time: '', end_time: '', is_active: true });
+    setShowFlashSaleModal(false);
+    loadData();
+  };
+  
+  const handleDeleteFlashSale = async (saleId: string) => {
+    await supabase.from('flash_sales').delete().eq('id', saleId);
+    toast.success('Flash sale deleted!');
+    loadData();
+  };
 
   // Settings update
   const handleUpdateSetting = async (key: string, value: string) => {
@@ -284,6 +516,16 @@ const AdminPage: React.FC = () => {
     setSettings({ ...settings, [key]: value });
     toast.success('Setting updated!');
   };
+
+  // Initialize default settings if empty
+  const defaultSettings = [
+    'app_name', 'contact_whatsapp', 'contact_email', 'payment_qr_code',
+    'min_deposit', 'referral_bonus', 'login_bonus', 'daily_bonus_min',
+    'daily_bonus_max', 'blue_tick_threshold', 'single_deposit_bonus_threshold',
+    'single_deposit_bonus_amount', 'currency_symbol', 'app_language',
+    'maintenance_mode', 'allow_registration', 'auto_approve_orders',
+    'notification_enabled', 'razorpay_enabled', 'google_login_enabled'
+  ];
 
   if (loading) {
     return (
@@ -313,6 +555,10 @@ const AdminPage: React.FC = () => {
               </p>
             )}
           </div>
+          <Button size="sm" variant="outline" onClick={() => navigate('/chat')}>
+            <Phone className="w-4 h-4 mr-2" />
+            Contact Users
+          </Button>
         </div>
       </header>
 
@@ -370,15 +616,35 @@ const AdminPage: React.FC = () => {
             <p className="text-xs text-muted-foreground">Pending Orders</p>
           </motion.div>
         </div>
+        
+        {/* Additional Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="bg-card rounded-xl p-3 shadow-card text-center">
+            <Award className="w-5 h-5 text-accent mx-auto mb-1" />
+            <p className="font-bold text-foreground">{blueTickUsers}</p>
+            <p className="text-[10px] text-muted-foreground">Blue Tick Users</p>
+          </div>
+          <div className="bg-card rounded-xl p-3 shadow-card text-center">
+            <Calendar className="w-5 h-5 text-primary mx-auto mb-1" />
+            <p className="font-bold text-foreground">{todayOrders}</p>
+            <p className="text-[10px] text-muted-foreground">Today's Orders</p>
+          </div>
+          <div className="bg-card rounded-xl p-3 shadow-card text-center">
+            <Package className="w-5 h-5 text-success mx-auto mb-1" />
+            <p className="font-bold text-foreground">{products.length}</p>
+            <p className="text-[10px] text-muted-foreground">Products</p>
+          </div>
+        </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full flex overflow-x-auto no-scrollbar mb-4">
-            <TabsTrigger value="dashboard" className="flex-1">Dashboard</TabsTrigger>
-            <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
-            <TabsTrigger value="orders" className="flex-1">Orders</TabsTrigger>
-            <TabsTrigger value="products" className="flex-1">Products</TabsTrigger>
-            {isAdmin && <TabsTrigger value="settings" className="flex-1">Settings</TabsTrigger>}
+            <TabsTrigger value="dashboard" className="flex-1 text-xs">Dashboard</TabsTrigger>
+            <TabsTrigger value="users" className="flex-1 text-xs">Users</TabsTrigger>
+            <TabsTrigger value="orders" className="flex-1 text-xs">Orders</TabsTrigger>
+            <TabsTrigger value="products" className="flex-1 text-xs">Products</TabsTrigger>
+            <TabsTrigger value="content" className="flex-1 text-xs">Content</TabsTrigger>
+            {isAdmin && <TabsTrigger value="settings" className="flex-1 text-xs">Settings</TabsTrigger>}
           </TabsList>
 
           {/* Dashboard Tab */}
@@ -461,7 +727,7 @@ const AdminPage: React.FC = () => {
               <div className="space-y-2">
                 {orders.slice(0, 5).map((order: any) => (
                   <div key={order.id} className="flex items-center gap-3 p-3 bg-muted rounded-xl">
-                    <img src={order.product_image} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                    <img src={order.product_image || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 rounded-lg object-cover" />
                     <div className="flex-1">
                       <p className="font-medium text-foreground text-sm">{order.product_name}</p>
                       <p className="text-xs text-muted-foreground">{order.profiles?.name}</p>
@@ -486,11 +752,16 @@ const AdminPage: React.FC = () => {
           <TabsContent value="users" className="space-y-4">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input placeholder="Search users..." className="pl-12 h-12 rounded-xl" />
+              <Input 
+                placeholder="Search users..." 
+                className="pl-12 h-12 rounded-xl"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
 
             <div className="space-y-3">
-              {users.map((user: any) => (
+              {filteredUsers.map((user: any) => (
                 <motion.div
                   key={user.id}
                   initial={{ opacity: 0 }}
@@ -507,11 +778,15 @@ const AdminPage: React.FC = () => {
                         {user.has_blue_check && <BlueTick size="sm" />}
                       </p>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">{user.phone || 'No phone'}</p>
                       <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
                         <span>Balance: ₹{user.wallet_balance || 0}</span>
                         <span>Deposit: ₹{user.total_deposit || 0}</span>
                         <span>Orders: {user.total_orders || 0}</span>
                       </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Joined: {new Date(user.created_at).toLocaleDateString()}
+                      </p>
                     </div>
                     <Button
                       size="sm"
@@ -535,15 +810,25 @@ const AdminPage: React.FC = () => {
               {['all', 'pending', 'processing', 'completed', 'cancelled'].map(status => (
                 <button
                   key={status}
-                  className="px-4 py-2 rounded-xl bg-muted text-sm font-medium whitespace-nowrap hover:bg-primary hover:text-primary-foreground transition-colors"
+                  onClick={() => setOrderStatusFilter(status)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                    orderStatusFilter === status 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-foreground hover:bg-muted/80'
+                  }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status !== 'all' && (
+                    <span className="ml-1 text-xs">
+                      ({orders.filter(o => o.status === status).length})
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
 
             <div className="space-y-3">
-              {orders.map((order: any) => (
+              {filteredOrders.map((order: any) => (
                 <motion.div
                   key={order.id}
                   initial={{ opacity: 0 }}
@@ -551,15 +836,25 @@ const AdminPage: React.FC = () => {
                   className="bg-card rounded-2xl p-4 shadow-card"
                 >
                   <div className="flex items-start gap-4">
-                    <img src={order.product_image} alt="" className="w-16 h-16 rounded-xl object-cover" />
+                    <img src={order.product_image || 'https://via.placeholder.com/64'} alt="" className="w-16 h-16 rounded-xl object-cover" />
                     <div className="flex-1">
                       <p className="font-semibold text-foreground">{order.product_name}</p>
-                      <p className="text-sm text-muted-foreground">{order.profiles?.name} - {order.profiles?.email}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {order.profiles?.name} • {order.profiles?.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Phone: {order.profiles?.phone || 'N/A'}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Qty: {order.quantity} | Total: ₹{order.total_price}
                       </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(order.created_at).toLocaleString()}
+                      </p>
                       {order.user_note && (
-                        <p className="text-xs text-primary mt-1">Note: {order.user_note}</p>
+                        <p className="text-xs text-primary mt-1 bg-primary/5 p-2 rounded">
+                          📝 Note: {order.user_note}
+                        </p>
                       )}
                     </div>
                     <div className="text-right">
@@ -577,6 +872,8 @@ const AdminPage: React.FC = () => {
                         className="mt-2"
                         onClick={() => {
                           setSelectedOrder(order);
+                          setAdminNote(order.admin_note || '');
+                          setAccessLink(order.access_link || '');
                           setShowOrderModal(true);
                         }}
                       >
@@ -591,7 +888,7 @@ const AdminPage: React.FC = () => {
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4">
-            <Button className="w-full btn-gradient rounded-xl">
+            <Button className="w-full btn-gradient rounded-xl" onClick={() => setShowProductModal(true)}>
               <Plus className="w-5 h-5 mr-2" />
               Add New Product
             </Button>
@@ -599,54 +896,339 @@ const AdminPage: React.FC = () => {
             <div className="space-y-3">
               {products.map((product: any) => (
                 <div key={product.id} className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4">
-                  <img src={product.image_url} alt="" className="w-16 h-16 rounded-xl object-cover" />
+                  <img src={product.image_url || 'https://via.placeholder.com/64'} alt="" className="w-16 h-16 rounded-xl object-cover" />
                   <div className="flex-1">
                     <p className="font-semibold text-foreground">{product.name}</p>
                     <p className="text-sm text-muted-foreground">{product.category}</p>
-                    <p className="text-primary font-bold">₹{product.price}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-primary font-bold">₹{product.price}</p>
+                      {product.original_price && (
+                        <p className="text-xs text-muted-foreground line-through">₹{product.original_price}</p>
+                      )}
+                    </div>
+                    {product.access_link && (
+                      <p className="text-xs text-success flex items-center gap-1 mt-1">
+                        <Download className="w-3 h-3" />
+                        Has download link
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button size="icon" variant="outline"><Edit className="w-4 h-4" /></Button>
-                    <Button size="icon" variant="destructive"><Trash2 className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
+            </div>
+          </TabsContent>
+          
+          {/* Content Tab (Banners & Flash Sales) */}
+          <TabsContent value="content" className="space-y-6">
+            {/* Banners Section */}
+            <div className="bg-card rounded-2xl p-4 shadow-card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Image className="w-5 h-5 text-primary" />
+                  Banners
+                </h3>
+                <Button size="sm" onClick={() => setShowBannerModal(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {banners.map((banner: any) => (
+                  <div key={banner.id} className="flex items-center gap-3 p-2 bg-muted rounded-xl">
+                    <img src={banner.image_url} alt="" className="w-24 h-12 rounded object-cover" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{banner.title}</p>
+                      {banner.link && <p className="text-xs text-muted-foreground truncate">{banner.link}</p>}
+                    </div>
+                    <Switch 
+                      checked={banner.is_active} 
+                      onCheckedChange={() => handleToggleBanner(banner.id, banner.is_active)}
+                    />
+                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteBanner(banner.id)}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                {banners.length === 0 && (
+                  <p className="text-center text-muted-foreground text-sm py-4">No banners yet</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Flash Sales Section */}
+            <div className="bg-card rounded-2xl p-4 shadow-card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-accent" />
+                  Flash Sales
+                </h3>
+                <Button size="sm" onClick={() => setShowFlashSaleModal(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {flashSales.map((sale: any) => (
+                  <div key={sale.id} className="flex items-center gap-3 p-2 bg-muted rounded-xl">
+                    <img src={sale.products?.image_url || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 rounded object-cover" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{sale.products?.name}</p>
+                      <p className="text-xs text-success font-bold">₹{sale.sale_price}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        Ends: {new Date(sale.end_time).toLocaleString()}
+                      </p>
+                    </div>
+                    <Switch checked={sale.is_active} />
+                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteFlashSale(sale.id)}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                {flashSales.length === 0 && (
+                  <p className="text-center text-muted-foreground text-sm py-4">No flash sales yet</p>
+                )}
+              </div>
+            </div>
+            
+            {/* Announcements Section */}
+            <div className="bg-card rounded-2xl p-4 shadow-card">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-secondary" />
+                  Announcements
+                </h3>
+                <Button size="sm" onClick={() => setShowAnnouncementModal(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {announcements.map((ann: any) => (
+                  <div key={ann.id} className="p-3 bg-muted rounded-xl">
+                    <p className="font-medium text-sm">{ann.title}</p>
+                    <p className="text-xs text-muted-foreground">{ann.message}</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {new Date(ann.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+                {announcements.length === 0 && (
+                  <p className="text-center text-muted-foreground text-sm py-4">No announcements yet</p>
+                )}
+              </div>
             </div>
           </TabsContent>
 
           {/* Settings Tab (Only for main admin) */}
           {isAdmin && (
             <TabsContent value="settings" className="space-y-4">
-              <div className="bg-card rounded-2xl p-4 shadow-card space-y-4">
-                <h3 className="font-semibold text-foreground">App Settings</h3>
-                
-                {Object.entries(settings).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between py-2 border-b border-border">
-                    <span className="text-sm text-foreground capitalize">{key.replace(/_/g, ' ')}</span>
-                    <Input
-                      value={value as string}
-                      onChange={(e) => handleUpdateSetting(key, e.target.value)}
-                      className="w-32 h-8 text-sm"
-                    />
-                  </div>
-                ))}
-              </div>
-
               <div className="bg-card rounded-2xl p-4 shadow-card">
-                <h3 className="font-semibold text-foreground mb-3">Banners</h3>
-                <div className="space-y-2">
-                  {banners.map((banner: any) => (
-                    <div key={banner.id} className="flex items-center gap-3 p-2 bg-muted rounded-xl">
-                      <img src={banner.image_url} alt="" className="w-20 h-10 rounded object-cover" />
-                      <span className="flex-1 text-sm">{banner.title}</span>
-                      <Switch checked={banner.is_active} />
+                <h3 className="font-semibold text-foreground mb-4">App Settings (20+ Options)</h3>
+                
+                <div className="space-y-4">
+                  {/* App Info */}
+                  <div className="border-b border-border pb-4">
+                    <h4 className="text-sm font-medium text-primary mb-2">App Information</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">App Name</span>
+                        <Input
+                          value={settings.app_name || 'RKR Premium Store'}
+                          onChange={(e) => handleUpdateSetting('app_name', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Language</span>
+                        <Input
+                          value={settings.app_language || 'English'}
+                          onChange={(e) => handleUpdateSetting('app_language', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Currency Symbol</span>
+                        <Input
+                          value={settings.currency_symbol || '₹'}
+                          onChange={(e) => handleUpdateSetting('currency_symbol', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                  
+                  {/* Contact */}
+                  <div className="border-b border-border pb-4">
+                    <h4 className="text-sm font-medium text-primary mb-2">Contact Info</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">WhatsApp</span>
+                        <Input
+                          value={settings.contact_whatsapp || '+918900684167'}
+                          onChange={(e) => handleUpdateSetting('contact_whatsapp', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Email</span>
+                        <Input
+                          value={settings.contact_email || ''}
+                          onChange={(e) => handleUpdateSetting('contact_email', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Payments */}
+                  <div className="border-b border-border pb-4">
+                    <h4 className="text-sm font-medium text-primary mb-2">Payment Settings</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Min Deposit (Rs)</span>
+                        <Input
+                          value={settings.min_deposit || '10'}
+                          onChange={(e) => handleUpdateSetting('min_deposit', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Payment QR Code URL</span>
+                        <Input
+                          value={settings.payment_qr_code || ''}
+                          onChange={(e) => handleUpdateSetting('payment_qr_code', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                          placeholder="QR code URL"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Bonuses */}
+                  <div className="border-b border-border pb-4">
+                    <h4 className="text-sm font-medium text-primary mb-2">Bonus Settings</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Login Bonus (Rs)</span>
+                        <Input
+                          value={settings.login_bonus || '0'}
+                          onChange={(e) => handleUpdateSetting('login_bonus', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Daily Bonus Min (Rs)</span>
+                        <Input
+                          value={settings.daily_bonus_min || '0.10'}
+                          onChange={(e) => handleUpdateSetting('daily_bonus_min', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Daily Bonus Max (Rs)</span>
+                        <Input
+                          value={settings.daily_bonus_max || '0.60'}
+                          onChange={(e) => handleUpdateSetting('daily_bonus_max', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Referral Bonus (Rs)</span>
+                        <Input
+                          value={settings.referral_bonus || '10'}
+                          onChange={(e) => handleUpdateSetting('referral_bonus', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Blue Tick */}
+                  <div className="border-b border-border pb-4">
+                    <h4 className="text-sm font-medium text-primary mb-2">Blue Tick Settings</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Total Deposit Threshold (Rs)</span>
+                        <Input
+                          value={settings.blue_tick_threshold || '1000'}
+                          onChange={(e) => handleUpdateSetting('blue_tick_threshold', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Single Deposit Bonus Threshold</span>
+                        <Input
+                          value={settings.single_deposit_bonus_threshold || '1000'}
+                          onChange={(e) => handleUpdateSetting('single_deposit_bonus_threshold', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Single Deposit Bonus Amount</span>
+                        <Input
+                          value={settings.single_deposit_bonus_amount || '100'}
+                          onChange={(e) => handleUpdateSetting('single_deposit_bonus_amount', e.target.value)}
+                          className="w-40 h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Features */}
+                  <div>
+                    <h4 className="text-sm font-medium text-primary mb-2">Feature Toggles</h4>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Maintenance Mode</span>
+                        <Switch 
+                          checked={settings.maintenance_mode === 'true'} 
+                          onCheckedChange={(v) => handleUpdateSetting('maintenance_mode', v.toString())}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Allow Registration</span>
+                        <Switch 
+                          checked={settings.allow_registration !== 'false'} 
+                          onCheckedChange={(v) => handleUpdateSetting('allow_registration', v.toString())}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Razorpay Enabled</span>
+                        <Switch 
+                          checked={settings.razorpay_enabled !== 'false'} 
+                          onCheckedChange={(v) => handleUpdateSetting('razorpay_enabled', v.toString())}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Google Login</span>
+                        <Switch 
+                          checked={settings.google_login_enabled !== 'false'} 
+                          onCheckedChange={(v) => handleUpdateSetting('google_login_enabled', v.toString())}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Notifications Enabled</span>
+                        <Switch 
+                          checked={settings.notification_enabled !== 'false'} 
+                          onCheckedChange={(v) => handleUpdateSetting('notification_enabled', v.toString())}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Auto Approve Orders</span>
+                        <Switch 
+                          checked={settings.auto_approve_orders === 'true'} 
+                          onCheckedChange={(v) => handleUpdateSetting('auto_approve_orders', v.toString())}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <Button variant="outline" className="w-full mt-3">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Banner
-                </Button>
               </div>
             </TabsContent>
           )}
@@ -655,7 +1237,7 @@ const AdminPage: React.FC = () => {
 
       {/* User Modal */}
       <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
-        <DialogContent className="max-w-sm rounded-3xl">
+        <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
           </DialogHeader>
@@ -670,6 +1252,7 @@ const AdminPage: React.FC = () => {
                   {selectedUser.has_blue_check && <BlueTick />}
                 </h3>
                 <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                <p className="text-xs text-muted-foreground">{selectedUser.phone || 'No phone'}</p>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -686,6 +1269,13 @@ const AdminPage: React.FC = () => {
                   <p className="text-xs text-muted-foreground">Orders</p>
                 </div>
               </div>
+              
+              <div className="bg-muted rounded-xl p-3 text-sm">
+                <p><strong>Referral Code:</strong> {selectedUser.referral_code}</p>
+                <p><strong>Referred By:</strong> {selectedUser.referred_by || 'None'}</p>
+                <p><strong>Joined:</strong> {new Date(selectedUser.created_at).toLocaleDateString()}</p>
+                <p><strong>Notifications:</strong> {selectedUser.notifications_enabled ? 'Enabled' : 'Disabled'}</p>
+              </div>
 
               <div className="flex gap-2">
                 {!selectedUser.has_blue_check && (
@@ -697,6 +1287,14 @@ const AdminPage: React.FC = () => {
                     Gift Blue Tick
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => navigate('/chat')}
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Message
+                </Button>
               </div>
 
               <div className="flex gap-2">
@@ -719,27 +1317,45 @@ const AdminPage: React.FC = () => {
 
       {/* Order Modal */}
       <Dialog open={showOrderModal} onOpenChange={setShowOrderModal}>
-        <DialogContent className="max-w-sm rounded-3xl">
+        <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Order</DialogTitle>
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <img src={selectedOrder.product_image} alt="" className="w-16 h-16 rounded-xl object-cover" />
+              <div className="flex items-center gap-4 p-3 bg-muted rounded-xl">
+                <img src={selectedOrder.product_image || 'https://via.placeholder.com/64'} alt="" className="w-16 h-16 rounded-xl object-cover" />
                 <div>
                   <p className="font-semibold">{selectedOrder.product_name}</p>
                   <p className="text-sm text-muted-foreground">Qty: {selectedOrder.quantity}</p>
                   <p className="font-bold text-primary">₹{selectedOrder.total_price}</p>
                 </div>
               </div>
+              
+              {/* Customer Info */}
+              <div className="bg-muted rounded-xl p-3 text-sm space-y-1">
+                <p className="font-medium">Customer Details:</p>
+                <p>Name: {selectedOrder.profiles?.name}</p>
+                <p>Email: {selectedOrder.profiles?.email}</p>
+                <p>Phone: {selectedOrder.profiles?.phone || 'N/A'}</p>
+                <p>Date: {new Date(selectedOrder.created_at).toLocaleString()}</p>
+              </div>
 
               {selectedOrder.user_note && (
-                <div className="p-3 bg-muted rounded-xl">
+                <div className="p-3 bg-primary/5 rounded-xl">
                   <p className="text-xs font-medium mb-1">Customer Note:</p>
                   <p className="text-sm">{selectedOrder.user_note}</p>
                 </div>
               )}
+              
+              <div>
+                <label className="text-sm font-medium mb-1 block">Access/Download Link (Optional)</label>
+                <Input
+                  placeholder="https://..."
+                  value={accessLink}
+                  onChange={(e) => setAccessLink(e.target.value)}
+                />
+              </div>
 
               <Textarea
                 placeholder="Add note for customer..."
@@ -749,20 +1365,28 @@ const AdminPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-2">
                 <Button
+                  variant="outline"
+                  onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'processing')}
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Processing
+                </Button>
+                <Button
                   className="bg-success text-success-foreground hover:bg-success/90"
                   onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'completed')}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Complete
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'cancelled')}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Cancel & Refund
-                </Button>
               </div>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'cancelled')}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Cancel & Refund
+              </Button>
             </div>
           )}
         </DialogContent>
@@ -815,6 +1439,148 @@ const AdminPage: React.FC = () => {
             <Button className="w-full btn-gradient" onClick={handleCreateAnnouncement}>
               <Bell className="w-4 h-4 mr-2" />
               Send Announcement
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Product Modal */}
+      <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
+        <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Product</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Product Name *"
+              value={productForm.name}
+              onChange={(e) => setProductForm({...productForm, name: e.target.value})}
+            />
+            <Textarea
+              placeholder="Description"
+              value={productForm.description}
+              onChange={(e) => setProductForm({...productForm, description: e.target.value})}
+              rows={2}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                type="number"
+                placeholder="Price *"
+                value={productForm.price}
+                onChange={(e) => setProductForm({...productForm, price: e.target.value})}
+              />
+              <Input
+                type="number"
+                placeholder="Original Price"
+                value={productForm.original_price}
+                onChange={(e) => setProductForm({...productForm, original_price: e.target.value})}
+              />
+            </div>
+            <Input
+              placeholder="Category *"
+              value={productForm.category}
+              onChange={(e) => setProductForm({...productForm, category: e.target.value})}
+            />
+            <Input
+              placeholder="Image URL"
+              value={productForm.image_url}
+              onChange={(e) => setProductForm({...productForm, image_url: e.target.value})}
+            />
+            <Input
+              placeholder="Access/Download Link (Optional)"
+              value={productForm.access_link}
+              onChange={(e) => setProductForm({...productForm, access_link: e.target.value})}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Active</span>
+              <Switch 
+                checked={productForm.is_active} 
+                onCheckedChange={(v) => setProductForm({...productForm, is_active: v})}
+              />
+            </div>
+            <Button className="w-full btn-gradient" onClick={handleAddProduct}>
+              Add Product
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Banner Modal */}
+      <Dialog open={showBannerModal} onOpenChange={setShowBannerModal}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Add Banner</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Banner Title *"
+              value={bannerForm.title}
+              onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})}
+            />
+            <Input
+              placeholder="Image URL *"
+              value={bannerForm.image_url}
+              onChange={(e) => setBannerForm({...bannerForm, image_url: e.target.value})}
+            />
+            <Input
+              placeholder="Link (Optional)"
+              value={bannerForm.link}
+              onChange={(e) => setBannerForm({...bannerForm, link: e.target.value})}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Active</span>
+              <Switch 
+                checked={bannerForm.is_active} 
+                onCheckedChange={(v) => setBannerForm({...bannerForm, is_active: v})}
+              />
+            </div>
+            <Button className="w-full btn-gradient" onClick={handleAddBanner}>
+              Add Banner
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Flash Sale Modal */}
+      <Dialog open={showFlashSaleModal} onOpenChange={setShowFlashSaleModal}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Add Flash Sale</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <select
+              className="w-full h-10 px-3 rounded-xl border border-input bg-background"
+              value={flashSaleForm.product_id}
+              onChange={(e) => setFlashSaleForm({...flashSaleForm, product_id: e.target.value})}
+            >
+              <option value="">Select Product *</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.name} (₹{p.price})</option>
+              ))}
+            </select>
+            <Input
+              type="number"
+              placeholder="Sale Price *"
+              value={flashSaleForm.sale_price}
+              onChange={(e) => setFlashSaleForm({...flashSaleForm, sale_price: e.target.value})}
+            />
+            <div>
+              <label className="text-xs text-muted-foreground">End Time *</label>
+              <Input
+                type="datetime-local"
+                value={flashSaleForm.end_time}
+                onChange={(e) => setFlashSaleForm({...flashSaleForm, end_time: e.target.value})}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Active</span>
+              <Switch 
+                checked={flashSaleForm.is_active} 
+                onCheckedChange={(v) => setFlashSaleForm({...flashSaleForm, is_active: v})}
+              />
+            </div>
+            <Button className="w-full btn-gradient" onClick={handleAddFlashSale}>
+              Add Flash Sale
             </Button>
           </div>
         </DialogContent>

@@ -7,10 +7,12 @@ import {
   XCircle, 
   AlertCircle,
   ExternalLink,
+  Download,
   MessageSquare,
   ChevronRight,
   Star,
-  Flag
+  Flag,
+  Phone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,70 +25,54 @@ import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Order {
   id: string;
-  productName: string;
-  productImage: string;
-  price: number;
+  product_name: string;
+  product_image: string;
+  unit_price: number;
+  total_price: number;
   quantity: number;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'refunded';
-  orderDate: number;
-  accessLink?: string;
-  adminNote?: string;
-  userNote?: string;
-  hasReviewed?: boolean;
+  status: string;
+  created_at: string;
+  access_link?: string;
+  admin_note?: string;
+  user_note?: string;
 }
 
-const mockOrders: Order[] = [
-  {
-    id: 'ORD001',
-    productName: 'Netflix Premium 1 Month',
-    productImage: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200&h=200&fit=crop',
-    price: 79,
-    quantity: 1,
-    status: 'completed',
-    orderDate: Date.now() - 86400000,
-    accessLink: 'https://netflix.com/activate',
-    adminNote: 'Login credentials sent to your email',
-  },
-  {
-    id: 'ORD002',
-    productName: 'Spotify Premium',
-    productImage: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=200&h=200&fit=crop',
-    price: 29,
-    quantity: 2,
-    status: 'processing',
-    orderDate: Date.now() - 3600000,
-    userNote: 'Please send to my email: user@example.com',
-  },
-  {
-    id: 'ORD003',
-    productName: 'ChatGPT Plus',
-    productImage: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=200&h=200&fit=crop',
-    price: 399,
-    quantity: 1,
-    status: 'pending',
-    orderDate: Date.now() - 7200000,
-  },
-  {
-    id: 'ORD004',
-    productName: 'Canva Pro',
-    productImage: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=200&h=200&fit=crop',
-    price: 99,
-    quantity: 1,
-    status: 'cancelled',
-    orderDate: Date.now() - 172800000,
-  },
-];
-
 const OrdersPage: React.FC = () => {
-  const { profile } = useAuth();
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const { profile, user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
+
+  useEffect(() => {
+    if (user) {
+      loadOrders();
+    }
+  }, [user]);
+
+  const loadOrders = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (data) {
+      setOrders(data);
+    }
+    setLoading(false);
+  };
 
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 'all') return true;
@@ -127,13 +113,70 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const handleCancelOrder = async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || order.status !== 'pending') return;
+
+    // Update order status
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', orderId);
+
+    if (orderError) {
+      toast.error('Failed to cancel order');
+      return;
+    }
+
+    // Refund to wallet
+    if (profile) {
+      const newBalance = (profile.wallet_balance || 0) + order.total_price;
+      await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', user?.id);
+
+      await supabase.from('transactions').insert({
+        user_id: user?.id,
+        type: 'refund',
+        amount: order.total_price,
+        status: 'completed',
+        description: `Order cancelled - ${order.product_name}`
+      });
+    }
+
+    toast.success('Order cancelled and refunded');
+    loadOrders();
+  };
+
+  const handleSubmitReport = () => {
+    if (!reportReason) {
+      toast.error('Please select a reason');
+      return;
+    }
+    
+    toast.success('Report submitted! We will contact you shortly.');
+    setShowReportModal(false);
+    setReportReason('');
+    setReportDetails('');
+  };
+
   const reportReasons = [
     'Not received',
     'Payment failed',
     'Wallet problem',
     'Wrong product',
+    'Chat with seller',
     'Other issue',
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -176,65 +219,77 @@ const OrdersPage: React.FC = () => {
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     <img
-                      src={order.productImage}
-                      alt={order.productName}
+                      src={order.product_image || 'https://via.placeholder.com/64'}
+                      alt={order.product_name}
                       className="w-16 h-16 rounded-xl object-cover"
                     />
                     <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">{order.productName}</h3>
+                      <h3 className="font-semibold text-foreground">{order.product_name}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Qty: {order.quantity} × ₹{order.price}
+                        Qty: {order.quantity} × ₹{order.unit_price}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
                           {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          {new Date(order.orderDate).toLocaleDateString()}
+                          {new Date(order.created_at).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-foreground">₹{order.price * order.quantity}</p>
+                      <p className="font-bold text-foreground">₹{order.total_price}</p>
                       {getStatusIcon(order.status)}
                     </div>
                   </div>
 
-                  {/* Order Status Message */}
+                  {/* Order Status Message - Flipkart style */}
                   {order.status === 'pending' && (
-                    <div className="mt-3 p-3 bg-primary/5 rounded-xl">
+                    <div className="mt-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
                       <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium text-primary">Order Placed</span>
+                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        <span className="text-sm font-medium text-primary">Order Placed Successfully</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Processing may take up to 24 hours
+                      <p className="text-xs text-muted-foreground mt-1 ml-4">
+                        Your order is being processed. This may take up to 24 hours.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {order.status === 'processing' && (
+                    <div className="mt-3 p-3 bg-accent/5 rounded-xl border border-accent/20">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-accent" />
+                        <span className="text-sm font-medium text-accent">Processing Your Order</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 ml-6">
+                        We're preparing your order. You'll receive access details soon.
                       </p>
                     </div>
                   )}
 
                   {/* Admin Note */}
-                  {order.adminNote && (
-                    <div className="mt-3 p-3 bg-success/5 rounded-xl">
-                      <p className="text-sm text-success font-medium">Note from seller:</p>
-                      <p className="text-sm text-foreground">{order.adminNote}</p>
+                  {order.admin_note && (
+                    <div className="mt-3 p-3 bg-success/5 rounded-xl border border-success/20">
+                      <p className="text-sm text-success font-medium">📝 Note from seller:</p>
+                      <p className="text-sm text-foreground">{order.admin_note}</p>
                     </div>
                   )}
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 mt-4">
-                    {order.accessLink ? (
+                    {order.access_link ? (
                       <Button
                         size="sm"
                         className="flex-1 btn-gradient rounded-xl"
-                        onClick={() => window.open(order.accessLink, '_blank')}
+                        onClick={() => window.open(order.access_link, '_blank')}
                       >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Access Link
+                        <Download className="w-4 h-4 mr-2" />
+                        Download / Access
                       </Button>
                     ) : (
                       <>
-                        {order.status === 'pending' || order.status === 'processing' ? (
+                        {order.status === 'pending' && (
                           <>
                             <Button
                               size="sm"
@@ -252,11 +307,27 @@ const OrdersPage: React.FC = () => {
                               size="sm"
                               variant="destructive"
                               className="flex-1 rounded-xl"
+                              onClick={() => handleCancelOrder(order.id)}
                             >
                               Cancel Order
                             </Button>
                           </>
-                        ) : order.status === 'completed' && !order.hasReviewed ? (
+                        )}
+                        {order.status === 'processing' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 rounded-xl"
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setShowReportModal(true);
+                            }}
+                          >
+                            <Flag className="w-4 h-4 mr-2" />
+                            Report Issue
+                          </Button>
+                        )}
+                        {order.status === 'completed' && (
                           <Button
                             size="sm"
                             className="flex-1 btn-gradient rounded-xl"
@@ -264,7 +335,7 @@ const OrdersPage: React.FC = () => {
                             <Star className="w-4 h-4 mr-2" />
                             Leave Review
                           </Button>
-                        ) : null}
+                        )}
                       </>
                     )}
                     <Button
@@ -321,15 +392,20 @@ const OrdersPage: React.FC = () => {
               placeholder="Additional details (optional)"
               className="rounded-xl"
               rows={3}
+              value={reportDetails}
+              onChange={(e) => setReportDetails(e.target.value)}
             />
 
-            <div className="text-sm text-muted-foreground">
-              <p className="font-medium mb-1">Contact Support:</p>
-              <p>+91 890068416 or +91 8075101327</p>
+            <div className="text-sm text-muted-foreground bg-muted p-3 rounded-xl">
+              <p className="font-medium mb-1 flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                Contact Support:
+              </p>
+              <p className="text-primary font-semibold">+91 8900684167</p>
               <p className="text-xs">(WhatsApp only)</p>
             </div>
 
-            <Button className="w-full btn-gradient rounded-xl">
+            <Button className="w-full btn-gradient rounded-xl" onClick={handleSubmitReport}>
               Submit Report
             </Button>
           </div>
@@ -345,63 +421,84 @@ const OrdersPage: React.FC = () => {
 
           {selectedOrder && (
             <div className="mt-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <img
-                  src={selectedOrder.productImage}
-                  alt={selectedOrder.productName}
-                  className="w-20 h-20 rounded-xl object-cover"
-                />
-                <div>
-                  <h3 className="font-semibold text-foreground">{selectedOrder.productName}</h3>
-                  <p className="text-sm text-muted-foreground">Order #{selectedOrder.id}</p>
+              {/* Order Receipt - Professional Style */}
+              <div className="border border-border rounded-xl p-4">
+                <div className="flex items-center gap-4 pb-3 border-b border-border">
+                  <img
+                    src={selectedOrder.product_image || 'https://via.placeholder.com/80'}
+                    alt={selectedOrder.product_name}
+                    className="w-20 h-20 rounded-xl object-cover"
+                  />
+                  <div>
+                    <h3 className="font-semibold text-foreground">{selectedOrder.product_name}</h3>
+                    <p className="text-sm text-muted-foreground">Order #{selectedOrder.id.slice(0, 8)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-3">
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Quantity</span>
+                    <span className="font-medium">{selectedOrder.quantity}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Unit Price</span>
+                    <span className="font-medium">₹{selectedOrder.unit_price}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Total Amount</span>
+                    <span className="font-bold text-primary">
+                      ₹{selectedOrder.total_price}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className={`font-medium capitalize ${
+                      selectedOrder.status === 'completed' ? 'text-success' :
+                      selectedOrder.status === 'cancelled' ? 'text-destructive' :
+                      'text-primary'
+                    }`}>
+                      {selectedOrder.status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-border">
+                    <span className="text-muted-foreground">Order Date</span>
+                    <span className="font-medium">
+                      {new Date(selectedOrder.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-muted-foreground">Customer</span>
+                    <span className="font-medium">{profile?.name}</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="font-medium text-sm">{profile?.email}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Quantity</span>
-                  <span className="font-medium">{selectedOrder.quantity}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Price</span>
-                  <span className="font-medium">₹{selectedOrder.price}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-bold text-primary">
-                    ₹{selectedOrder.price * selectedOrder.quantity}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className={`font-medium capitalize ${
-                    selectedOrder.status === 'completed' ? 'text-success' :
-                    selectedOrder.status === 'cancelled' ? 'text-destructive' :
-                    'text-primary'
-                  }`}>
-                    {selectedOrder.status}
-                  </span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground">Date</span>
-                  <span className="font-medium">
-                    {new Date(selectedOrder.orderDate).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              {selectedOrder.userNote && (
+              {selectedOrder.user_note && (
                 <div className="p-3 bg-muted rounded-xl">
                   <p className="text-sm font-medium text-foreground">Your Note:</p>
-                  <p className="text-sm text-muted-foreground">{selectedOrder.userNote}</p>
+                  <p className="text-sm text-muted-foreground">{selectedOrder.user_note}</p>
                 </div>
               )}
 
-              {selectedOrder.adminNote && (
+              {selectedOrder.admin_note && (
                 <div className="p-3 bg-success/10 rounded-xl">
                   <p className="text-sm font-medium text-success">Seller's Note:</p>
-                  <p className="text-sm text-foreground">{selectedOrder.adminNote}</p>
+                  <p className="text-sm text-foreground">{selectedOrder.admin_note}</p>
                 </div>
+              )}
+              
+              {selectedOrder.access_link && (
+                <Button
+                  className="w-full btn-gradient rounded-xl"
+                  onClick={() => window.open(selectedOrder.access_link, '_blank')}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download / Access
+                </Button>
               )}
             </div>
           )}
