@@ -66,7 +66,7 @@ const categories = [
 ];
 
 const ProductsPage: React.FC = () => {
-  const { userData } = useAuth();
+  const { profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -88,14 +88,14 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleConfirmOrder = () => {
-    if (!userData) {
+    if (!profile) {
       toast.error('Please login to place order');
       return;
     }
 
     const totalPrice = (selectedProduct?.price || 0) * quantity;
     
-    if ((userData.walletBalance || 0) < totalPrice) {
+    if ((profile.wallet_balance || 0) < totalPrice) {
       toast.error('Insufficient wallet balance');
       return;
     }
