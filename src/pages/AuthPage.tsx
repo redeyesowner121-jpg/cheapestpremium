@@ -9,7 +9,7 @@ import appLogo from '@/assets/app-logo.jpg';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login, register, loginWithGoogle } = useAuth();
+  const { login, register, loginWithGoogle, user } = useAuth();
   
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -22,6 +22,12 @@ const AuthPage: React.FC = () => {
     phone: '',
     referralCode: '',
   });
+
+  React.useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +57,6 @@ const AuthPage: React.FC = () => {
     setLoading(true);
     try {
       await loginWithGoogle();
-      navigate('/');
     } catch (error) {
       // Error handled in context
     } finally {
@@ -145,6 +150,7 @@ const AuthPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="pl-12 pr-12 h-12 rounded-xl bg-muted border-0"
               required
+              minLength={6}
             />
             <button
               type="button"
@@ -166,8 +172,8 @@ const AuthPage: React.FC = () => {
                 type="text"
                 placeholder="Referral Code (Optional)"
                 value={formData.referralCode}
-                onChange={(e) => setFormData({ ...formData, referralCode: e.target.value })}
-                className="pl-12 h-12 rounded-xl bg-muted border-0"
+                onChange={(e) => setFormData({ ...formData, referralCode: e.target.value.toUpperCase() })}
+                className="pl-12 h-12 rounded-xl bg-muted border-0 uppercase"
               />
             </div>
           )}

@@ -12,27 +12,27 @@ import { useAuth } from '@/contexts/AuthContext';
 import BlueTick from './BlueTick';
 
 const QuickStats: React.FC = () => {
-  const { userData } = useAuth();
+  const { profile } = useAuth();
 
   const stats = [
     {
       icon: <Wallet className="w-5 h-5" />,
       label: 'Balance',
-      value: `₹${userData?.walletBalance?.toFixed(2) || '0.00'}`,
+      value: `₹${profile?.wallet_balance?.toFixed(2) || '0.00'}`,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
       icon: <TrendingUp className="w-5 h-5" />,
       label: 'Total Deposit',
-      value: `₹${userData?.totalDeposit?.toFixed(2) || '0.00'}`,
+      value: `₹${profile?.total_deposit?.toFixed(2) || '0.00'}`,
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
     {
       icon: <ShoppingBag className="w-5 h-5" />,
       label: 'Orders',
-      value: userData?.totalOrders || 0,
+      value: profile?.total_orders || 0,
       color: 'text-accent',
       bgColor: 'bg-accent/10',
     },
@@ -53,7 +53,7 @@ const QuickStats: React.FC = () => {
     >
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-foreground">Your Stats</h2>
-        {userData?.hasBlueCheck && (
+        {profile?.has_blue_check && (
           <div className="flex items-center gap-1 text-sm text-primary">
             <BlueTick size="sm" />
             <span className="font-medium">Verified</span>
@@ -80,7 +80,7 @@ const QuickStats: React.FC = () => {
       </div>
 
       {/* Blue Tick Progress */}
-      {!userData?.hasBlueCheck && (
+      {!profile?.has_blue_check && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -94,13 +94,13 @@ const QuickStats: React.FC = () => {
             <div className="flex-1">
               <p className="font-semibold text-foreground text-sm">Get Blue Tick!</p>
               <p className="text-xs text-muted-foreground">
-                Deposit ₹1000 total to get free Blue Tick
+                Deposit Rs1000 total to get free Blue Tick
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Progress</p>
               <p className="font-bold text-primary">
-                {Math.min(100, ((userData?.totalDeposit || 0) / 1000) * 100).toFixed(0)}%
+                {Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100).toFixed(0)}%
               </p>
             </div>
           </div>
@@ -109,7 +109,7 @@ const QuickStats: React.FC = () => {
               className="h-full gradient-primary rounded-full"
               initial={{ width: 0 }}
               animate={{ 
-                width: `${Math.min(100, ((userData?.totalDeposit || 0) / 1000) * 100)}%` 
+                width: `${Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100)}%` 
               }}
               transition={{ delay: 0.5, duration: 0.8 }}
             />
@@ -131,7 +131,7 @@ const QuickStats: React.FC = () => {
           <div>
             <p className="font-bold text-accent-foreground text-sm">Special Offer!</p>
             <p className="text-xs text-accent-foreground/80">
-              Deposit ₹1000 at once → Get ₹100 bonus + Blue Tick!
+              Deposit Rs1000 at once → Get Rs100 bonus + Blue Tick!
             </p>
           </div>
         </div>

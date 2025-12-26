@@ -1,6 +1,6 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, MessageCircle, Settings, Shield } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Bell, MessageCircle, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import BlueTick from './BlueTick';
@@ -8,9 +8,9 @@ import appLogo from '@/assets/app-logo.jpg';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { userData } = useAuth();
+  const { profile, isAdmin, isTempAdmin } = useAuth();
 
-  const isAdmin = userData?.isAdmin || userData?.isTempAdmin;
+  const showAdminButton = isAdmin || isTempAdmin;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass">
@@ -26,18 +26,18 @@ const Header: React.FC = () => {
           <div>
             <h1 className="text-lg font-bold text-foreground flex items-center gap-1">
               RKR Premium
-              {userData?.hasBlueCheck && <BlueTick size="sm" />}
+              {profile?.has_blue_check && <BlueTick size="sm" />}
             </h1>
-            {userData && (
+            {profile && (
               <p className="text-xs text-muted-foreground">
-                Balance: ₹{userData.walletBalance.toFixed(2)}
+                Balance: ₹{profile.wallet_balance?.toFixed(2) || '0.00'}
               </p>
             )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {isAdmin && (
+          {showAdminButton && (
             <motion.button
               onClick={() => navigate('/admin')}
               className="p-2 rounded-xl bg-accent/10 text-accent"
