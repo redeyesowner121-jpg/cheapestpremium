@@ -1,4 +1,19 @@
 import React from 'react';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  rating: number;
+  soldCount: number;
+}
+
+interface ProductGridProps {
+  products?: Product[];
+  onBuyClick?: () => void;
+}
 import { motion } from 'framer-motion';
 import { Star, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

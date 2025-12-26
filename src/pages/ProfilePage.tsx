@@ -12,11 +12,10 @@ import {
   Edit,
   LogOut,
   ChevronRight,
-  Check,
   Gift,
   HelpCircle,
   Shield,
-  ExternalLink
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,15 +30,18 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BlueTick from '@/components/BlueTick';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { profile, logout, refreshProfile } = useAuth();
+  const { profile, logout, refreshProfile, user } = useAuth();
   
   const [showEditReferral, setShowEditReferral] = useState(false);
+  const [showDailyBonus, setShowDailyBonus] = useState(false);
   const [newReferralCode, setNewReferralCode] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notifications_enabled || false);
+  const [claimingBonus, setClaimingBonus] = useState(false);
 
   const handleCopyReferralCode = () => {
     navigator.clipboard.writeText(profile?.referral_code || '');
@@ -47,12 +49,16 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleShare = () => {
+    const shareText = `Join RKR Premium Store with my referral code ${profile?.referral_code} and get bonus!`;
     if (navigator.share) {
       navigator.share({
         title: 'Join RKR Premium Store',
-        text: `Use my referral code ${profile?.referral_code} to get bonus!`,
+        text: shareText,
         url: window.location.origin,
       });
+    } else {
+      navigator.clipboard.writeText(`${shareText}\n${window.location.origin}`);
+      toast.success('Link copied!');
     }
   };
 
@@ -63,8 +69,20 @@ const ProfilePage: React.FC = () => {
     }
     
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      await supabase.from('profiles').update({ referral_code: newReferralCode.toUpperCase() }).eq('id', profile?.id);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ referral_code: newReferralCode.toUpperCase() })
+        .eq('id', profile?.id);
+      
+      if (error) {
+        if (error.code === '23505') {
+          toast.error('This referral code is already taken');
+        } else {
+          toast.error('Failed to update referral code');
+        }
+        return;
+      }
+      
       await refreshProfile();
       setShowEditReferral(false);
       toast.success('Referral code updated!');
@@ -75,13 +93,65 @@ const ProfilePage: React.FC = () => {
 
   const handleToggleNotifications = async () => {
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      await supabase.from('profiles').update({ notifications_enabled: !notificationsEnabled }).eq('id', profile?.id);
+      await supabase
+        .from('profiles')
+        .update({ notifications_enabled: !notificationsEnabled })
+        .eq('id', profile?.id);
       setNotificationsEnabled(!notificationsEnabled);
       toast.success(notificationsEnabled ? 'Notifications disabled' : 'Notifications enabled');
     } catch (error) {
       toast.error('Failed to update notification settings');
     }
+  };
+
+  const handleClaimDailyBonus = async () => {
+    if (!user || !profile) return;
+    
+    // Check if already claimed today
+    const today = new Date().toISOString().split('T')[0];
+    if (profile.last_daily_bonus === today) {
+      toast.error('You have already claimed your daily bonus today!');
+      return;
+    }
+    
+    setClaimingBonus(true);
+    
+    // Random bonus between 0.10 and 0.60
+    const bonusAmount = parseFloat((Math.random() * 0.5 + 0.1).toFixed(2));
+    
+    try {
+      const newBalance = (profile.wallet_balance || 0) + bonusAmount;
+      
+      await supabase
+        .from('profiles')
+        .update({ 
+          wallet_balance: newBalance,
+          last_daily_bonus: today
+        })
+        .eq('id', user.id);
+
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'bonus',
+        amount: bonusAmount,
+        status: 'completed',
+        description: 'Daily sign-in bonus'
+      });
+
+      toast.success(`🎉 You received Rs${bonusAmount} daily bonus!`);
+      await refreshProfile();
+      setShowDailyBonus(false);
+    } catch (error) {
+      toast.error('Failed to claim bonus');
+    } finally {
+      setClaimingBonus(false);
+    }
+  };
+
+  const canClaimDailyBonus = () => {
+    if (!profile?.last_daily_bonus) return true;
+    const today = new Date().toISOString().split('T')[0];
+    return profile.last_daily_bonus !== today;
   };
 
   const handleLogout = async () => {
@@ -108,7 +178,7 @@ const ProfilePage: React.FC = () => {
     },
     {
       icon: <Users className="w-5 h-5" />,
-      label: 'Other Users',
+      label: 'Community',
       color: 'text-secondary',
       bgColor: 'bg-secondary/10',
       onClick: () => navigate('/users'),
@@ -126,10 +196,10 @@ const ProfilePage: React.FC = () => {
     {
       icon: <Gift className="w-5 h-5" />,
       label: 'Daily Bonus',
-      value: 'Claim Now',
+      value: canClaimDailyBonus() ? 'Claim Now!' : 'Claimed ✓',
       color: 'text-pink-500',
       bgColor: 'bg-pink-100',
-      onClick: () => {},
+      onClick: () => setShowDailyBonus(true),
     },
     {
       icon: <HelpCircle className="w-5 h-5" />,
@@ -174,6 +244,9 @@ const ProfilePage: React.FC = () => {
             {profile?.has_blue_check && <BlueTick size="md" />}
           </h2>
           <p className="text-primary-foreground/70 text-sm">{profile?.email}</p>
+          {profile?.phone && (
+            <p className="text-primary-foreground/60 text-xs">{profile.phone}</p>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mt-6">
@@ -194,6 +267,21 @@ const ProfilePage: React.FC = () => {
               <p className="text-xs text-primary-foreground/70">Referrals</p>
             </div>
           </div>
+          
+          {/* Blue Tick Progress */}
+          {!profile?.has_blue_check && (
+            <div className="mt-4 p-3 bg-white/10 rounded-xl">
+              <p className="text-xs text-primary-foreground/80 mb-2">
+                Deposit ₹{Math.max(0, 1000 - (profile?.total_deposit || 0))} more to get Blue Tick!
+              </p>
+              <div className="w-full bg-white/20 rounded-full h-2">
+                <div 
+                  className="bg-white h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           <Button
             variant="outline"
@@ -279,7 +367,9 @@ const ProfilePage: React.FC = () => {
               ) : (
                 <>
                   {item.value && (
-                    <span className="text-sm text-muted-foreground">{item.value}</span>
+                    <span className={`text-sm ${item.label === 'Daily Bonus' && canClaimDailyBonus() ? 'text-success font-semibold' : 'text-muted-foreground'}`}>
+                      {item.value}
+                    </span>
                   )}
                   <ChevronRight className="w-5 h-5 text-muted-foreground" />
                 </>
@@ -336,6 +426,46 @@ const ProfilePage: React.FC = () => {
             >
               Update Code
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Daily Bonus Modal */}
+      <Dialog open={showDailyBonus} onOpenChange={setShowDailyBonus}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-center">Daily Sign-in Bonus</DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-4 text-center space-y-4">
+            <div className="w-24 h-24 mx-auto gradient-accent rounded-full flex items-center justify-center animate-pulse">
+              <Gift className="w-12 h-12 text-accent-foreground" />
+            </div>
+            
+            {canClaimDailyBonus() ? (
+              <>
+                <p className="text-muted-foreground">
+                  Claim your daily bonus! You can earn between <span className="font-bold text-success">₹0.10 to ₹0.60</span>
+                </p>
+                <Button
+                  className="w-full btn-gradient rounded-xl h-12"
+                  onClick={handleClaimDailyBonus}
+                  disabled={claimingBonus}
+                >
+                  {claimingBonus ? 'Claiming...' : '🎁 Claim Daily Bonus'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  You've already claimed your daily bonus today! Come back tomorrow for more.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-success">
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-semibold">Next bonus: Tomorrow</span>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
