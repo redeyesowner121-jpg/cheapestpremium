@@ -81,7 +81,7 @@ const mockOrders: Order[] = [
 ];
 
 const OrdersPage: React.FC = () => {
-  const { userData } = useAuth();
+  const { profile } = useAuth();
   const [orders, setOrders] = useState<Order[]>(mockOrders);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);

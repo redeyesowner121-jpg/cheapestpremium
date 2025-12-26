@@ -35,14 +35,14 @@ import { toast } from 'sonner';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { userData, logout, updateUserData } = useAuth();
+  const { profile, logout, refreshProfile } = useAuth();
   
   const [showEditReferral, setShowEditReferral] = useState(false);
   const [newReferralCode, setNewReferralCode] = useState('');
-  const [notificationsEnabled, setNotificationsEnabled] = useState(userData?.notificationsEnabled || false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notifications_enabled || false);
 
   const handleCopyReferralCode = () => {
-    navigator.clipboard.writeText(userData?.referralCode || '');
+    navigator.clipboard.writeText(profile?.referral_code || '');
     toast.success('Referral code copied!');
   };
 
@@ -50,7 +50,7 @@ const ProfilePage: React.FC = () => {
     if (navigator.share) {
       navigator.share({
         title: 'Join RKR Premium Store',
-        text: `Use my referral code ${userData?.referralCode} to get bonus!`,
+        text: `Use my referral code ${profile?.referral_code} to get bonus!`,
         url: window.location.origin,
       });
     }
@@ -63,7 +63,9 @@ const ProfilePage: React.FC = () => {
     }
     
     try {
-      await updateUserData({ referralCode: newReferralCode.toUpperCase() });
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.from('profiles').update({ referral_code: newReferralCode.toUpperCase() }).eq('id', profile?.id);
+      await refreshProfile();
       setShowEditReferral(false);
       toast.success('Referral code updated!');
     } catch (error) {
@@ -73,7 +75,8 @@ const ProfilePage: React.FC = () => {
 
   const handleToggleNotifications = async () => {
     try {
-      await updateUserData({ notificationsEnabled: !notificationsEnabled });
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.from('profiles').update({ notifications_enabled: !notificationsEnabled }).eq('id', profile?.id);
       setNotificationsEnabled(!notificationsEnabled);
       toast.success(notificationsEnabled ? 'Notifications disabled' : 'Notifications enabled');
     } catch (error) {
@@ -90,7 +93,7 @@ const ProfilePage: React.FC = () => {
     {
       icon: <Wallet className="w-5 h-5" />,
       label: 'Wallet',
-      value: `₹${userData?.walletBalance?.toFixed(2) || '0.00'}`,
+      value: `₹${profile?.wallet_balance?.toFixed(2) || '0.00'}`,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
       onClick: () => navigate('/wallet'),
@@ -98,7 +101,7 @@ const ProfilePage: React.FC = () => {
     {
       icon: <ShoppingBag className="w-5 h-5" />,
       label: 'My Orders',
-      value: userData?.totalOrders || 0,
+      value: profile?.total_orders || 0,
       color: 'text-accent',
       bgColor: 'bg-accent/10',
       onClick: () => navigate('/orders'),
@@ -157,9 +160,9 @@ const ProfilePage: React.FC = () => {
         >
           <div className="relative inline-block">
             <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold text-primary-foreground mx-auto">
-              {userData?.name?.charAt(0).toUpperCase() || 'U'}
+              {profile?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
-            {userData?.hasBlueCheck && (
+            {profile?.has_blue_check && (
               <div className="absolute -bottom-1 -right-1 w-8 h-8 gradient-accent rounded-full flex items-center justify-center">
                 <BlueTick size="sm" />
               </div>
@@ -167,22 +170,22 @@ const ProfilePage: React.FC = () => {
           </div>
 
           <h2 className="text-xl font-bold text-primary-foreground mt-4 flex items-center justify-center gap-2">
-            {userData?.name || 'User'}
-            {userData?.hasBlueCheck && <BlueTick size="md" />}
+            {profile?.name || 'User'}
+            {profile?.has_blue_check && <BlueTick size="md" />}
           </h2>
-          <p className="text-primary-foreground/70 text-sm">{userData?.email}</p>
+          <p className="text-primary-foreground/70 text-sm">{profile?.email}</p>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mt-6">
             <div className="text-center">
               <p className="text-2xl font-bold text-primary-foreground">
-                ₹{userData?.totalDeposit?.toFixed(0) || '0'}
+                ₹{profile?.total_deposit?.toFixed(0) || '0'}
               </p>
               <p className="text-xs text-primary-foreground/70">Deposited</p>
             </div>
             <div className="text-center border-x border-primary-foreground/20">
               <p className="text-2xl font-bold text-primary-foreground">
-                {userData?.totalOrders || 0}
+                {profile?.total_orders || 0}
               </p>
               <p className="text-xs text-primary-foreground/70">Orders</p>
             </div>
@@ -221,7 +224,7 @@ const ProfilePage: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <div className="flex-1 bg-muted rounded-xl px-4 py-3 font-mono font-bold text-foreground">
-              {userData?.referralCode || 'RKRXXXX'}
+              {profile?.referral_code || 'RKRXXXX'}
             </div>
             <Button
               size="icon"

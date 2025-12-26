@@ -24,7 +24,7 @@ interface Message {
 
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
-  const { userData } = useAuth();
+  const { profile } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -68,8 +68,8 @@ const ChatPage: React.FC = () => {
     const message: Message = {
       id: Date.now().toString(),
       text: newMessage,
-      senderId: userData?.uid || 'user',
-      senderName: userData?.name || 'User',
+      senderId: profile?.id || 'user',
+      senderName: profile?.name || 'User',
       timestamp: Date.now(),
       isAdmin: false,
     };
@@ -166,11 +166,6 @@ const ChatPage: React.FC = () => {
           <div className="bg-accent/10 rounded-xl px-4 py-2 text-center">
             <p className="text-xs text-muted-foreground">
               WhatsApp: +918900684167 (WhatsApp only)
-            </p>
-          </div>
-        </div>
-      </div>
-              WhatsApp: +91 890068416 or +91 8075101327
             </p>
           </div>
         </div>
