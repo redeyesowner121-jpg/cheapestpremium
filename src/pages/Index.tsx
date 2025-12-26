@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
-  const { userData, loading } = useAuth();
+  const { profile, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -22,7 +22,7 @@ const Index: React.FC = () => {
     );
   }
 
-  if (!userData) {
+  if (!user) {
     navigate('/auth');
     return null;
   }

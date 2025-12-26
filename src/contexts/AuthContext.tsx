@@ -1,48 +1,38 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  User,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  signInWithPopup,
-  onAuthStateChanged,
-  updateProfile
-} from 'firebase/auth';
-import { ref, set, get, update, onValue } from 'firebase/database';
-import { auth, database, googleProvider } from '@/lib/firebase';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface UserData {
-  uid: string;
+export interface UserProfile {
+  id: string;
   email: string;
   name: string;
   phone?: string;
-  photoURL?: string;
-  walletBalance: number;
-  totalDeposit: number;
-  totalOrders: number;
-  hasBlueCheck: boolean;
-  referralCode: string;
-  referredBy?: string;
-  isAdmin: boolean;
-  isTempAdmin: boolean;
-  tempAdminExpiry?: number;
-  createdAt: number;
-  lastLogin: number;
-  lastDailyBonus?: string;
-  notificationsEnabled: boolean;
+  avatar_url?: string;
+  wallet_balance: number;
+  total_deposit: number;
+  total_orders: number;
+  has_blue_check: boolean;
+  referral_code: string;
+  referred_by?: string;
+  notifications_enabled: boolean;
+  last_daily_bonus?: string;
+  created_at: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  userData: UserData | null;
+  session: Session | null;
+  profile: UserProfile | null;
   loading: boolean;
+  isAdmin: boolean;
+  isTempAdmin: boolean;
+  tempAdminExpiry?: string;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, phone?: string, referralCode?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  updateUserData: (data: Partial<UserData>) => Promise<void>;
-  refreshUserData: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -55,201 +45,195 @@ export const useAuth = () => {
   return context;
 };
 
-const generateReferralCode = () => {
-  return 'RKR' + Math.random().toString(36).substring(2, 8).toUpperCase();
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isTempAdmin, setIsTempAdmin] = useState(false);
+  const [tempAdminExpiry, setTempAdminExpiry] = useState<string | undefined>();
 
-  const createUserData = async (user: User, name: string, phone?: string, referralCode?: string): Promise<UserData> => {
-    const newUserData: UserData = {
-      uid: user.uid,
-      email: user.email || '',
-      name: name,
-      phone: phone,
-      photoURL: user.photoURL || '',
-      walletBalance: 0,
-      totalDeposit: 0,
-      totalOrders: 0,
-      hasBlueCheck: false,
-      referralCode: generateReferralCode(),
-      referredBy: referralCode,
-      isAdmin: user.email === 'admin@2007' || user.email === 'admin@rkr.com',
-      isTempAdmin: false,
-      createdAt: Date.now(),
-      lastLogin: Date.now(),
-      notificationsEnabled: false,
-    };
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-    await set(ref(database, `users/${user.uid}`), newUserData);
-    
-    // If referral code provided, credit the referrer
-    if (referralCode) {
-      const usersRef = ref(database, 'users');
-      const snapshot = await get(usersRef);
-      if (snapshot.exists()) {
-        const users = snapshot.val();
-        for (const uid in users) {
-          if (users[uid].referralCode === referralCode) {
-            await update(ref(database, `users/${uid}`), {
-              walletBalance: (users[uid].walletBalance || 0) + 10
-            });
-            break;
-          }
+    if (data) {
+      setProfile(data as UserProfile);
+    }
+    return data;
+  };
+
+  const checkAdminRole = async (userId: string) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role, temp_admin_expiry')
+      .eq('user_id', userId);
+
+    if (data) {
+      const adminRole = data.find(r => r.role === 'admin');
+      const tempAdminRole = data.find(r => r.role === 'temp_admin');
+      
+      setIsAdmin(!!adminRole);
+      
+      if (tempAdminRole) {
+        const expiry = tempAdminRole.temp_admin_expiry;
+        if (expiry && new Date(expiry) > new Date()) {
+          setIsTempAdmin(true);
+          setTempAdminExpiry(expiry);
+        } else {
+          setIsTempAdmin(false);
         }
       }
     }
-
-    return newUserData;
-  };
-
-  const fetchUserData = async (uid: string): Promise<UserData | null> => {
-    const snapshot = await get(ref(database, `users/${uid}`));
-    if (snapshot.exists()) {
-      return snapshot.val();
-    }
-    return null;
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
-      if (user) {
-        const data = await fetchUserData(user.uid);
-        if (data) {
-          // Check if temp admin expired
-          if (data.isTempAdmin && data.tempAdminExpiry && data.tempAdminExpiry < Date.now()) {
-            await update(ref(database, `users/${user.uid}`), {
-              isTempAdmin: false,
-              tempAdminExpiry: null
-            });
-            data.isTempAdmin = false;
-          }
-          
-          // Update last login
-          await update(ref(database, `users/${user.uid}`), {
-            lastLogin: Date.now()
-          });
-          
-          setUserData(data);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          setTimeout(() => {
+            fetchProfile(session.user.id);
+            checkAdminRole(session.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+          setIsAdmin(false);
+          setIsTempAdmin(false);
         }
-      } else {
-        setUserData(null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id);
+        checkAdminRole(session.user.id);
       }
       
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Listen for real-time updates to user data
-  useEffect(() => {
-    if (!user) return;
-
-    const userRef = ref(database, `users/${user.uid}`);
-    const unsubscribe = onValue(userRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setUserData(snapshot.val());
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
   const login = async (email: string, password: string) => {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      const data = await fetchUserData(result.user.uid);
-      if (data) {
-        await update(ref(database, `users/${result.user.uid}`), {
-          lastLogin: Date.now()
-        });
-      }
-      toast.success('Welcome back!');
-    } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
+    toast.success('Welcome back!');
   };
 
   const register = async (email: string, password: string, name: string, phone?: string, referralCode?: string) => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(result.user, { displayName: name });
-      await createUserData(result.user, name, phone, referralCode);
-      toast.success('Account created successfully!');
-    } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { name, phone, referred_by: referralCode }
+      }
+    });
+    
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
+
+    // Update profile with additional data if created
+    if (data.user) {
+      await supabase.from('profiles').update({
+        name,
+        phone,
+        referred_by: referralCode
+      }).eq('id', data.user.id);
+
+      // Handle referral bonus
+      if (referralCode) {
+        const { data: referrer } = await supabase
+          .from('profiles')
+          .select('id, wallet_balance')
+          .eq('referral_code', referralCode)
+          .maybeSingle();
+        
+        if (referrer) {
+          await supabase.from('profiles').update({
+            wallet_balance: (referrer.wallet_balance || 0) + 10
+          }).eq('id', referrer.id);
+
+          await supabase.from('transactions').insert({
+            user_id: referrer.id,
+            type: 'referral',
+            amount: 10,
+            status: 'completed',
+            description: 'Referral bonus'
+          });
+        }
+      }
+    }
+    
+    toast.success('Account created successfully!');
   };
 
   const loginWithGoogle = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      let data = await fetchUserData(result.user.uid);
-      
-      if (!data) {
-        data = await createUserData(result.user, result.user.displayName || 'User');
-      } else {
-        await update(ref(database, `users/${result.user.uid}`), {
-          lastLogin: Date.now()
-        });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`
       }
-      
-      toast.success('Welcome!');
-    } catch (error: any) {
-      toast.error(error.message || 'Google login failed');
+    });
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-      setUserData(null);
-      toast.success('Logged out successfully');
-    } catch (error: any) {
-      toast.error(error.message || 'Logout failed');
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error(error.message);
       throw error;
     }
+    setProfile(null);
+    setIsAdmin(false);
+    setIsTempAdmin(false);
+    toast.success('Logged out successfully');
   };
 
-  const updateUserData = async (data: Partial<UserData>) => {
-    if (!user) return;
-    
-    try {
-      await update(ref(database, `users/${user.uid}`), data);
-    } catch (error: any) {
-      toast.error(error.message || 'Update failed');
-      throw error;
-    }
-  };
-
-  const refreshUserData = async () => {
-    if (!user) return;
-    const data = await fetchUserData(user.uid);
-    if (data) {
-      setUserData(data);
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id);
+      await checkAdminRole(user.id);
     }
   };
 
   return (
     <AuthContext.Provider value={{
       user,
-      userData,
+      session,
+      profile,
       loading,
+      isAdmin,
+      isTempAdmin,
+      tempAdminExpiry,
       login,
       register,
       loginWithGoogle,
       logout,
-      updateUserData,
-      refreshUserData,
+      refreshProfile,
     }}>
       {children}
     </AuthContext.Provider>

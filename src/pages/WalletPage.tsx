@@ -27,115 +27,156 @@ import {
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useAuth } from '@/contexts/AuthContext';
-import { ref, update, push, set } from 'firebase/database';
-import { database } from '@/lib/firebase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 interface Transaction {
   id: string;
-  type: 'deposit' | 'withdraw' | 'purchase' | 'refund' | 'bonus' | 'referral';
+  type: string;
   amount: number;
-  status: 'pending' | 'completed' | 'failed';
+  status: string;
   description: string;
-  createdAt: number;
+  created_at: string;
 }
 
 const WalletPage: React.FC = () => {
   const navigate = useNavigate();
-  const { userData, user, updateUserData } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  React.useEffect(() => {
+    if (user) {
+      loadTransactions();
+    }
+  }, [user]);
+
+  const loadTransactions = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    if (data) {
+      setTransactions(data);
+    }
+  };
 
   const quickAmounts = [100, 200, 500, 1000, 2000];
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handleDeposit = async () => {
-    if (!user || !userData) return;
+    if (!user || !profile) return;
     
     const amount = parseFloat(depositAmount);
     if (isNaN(amount) || amount < 10) {
-      toast.error('Minimum deposit is ₹10');
+      toast.error('Minimum deposit is Rs 10');
       return;
     }
 
     setLoading(true);
 
     try {
-      let bonusAmount = 0;
-      let shouldGetBlueTick = false;
-
-      // Check for ₹1000 single deposit bonus
-      if (amount >= 1000) {
-        bonusAmount = 100;
-        shouldGetBlueTick = true;
-        toast.success('🎉 Congrats! You got ₹100 bonus + Blue Tick!');
+      // Load Razorpay script
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error('Failed to load payment gateway');
+        setLoading(false);
+        return;
       }
 
-      const newTotalDeposit = (userData.totalDeposit || 0) + amount;
-      
-      // Check for total ₹1000 deposit blue tick
-      if (!shouldGetBlueTick && newTotalDeposit >= 1000 && !userData.hasBlueCheck) {
-        shouldGetBlueTick = true;
-        toast.success('🎉 You earned your Blue Tick!');
+      // Create Razorpay order via edge function
+      const { data: orderData, error: orderError } = await supabase.functions.invoke('razorpay-order', {
+        body: { amount, userId: user.id }
+      });
+
+      if (orderError || !orderData) {
+        toast.error('Failed to create payment order');
+        setLoading(false);
+        return;
       }
 
-      const newBalance = (userData.walletBalance || 0) + amount + bonusAmount;
+      // Open Razorpay checkout
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'RKR Premium Store',
+        description: `Wallet Deposit - Rs ${amount}`,
+        order_id: orderData.orderId,
+        handler: async (response: any) => {
+          // Verify payment
+          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-verify', {
+            body: {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              userId: user.id,
+              amount
+            }
+          });
 
-      // Update user data
-      await update(ref(database, `users/${user.uid}`), {
-        walletBalance: newBalance,
-        totalDeposit: newTotalDeposit,
-        hasBlueCheck: shouldGetBlueTick || userData.hasBlueCheck,
-      });
+          if (verifyError || !verifyData?.success) {
+            toast.error('Payment verification failed');
+            return;
+          }
 
-      // Add transaction record
-      const transactionRef = push(ref(database, `transactions/${user.uid}`));
-      await set(transactionRef, {
-        type: 'deposit',
-        amount: amount,
-        bonus: bonusAmount,
-        status: 'completed',
-        description: `Deposited ₹${amount}${bonusAmount > 0 ? ` + ₹${bonusAmount} bonus` : ''}`,
-        createdAt: Date.now(),
-      });
+          if (verifyData.bonusAmount > 0) {
+            toast.success(`🎉 You got Rs${verifyData.bonusAmount} bonus!`);
+          }
+          if (verifyData.gotBlueTick) {
+            toast.success('🎉 You earned your Blue Tick!');
+          }
 
-      setShowDepositModal(false);
-      setDepositAmount('');
-      toast.success('Deposit successful!');
+          toast.success('Deposit successful!');
+          refreshProfile();
+          loadTransactions();
+          setShowDepositModal(false);
+          setDepositAmount('');
+        },
+        prefill: {
+          email: profile.email,
+          contact: profile.phone || ''
+        },
+        theme: {
+          color: '#4f46e5'
+        }
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+
     } catch (error: any) {
       toast.error(error.message || 'Deposit failed');
     } finally {
       setLoading(false);
     }
   };
-
-  const transactions: Transaction[] = [
-    {
-      id: '1',
-      type: 'deposit',
-      amount: 500,
-      status: 'completed',
-      description: 'UPI Deposit',
-      createdAt: Date.now() - 86400000,
-    },
-    {
-      id: '2',
-      type: 'purchase',
-      amount: -79,
-      status: 'completed',
-      description: 'Netflix Premium',
-      createdAt: Date.now() - 172800000,
-    },
-    {
-      id: '3',
-      type: 'bonus',
-      amount: 100,
-      status: 'completed',
-      description: 'First Deposit Bonus',
-      createdAt: Date.now() - 259200000,
-    },
-  ];
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -182,14 +223,14 @@ const WalletPage: React.FC = () => {
         >
           <p className="text-primary-foreground/80 text-sm">Available Balance</p>
           <h1 className="text-4xl font-bold text-primary-foreground mt-2">
-            ₹{userData?.walletBalance?.toFixed(2) || '0.00'}
+            ₹{profile?.wallet_balance?.toFixed(2) || '0.00'}
           </h1>
           
           <div className="flex items-center justify-center gap-6 mt-6">
             <div className="text-center">
               <p className="text-primary-foreground/60 text-xs">Total Deposit</p>
               <p className="text-primary-foreground font-semibold">
-                ₹{userData?.totalDeposit?.toFixed(2) || '0.00'}
+                ₹{profile?.total_deposit?.toFixed(2) || '0.00'}
               </p>
             </div>
             <div className="w-px h-10 bg-primary-foreground/20" />
@@ -229,6 +270,7 @@ const WalletPage: React.FC = () => {
             <motion.button
               className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
               whileTap={{ scale: 0.95 }}
+              onClick={() => setShowDepositModal(true)}
             >
               <div className="w-12 h-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-2">
                 <Smartphone className="w-6 h-6 text-primary" />
@@ -239,6 +281,7 @@ const WalletPage: React.FC = () => {
             <motion.button
               className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
               whileTap={{ scale: 0.95 }}
+              onClick={() => setShowDepositModal(true)}
             >
               <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
                 <QrCode className="w-6 h-6 text-secondary" />
@@ -249,6 +292,7 @@ const WalletPage: React.FC = () => {
             <motion.button
               className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
               whileTap={{ scale: 0.95 }}
+              onClick={() => setShowDepositModal(true)}
             >
               <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2">
                 <CreditCard className="w-6 h-6 text-accent" />
@@ -271,36 +315,42 @@ const WalletPage: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            {transactions.map((txn, index) => (
-              <motion.div
-                key={txn.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 + index * 0.05 }}
-                className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4"
-              >
-                <div className="p-2 rounded-xl bg-muted">
-                  {getTransactionIcon(txn.type)}
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{txn.description}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(txn.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className={`font-bold ${txn.amount >= 0 ? 'text-success' : 'text-destructive'}`}>
-                    {txn.amount >= 0 ? '+' : ''}₹{Math.abs(txn.amount)}
-                  </p>
-                  <div className="flex items-center justify-end gap-1">
-                    {getStatusIcon(txn.status)}
-                    <span className="text-xs text-muted-foreground capitalize">
-                      {txn.status}
-                    </span>
+            {transactions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No transactions yet
+              </div>
+            ) : (
+              transactions.map((txn, index) => (
+                <motion.div
+                  key={txn.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + index * 0.05 }}
+                  className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4"
+                >
+                  <div className="p-2 rounded-xl bg-muted">
+                    {getTransactionIcon(txn.type)}
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">{txn.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(txn.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold ${txn.amount >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {txn.amount >= 0 ? '+' : ''}₹{Math.abs(txn.amount)}
+                    </p>
+                    <div className="flex items-center justify-end gap-1">
+                      {getStatusIcon(txn.status)}
+                      <span className="text-xs text-muted-foreground capitalize">
+                        {txn.status}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
         </motion.div>
       </main>
@@ -311,7 +361,7 @@ const WalletPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Add Money</DialogTitle>
             <DialogDescription>
-              Deposit ₹1000+ at once to get ₹100 bonus + Blue Tick!
+              Deposit Rs1000+ at once to get Rs100 bonus + Blue Tick!
             </DialogDescription>
           </DialogHeader>
 
