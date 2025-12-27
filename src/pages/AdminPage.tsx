@@ -32,7 +32,9 @@ import {
   Mail,
   Calendar,
   CreditCard,
-  Package
+  Package,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +58,7 @@ import { supabase } from '@/integrations/supabase/client';
 import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminAnalytics from '@/components/AdminAnalytics';
+import { useAdminOrderAlerts } from '@/hooks/useAdminOrderAlerts';
 import { toast } from 'sonner';
 
 const AdminPage: React.FC = () => {
@@ -74,6 +77,16 @@ const AdminPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [alertsEnabled, setAlertsEnabled] = useState(true);
+
+  // Admin order alerts with sound
+  useAdminOrderAlerts(
+    (isAdmin || isTempAdmin) && alertsEnabled,
+    (newOrder) => {
+      // Refresh orders when new order arrives
+      loadData();
+    }
+  );
   
   // Modals
   const [showUserModal, setShowUserModal] = useState(false);
@@ -726,6 +739,15 @@ const AdminPage: React.FC = () => {
               </p>
             )}
           </div>
+          {/* Alert Toggle */}
+          <Button 
+            size="icon" 
+            variant={alertsEnabled ? "default" : "outline"}
+            onClick={() => setAlertsEnabled(!alertsEnabled)}
+            title={alertsEnabled ? "Alerts ON - Click to mute" : "Alerts OFF - Click to enable"}
+          >
+            {alertsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          </Button>
           <Button size="sm" variant="outline" onClick={() => navigate('/chat')}>
             <Phone className="w-4 h-4 mr-2" />
             Contact Users

@@ -66,6 +66,30 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products }) => 
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | 'all'>('7d');
   const [showDetails, setShowDetails] = useState(false);
 
+  // Calculate REAL sales from orders (not fake sold_count)
+  const realSalesData = useMemo(() => {
+    const productSales: Record<string, { count: number; revenue: number; name: string; category: string }> = {};
+    
+    // Only count completed/delivered orders
+    const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered');
+    
+    completedOrders.forEach(order => {
+      const productName = order.product_name;
+      if (!productSales[productName]) {
+        productSales[productName] = { 
+          count: 0, 
+          revenue: 0, 
+          name: productName,
+          category: 'Unknown'
+        };
+      }
+      productSales[productName].count += order.quantity || 1;
+      productSales[productName].revenue += order.total_price || 0;
+    });
+    
+    return productSales;
+  }, [orders]);
+
   // Calculate sales by day based on selected period
   const salesByDay = useMemo(() => {
     const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90;
@@ -156,21 +180,21 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products }) => 
     };
   }, [orders]);
 
-  // Top selling products with more details
+  // Top selling products - REAL DATA from orders only
   const topProducts = useMemo(() => {
-    return [...products]
-      .filter(p => (p.sold_count || 0) > 0)
-      .sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0))
+    // Calculate from REAL order data, not fake sold_count
+    return Object.values(realSalesData)
+      .filter(p => p.count > 0)
+      .sort((a, b) => b.count - a.count)
       .slice(0, 5)
       .map(p => ({
         name: p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name,
         fullName: p.name,
-        sold: p.sold_count || 0,
-        revenue: (p.sold_count || 0) * p.price,
-        stock: p.stock,
+        sold: p.count,
+        revenue: p.revenue,
         category: p.category,
       }));
-  }, [products]);
+  }, [realSalesData]);
 
   // Orders by status
   const ordersByStatus = useMemo(() => {
@@ -186,23 +210,30 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products }) => 
     }));
   }, [orders]);
 
-  // Category distribution with revenue
+  // Category distribution - REAL revenue from orders
   const categoryDistribution = useMemo(() => {
     const categoryData: Record<string, { count: number; revenue: number }> = {};
-    products.forEach(p => {
-      const category = p.category || 'Other';
+    
+    // Get REAL category revenue from completed orders
+    const completedOrders = orders.filter(o => o.status === 'completed' || o.status === 'delivered');
+    
+    completedOrders.forEach(order => {
+      // Find product category
+      const product = products.find(p => p.name === order.product_name);
+      const category = product?.category || 'Other';
+      
       if (!categoryData[category]) {
         categoryData[category] = { count: 0, revenue: 0 };
       }
       categoryData[category].count += 1;
-      categoryData[category].revenue += (p.sold_count || 0) * p.price;
+      categoryData[category].revenue += order.total_price || 0;
     });
     
     return Object.entries(categoryData)
       .map(([name, data]) => ({ name, count: data.count, revenue: data.revenue }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
-  }, [products]);
+  }, [orders, products]);
 
   // Hourly distribution for best selling hours
   const hourlyDistribution = useMemo(() => {
