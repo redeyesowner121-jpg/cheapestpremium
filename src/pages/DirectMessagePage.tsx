@@ -38,11 +38,39 @@ const DirectMessagePage: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Handle typing indicator
+  const handleTyping = () => {
+    if (!presenceChannelRef.current || !user) return;
+    
+    presenceChannelRef.current.track({
+      user_id: user.id,
+      typing: true,
+      online_at: new Date().toISOString()
+    });
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Stop typing after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      presenceChannelRef.current?.track({
+        user_id: user.id,
+        typing: false,
+        online_at: new Date().toISOString()
+      });
+    }, 2000);
   };
 
   useEffect(() => {
@@ -51,9 +79,12 @@ const DirectMessagePage: React.FC = () => {
       loadMessages();
       markMessagesAsRead();
 
+      // Create unique channel for this conversation
+      const conversationId = [user.id, userId].sort().join('-');
+      
       // Subscribe to new messages
-      const channel = supabase
-        .channel(`dm-${user.id}-${userId}`)
+      const messageChannel = supabase
+        .channel(`dm-${conversationId}`)
         .on(
           'postgres_changes',
           {
@@ -76,15 +107,47 @@ const DirectMessagePage: React.FC = () => {
         )
         .subscribe();
 
+      // Subscribe to presence for typing indicators
+      const presenceChannel = supabase.channel(`presence-${conversationId}`, {
+        config: { presence: { key: user.id } }
+      });
+
+      presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+          const state = presenceChannel.presenceState();
+          // Check if the other user is typing
+          const otherUserState = state[userId];
+          if (otherUserState && Array.isArray(otherUserState) && otherUserState.length > 0) {
+            setIsOtherTyping((otherUserState[0] as any).typing === true);
+          } else {
+            setIsOtherTyping(false);
+          }
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            await presenceChannel.track({
+              user_id: user.id,
+              typing: false,
+              online_at: new Date().toISOString()
+            });
+          }
+        });
+
+      presenceChannelRef.current = presenceChannel;
+
       return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(messageChannel);
+        supabase.removeChannel(presenceChannel);
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
       };
     }
   }, [user, userId]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isOtherTyping]);
 
   const loadOtherUser = async () => {
     if (!userId) return;
@@ -284,6 +347,36 @@ const DirectMessagePage: React.FC = () => {
                 </motion.div>
               );
             })}
+            
+            {/* Typing Indicator */}
+            {isOtherTyping && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-start"
+              >
+                <div className="bg-card shadow-card rounded-2xl rounded-tl-none px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <motion.span
+                      className="w-2 h-2 bg-muted-foreground rounded-full"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 0.6, delay: 0 }}
+                    />
+                    <motion.span
+                      className="w-2 h-2 bg-muted-foreground rounded-full"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 0.6, delay: 0.2 }}
+                    />
+                    <motion.span
+                      className="w-2 h-2 bg-muted-foreground rounded-full"
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ repeat: Infinity, duration: 0.6, delay: 0.4 }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -324,7 +417,10 @@ const DirectMessagePage: React.FC = () => {
           <Input
             placeholder="Type a message..."
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              handleTyping();
+            }}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
             className="flex-1 h-10 rounded-full bg-muted border-0"
           />
