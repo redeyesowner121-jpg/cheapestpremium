@@ -168,8 +168,12 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/auth');
+    try {
+      await logout();
+    } catch (error) {
+      console.log('Logout error ignored');
+    }
+    navigate('/auth', { replace: true });
   };
 
   const menuItems = [
