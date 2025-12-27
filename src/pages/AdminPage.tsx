@@ -532,6 +532,34 @@ const AdminPage: React.FC = () => {
   };
   
   const handleDeleteProduct = async (productId: string) => {
+    // Check if product has orders
+    const { count: orderCount } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('product_id', productId);
+    
+    if (orderCount && orderCount > 0) {
+      // Product has orders - deactivate instead of delete
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: false })
+        .eq('id', productId);
+      
+      if (error) {
+        console.error('Deactivate error:', error);
+        toast.error('Failed to deactivate product');
+        return;
+      }
+      toast.success('Product deactivated (has existing orders)');
+      loadData();
+      return;
+    }
+    
+    // No orders - safe to delete
+    // First delete variations
+    await supabase.from('product_variations').delete().eq('product_id', productId);
+    
+    // Then delete product
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (error) {
       console.error('Delete error:', error);
