@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Settings, 
   Wallet, 
   ShoppingBag, 
   Users, 
@@ -15,8 +14,7 @@ import {
   Gift,
   HelpCircle,
   Shield,
-  Calendar,
-  Store
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,7 +34,7 @@ import { toast } from 'sonner';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { profile, logout, refreshProfile, user, isSeller, isAdmin } = useAuth();
+  const { profile, logout, refreshProfile, user, isAdmin } = useAuth();
   
   const [showEditReferral, setShowEditReferral] = useState(false);
   const [showDailyBonus, setShowDailyBonus] = useState(false);
@@ -199,13 +197,6 @@ const ProfilePage: React.FC = () => {
       onClick: () => navigate('/users'),
     },
     {
-      icon: <ShoppingBag className="w-5 h-5" />,
-      label: 'Sellers',
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-100',
-      onClick: () => navigate('/sellers'),
-    },
-    {
       icon: <Bell className="w-5 h-5" />,
       label: 'Notifications',
       color: 'text-success',
@@ -238,17 +229,6 @@ const ProfilePage: React.FC = () => {
       onClick: () => {},
     },
   ];
-
-  // Add seller panel if user is seller
-  if (isSeller) {
-    menuItems.splice(2, 0, {
-      icon: <Store className="w-5 h-5" />,
-      label: 'Seller Panel',
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-100',
-      onClick: () => navigate('/seller-panel'),
-    });
-  }
 
   return (
     <div className="min-h-screen bg-background pb-24">

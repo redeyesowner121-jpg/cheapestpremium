@@ -29,7 +29,6 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isTempAdmin: boolean;
-  isSeller: boolean;
   tempAdminExpiry?: string;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, phone?: string, referralCode?: string) => Promise<void>;
@@ -57,7 +56,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isTempAdmin, setIsTempAdmin] = useState(false);
-  const [isSeller, setIsSeller] = useState(false);
   const [tempAdminExpiry, setTempAdminExpiry] = useState<string | undefined>();
 
   const fetchProfile = async (userId: string) => {
@@ -82,10 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data) {
       const adminRole = data.find(r => r.role === 'admin');
       const tempAdminRole = data.find(r => r.role === 'temp_admin');
-      const sellerRole = data.find(r => r.role === 'seller');
       
       setIsAdmin(!!adminRole);
-      setIsSeller(!!sellerRole);
       
       if (tempAdminRole) {
         const expiry = tempAdminRole.temp_admin_expiry;
@@ -115,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProfile(null);
           setIsAdmin(false);
           setIsTempAdmin(false);
-          setIsSeller(false);
         }
       }
     );
@@ -324,7 +319,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
     setIsAdmin(false);
     setIsTempAdmin(false);
-    setIsSeller(false);
     toast.success('Logged out successfully');
   };
 
@@ -343,7 +337,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading,
       isAdmin,
       isTempAdmin,
-      isSeller,
       tempAdminExpiry,
       login,
       register,
