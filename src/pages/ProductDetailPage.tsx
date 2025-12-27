@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import BottomNav from '@/components/BottomNav';
+import OrderSuccessModal from '@/components/OrderSuccessModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -46,6 +47,8 @@ const ProductDetailPage: React.FC = () => {
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successOrderData, setSuccessOrderData] = useState({ productName: '', totalPrice: 0 });
   const [userNote, setUserNote] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -210,10 +213,11 @@ const ProductDetailPage: React.FC = () => {
         setCurrentStock(currentStock - quantity);
       }
 
-      toast.success('Order placed successfully!');
+      // Show success modal
+      setSuccessOrderData({ productName, totalPrice });
       setShowPurchaseModal(false);
+      setShowSuccessModal(true);
       await refreshProfile();
-      navigate('/orders');
     } catch (error) {
       console.error('Order error:', error);
       toast.error('Failed to place order');
@@ -472,6 +476,13 @@ const ProductDetailPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <OrderSuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        productName={successOrderData.productName}
+        totalPrice={successOrderData.totalPrice}
+      />
 
       <BottomNav />
     </div>

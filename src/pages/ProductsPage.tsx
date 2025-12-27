@@ -22,6 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import OrderSuccessModal from '@/components/OrderSuccessModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -67,6 +68,8 @@ const ProductsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successOrderData, setSuccessOrderData] = useState({ productName: '', totalPrice: 0 });
   const [quantity, setQuantity] = useState(1);
   const [orderNote, setOrderNote] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
@@ -235,8 +238,10 @@ const ProductsPage: React.FC = () => {
         type: 'order'
       });
 
-      toast.success('Order placed successfully!');
+      // Show success modal
+      setSuccessOrderData({ productName: productNameWithVariation, totalPrice });
       setShowBuyModal(false);
+      setShowSuccessModal(true);
       refreshProfile();
     } catch (error: any) {
       toast.error(error.message || 'Failed to place order');
@@ -548,6 +553,13 @@ const ProductsPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <OrderSuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        productName={successOrderData.productName}
+        totalPrice={successOrderData.totalPrice}
+      />
 
       <BottomNav />
     </div>
