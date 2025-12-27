@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { firebaseAuth, googleProvider } from '@/lib/firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { firebaseAuth, googleProvider, setupRecaptcha, sendPhoneOTP } from '@/lib/firebase';
+import { signInWithPopup, ConfirmationResult } from 'firebase/auth';
 import { toast } from 'sonner';
 
 export interface UserProfile {
@@ -33,6 +33,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, phone?: string, referralCode?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  sendPhoneOTP: (phoneNumber: string, recaptchaContainerId: string) => Promise<ConfirmationResult | null>;
+  verifyPhoneOTP: (confirmationResult: ConfirmationResult, otp: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -249,6 +251,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const handleSendPhoneOTP = async (phoneNumber: string, recaptchaContainerId: string) => {
+    try {
+      const recaptchaVerifier = setupRecaptcha(recaptchaContainerId);
+      const confirmationResult = await sendPhoneOTP(phoneNumber, recaptchaVerifier);
+      toast.success('OTP sent to your phone');
+      return confirmationResult;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send OTP');
+      return null;
+    }
+  };
+
+  const verifyPhoneOTP = async (confirmationResult: ConfirmationResult, otp: string, name: string) => {
+    try {
+      const result = await confirmationResult.confirm(otp);
+      const firebaseUser = result.user;
+      
+      const phone = firebaseUser.phoneNumber;
+      const email = `${phone?.replace(/\+/g, '')}@phone.rkr.app`;
+      const password = `firebase_phone_${firebaseUser.uid}_secure`;
+      
+      // Try to sign in first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (signInError) {
+        // Create new account
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: { name, phone }
+          }
+        });
+        
+        if (signUpError) {
+          toast.error(signUpError.message);
+          throw signUpError;
+        }
+
+        // Update profile
+        if (data.user) {
+          await supabase.from('profiles').update({
+            name,
+            phone
+          }).eq('id', data.user.id);
+        }
+      }
+      
+      toast.success('Welcome!');
+    } catch (error: any) {
+      toast.error(error.message || 'Invalid OTP');
+      throw error;
+    }
+  };
+
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -280,6 +341,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       login,
       register,
       loginWithGoogle,
+      sendPhoneOTP: handleSendPhoneOTP,
+      verifyPhoneOTP,
       logout,
       refreshProfile,
     }}>

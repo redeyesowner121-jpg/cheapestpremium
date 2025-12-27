@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, Share2 } from 'lucide-react';
+import { Star, Share2, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Product {
@@ -16,75 +16,6 @@ interface Product {
   hasAccessLink?: boolean;
 }
 
-const defaultProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Netflix Premium 1 Month',
-    description: 'Ultra HD, 4 Screens',
-    price: 79,
-    originalPrice: 199,
-    image: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=400&h=400&fit=crop',
-    rating: 4.8,
-    soldCount: 1250,
-    category: 'ott',
-  },
-  {
-    id: '2',
-    name: 'Spotify Premium',
-    description: 'Ad-free music streaming',
-    price: 29,
-    originalPrice: 119,
-    image: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=400&h=400&fit=crop',
-    rating: 4.9,
-    soldCount: 2340,
-    category: 'music',
-  },
-  {
-    id: '3',
-    name: 'ChatGPT Plus',
-    description: 'GPT-4 Access',
-    price: 399,
-    originalPrice: 1650,
-    image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=400&fit=crop',
-    rating: 4.7,
-    soldCount: 890,
-    category: 'tools',
-  },
-  {
-    id: '4',
-    name: 'Canva Pro',
-    description: 'Design tools unlimited',
-    price: 99,
-    originalPrice: 999,
-    image: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&h=400&fit=crop',
-    rating: 4.6,
-    soldCount: 567,
-    category: 'tools',
-  },
-  {
-    id: '5',
-    name: 'YouTube Premium',
-    description: 'Ad-free videos + Music',
-    price: 49,
-    originalPrice: 179,
-    image: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400&h=400&fit=crop',
-    rating: 4.8,
-    soldCount: 3420,
-    category: 'ott',
-  },
-  {
-    id: '6',
-    name: 'Amazon Prime',
-    description: 'Video + Shopping Benefits',
-    price: 149,
-    originalPrice: 299,
-    image: 'https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=400&h=400&fit=crop',
-    rating: 4.5,
-    soldCount: 1890,
-    category: 'ott',
-  },
-];
-
 interface ProductGridProps {
   products?: Product[];
   onProductClick?: (product: Product) => void;
@@ -92,7 +23,7 @@ interface ProductGridProps {
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({ 
-  products = defaultProducts,
+  products,
   onProductClick,
   onBuyClick
 }) => {
@@ -106,6 +37,24 @@ const ProductGrid: React.FC<ProductGridProps> = ({
       });
     }
   };
+
+  // If no products from database, show empty state
+  if (!products || products.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full"
+      >
+        <h2 className="text-lg font-bold text-foreground mb-4">Popular Products</h2>
+        <div className="bg-card rounded-2xl h-48 flex flex-col items-center justify-center text-muted-foreground">
+          <Package className="w-12 h-12 mb-3 opacity-50" />
+          <p className="text-sm font-medium">No products available</p>
+          <p className="text-xs mt-1">Check back later for new items</p>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

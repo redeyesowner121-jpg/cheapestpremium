@@ -1,10 +1,9 @@
 import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, Pagination } from 'swiper/modules';
+import { Autoplay } from 'swiper/modules';
 import { motion } from 'framer-motion';
-import { Clock, Zap } from 'lucide-react';
+import { Clock, Zap, ShoppingBag } from 'lucide-react';
 import 'swiper/css';
-import 'swiper/css/pagination';
 
 interface FlashSaleItem {
   id: string;
@@ -15,53 +14,42 @@ interface FlashSaleItem {
   endTime: number;
 }
 
-const defaultFlashSales: FlashSaleItem[] = [
-  {
-    id: '1',
-    name: 'Netflix Premium',
-    originalPrice: 199,
-    salePrice: 49,
-    image: 'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=300&h=300&fit=crop',
-    endTime: Date.now() + 86400000,
-  },
-  {
-    id: '2',
-    name: 'Spotify Premium',
-    originalPrice: 119,
-    salePrice: 29,
-    image: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=300&h=300&fit=crop',
-    endTime: Date.now() + 86400000,
-  },
-  {
-    id: '3',
-    name: 'YouTube Premium',
-    originalPrice: 179,
-    salePrice: 39,
-    image: 'https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=300&h=300&fit=crop',
-    endTime: Date.now() + 86400000,
-  },
-  {
-    id: '4',
-    name: 'Amazon Prime',
-    originalPrice: 299,
-    salePrice: 99,
-    image: 'https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=300&h=300&fit=crop',
-    endTime: Date.now() + 86400000,
-  },
-];
-
 interface FlashSaleSliderProps {
   items?: FlashSaleItem[];
   onItemClick?: (item: FlashSaleItem) => void;
 }
 
 const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({ 
-  items = defaultFlashSales,
+  items,
   onItemClick 
 }) => {
   const calculateDiscount = (original: number, sale: number) => {
     return Math.round(((original - sale) / original) * 100);
   };
+
+  // If no flash sales from database, show empty state
+  if (!items || items.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 gradient-accent rounded-xl">
+              <Zap className="w-5 h-5 text-accent-foreground" />
+            </div>
+            <h2 className="text-lg font-bold text-foreground">Flash Sale</h2>
+          </div>
+        </div>
+        <div className="bg-card rounded-2xl h-32 flex flex-col items-center justify-center text-muted-foreground">
+          <ShoppingBag className="w-10 h-10 mb-2 opacity-50" />
+          <p className="text-sm">No flash sales right now</p>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -78,7 +66,7 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
         </div>
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Clock className="w-4 h-4" />
-          <span>Ends in 24h</span>
+          <span>Limited Time</span>
         </div>
       </div>
 
