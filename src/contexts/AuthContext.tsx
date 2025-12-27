@@ -311,11 +311,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error(error.message);
-      throw error;
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Ignore session not found errors - user is already logged out
+      console.log('Logout completed');
     }
+    // Always clear local state regardless of signOut result
     setProfile(null);
     setIsAdmin(false);
     setIsTempAdmin(false);

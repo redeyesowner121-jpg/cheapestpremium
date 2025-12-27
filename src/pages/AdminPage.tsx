@@ -55,6 +55,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
+import AdminAnalytics from '@/components/AdminAnalytics';
 import { toast } from 'sonner';
 
 const AdminPage: React.FC = () => {
@@ -830,7 +831,9 @@ const AdminPage: React.FC = () => {
           </TabsList>
 
           {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-4">
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* Analytics Section */}
+            <AdminAnalytics orders={orders} products={products} />
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Button
