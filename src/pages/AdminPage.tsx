@@ -242,6 +242,11 @@ const AdminPage: React.FC = () => {
     const today = new Date();
     return orderDate.toDateString() === today.toDateString();
   }).length;
+  
+  // Low stock products (threshold from settings or default to 5)
+  const lowStockThreshold = parseInt(settings.low_stock_threshold || '5');
+  const lowStockProducts = products.filter(p => p.stock !== null && p.stock <= lowStockThreshold && p.stock > 0);
+  const outOfStockProducts = products.filter(p => p.stock !== null && p.stock <= 0);
 
   // Filter users
   const filteredUsers = users.filter(u => 
@@ -767,6 +772,50 @@ const AdminPage: React.FC = () => {
             <p className="text-[10px] text-muted-foreground">Products</p>
           </div>
         </div>
+
+        {/* Low Stock Alert */}
+        {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-destructive/10 border border-destructive/20 rounded-2xl p-4 mb-6"
+          >
+            <h3 className="font-semibold text-destructive flex items-center gap-2 mb-3">
+              <Bell className="w-5 h-5" />
+              Stock Alerts
+            </h3>
+            {outOfStockProducts.length > 0 && (
+              <div className="mb-2">
+                <p className="text-sm font-medium text-destructive">Out of Stock ({outOfStockProducts.length}):</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {outOfStockProducts.slice(0, 5).map(p => (
+                    <span key={p.id} className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded">
+                      {p.name}
+                    </span>
+                  ))}
+                  {outOfStockProducts.length > 5 && (
+                    <span className="text-xs text-destructive">+{outOfStockProducts.length - 5} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {lowStockProducts.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-yellow-600">Low Stock ({lowStockProducts.length}):</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {lowStockProducts.slice(0, 5).map(p => (
+                    <span key={p.id} className="text-xs bg-yellow-500/20 text-yellow-700 px-2 py-1 rounded">
+                      {p.name} ({p.stock})
+                    </span>
+                  ))}
+                  {lowStockProducts.length > 5 && (
+                    <span className="text-xs text-yellow-600">+{lowStockProducts.length - 5} more</span>
+                  )}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -1473,7 +1522,7 @@ const AdminPage: React.FC = () => {
                       .from('user_roles')
                       .delete()
                       .eq('id', existingRole.id);
-                    toast.success('Seller role removed');
+                    toast.success('Seller role removed - User is now a normal user');
                   } else {
                     // Add seller role
                     await supabase
@@ -1482,11 +1531,50 @@ const AdminPage: React.FC = () => {
                     toast.success('User is now a seller!');
                   }
                   setShowUserModal(false);
+                  loadData();
                 }}
               >
                 <Shield className="w-4 h-4 mr-2" />
                 Toggle Seller Role
               </Button>
+
+              {/* Delete User - Only for main admin */}
+              {isAdmin && (
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={async () => {
+                    if (!confirm(`Are you sure you want to delete ${selectedUser.name}? This will remove all their data including orders, transactions, and messages.`)) return;
+                    
+                    // Delete user roles first
+                    await supabase.from('user_roles').delete().eq('user_id', selectedUser.id);
+                    
+                    // Delete notifications
+                    await supabase.from('notifications').delete().eq('user_id', selectedUser.id);
+                    
+                    // Delete transactions
+                    await supabase.from('transactions').delete().eq('user_id', selectedUser.id);
+                    
+                    // Delete orders
+                    await supabase.from('orders').delete().eq('user_id', selectedUser.id);
+                    
+                    // Delete profile
+                    const { error } = await supabase.from('profiles').delete().eq('id', selectedUser.id);
+                    
+                    if (error) {
+                      toast.error('Failed to delete user');
+                      return;
+                    }
+                    
+                    toast.success('User deleted successfully');
+                    setShowUserModal(false);
+                    loadData();
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete User
+                </Button>
+              )}
             </div>
           )}
         </DialogContent>

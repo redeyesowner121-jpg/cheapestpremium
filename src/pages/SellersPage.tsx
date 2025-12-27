@@ -124,12 +124,14 @@ const SellersPage: React.FC = () => {
   };
 
   const handleBuyProduct = async () => {
-    if (!selectedProduct || !user || !profile) {
+    if (!selectedProduct || !user || !profile || !selectedSeller) {
       toast.error('Please login to purchase');
       return;
     }
 
     const totalPrice = selectedProduct.price * quantity;
+    const platformCommission = totalPrice * 0.10; // 10% platform fee
+    const sellerEarnings = totalPrice - platformCommission;
 
     if ((profile.wallet_balance || 0) < totalPrice) {
       toast.error('Insufficient wallet balance');
@@ -137,7 +139,7 @@ const SellersPage: React.FC = () => {
       return;
     }
 
-    // Deduct from wallet
+    // Deduct from buyer's wallet
     const newBalance = (profile.wallet_balance || 0) - totalPrice;
     await supabase
       .from('profiles')
@@ -147,10 +149,41 @@ const SellersPage: React.FC = () => {
       })
       .eq('id', user.id);
 
+    // Credit seller's wallet (90% after 10% commission)
+    const { data: sellerProfile } = await supabase
+      .from('profiles')
+      .select('wallet_balance')
+      .eq('id', selectedSeller.id)
+      .single();
+
+    if (sellerProfile) {
+      await supabase
+        .from('profiles')
+        .update({ wallet_balance: (sellerProfile.wallet_balance || 0) + sellerEarnings })
+        .eq('id', selectedSeller.id);
+
+      // Create transaction for seller earnings
+      await supabase.from('transactions').insert({
+        user_id: selectedSeller.id,
+        type: 'sale',
+        amount: sellerEarnings,
+        status: 'completed',
+        description: `Sale: ${selectedProduct.name} (10% commission deducted)`
+      });
+
+      // Notify seller
+      await supabase.from('notifications').insert({
+        user_id: selectedSeller.id,
+        title: 'New Sale! 💰',
+        message: `You sold ${selectedProduct.name} for ₹${totalPrice}. ₹${sellerEarnings.toFixed(2)} credited (10% platform fee deducted).`,
+        type: 'sale'
+      });
+    }
+
     // Create order
     const { error: orderError } = await supabase.from('orders').insert({
       user_id: user.id,
-      product_name: selectedProduct.name,
+      product_name: `[Seller: ${selectedSeller.name}] ${selectedProduct.name}`,
       product_image: selectedProduct.image_url,
       unit_price: selectedProduct.price,
       total_price: totalPrice,
@@ -164,16 +197,16 @@ const SellersPage: React.FC = () => {
       return;
     }
 
-    // Create transaction
+    // Create transaction for buyer
     await supabase.from('transactions').insert({
       user_id: user.id,
       type: 'purchase',
-      amount: totalPrice,
+      amount: -totalPrice,
       status: 'completed',
       description: `Purchase: ${selectedProduct.name}`
     });
 
-    // Create notification
+    // Create notification for buyer
     await supabase.from('notifications').insert({
       user_id: user.id,
       title: 'Order Placed',

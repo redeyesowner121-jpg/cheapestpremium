@@ -13,7 +13,10 @@ import {
   CheckCircle,
   XCircle,
   Gift,
-  TrendingUp
+  TrendingUp,
+  Send,
+  User,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,13 +48,27 @@ interface Transaction {
   created_at: string;
 }
 
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  referral_code: string;
+}
+
 const WalletPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user, refreshProfile } = useAuth();
   
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [searchUser, setSearchUser] = useState('');
+  const [foundUsers, setFoundUsers] = useState<UserProfile[]>([]);
+  const [selectedRecipient, setSelectedRecipient] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchingUsers, setSearchingUsers] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   React.useEffect(() => {
@@ -178,17 +195,119 @@ const WalletPage: React.FC = () => {
     }
   };
 
+  // Search for users to transfer money
+  const handleSearchUsers = async (query: string) => {
+    setSearchUser(query);
+    if (query.length < 2) {
+      setFoundUsers([]);
+      return;
+    }
+    
+    setSearchingUsers(true);
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, name, email, referral_code')
+      .neq('id', user?.id)
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%,referral_code.ilike.%${query}%`)
+      .limit(5);
+    
+    setFoundUsers(data || []);
+    setSearchingUsers(false);
+  };
+
+  // Handle money transfer
+  const handleTransfer = async () => {
+    if (!user || !profile || !selectedRecipient) return;
+    
+    const amount = parseFloat(transferAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (amount > (profile.wallet_balance || 0)) {
+      toast.error('Insufficient balance');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Deduct from sender
+      const newSenderBalance = (profile.wallet_balance || 0) - amount;
+      await supabase
+        .from('profiles')
+        .update({ wallet_balance: newSenderBalance })
+        .eq('id', user.id);
+
+      // Add to receiver
+      const { data: recipientData } = await supabase
+        .from('profiles')
+        .select('wallet_balance')
+        .eq('id', selectedRecipient.id)
+        .single();
+
+      const newRecipientBalance = (recipientData?.wallet_balance || 0) + amount;
+      await supabase
+        .from('profiles')
+        .update({ wallet_balance: newRecipientBalance })
+        .eq('id', selectedRecipient.id);
+
+      // Create transactions for both
+      await supabase.from('transactions').insert([
+        {
+          user_id: user.id,
+          type: 'transfer_out',
+          amount: -amount,
+          status: 'completed',
+          description: `Transfer to ${selectedRecipient.name}`
+        },
+        {
+          user_id: selectedRecipient.id,
+          type: 'transfer_in',
+          amount: amount,
+          status: 'completed',
+          description: `Transfer from ${profile.name}`
+        }
+      ]);
+
+      // Send notification to recipient
+      await supabase.from('notifications').insert({
+        user_id: selectedRecipient.id,
+        title: 'Money Received! 💰',
+        message: `You received ₹${amount} from ${profile.name}${transferNote ? ` - "${transferNote}"` : ''}`,
+        type: 'wallet'
+      });
+
+      toast.success(`₹${amount} sent to ${selectedRecipient.name}`);
+      setShowTransferModal(false);
+      setTransferAmount('');
+      setTransferNote('');
+      setSelectedRecipient(null);
+      setSearchUser('');
+      setFoundUsers([]);
+      refreshProfile();
+      loadTransactions();
+    } catch (error) {
+      toast.error('Transfer failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit':
         return <ArrowDownLeft className="w-5 h-5 text-success" />;
       case 'withdraw':
+      case 'transfer_out':
         return <ArrowUpRight className="w-5 h-5 text-destructive" />;
       case 'purchase':
         return <CreditCard className="w-5 h-5 text-primary" />;
       case 'refund':
+      case 'transfer_in':
         return <ArrowDownLeft className="w-5 h-5 text-success" />;
       case 'bonus':
+      case 'gift':
         return <Gift className="w-5 h-5 text-accent" />;
       case 'referral':
         return <TrendingUp className="w-5 h-5 text-secondary" />;
@@ -266,7 +385,7 @@ const WalletPage: React.FC = () => {
           className="mt-6"
         >
           <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <motion.button
               className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
               whileTap={{ scale: 0.95 }}
@@ -275,7 +394,7 @@ const WalletPage: React.FC = () => {
               <div className="w-12 h-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-2">
                 <Smartphone className="w-6 h-6 text-primary" />
               </div>
-              <span className="text-sm font-medium text-foreground">UPI</span>
+              <span className="text-xs font-medium text-foreground">UPI</span>
             </motion.button>
             
             <motion.button
@@ -286,7 +405,7 @@ const WalletPage: React.FC = () => {
               <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
                 <QrCode className="w-6 h-6 text-secondary" />
               </div>
-              <span className="text-sm font-medium text-foreground">QR Pay</span>
+              <span className="text-xs font-medium text-foreground">QR Pay</span>
             </motion.button>
             
             <motion.button
@@ -297,7 +416,18 @@ const WalletPage: React.FC = () => {
               <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2">
                 <CreditCard className="w-6 h-6 text-accent" />
               </div>
-              <span className="text-sm font-medium text-foreground">Card</span>
+              <span className="text-xs font-medium text-foreground">Card</span>
+            </motion.button>
+
+            <motion.button
+              className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowTransferModal(true)}
+            >
+              <div className="w-12 h-12 mx-auto rounded-xl bg-success/10 flex items-center justify-center mb-2">
+                <Send className="w-6 h-6 text-success" />
+              </div>
+              <span className="text-xs font-medium text-foreground">Transfer</span>
             </motion.button>
           </div>
         </motion.div>
@@ -397,6 +527,113 @@ const WalletPage: React.FC = () => {
             >
               {loading ? 'Processing...' : `Deposit ₹${depositAmount || '0'}`}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Modal */}
+      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Send Money</DialogTitle>
+            <DialogDescription>
+              Transfer money to another user instantly
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-4">
+            {!selectedRecipient ? (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name, email, or referral code"
+                    value={searchUser}
+                    onChange={(e) => handleSearchUsers(e.target.value)}
+                    className="pl-10 rounded-xl"
+                  />
+                </div>
+
+                {searchingUsers ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Searching...
+                  </div>
+                ) : foundUsers.length > 0 ? (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {foundUsers.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => setSelectedRecipient(u)}
+                        className="w-full flex items-center gap-3 p-3 bg-muted rounded-xl hover:bg-muted/80 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
+                          {u.name?.charAt(0) || 'U'}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="font-medium text-foreground">{u.name}</p>
+                          <p className="text-xs text-muted-foreground">{u.email}</p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{u.referral_code}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : searchUser.length >= 2 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No users found
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    Enter at least 2 characters to search
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 p-3 bg-muted rounded-xl">
+                  <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
+                    {selectedRecipient.name?.charAt(0) || 'U'}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">{selectedRecipient.name}</p>
+                    <p className="text-sm text-muted-foreground">{selectedRecipient.email}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedRecipient(null)}
+                  >
+                    Change
+                  </Button>
+                </div>
+
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className="h-14 text-2xl text-center font-bold rounded-xl"
+                />
+
+                <Input
+                  placeholder="Add a note (optional)"
+                  value={transferNote}
+                  onChange={(e) => setTransferNote(e.target.value)}
+                  className="rounded-xl"
+                />
+
+                <div className="text-center text-sm text-muted-foreground">
+                  Your balance: ₹{profile?.wallet_balance?.toFixed(2) || '0.00'}
+                </div>
+
+                <Button
+                  onClick={handleTransfer}
+                  className="w-full h-12 btn-gradient rounded-xl"
+                  disabled={loading || !transferAmount || parseFloat(transferAmount) <= 0}
+                >
+                  {loading ? 'Sending...' : `Send ₹${transferAmount || '0'}`}
+                </Button>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
