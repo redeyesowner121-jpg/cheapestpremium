@@ -81,6 +81,7 @@ const SellerPanelPage: React.FC = () => {
     original_price: '',
     image_url: '',
     access_link: '',
+    stock: '',
     is_active: true
   });
 
@@ -155,6 +156,7 @@ const SellerPanelPage: React.FC = () => {
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       image_url: productForm.image_url || null,
       access_link: productForm.access_link || null,
+      stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active
     };
 
@@ -191,6 +193,7 @@ const SellerPanelPage: React.FC = () => {
         original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
         image_url: productForm.image_url || null,
         access_link: productForm.access_link || null,
+        stock: productForm.stock ? parseInt(productForm.stock) : null,
         is_active: productForm.is_active
       })
       .eq('id', editingProduct.id);
@@ -225,7 +228,7 @@ const SellerPanelPage: React.FC = () => {
     loadStats();
   };
 
-  const handleEditProduct = (product: SellerProduct) => {
+  const handleEditProduct = (product: SellerProduct & { stock?: number | null }) => {
     setEditingProduct(product);
     setProductForm({
       name: product.name,
@@ -235,6 +238,7 @@ const SellerPanelPage: React.FC = () => {
       original_price: product.original_price?.toString() || '',
       image_url: product.image_url || '',
       access_link: product.access_link || '',
+      stock: product.stock?.toString() || '',
       is_active: product.is_active
     });
     setShowProductModal(true);
@@ -249,6 +253,7 @@ const SellerPanelPage: React.FC = () => {
       original_price: '',
       image_url: '',
       access_link: '',
+      stock: '',
       is_active: true
     });
   };
@@ -530,6 +535,13 @@ const SellerPanelPage: React.FC = () => {
               placeholder="Access Link (for digital products)"
               value={productForm.access_link}
               onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
+              className="rounded-xl"
+            />
+            <Input
+              type="number"
+              placeholder="Stock Quantity (leave empty for unlimited)"
+              value={productForm.stock}
+              onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
               className="rounded-xl"
             />
             <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
