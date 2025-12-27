@@ -108,6 +108,7 @@ const AdminPage: React.FC = () => {
     category: '',
     image_url: '',
     access_link: '',
+    stock: '',
     is_active: true
   });
   
@@ -463,6 +464,7 @@ const AdminPage: React.FC = () => {
       category: productForm.category,
       image_url: productForm.image_url,
       access_link: productForm.access_link || null,
+      stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active
     });
     
@@ -472,7 +474,7 @@ const AdminPage: React.FC = () => {
     }
     
     toast.success('Product added!');
-    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setShowProductModal(false);
     loadData();
   };
@@ -487,6 +489,7 @@ const AdminPage: React.FC = () => {
       category: product.category || '',
       image_url: product.image_url || '',
       access_link: product.access_link || '',
+      stock: product.stock?.toString() || '',
       is_active: product.is_active !== false
     });
     setShowProductModal(true);
@@ -506,6 +509,7 @@ const AdminPage: React.FC = () => {
       category: productForm.category,
       image_url: productForm.image_url,
       access_link: productForm.access_link || null,
+      stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active
     }).eq('id', editingProduct.id);
     
@@ -515,7 +519,7 @@ const AdminPage: React.FC = () => {
     }
     
     toast.success('Product updated!');
-    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setEditingProduct(null);
     setShowProductModal(false);
     loadData();
@@ -1622,7 +1626,7 @@ const AdminPage: React.FC = () => {
         setShowProductModal(open);
         if (!open) {
           setEditingProduct(null);
-          setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+          setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
         }
       }}>
         <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
@@ -1710,6 +1714,12 @@ const AdminPage: React.FC = () => {
               placeholder="Access/Download Link (Optional)"
               value={productForm.access_link}
               onChange={(e) => setProductForm({...productForm, access_link: e.target.value})}
+            />
+            <Input
+              type="number"
+              placeholder="Stock Quantity (leave empty for unlimited)"
+              value={productForm.stock}
+              onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
             />
             <div className="flex items-center justify-between">
               <span className="text-sm">Active</span>

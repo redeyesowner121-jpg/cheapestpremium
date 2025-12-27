@@ -360,6 +360,7 @@ export type Database = {
           price: number
           rating: number | null
           sold_count: number | null
+          stock: number | null
           updated_at: string | null
         }
         Insert: {
@@ -375,6 +376,7 @@ export type Database = {
           price: number
           rating?: number | null
           sold_count?: number | null
+          stock?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -390,6 +392,7 @@ export type Database = {
           price?: number
           rating?: number | null
           sold_count?: number | null
+          stock?: number | null
           updated_at?: string | null
         }
         Relationships: []
@@ -498,6 +501,7 @@ export type Database = {
           rating: number | null
           seller_id: string
           sold_count: number | null
+          stock: number | null
           updated_at: string | null
         }
         Insert: {
@@ -514,6 +518,7 @@ export type Database = {
           rating?: number | null
           seller_id: string
           sold_count?: number | null
+          stock?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -530,6 +535,7 @@ export type Database = {
           rating?: number | null
           seller_id?: string
           sold_count?: number | null
+          stock?: number | null
           updated_at?: string | null
         }
         Relationships: []
