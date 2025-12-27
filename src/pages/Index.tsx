@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Bell } from 'lucide-react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
@@ -10,17 +11,26 @@ import ProductGrid from '@/components/ProductGrid';
 import QuickStats from '@/components/QuickStats';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useNotifications } from '@/hooks/useNotifications';
+import { Button } from '@/components/ui/button';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
   const { profile, loading, user } = useAuth();
+  const { permission, requestPermission } = useNotifications();
   const [banners, setBanners] = useState<any[]>([]);
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, []);
+    
+    // Show notification banner if permission not granted
+    if (permission === 'default') {
+      setTimeout(() => setShowNotificationBanner(true), 2000);
+    }
+  }, [permission]);
 
   const loadData = async () => {
     // Load banners
@@ -97,6 +107,33 @@ const Index: React.FC = () => {
       <Header />
       
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-6">
+        {/* Notification Permission Banner */}
+        {showNotificationBanner && permission === 'default' && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center gap-3"
+          >
+            <div className="p-2 bg-primary/20 rounded-xl">
+              <Bell className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-sm text-foreground">Enable Notifications</p>
+              <p className="text-xs text-muted-foreground">Get updates on orders, offers & messages</p>
+            </div>
+            <Button 
+              size="sm" 
+              className="btn-gradient"
+              onClick={async () => {
+                await requestPermission();
+                setShowNotificationBanner(false);
+              }}
+            >
+              Enable
+            </Button>
+          </motion.div>
+        )}
+        
         <BannerSlider banners={banners} />
         <QuickStats />
         <FlashSaleSlider 

@@ -54,6 +54,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BlueTick from '@/components/BlueTick';
+import AdminChatPanel from '@/components/AdminChatPanel';
 import { toast } from 'sonner';
 
 const AdminPage: React.FC = () => {
@@ -301,6 +302,8 @@ const AdminPage: React.FC = () => {
 
   // Order actions
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    const order = orders.find(o => o.id === orderId);
+    
     const updateData: any = { 
       status, 
       admin_note: adminNote || null,
@@ -318,9 +321,43 @@ const AdminPage: React.FC = () => {
       return;
     }
 
+    // Send notification to user
+    if (order) {
+      let notificationTitle = '';
+      let notificationMessage = '';
+      
+      switch (status) {
+        case 'completed':
+          notificationTitle = 'Order Completed! ✅';
+          notificationMessage = `Your order for ${order.product_name} has been completed.`;
+          break;
+        case 'processing':
+          notificationTitle = 'Order Processing 🔄';
+          notificationMessage = `Your order for ${order.product_name} is being processed.`;
+          break;
+        case 'cancelled':
+          notificationTitle = 'Order Cancelled ❌';
+          notificationMessage = `Your order for ${order.product_name} has been cancelled. Refund added to wallet.`;
+          break;
+        case 'refunded':
+          notificationTitle = 'Order Refunded 💰';
+          notificationMessage = `Your order for ${order.product_name} has been refunded.`;
+          break;
+        default:
+          notificationTitle = 'Order Update';
+          notificationMessage = `Your order for ${order.product_name} status: ${status}`;
+      }
+
+      await supabase.from('notifications').insert({
+        user_id: order.user_id,
+        title: notificationTitle,
+        message: notificationMessage,
+        type: 'order'
+      });
+    }
+
     // If cancelled/rejected, refund
     if (status === 'cancelled' || status === 'refunded') {
-      const order = orders.find(o => o.id === orderId);
       if (order) {
         const { data: userProfile } = await supabase
           .from('profiles')
@@ -734,6 +771,7 @@ const AdminPage: React.FC = () => {
             <TabsTrigger value="users" className="flex-1 text-xs">Users</TabsTrigger>
             <TabsTrigger value="orders" className="flex-1 text-xs">Orders</TabsTrigger>
             <TabsTrigger value="products" className="flex-1 text-xs">Products</TabsTrigger>
+            <TabsTrigger value="chat" className="flex-1 text-xs">Chat</TabsTrigger>
             <TabsTrigger value="content" className="flex-1 text-xs">Content</TabsTrigger>
             {isAdmin && <TabsTrigger value="settings" className="flex-1 text-xs">Settings</TabsTrigger>}
           </TabsList>
@@ -1018,6 +1056,11 @@ const AdminPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          </TabsContent>
+          
+          {/* Chat Tab */}
+          <TabsContent value="chat">
+            <AdminChatPanel />
           </TabsContent>
           
           {/* Content Tab (Banners & Flash Sales) */}
