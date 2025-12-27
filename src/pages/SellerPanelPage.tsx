@@ -1,0 +1,638 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  Store, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Package, 
+  DollarSign, 
+  ShoppingBag,
+  ArrowLeft,
+  Camera,
+  Save,
+  X,
+  Image
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import BottomNav from '@/components/BottomNav';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface SellerProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  original_price: number | null;
+  image_url: string | null;
+  access_link: string | null;
+  is_active: boolean;
+  sold_count: number;
+  created_at: string;
+}
+
+interface ProductVariation {
+  id: string;
+  name: string;
+  price: number;
+  is_active: boolean;
+}
+
+const categories = ['OTT', 'Gaming', 'Education', 'Software', 'Social Media', 'Music', 'Cloud', 'Other'];
+
+const SellerPanelPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, profile, refreshProfile } = useAuth();
+  const [products, setProducts] = useState<SellerProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<SellerProduct | null>(null);
+  const [showVariationsModal, setShowVariationsModal] = useState(false);
+  const [selectedProductForVariations, setSelectedProductForVariations] = useState<SellerProduct | null>(null);
+  const [variations, setVariations] = useState<ProductVariation[]>([]);
+
+  // Product form
+  const [productForm, setProductForm] = useState({
+    name: '',
+    description: '',
+    category: 'OTT',
+    price: '',
+    original_price: '',
+    image_url: '',
+    access_link: '',
+    is_active: true
+  });
+
+  // New variation form
+  const [newVariation, setNewVariation] = useState({ name: '', price: '' });
+
+  // Profile form
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+
+  // Stats
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalSold: 0,
+    totalRevenue: 0
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadProducts();
+      loadStats();
+    }
+  }, [user]);
+
+  const loadProducts = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('seller_products')
+      .select('*')
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (data) {
+      setProducts(data);
+    }
+    setLoading(false);
+  };
+
+  const loadStats = async () => {
+    if (!user) return;
+
+    const { data: productsData } = await supabase
+      .from('seller_products')
+      .select('sold_count, price')
+      .eq('seller_id', user.id);
+
+    if (productsData) {
+      const totalSold = productsData.reduce((sum, p) => sum + (p.sold_count || 0), 0);
+      const totalRevenue = productsData.reduce((sum, p) => sum + ((p.sold_count || 0) * p.price), 0);
+      setStats({
+        totalProducts: productsData.length,
+        totalSold,
+        totalRevenue
+      });
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (!user) return;
+    if (!productForm.name || !productForm.price) {
+      toast.error('Please fill required fields');
+      return;
+    }
+
+    const productData = {
+      seller_id: user.id,
+      name: productForm.name,
+      description: productForm.description || null,
+      category: productForm.category,
+      price: parseFloat(productForm.price),
+      original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
+      image_url: productForm.image_url || null,
+      access_link: productForm.access_link || null,
+      is_active: productForm.is_active
+    };
+
+    const { error } = await supabase
+      .from('seller_products')
+      .insert(productData);
+
+    if (error) {
+      toast.error('Failed to add product');
+      return;
+    }
+
+    toast.success('Product added successfully');
+    setShowProductModal(false);
+    resetProductForm();
+    loadProducts();
+    loadStats();
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingProduct) return;
+    if (!productForm.name || !productForm.price) {
+      toast.error('Please fill required fields');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('seller_products')
+      .update({
+        name: productForm.name,
+        description: productForm.description || null,
+        category: productForm.category,
+        price: parseFloat(productForm.price),
+        original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
+        image_url: productForm.image_url || null,
+        access_link: productForm.access_link || null,
+        is_active: productForm.is_active
+      })
+      .eq('id', editingProduct.id);
+
+    if (error) {
+      toast.error('Failed to update product');
+      return;
+    }
+
+    toast.success('Product updated');
+    setShowProductModal(false);
+    setEditingProduct(null);
+    resetProductForm();
+    loadProducts();
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    const { error } = await supabase
+      .from('seller_products')
+      .delete()
+      .eq('id', productId);
+
+    if (error) {
+      toast.error('Failed to delete product');
+      return;
+    }
+
+    toast.success('Product deleted');
+    loadProducts();
+    loadStats();
+  };
+
+  const handleEditProduct = (product: SellerProduct) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name,
+      description: product.description || '',
+      category: product.category,
+      price: product.price.toString(),
+      original_price: product.original_price?.toString() || '',
+      image_url: product.image_url || '',
+      access_link: product.access_link || '',
+      is_active: product.is_active
+    });
+    setShowProductModal(true);
+  };
+
+  const resetProductForm = () => {
+    setProductForm({
+      name: '',
+      description: '',
+      category: 'OTT',
+      price: '',
+      original_price: '',
+      image_url: '',
+      access_link: '',
+      is_active: true
+    });
+  };
+
+  // Variations
+  const handleOpenVariations = async (product: SellerProduct) => {
+    setSelectedProductForVariations(product);
+    const { data } = await supabase
+      .from('seller_product_variations')
+      .select('*')
+      .eq('product_id', product.id);
+    setVariations(data || []);
+    setShowVariationsModal(true);
+  };
+
+  const handleAddVariation = async () => {
+    if (!selectedProductForVariations || !newVariation.name || !newVariation.price) {
+      toast.error('Please fill all fields');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('seller_product_variations')
+      .insert({
+        product_id: selectedProductForVariations.id,
+        name: newVariation.name,
+        price: parseFloat(newVariation.price)
+      });
+
+    if (error) {
+      toast.error('Failed to add variation');
+      return;
+    }
+
+    toast.success('Variation added');
+    setNewVariation({ name: '', price: '' });
+    handleOpenVariations(selectedProductForVariations);
+  };
+
+  const handleDeleteVariation = async (variationId: string) => {
+    const { error } = await supabase
+      .from('seller_product_variations')
+      .delete()
+      .eq('id', variationId);
+
+    if (error) {
+      toast.error('Failed to delete variation');
+      return;
+    }
+
+    toast.success('Variation deleted');
+    if (selectedProductForVariations) {
+      handleOpenVariations(selectedProductForVariations);
+    }
+  };
+
+  // Profile update
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Failed to update profile');
+      return;
+    }
+
+    toast.success('Profile updated');
+    setShowProfileModal(false);
+    await refreshProfile();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      <header className="glass fixed top-0 left-0 right-0 z-50 px-4 py-3">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => navigate(-1)} className="p-2">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-lg font-bold flex items-center gap-2">
+              <Store className="w-5 h-5 text-primary" />
+              Seller Panel
+            </h1>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setShowProfileModal(true)}>
+            <Camera className="w-4 h-4" />
+          </Button>
+        </div>
+      </header>
+
+      <main className="pt-20 px-4 max-w-lg mx-auto">
+        {/* Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-3 gap-3 mb-6"
+        >
+          <div className="bg-card rounded-2xl p-4 text-center shadow-card">
+            <Package className="w-6 h-6 text-primary mx-auto mb-2" />
+            <p className="text-2xl font-bold text-foreground">{stats.totalProducts}</p>
+            <p className="text-xs text-muted-foreground">Products</p>
+          </div>
+          <div className="bg-card rounded-2xl p-4 text-center shadow-card">
+            <ShoppingBag className="w-6 h-6 text-success mx-auto mb-2" />
+            <p className="text-2xl font-bold text-foreground">{stats.totalSold}</p>
+            <p className="text-xs text-muted-foreground">Sold</p>
+          </div>
+          <div className="bg-card rounded-2xl p-4 text-center shadow-card">
+            <DollarSign className="w-6 h-6 text-accent mx-auto mb-2" />
+            <p className="text-2xl font-bold text-foreground">₹{stats.totalRevenue}</p>
+            <p className="text-xs text-muted-foreground">Revenue</p>
+          </div>
+        </motion.div>
+
+        {/* Add Product Button */}
+        <Button
+          className="w-full mb-6 btn-gradient rounded-xl h-12"
+          onClick={() => {
+            setEditingProduct(null);
+            resetProductForm();
+            setShowProductModal(true);
+          }}
+        >
+          <Plus className="w-5 h-5 mr-2" />
+          Add New Product
+        </Button>
+
+        {/* Products List */}
+        <div className="space-y-3">
+          {products.length === 0 ? (
+            <div className="text-center py-12">
+              <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium text-foreground">No products yet</p>
+              <p className="text-sm text-muted-foreground">Add your first product to start selling</p>
+            </div>
+          ) : (
+            products.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-card rounded-2xl p-4 shadow-card"
+              >
+                <div className="flex items-start gap-3">
+                  <img
+                    src={product.image_url || 'https://via.placeholder.com/64'}
+                    alt={product.name}
+                    className="w-16 h-16 rounded-xl object-cover"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">{product.name}</h3>
+                        <p className="text-sm text-muted-foreground">{product.category}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        product.is_active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {product.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="font-bold text-primary">₹{product.price}</span>
+                      {product.original_price && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          ₹{product.original_price}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {product.sold_count} sold
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => handleEditProduct(product)}
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 rounded-xl"
+                    onClick={() => handleOpenVariations(product)}
+                  >
+                    <Image className="w-4 h-4 mr-1" />
+                    Variations
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="rounded-xl"
+                    onClick={() => handleDeleteProduct(product.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      </main>
+
+      {/* Product Modal */}
+      <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <Input
+              placeholder="Product Name *"
+              value={productForm.name}
+              onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+              className="rounded-xl"
+            />
+            <Textarea
+              placeholder="Description"
+              value={productForm.description}
+              onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+              className="rounded-xl"
+              rows={3}
+            />
+            <Select
+              value={productForm.category}
+              onValueChange={(value) => setProductForm({ ...productForm, category: value })}
+            >
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                type="number"
+                placeholder="Price *"
+                value={productForm.price}
+                onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
+                className="rounded-xl"
+              />
+              <Input
+                type="number"
+                placeholder="Original Price"
+                value={productForm.original_price}
+                onChange={(e) => setProductForm({ ...productForm, original_price: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+            <Input
+              placeholder="Image URL"
+              value={productForm.image_url}
+              onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+              className="rounded-xl"
+            />
+            <Input
+              placeholder="Access Link (for digital products)"
+              value={productForm.access_link}
+              onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
+              className="rounded-xl"
+            />
+            <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
+              <span className="text-sm">Active</span>
+              <Switch
+                checked={productForm.is_active}
+                onCheckedChange={(checked) => setProductForm({ ...productForm, is_active: checked })}
+              />
+            </div>
+            <Button
+              className="w-full btn-gradient rounded-xl"
+              onClick={editingProduct ? handleUpdateProduct : handleAddProduct}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {editingProduct ? 'Update Product' : 'Add Product'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Variations Modal */}
+      <Dialog open={showVariationsModal} onOpenChange={setShowVariationsModal}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Product Variations</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              {variations.map((variation) => (
+                <div key={variation.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
+                  <div>
+                    <p className="font-medium">{variation.name}</p>
+                    <p className="text-sm text-primary">₹{variation.price}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteVariation(variation.id)}
+                  >
+                    <X className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-2">Add New Variation</p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Name"
+                  value={newVariation.name}
+                  onChange={(e) => setNewVariation({ ...newVariation, name: e.target.value })}
+                  className="rounded-xl"
+                />
+                <Input
+                  type="number"
+                  placeholder="Price"
+                  value={newVariation.price}
+                  onChange={(e) => setNewVariation({ ...newVariation, price: e.target.value })}
+                  className="rounded-xl w-24"
+                />
+                <Button size="icon" onClick={handleAddVariation} className="rounded-xl">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Profile Modal */}
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Update Profile Picture</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="flex justify-center">
+              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="w-8 h-8 text-primary" />
+                )}
+              </div>
+            </div>
+            <Input
+              placeholder="Profile Picture URL"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              className="rounded-xl"
+            />
+            <Button className="w-full btn-gradient rounded-xl" onClick={handleUpdateProfile}>
+              <Save className="w-4 h-4 mr-2" />
+              Update Profile
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <BottomNav />
+    </div>
+  );
+};
+
+export default SellerPanelPage;

@@ -24,6 +24,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import OrderTimeline from '@/components/OrderTimeline';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -476,6 +477,9 @@ const OrdersPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Order Timeline */}
+              <OrderTimeline orderId={selectedOrder.id} currentStatus={selectedOrder.status} />
 
               {selectedOrder.user_note && (
                 <div className="p-3 bg-muted rounded-xl">
