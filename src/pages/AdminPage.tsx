@@ -532,7 +532,12 @@ const AdminPage: React.FC = () => {
   };
   
   const handleDeleteProduct = async (productId: string) => {
-    await supabase.from('products').delete().eq('id', productId);
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete product: ' + error.message);
+      return;
+    }
     toast.success('Product deleted!');
     loadData();
   };
