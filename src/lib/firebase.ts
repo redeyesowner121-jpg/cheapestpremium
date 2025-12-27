@@ -2,14 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDWGrH9hRb6SFmwQO2cnyA710wLZ2bjHZI",
-  authDomain: "rkr-cheap-premiums.firebaseapp.com",
-  databaseURL: "https://rkr-cheap-premiums-default-rtdb.firebaseio.com",
-  projectId: "rkr-cheap-premiums",
-  storageBucket: "rkr-cheap-premiums.firebasestorage.app",
-  messagingSenderId: "805501288008",
-  appId: "1:805501288008:web:2f8ae26d555c82ec54e27d",
-  measurementId: "G-BN5N7MCQBW"
+  apiKey: "AIzaSyARhUjJ45a6XKuD54P2IxWGf30cowwL2Ac",
+  authDomain: "cheap-premium-14086.firebaseapp.com",
+  databaseURL: "https://cheap-premium-14086-default-rtdb.firebaseio.com",
+  projectId: "cheap-premium-14086",
+  storageBucket: "cheap-premium-14086.firebasestorage.app",
+  messagingSenderId: "896807949890",
+  appId: "1:896807949890:web:f0968ca056c5c9c2f27fdb",
+  measurementId: "G-3WN23EXK6Y"
 };
 
 // Initialize Firebase

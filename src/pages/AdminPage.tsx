@@ -83,6 +83,7 @@ const AdminPage: React.FC = () => {
   const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
   
   // Form states
   const [giftAmount, setGiftAmount] = useState('');
@@ -431,6 +432,50 @@ const AdminPage: React.FC = () => {
     
     toast.success('Product added!');
     setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+    setShowProductModal(false);
+    loadData();
+  };
+
+  const handleEditProduct = (product: any) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name || '',
+      description: product.description || '',
+      price: product.price?.toString() || '',
+      original_price: product.original_price?.toString() || '',
+      category: product.category || '',
+      image_url: product.image_url || '',
+      access_link: product.access_link || '',
+      is_active: product.is_active !== false
+    });
+    setShowProductModal(true);
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingProduct || !productForm.name || !productForm.price || !productForm.category) {
+      toast.error('Please fill required fields');
+      return;
+    }
+    
+    const { error } = await supabase.from('products').update({
+      name: productForm.name,
+      description: productForm.description,
+      price: parseFloat(productForm.price),
+      original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
+      category: productForm.category,
+      image_url: productForm.image_url,
+      access_link: productForm.access_link || null,
+      is_active: productForm.is_active
+    }).eq('id', editingProduct.id);
+    
+    if (error) {
+      toast.error('Failed to update product');
+      return;
+    }
+    
+    toast.success('Product updated!');
+    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+    setEditingProduct(null);
     setShowProductModal(false);
     loadData();
   };
@@ -914,7 +959,9 @@ const AdminPage: React.FC = () => {
                     )}
                   </div>
                   <div className="flex gap-2">
-                    <Button size="icon" variant="outline"><Edit className="w-4 h-4" /></Button>
+                    <Button size="icon" variant="outline" onClick={() => handleEditProduct(product)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
                     <Button size="icon" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -1444,11 +1491,17 @@ const AdminPage: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Add Product Modal */}
-      <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
+      {/* Add/Edit Product Modal */}
+      <Dialog open={showProductModal} onOpenChange={(open) => {
+        setShowProductModal(open);
+        if (!open) {
+          setEditingProduct(null);
+          setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', is_active: true });
+        }
+      }}>
         <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
+            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Input
@@ -1498,8 +1551,8 @@ const AdminPage: React.FC = () => {
                 onCheckedChange={(v) => setProductForm({...productForm, is_active: v})}
               />
             </div>
-            <Button className="w-full btn-gradient" onClick={handleAddProduct}>
-              Add Product
+            <Button className="w-full btn-gradient" onClick={editingProduct ? handleUpdateProduct : handleAddProduct}>
+              {editingProduct ? 'Update Product' : 'Add Product'}
             </Button>
           </div>
         </DialogContent>
