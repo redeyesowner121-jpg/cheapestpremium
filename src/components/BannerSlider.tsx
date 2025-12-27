@@ -50,7 +50,18 @@ const BannerSlider: React.FC<BannerSliderProps> = ({ banners }) => {
       >
         {banners.map((banner) => (
           <SwiperSlide key={banner.id}>
-            <div className="relative h-40 md:h-52">
+            <div 
+              className="relative h-40 md:h-52 cursor-pointer"
+              onClick={() => {
+                if (banner.link) {
+                  if (banner.link.startsWith('http')) {
+                    window.open(banner.link, '_blank');
+                  } else {
+                    window.location.href = banner.link;
+                  }
+                }
+              }}
+            >
               <img
                 src={banner.image}
                 alt={banner.title}

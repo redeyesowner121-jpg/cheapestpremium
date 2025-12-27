@@ -7,11 +7,13 @@ import 'swiper/css';
 
 interface FlashSaleItem {
   id: string;
+  productId?: string;
   name: string;
   originalPrice: number;
   salePrice: number;
   image: string;
   endTime: number;
+  productData?: any;
 }
 
 interface FlashSaleSliderProps {
