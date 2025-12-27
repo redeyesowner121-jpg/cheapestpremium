@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   SlidersHorizontal,
@@ -60,6 +60,7 @@ const categories = [
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const flashSale = location.state?.flashSale;
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -166,6 +167,12 @@ const ProductsPage: React.FC = () => {
   const handleConfirmOrder = async () => {
     if (!profile || !user || !selectedProduct) {
       toast.error('Please login to place order');
+      return;
+    }
+
+    if (!profile.phone) {
+      toast.error('Please add your phone number to place an order');
+      navigate('/profile/edit');
       return;
     }
 

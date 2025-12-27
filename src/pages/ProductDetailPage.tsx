@@ -119,6 +119,12 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
 
+    if (!profile.phone) {
+      toast.error('Please add your phone number to place an order');
+      navigate('/profile/edit');
+      return;
+    }
+
     if (isOutOfStock) {
       toast.error('This product is out of stock');
       return;
