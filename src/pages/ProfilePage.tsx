@@ -16,7 +16,8 @@ import {
   HelpCircle,
   Shield,
   Calendar,
-  Store
+  Store,
+  MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -183,6 +184,13 @@ const ProfilePage: React.FC = () => {
       color: 'text-secondary',
       bgColor: 'bg-secondary/10',
       onClick: () => navigate('/users'),
+    },
+    {
+      icon: <MessageCircle className="w-5 h-5" />,
+      label: 'Messages',
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-100',
+      onClick: () => navigate('/messages'),
     },
     {
       icon: <ShoppingBag className="w-5 h-5" />,
