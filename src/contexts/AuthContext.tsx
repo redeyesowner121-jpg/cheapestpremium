@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { firebaseAuth, googleProvider } from '@/lib/firebase';
+import { signInWithPopup } from 'firebase/auth';
 import { toast } from 'sonner';
 
 export interface UserProfile {
@@ -189,14 +191,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/`
+    try {
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
+      const firebaseUser = result.user;
+      
+      // Sign in to Supabase with the Firebase user's email
+      // First try to sign in, if fails, create account
+      const email = firebaseUser.email;
+      const name = firebaseUser.displayName || email?.split('@')[0] || 'User';
+      const avatarUrl = firebaseUser.photoURL;
+      
+      if (!email) {
+        toast.error('Could not get email from Google account');
+        return;
       }
-    });
-    if (error) {
-      toast.error(error.message);
+
+      // Generate a secure password from Firebase UID
+      const password = `firebase_${firebaseUser.uid}_secure`;
+      
+      // Try to sign in first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (signInError) {
+        // If sign in fails, create new account
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: { name, avatar_url: avatarUrl }
+          }
+        });
+        
+        if (signUpError) {
+          toast.error(signUpError.message);
+          throw signUpError;
+        }
+
+        // Update profile with Google data
+        if (data.user) {
+          await supabase.from('profiles').update({
+            name,
+            avatar_url: avatarUrl
+          }).eq('id', data.user.id);
+        }
+      }
+      
+      toast.success('Welcome!');
+    } catch (error: any) {
+      if (error.code !== 'auth/popup-closed-by-user') {
+        toast.error(error.message || 'Google login failed');
+      }
       throw error;
     }
   };
