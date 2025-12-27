@@ -16,8 +16,7 @@ import {
   HelpCircle,
   Shield,
   Calendar,
-  Store,
-  MessageCircle
+  Store
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,17 +49,31 @@ const ProfilePage: React.FC = () => {
     toast.success('Referral code copied!');
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const shareText = `Join RKR Premium Store with my referral code ${profile?.referral_code} and get bonus!`;
-    if (navigator.share) {
-      navigator.share({
-        title: 'Join RKR Premium Store',
-        text: shareText,
-        url: window.location.origin,
-      });
-    } else {
-      navigator.clipboard.writeText(`${shareText}\n${window.location.origin}`);
-      toast.success('Link copied!');
+    const shareUrl = `${window.location.origin}?ref=${profile?.referral_code}`;
+    
+    const shareData = {
+      title: 'Join RKR Premium Store',
+      text: shareText,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        toast.success('Referral link copied to clipboard!');
+      }
+    } catch (error) {
+      // Fallback - copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        toast.success('Referral link copied to clipboard!');
+      } catch (e) {
+        toast.error('Failed to share');
+      }
     }
   };
 
@@ -184,13 +197,6 @@ const ProfilePage: React.FC = () => {
       color: 'text-secondary',
       bgColor: 'bg-secondary/10',
       onClick: () => navigate('/users'),
-    },
-    {
-      icon: <MessageCircle className="w-5 h-5" />,
-      label: 'Messages',
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-100',
-      onClick: () => navigate('/messages'),
     },
     {
       icon: <ShoppingBag className="w-5 h-5" />,
