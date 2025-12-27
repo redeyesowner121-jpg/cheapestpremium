@@ -39,6 +39,12 @@ interface Product {
   access_link?: string;
 }
 
+interface ProductVariation {
+  id: string;
+  name: string;
+  price: number;
+}
+
 const categories = [
   { id: 'all', name: 'All' },
   { id: 'ott', name: 'OTT' },
@@ -65,6 +71,8 @@ const ProductsPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
+  const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
+  const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -111,11 +119,21 @@ const ProductsPage: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleBuy = (product: Product, salePrice?: number) => {
+  const handleBuy = async (product: Product, salePrice?: number) => {
     setSelectedProduct(product);
     setFlashSalePrice(salePrice || null);
+    setSelectedVariation(null);
     setQuantity(1);
     setOrderNote('');
+    
+    // Load variations for this product
+    const { data } = await supabase
+      .from('product_variations')
+      .select('*')
+      .eq('product_id', product.id)
+      .eq('is_active', true);
+    
+    setProductVariations(data || []);
     setShowBuyModal(true);
   };
 
@@ -125,7 +143,8 @@ const ProductsPage: React.FC = () => {
       return;
     }
 
-    const priceToUse = flashSalePrice || selectedProduct.price;
+    // Use variation price if selected, otherwise flash sale price or regular price
+    const priceToUse = selectedVariation?.price || flashSalePrice || selectedProduct.price;
     const totalPrice = priceToUse * quantity;
     
     if ((profile.wallet_balance || 0) < totalPrice) {
@@ -147,10 +166,14 @@ const ProductsPage: React.FC = () => {
       if (balanceError) throw balanceError;
 
       // Create order
+      const productNameWithVariation = selectedVariation 
+        ? `${selectedProduct.name} (${selectedVariation.name})`
+        : selectedProduct.name;
+
       const { error: orderError } = await supabase.from('orders').insert({
         user_id: user.id,
         product_id: selectedProduct.id,
-        product_name: selectedProduct.name,
+        product_name: productNameWithVariation,
         product_image: selectedProduct.image_url,
         quantity,
         unit_price: priceToUse,
@@ -168,7 +191,15 @@ const ProductsPage: React.FC = () => {
         type: 'purchase',
         amount: -totalPrice,
         status: 'completed',
-        description: `Purchased ${selectedProduct.name} x${quantity}`
+        description: `Purchased ${productNameWithVariation} x${quantity}`
+      });
+
+      // Send notification
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Order Placed Successfully',
+        message: `Your order for ${productNameWithVariation} has been placed.`,
+        type: 'order'
       });
 
       toast.success('Order placed successfully!');
@@ -384,6 +415,40 @@ const ProductsPage: React.FC = () => {
                 </div>
               </div>
 
+              {/* Product Variations */}
+              {productVariations.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Select Variation
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedVariation(null)}
+                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                        !selectedVariation
+                          ? 'gradient-primary text-primary-foreground'
+                          : 'bg-muted text-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      Default - ₹{flashSalePrice || selectedProduct.price}
+                    </button>
+                    {productVariations.map((variation) => (
+                      <button
+                        key={variation.id}
+                        onClick={() => setSelectedVariation(variation)}
+                        className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                          selectedVariation?.id === variation.id
+                            ? 'gradient-primary text-primary-foreground'
+                            : 'bg-muted text-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        {variation.name} - ₹{variation.price}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Quantity */}
               <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
                 <span className="font-medium text-foreground">Quantity</span>
@@ -428,7 +493,7 @@ const ProductsPage: React.FC = () => {
               <div className="flex items-center justify-between p-4 gradient-primary rounded-xl">
                 <span className="font-medium text-primary-foreground">Total</span>
                 <span className="text-2xl font-bold text-primary-foreground">
-                  ₹{(flashSalePrice || selectedProduct.price) * quantity}
+                  ₹{(selectedVariation?.price || flashSalePrice || selectedProduct.price) * quantity}
                 </span>
               </div>
 
