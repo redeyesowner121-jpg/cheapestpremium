@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
 import FlashSaleSlider from '@/components/FlashSaleSlider';
+import FlashSaleDetailModal from '@/components/FlashSaleDetailModal';
 import CategoryGrid from '@/components/CategoryGrid';
 import ProductGrid from '@/components/ProductGrid';
 import QuickStats from '@/components/QuickStats';
@@ -22,15 +23,20 @@ const Index: React.FC = () => {
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [showNotificationBanner, setShowNotificationBanner] = useState(false);
+  const [selectedFlashSale, setSelectedFlashSale] = useState<any>(null);
+  const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
 
   useEffect(() => {
     loadData();
     
-    // Show notification banner if permission not granted
-    if (permission === 'default') {
-      setTimeout(() => setShowNotificationBanner(true), 2000);
+    // Auto-request notification permission when user is logged in
+    if (user && permission === 'default') {
+      // Small delay to avoid blocking initial render
+      setTimeout(async () => {
+        await requestPermission();
+      }, 1500);
     }
-  }, [permission]);
+  }, [user, permission]);
 
   const loadData = async () => {
     // Load banners
@@ -107,38 +113,14 @@ const Index: React.FC = () => {
       <Header />
       
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-6">
-        {/* Notification Permission Banner */}
-        {showNotificationBanner && permission === 'default' && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center gap-3"
-          >
-            <div className="p-2 bg-primary/20 rounded-xl">
-              <Bell className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm text-foreground">Enable Notifications</p>
-              <p className="text-xs text-muted-foreground">Get updates on orders, offers & messages</p>
-            </div>
-            <Button 
-              size="sm" 
-              className="btn-gradient"
-              onClick={async () => {
-                await requestPermission();
-                setShowNotificationBanner(false);
-              }}
-            >
-              Enable
-            </Button>
-          </motion.div>
-        )}
-        
         <BannerSlider banners={banners} />
         <QuickStats />
         <FlashSaleSlider 
           items={flashSales} 
-          onItemClick={(item) => navigate('/products', { state: { flashSale: item } })} 
+          onItemClick={(item) => {
+            setSelectedFlashSale(item);
+            setShowFlashSaleModal(true);
+          }} 
         />
         <CategoryGrid onCategoryClick={() => navigate('/products')} />
         <ProductGrid 
@@ -147,6 +129,22 @@ const Index: React.FC = () => {
           onBuyClick={(product) => navigate('/product', { state: { product } })} 
         />
       </main>
+
+      {/* Flash Sale Detail Modal with Countdown */}
+      <FlashSaleDetailModal
+        open={showFlashSaleModal}
+        onOpenChange={setShowFlashSaleModal}
+        item={selectedFlashSale}
+        onBuyClick={(item) => {
+          setShowFlashSaleModal(false);
+          navigate('/product', { 
+            state: { 
+              product: item.productData,
+              flashSalePrice: item.salePrice 
+            } 
+          });
+        }}
+      />
 
       <BottomNav />
     </div>
