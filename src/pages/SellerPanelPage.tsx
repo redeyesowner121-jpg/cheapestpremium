@@ -18,7 +18,10 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  Truck
+  Truck,
+  Send,
+  TrendingUp,
+  Percent
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
@@ -83,6 +86,7 @@ interface SellerOrder {
 }
 
 const categories = ['OTT', 'Gaming', 'Education', 'Software', 'Social Media', 'Music', 'Cloud', 'Other'];
+const PLATFORM_COMMISSION = 0.10; // 10% commission
 
 const SellerPanelPage: React.FC = () => {
   const navigate = useNavigate();
@@ -98,6 +102,11 @@ const SellerPanelPage: React.FC = () => {
   const [selectedProductForVariations, setSelectedProductForVariations] = useState<SellerProduct | null>(null);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [activeTab, setActiveTab] = useState('products');
+  const [showDeliverModal, setShowDeliverModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<SellerOrder | null>(null);
+  const [deliveryLink, setDeliveryLink] = useState('');
+  const [deliveryNote, setDeliveryNote] = useState('');
+  const [deliveringOrder, setDeliveringOrder] = useState(false);
 
   // Product form
   const [productForm, setProductForm] = useState({
@@ -122,7 +131,10 @@ const SellerPanelPage: React.FC = () => {
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSold: 0,
-    totalRevenue: 0
+    totalRevenue: 0,
+    pendingOrders: 0,
+    totalEarnings: 0,
+    platformFees: 0
   });
 
   useEffect(() => {
@@ -201,14 +213,98 @@ const SellerPanelPage: React.FC = () => {
       .select('sold_count, price')
       .eq('seller_id', user.id);
 
+    // Get completed orders for accurate earnings
+    const { data: sellerProducts } = await supabase
+      .from('seller_products')
+      .select('name')
+      .eq('seller_id', user.id);
+
+    let pendingOrders = 0;
+    let totalEarnings = 0;
+    let platformFees = 0;
+
+    if (sellerProducts && sellerProducts.length > 0) {
+      const productNames = sellerProducts.map(p => p.name);
+      
+      const { data: ordersData } = await supabase
+        .from('orders')
+        .select('total_price, status')
+        .in('product_name', productNames);
+
+      if (ordersData) {
+        pendingOrders = ordersData.filter(o => o.status === 'pending').length;
+        const completedOrders = ordersData.filter(o => o.status === 'completed');
+        const totalCompletedRevenue = completedOrders.reduce((sum, o) => sum + o.total_price, 0);
+        platformFees = totalCompletedRevenue * PLATFORM_COMMISSION;
+        totalEarnings = totalCompletedRevenue - platformFees;
+      }
+    }
+
     if (productsData) {
       const totalSold = productsData.reduce((sum, p) => sum + (p.sold_count || 0), 0);
       const totalRevenue = productsData.reduce((sum, p) => sum + ((p.sold_count || 0) * p.price), 0);
       setStats({
         totalProducts: productsData.length,
         totalSold,
-        totalRevenue
+        totalRevenue,
+        pendingOrders,
+        totalEarnings,
+        platformFees
       });
+    }
+  };
+
+  const handleDeliverOrder = async () => {
+    if (!selectedOrder || !user) return;
+    
+    if (!deliveryLink.trim()) {
+      toast.error('Please provide an access link');
+      return;
+    }
+
+    setDeliveringOrder(true);
+
+    try {
+      // Update order status and add access link
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({
+          status: 'completed',
+          access_link: deliveryLink,
+          admin_note: deliveryNote || 'Delivered by seller'
+        })
+        .eq('id', selectedOrder.id);
+
+      if (orderError) throw orderError;
+
+      // Add to order history
+      await supabase.from('order_status_history').insert({
+        order_id: selectedOrder.id,
+        status: 'completed',
+        note: deliveryNote || 'Order delivered by seller',
+        created_by: user.id
+      });
+
+      // Create notification for buyer
+      await supabase.from('notifications').insert({
+        user_id: selectedOrder.user_id,
+        title: 'Order Delivered!',
+        message: `Your order for ${selectedOrder.product_name} has been delivered. Check your order for access details.`,
+        type: 'order'
+      });
+
+      toast.success('Order delivered successfully!');
+      setShowDeliverModal(false);
+      setSelectedOrder(null);
+      setDeliveryLink('');
+      setDeliveryNote('');
+      loadOrders();
+      loadStats();
+    } catch (error) {
+      console.error('Delivery error:', error);
+      toast.error('Failed to deliver order');
+    } finally {
+      setDeliveringOrder(false);
     }
   };
 
@@ -419,7 +515,7 @@ const SellerPanelPage: React.FC = () => {
             </button>
             <h1 className="text-lg font-bold flex items-center gap-2">
               <Store className="w-5 h-5 text-primary" />
-              Seller Panel
+              Seller Dashboard
             </h1>
           </div>
           <Button size="sm" variant="outline" onClick={() => setShowProfileModal(true)}>
@@ -429,26 +525,51 @@ const SellerPanelPage: React.FC = () => {
       </header>
 
       <main className="pt-20 px-4 max-w-lg mx-auto">
-        {/* Stats */}
+        {/* Earnings Dashboard */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-3 gap-3 mb-6"
+          className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-6 mb-6 text-primary-foreground shadow-glow"
         >
-          <div className="bg-card rounded-2xl p-4 text-center shadow-card">
-            <Package className="w-6 h-6 text-primary mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{stats.totalProducts}</p>
-            <p className="text-xs text-muted-foreground">Products</p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Earnings Overview
+            </h2>
+            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">
+              {PLATFORM_COMMISSION * 100}% Platform Fee
+            </span>
           </div>
-          <div className="bg-card rounded-2xl p-4 text-center shadow-card">
-            <ShoppingBag className="w-6 h-6 text-success mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">{stats.totalSold}</p>
-            <p className="text-xs text-muted-foreground">Sold</p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/10 rounded-2xl p-4">
+              <DollarSign className="w-6 h-6 mb-2" />
+              <p className="text-2xl font-bold">₹{stats.totalEarnings.toFixed(2)}</p>
+              <p className="text-xs opacity-80">Net Earnings</p>
+            </div>
+            <div className="bg-white/10 rounded-2xl p-4">
+              <Percent className="w-6 h-6 mb-2" />
+              <p className="text-2xl font-bold">₹{stats.platformFees.toFixed(2)}</p>
+              <p className="text-xs opacity-80">Platform Fees</p>
+            </div>
           </div>
-          <div className="bg-card rounded-2xl p-4 text-center shadow-card">
-            <DollarSign className="w-6 h-6 text-accent mx-auto mb-2" />
-            <p className="text-2xl font-bold text-foreground">₹{stats.totalRevenue}</p>
-            <p className="text-xs text-muted-foreground">Revenue</p>
+
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="text-center bg-white/10 rounded-xl p-3">
+              <Package className="w-5 h-5 mx-auto mb-1" />
+              <p className="text-xl font-bold">{stats.totalProducts}</p>
+              <p className="text-xs opacity-80">Products</p>
+            </div>
+            <div className="text-center bg-white/10 rounded-xl p-3">
+              <ShoppingBag className="w-5 h-5 mx-auto mb-1" />
+              <p className="text-xl font-bold">{stats.totalSold}</p>
+              <p className="text-xs opacity-80">Sold</p>
+            </div>
+            <div className="text-center bg-white/10 rounded-xl p-3">
+              <Clock className="w-5 h-5 mx-auto mb-1" />
+              <p className="text-xl font-bold">{stats.pendingOrders}</p>
+              <p className="text-xs opacity-80">Pending</p>
+            </div>
           </div>
         </motion.div>
 
@@ -457,11 +578,16 @@ const SellerPanelPage: React.FC = () => {
           <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted">
             <TabsTrigger value="products" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Package className="w-4 h-4 mr-2" />
-              Products
+              My Products
             </TabsTrigger>
             <TabsTrigger value="orders" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <ClipboardList className="w-4 h-4 mr-2" />
-              Orders
+              My Orders
+              {stats.pendingOrders > 0 && (
+                <span className="ml-2 bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
+                  {stats.pendingOrders}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -598,13 +724,15 @@ const SellerPanelPage: React.FC = () => {
                     }
                   };
 
+                  const isPending = order.status === 'pending';
+
                   return (
                     <motion.div
                       key={order.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="bg-card rounded-2xl p-4 shadow-card"
+                      className={`bg-card rounded-2xl p-4 shadow-card ${isPending ? 'border-2 border-warning' : ''}`}
                     >
                       <div className="flex items-start gap-3">
                         <img
@@ -642,14 +770,25 @@ const SellerPanelPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {order.access_link && (
+                      {order.access_link ? (
                         <div className="mt-3 p-2 bg-success/10 rounded-xl">
                           <p className="text-xs text-success font-medium flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            Access link provided
+                            <CheckCircle className="w-3 h-3" />
+                            Delivered
                           </p>
                         </div>
-                      )}
+                      ) : isPending ? (
+                        <Button
+                          className="w-full mt-3 btn-gradient rounded-xl"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowDeliverModal(true);
+                          }}
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          Deliver Order
+                        </Button>
+                      ) : null}
                     </motion.div>
                   );
                 })}
@@ -658,6 +797,71 @@ const SellerPanelPage: React.FC = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Deliver Order Modal */}
+      <Dialog open={showDeliverModal} onOpenChange={setShowDeliverModal}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Deliver Order</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            {selectedOrder && (
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-xl">
+                <img
+                  src={selectedOrder.product_image || 'https://via.placeholder.com/48'}
+                  alt={selectedOrder.product_name}
+                  className="w-12 h-12 rounded-lg object-cover"
+                />
+                <div>
+                  <p className="font-medium">{selectedOrder.product_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    To: {selectedOrder.buyer_name}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <div>
+              <label className="text-sm font-medium mb-1 block">Access Link *</label>
+              <Input
+                placeholder="Enter access link or product key"
+                value={deliveryLink}
+                onChange={(e) => setDeliveryLink(e.target.value)}
+                className="rounded-xl"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                This link will be shared with the buyer
+              </p>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1 block">Delivery Note (Optional)</label>
+              <Textarea
+                placeholder="Add instructions or notes for the buyer..."
+                value={deliveryNote}
+                onChange={(e) => setDeliveryNote(e.target.value)}
+                className="rounded-xl"
+                rows={2}
+              />
+            </div>
+
+            <Button
+              className="w-full btn-gradient rounded-xl h-12"
+              onClick={handleDeliverOrder}
+              disabled={deliveringOrder || !deliveryLink.trim()}
+            >
+              {deliveringOrder ? (
+                'Delivering...'
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Confirm Delivery
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Product Modal */}
       <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
