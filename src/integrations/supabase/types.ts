@@ -187,6 +187,41 @@ export type Database = {
         }
         Relationships: []
       }
+      order_status_history: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          note: string | null
+          order_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          order_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           access_link: string | null
@@ -383,6 +418,92 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_product_variations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          price: number
+          product_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          price: number
+          product_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          price?: number
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "seller_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_products: {
+        Row: {
+          access_link: string | null
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          original_price: number | null
+          price: number
+          rating: number | null
+          seller_id: string
+          sold_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          access_link?: string | null
+          category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          original_price?: number | null
+          price: number
+          rating?: number | null
+          seller_id: string
+          sold_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          access_link?: string | null
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          original_price?: number | null
+          price?: number
+          rating?: number | null
+          seller_id?: string
+          sold_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -458,7 +579,7 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "user" | "admin" | "temp_admin"
+      app_role: "user" | "admin" | "temp_admin" | "seller"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -586,7 +707,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["user", "admin", "temp_admin"],
+      app_role: ["user", "admin", "temp_admin", "seller"],
     },
   },
 } as const

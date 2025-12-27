@@ -14,6 +14,9 @@ import ChatPage from "./pages/ChatPage";
 import UsersPage from "./pages/UsersPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AdminPage from "./pages/AdminPage";
+import SellersPage from "./pages/SellersPage";
+import SellerPanelPage from "./pages/SellerPanelPage";
+import NotificationHistoryPage from "./pages/NotificationHistoryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,8 +37,10 @@ const App = () => (
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/users" element={<UsersPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/notifications" element={<NotificationHistoryPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/sellers" element={<SellersPage />} />
+            <Route path="/seller-panel" element={<SellerPanelPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

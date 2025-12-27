@@ -184,6 +184,13 @@ const ProfilePage: React.FC = () => {
       onClick: () => navigate('/users'),
     },
     {
+      icon: <ShoppingBag className="w-5 h-5" />,
+      label: 'Sellers',
+      color: 'text-orange-500',
+      bgColor: 'bg-orange-100',
+      onClick: () => navigate('/sellers'),
+    },
+    {
       icon: <Bell className="w-5 h-5" />,
       label: 'Notifications',
       color: 'text-success',
