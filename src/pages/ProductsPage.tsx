@@ -73,10 +73,36 @@ const ProductsPage: React.FC = () => {
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
   const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadProducts();
   }, []);
+
+  // Log search queries (debounced)
+  useEffect(() => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    
+    if (searchQuery.trim().length >= 2) {
+      const timeout = setTimeout(async () => {
+        const resultsCount = products.filter(p => 
+          p.name.toLowerCase().includes(searchQuery.toLowerCase())
+        ).length;
+        
+        await supabase.from('search_logs').insert({
+          user_id: user?.id || null,
+          search_term: searchQuery.trim().toLowerCase(),
+          results_count: resultsCount
+        });
+      }, 1000); // Log after 1 second of no typing
+      
+      setSearchTimeout(timeout);
+    }
+    
+    return () => {
+      if (searchTimeout) clearTimeout(searchTimeout);
+    };
+  }, [searchQuery, products, user]);
 
   // Handle flash sale click
   useEffect(() => {
