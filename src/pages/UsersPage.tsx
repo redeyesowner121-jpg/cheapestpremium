@@ -6,8 +6,7 @@ import {
   TrendingUp,
   Award,
   ChevronRight,
-  Calendar,
-  MessageCircle
+  Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -245,14 +244,6 @@ const UsersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Message Button */}
-              <Button
-                onClick={() => navigate(`/dm/${selectedUser.id}`)}
-                className="w-full btn-gradient rounded-xl mb-4"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Message
-              </Button>
               
               {/* Stats - Instagram Style */}
               <div className="grid grid-cols-2 gap-4 mb-6">

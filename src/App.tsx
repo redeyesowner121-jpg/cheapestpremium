@@ -13,8 +13,6 @@ import ProfileEditPage from "./pages/ProfileEditPage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import ChatPage from "./pages/ChatPage";
-import DirectMessagePage from "./pages/DirectMessagePage";
-import MessagesPage from "./pages/MessagesPage";
 import UsersPage from "./pages/UsersPage";
 import NotificationHistoryPage from "./pages/NotificationHistoryPage";
 import AdminPage from "./pages/AdminPage";
@@ -41,8 +39,6 @@ const App = () => (
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/product" element={<ProductDetailPage />} />
             <Route path="/chat" element={<ChatPage />} />
-            <Route path="/dm/:userId" element={<DirectMessagePage />} />
-            <Route path="/messages" element={<MessagesPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/notifications" element={<NotificationHistoryPage />} />
             <Route path="/admin" element={<AdminPage />} />
