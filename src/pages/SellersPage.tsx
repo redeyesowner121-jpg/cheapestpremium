@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Store, Star, Package, ArrowLeft, Search, ShoppingBag, ChevronRight } from 'lucide-react';
+import { Store, Star, Package, ArrowLeft, Search, ShoppingBag, ChevronRight, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ const SellersPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<SellerProduct | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [userNote, setUserNote] = useState('');
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     loadSellers();
@@ -123,110 +124,147 @@ const SellersPage: React.FC = () => {
     loadSellerProducts(seller.id);
   };
 
+  const handleShare = async (product: SellerProduct) => {
+    const shareUrl = `${window.location.origin}/sellers?product=${product.id}`;
+    const shareText = `Check out ${product.name} for ₹${product.price} on RKR Premium Store!`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          await navigator.clipboard.writeText(shareUrl);
+          toast.success('Link copied to clipboard!');
+        }
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
   const handleBuyProduct = async () => {
     if (!selectedProduct || !user || !profile || !selectedSeller) {
       toast.error('Please login to purchase');
       return;
     }
 
-    const totalPrice = selectedProduct.price * quantity;
-    const platformCommission = totalPrice * 0.10; // 10% platform fee
-    const sellerEarnings = totalPrice - platformCommission;
+    setPurchasing(true);
+    
+    try {
+      const totalPrice = selectedProduct.price * quantity;
+      const platformCommission = totalPrice * 0.10; // 10% platform fee
+      const sellerEarnings = totalPrice - platformCommission;
 
-    if ((profile.wallet_balance || 0) < totalPrice) {
-      toast.error('Insufficient wallet balance');
-      navigate('/wallet');
-      return;
-    }
+      if ((profile.wallet_balance || 0) < totalPrice) {
+        toast.error('Insufficient wallet balance');
+        navigate('/wallet');
+        return;
+      }
 
-    // Deduct from buyer's wallet
-    const newBalance = (profile.wallet_balance || 0) - totalPrice;
-    await supabase
-      .from('profiles')
-      .update({ 
-        wallet_balance: newBalance,
-        total_orders: (profile.total_orders || 0) + 1
-      })
-      .eq('id', user.id);
-
-    // Credit seller's wallet (90% after 10% commission)
-    const { data: sellerProfile } = await supabase
-      .from('profiles')
-      .select('wallet_balance')
-      .eq('id', selectedSeller.id)
-      .single();
-
-    if (sellerProfile) {
+      // Deduct from buyer's wallet
+      const newBalance = (profile.wallet_balance || 0) - totalPrice;
       await supabase
         .from('profiles')
-        .update({ wallet_balance: (sellerProfile.wallet_balance || 0) + sellerEarnings })
-        .eq('id', selectedSeller.id);
+        .update({ 
+          wallet_balance: newBalance,
+          total_orders: (profile.total_orders || 0) + 1
+        })
+        .eq('id', user.id);
 
-      // Create transaction for seller earnings
+      // Add to seller's pending_balance (not wallet_balance yet - will be released after buyer confirms)
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('pending_balance')
+        .eq('id', selectedSeller.id)
+        .single();
+
+      if (sellerProfile) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            pending_balance: (sellerProfile.pending_balance || 0) + sellerEarnings 
+          })
+          .eq('id', selectedSeller.id);
+      }
+
+      // Create order with seller_id and payment hold flags
+      const { data: orderData, error: orderError } = await supabase.from('orders').insert({
+        user_id: user.id,
+        seller_id: selectedSeller.id,
+        product_name: `[Seller: ${selectedSeller.name}] ${selectedProduct.name}`,
+        product_image: selectedProduct.image_url,
+        unit_price: selectedProduct.price,
+        total_price: totalPrice,
+        quantity: quantity,
+        user_note: userNote,
+        status: 'pending',
+        is_withdrawable: false,
+        buyer_confirmed: false
+      }).select().single();
+
+      if (orderError) {
+        toast.error('Failed to place order');
+        return;
+      }
+
+      // Create transaction for buyer
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'purchase',
+        amount: -totalPrice,
+        status: 'completed',
+        description: `Purchase: ${selectedProduct.name}`
+      });
+
+      // Create pending transaction for seller (will be released after confirmation)
       await supabase.from('transactions').insert({
         user_id: selectedSeller.id,
-        type: 'sale',
+        type: 'sale_pending',
         amount: sellerEarnings,
-        status: 'completed',
-        description: `Sale: ${selectedProduct.name} (10% commission deducted)`
+        status: 'pending',
+        description: `Pending sale: ${selectedProduct.name} (awaiting buyer confirmation)`
       });
 
-      // Notify seller
+      // Notify seller about new order
       await supabase.from('notifications').insert({
         user_id: selectedSeller.id,
-        title: 'New Sale! 💰',
-        message: `You sold ${selectedProduct.name} for ₹${totalPrice}. ₹${sellerEarnings.toFixed(2)} credited (10% platform fee deducted).`,
-        type: 'sale'
+        title: 'New Order! 🛒',
+        message: `You have a new order for ${selectedProduct.name}. Please deliver it to receive payment (₹${sellerEarnings.toFixed(2)} after 10% fee).`,
+        type: 'order'
       });
+
+      // Create notification for buyer
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Order Placed',
+        message: `Your order for ${selectedProduct.name} has been placed. You'll need to confirm receipt after delivery.`,
+        type: 'order'
+      });
+
+      // Update seller product sold count
+      await supabase
+        .from('seller_products')
+        .update({ sold_count: (selectedProduct.sold_count || 0) + quantity })
+        .eq('id', selectedProduct.id);
+
+      toast.success('Order placed successfully!');
+      setShowPurchaseModal(false);
+      setSelectedProduct(null);
+      setQuantity(1);
+      setUserNote('');
+      await refreshProfile();
+      navigate('/orders');
+    } catch (error) {
+      console.error('Purchase error:', error);
+      toast.error('Failed to complete purchase');
+    } finally {
+      setPurchasing(false);
     }
-
-    // Create order
-    const { error: orderError } = await supabase.from('orders').insert({
-      user_id: user.id,
-      product_name: `[Seller: ${selectedSeller.name}] ${selectedProduct.name}`,
-      product_image: selectedProduct.image_url,
-      unit_price: selectedProduct.price,
-      total_price: totalPrice,
-      quantity: quantity,
-      user_note: userNote,
-      status: 'pending'
-    });
-
-    if (orderError) {
-      toast.error('Failed to place order');
-      return;
-    }
-
-    // Create transaction for buyer
-    await supabase.from('transactions').insert({
-      user_id: user.id,
-      type: 'purchase',
-      amount: -totalPrice,
-      status: 'completed',
-      description: `Purchase: ${selectedProduct.name}`
-    });
-
-    // Create notification for buyer
-    await supabase.from('notifications').insert({
-      user_id: user.id,
-      title: 'Order Placed',
-      message: `Your order for ${selectedProduct.name} has been placed successfully!`,
-      type: 'order'
-    });
-
-    // Update seller product sold count
-    await supabase
-      .from('seller_products')
-      .update({ sold_count: (selectedProduct.sold_count || 0) + quantity })
-      .eq('id', selectedProduct.id);
-
-    toast.success('Order placed successfully!');
-    setShowPurchaseModal(false);
-    setSelectedProduct(null);
-    setQuantity(1);
-    setUserNote('');
-    await refreshProfile();
-    navigate('/orders');
   };
 
   const filteredSellers = sellers.filter(seller =>
@@ -370,11 +408,22 @@ const SellersPage: React.FC = () => {
                     transition={{ delay: index * 0.05 }}
                     className="bg-card rounded-2xl shadow-card overflow-hidden"
                   >
-                    <img
-                      src={product.image_url || 'https://via.placeholder.com/200'}
-                      alt={product.name}
-                      className="w-full h-32 object-cover"
-                    />
+                    <div className="relative">
+                      <img
+                        src={product.image_url || 'https://via.placeholder.com/200'}
+                        alt={product.name}
+                        className="w-full h-32 object-cover"
+                      />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShare(product);
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-background/80 rounded-full"
+                      >
+                        <Share2 className="w-4 h-4 text-foreground" />
+                      </button>
+                    </div>
                     <div className="p-3">
                       <h3 className="font-medium text-foreground text-sm truncate">
                         {product.name}
@@ -470,8 +519,16 @@ const SellersPage: React.FC = () => {
                 </span>
               </div>
 
-              <Button className="w-full btn-gradient" onClick={handleBuyProduct}>
-                Pay ₹{selectedProduct.price * quantity}
+              <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-xl">
+                <p>After delivery, you'll need to confirm receipt. Payment will be released to the seller only after your confirmation.</p>
+              </div>
+
+              <Button 
+                className="w-full btn-gradient" 
+                onClick={handleBuyProduct}
+                disabled={purchasing}
+              >
+                {purchasing ? 'Processing...' : `Pay ₹${selectedProduct.price * quantity}`}
               </Button>
             </div>
           )}

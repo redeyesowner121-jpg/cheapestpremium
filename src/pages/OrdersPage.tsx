@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Star,
   Flag,
-  Phone
+  Phone,
+  ThumbsUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,10 +42,13 @@ interface Order {
   access_link?: string;
   admin_note?: string;
   user_note?: string;
+  seller_id?: string;
+  buyer_confirmed?: boolean;
+  is_withdrawable?: boolean;
 }
 
 const OrdersPage: React.FC = () => {
-  const { profile, user } = useAuth();
+  const { profile, user, refreshProfile } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -52,6 +56,7 @@ const OrdersPage: React.FC = () => {
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
+  const [confirmingOrder, setConfirmingOrder] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -114,40 +119,152 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  const handleConfirmReceipt = async (order: Order) => {
+    if (!order.seller_id || !user) return;
+    
+    setConfirmingOrder(order.id);
+    
+    try {
+      // Calculate seller earnings (90% after 10% commission)
+      const platformCommission = order.total_price * 0.10;
+      const sellerEarnings = order.total_price - platformCommission;
+
+      // Get seller's current balances
+      const { data: sellerProfile } = await supabase
+        .from('profiles')
+        .select('wallet_balance, pending_balance')
+        .eq('id', order.seller_id)
+        .single();
+
+      if (sellerProfile) {
+        // Move from pending_balance to wallet_balance
+        await supabase
+          .from('profiles')
+          .update({ 
+            wallet_balance: (sellerProfile.wallet_balance || 0) + sellerEarnings,
+            pending_balance: Math.max(0, (sellerProfile.pending_balance || 0) - sellerEarnings)
+          })
+          .eq('id', order.seller_id);
+      }
+
+      // Update order to mark as confirmed and withdrawable
+      await supabase
+        .from('orders')
+        .update({ 
+          buyer_confirmed: true,
+          is_withdrawable: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', order.id);
+
+      // Update pending transaction to completed for seller
+      await supabase
+        .from('transactions')
+        .update({ 
+          status: 'completed',
+          type: 'sale',
+          description: `Sale completed: ${order.product_name} (10% commission deducted)`
+        })
+        .eq('user_id', order.seller_id)
+        .eq('type', 'sale_pending')
+        .eq('status', 'pending');
+
+      // Create notification for seller
+      await supabase.from('notifications').insert({
+        user_id: order.seller_id,
+        title: 'Payment Released! 💰',
+        message: `Buyer confirmed receipt for ${order.product_name}. ₹${sellerEarnings.toFixed(2)} has been added to your wallet and is now withdrawable.`,
+        type: 'payment'
+      });
+
+      toast.success('Receipt confirmed! Payment released to seller.');
+      await refreshProfile();
+      loadOrders();
+    } catch (error) {
+      console.error('Confirm receipt error:', error);
+      toast.error('Failed to confirm receipt');
+    } finally {
+      setConfirmingOrder(null);
+    }
+  };
+
   const handleCancelOrder = async (orderId: string) => {
     const order = orders.find(o => o.id === orderId);
     if (!order || order.status !== 'pending') return;
 
-    // Update order status
-    const { error: orderError } = await supabase
-      .from('orders')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-      .eq('id', orderId);
+    try {
+      // Update order status
+      const { error: orderError } = await supabase
+        .from('orders')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('id', orderId);
 
-    if (orderError) {
+      if (orderError) {
+        toast.error('Failed to cancel order');
+        return;
+      }
+
+      // Refund to buyer's wallet
+      if (profile) {
+        const newBalance = (profile.wallet_balance || 0) + order.total_price;
+        await supabase
+          .from('profiles')
+          .update({ wallet_balance: newBalance })
+          .eq('id', user?.id);
+
+        await supabase.from('transactions').insert({
+          user_id: user?.id,
+          type: 'refund',
+          amount: order.total_price,
+          status: 'completed',
+          description: `Order cancelled - ${order.product_name}`
+        });
+      }
+
+      // If seller order, remove from seller's pending balance
+      if (order.seller_id) {
+        const platformCommission = order.total_price * 0.10;
+        const sellerEarnings = order.total_price - platformCommission;
+
+        const { data: sellerProfile } = await supabase
+          .from('profiles')
+          .select('pending_balance')
+          .eq('id', order.seller_id)
+          .single();
+
+        if (sellerProfile) {
+          await supabase
+            .from('profiles')
+            .update({ 
+              pending_balance: Math.max(0, (sellerProfile.pending_balance || 0) - sellerEarnings)
+            })
+            .eq('id', order.seller_id);
+        }
+
+        // Delete pending transaction
+        await supabase
+          .from('transactions')
+          .delete()
+          .eq('user_id', order.seller_id)
+          .eq('type', 'sale_pending')
+          .eq('status', 'pending');
+
+        // Notify seller
+        await supabase.from('notifications').insert({
+          user_id: order.seller_id,
+          title: 'Order Cancelled',
+          message: `Order for ${order.product_name} was cancelled by the buyer.`,
+          type: 'order'
+        });
+      }
+
+      toast.success('Order cancelled and refunded');
+      await refreshProfile();
+      loadOrders();
+    } catch (error) {
+      console.error('Cancel error:', error);
       toast.error('Failed to cancel order');
-      return;
     }
-
-    // Refund to wallet
-    if (profile) {
-      const newBalance = (profile.wallet_balance || 0) + order.total_price;
-      await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance })
-        .eq('id', user?.id);
-
-      await supabase.from('transactions').insert({
-        user_id: user?.id,
-        type: 'refund',
-        amount: order.total_price,
-        status: 'completed',
-        description: `Order cancelled - ${order.product_name}`
-      });
-    }
-
-    toast.success('Order cancelled and refunded');
-    loadOrders();
   };
 
   const handleSubmitReport = () => {
@@ -209,89 +326,148 @@ const OrdersPage: React.FC = () => {
 
           {/* Orders List */}
           <div className="space-y-4">
-            {filteredOrders.map((order, index) => (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-card rounded-2xl shadow-card overflow-hidden"
-              >
-                <div className="p-4">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={order.product_image || 'https://via.placeholder.com/64'}
-                      alt={order.product_name}
-                      className="w-16 h-16 rounded-xl object-cover"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">{order.product_name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Qty: {order.quantity} × ₹{order.unit_price}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
-                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString()}
-                        </span>
+            {filteredOrders.map((order, index) => {
+              const isSellerOrder = !!order.seller_id;
+              const needsConfirmation = isSellerOrder && order.status === 'completed' && order.access_link && !order.buyer_confirmed;
+              
+              return (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="bg-card rounded-2xl shadow-card overflow-hidden"
+                >
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={order.product_image || 'https://via.placeholder.com/64'}
+                        alt={order.product_name}
+                        className="w-16 h-16 rounded-xl object-cover"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">{order.product_name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Qty: {order.quantity} × ₹{order.unit_price}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
+                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                          </span>
+                          {order.buyer_confirmed && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success">
+                              Confirmed
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-foreground">₹{order.total_price}</p>
+                        {getStatusIcon(order.status)}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-foreground">₹{order.total_price}</p>
-                      {getStatusIcon(order.status)}
-                    </div>
-                  </div>
 
-                  {/* Order Status Message - Flipkart style */}
-                  {order.status === 'pending' && (
-                    <div className="mt-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                        <span className="text-sm font-medium text-primary">Order Placed Successfully</span>
+                    {/* Order Status Message */}
+                    {order.status === 'pending' && (
+                      <div className="mt-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                          <span className="text-sm font-medium text-primary">Order Placed</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 ml-4">
+                          Waiting for seller to deliver your order.
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 ml-4">
-                        Your order is being processed. This may take up to 24 hours.
-                      </p>
-                    </div>
-                  )}
-                  
-                  {order.status === 'processing' && (
-                    <div className="mt-3 p-3 bg-accent/5 rounded-xl border border-accent/20">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-accent" />
-                        <span className="text-sm font-medium text-accent">Processing Your Order</span>
+                    )}
+                    
+                    {order.status === 'processing' && (
+                      <div className="mt-3 p-3 bg-accent/5 rounded-xl border border-accent/20">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-accent" />
+                          <span className="text-sm font-medium text-accent">Processing</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 ml-6">
+                          Your order is being prepared.
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 ml-6">
-                        We're preparing your order. You'll receive access details soon.
-                      </p>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Admin Note */}
-                  {order.admin_note && (
-                    <div className="mt-3 p-3 bg-success/5 rounded-xl border border-success/20">
-                      <p className="text-sm text-success font-medium">📝 Note from seller:</p>
-                      <p className="text-sm text-foreground">{order.admin_note}</p>
-                    </div>
-                  )}
+                    {/* Confirm Receipt Banner for Seller Orders */}
+                    {needsConfirmation && (
+                      <div className="mt-3 p-3 bg-warning/10 rounded-xl border border-warning/30">
+                        <div className="flex items-center gap-2">
+                          <ThumbsUp className="w-4 h-4 text-warning" />
+                          <span className="text-sm font-medium text-warning">Confirm Receipt</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1 ml-6">
+                          Click below to confirm you received the product. This will release payment to the seller.
+                        </p>
+                      </div>
+                    )}
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 mt-4">
-                    {order.access_link ? (
-                      <Button
-                        size="sm"
-                        className="flex-1 btn-gradient rounded-xl"
-                        onClick={() => window.open(order.access_link, '_blank')}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download / Access
-                      </Button>
-                    ) : (
-                      <>
-                        {order.status === 'pending' && (
-                          <>
+                    {/* Admin Note */}
+                    {order.admin_note && (
+                      <div className="mt-3 p-3 bg-success/5 rounded-xl border border-success/20">
+                        <p className="text-sm text-success font-medium">📝 Note from seller:</p>
+                        <p className="text-sm text-foreground">{order.admin_note}</p>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 mt-4">
+                      {order.access_link && (
+                        <Button
+                          size="sm"
+                          className="flex-1 btn-gradient rounded-xl"
+                          onClick={() => window.open(order.access_link, '_blank')}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download / Access
+                        </Button>
+                      )}
+                      
+                      {needsConfirmation && (
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-success hover:bg-success/90 text-white rounded-xl"
+                          onClick={() => handleConfirmReceipt(order)}
+                          disabled={confirmingOrder === order.id}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          {confirmingOrder === order.id ? 'Confirming...' : 'Confirm Receipt'}
+                        </Button>
+                      )}
+
+                      {!order.access_link && (
+                        <>
+                          {order.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 rounded-xl"
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setShowReportModal(true);
+                                }}
+                              >
+                                <Flag className="w-4 h-4 mr-2" />
+                                Report
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="flex-1 rounded-xl"
+                                onClick={() => handleCancelOrder(order.id)}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          )}
+                          {order.status === 'processing' && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -302,55 +478,33 @@ const OrdersPage: React.FC = () => {
                               }}
                             >
                               <Flag className="w-4 h-4 mr-2" />
-                              Report
+                              Report Issue
                             </Button>
+                          )}
+                          {order.status === 'completed' && order.buyer_confirmed && (
                             <Button
                               size="sm"
-                              variant="destructive"
-                              className="flex-1 rounded-xl"
-                              onClick={() => handleCancelOrder(order.id)}
+                              className="flex-1 btn-gradient rounded-xl"
                             >
-                              Cancel Order
+                              <Star className="w-4 h-4 mr-2" />
+                              Leave Review
                             </Button>
-                          </>
-                        )}
-                        {order.status === 'processing' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 rounded-xl"
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setShowReportModal(true);
-                            }}
-                          >
-                            <Flag className="w-4 h-4 mr-2" />
-                            Report Issue
-                          </Button>
-                        )}
-                        {order.status === 'completed' && (
-                          <Button
-                            size="sm"
-                            className="flex-1 btn-gradient rounded-xl"
-                          >
-                            <Star className="w-4 h-4 mr-2" />
-                            Leave Review
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="rounded-xl"
-                      onClick={() => setSelectedOrder(order)}
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </Button>
+                          )}
+                        </>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="rounded-xl"
+                        onClick={() => setSelectedOrder(order)}
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
 
           {filteredOrders.length === 0 && (
@@ -422,7 +576,7 @@ const OrdersPage: React.FC = () => {
 
           {selectedOrder && (
             <div className="mt-4 space-y-4">
-              {/* Order Receipt - Professional Style */}
+              {/* Order Receipt */}
               <div className="border border-border rounded-xl p-4">
                 <div className="flex items-center gap-4 pb-3 border-b border-border">
                   <img
@@ -447,9 +601,7 @@ const OrdersPage: React.FC = () => {
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Total Amount</span>
-                    <span className="font-bold text-primary">
-                      ₹{selectedOrder.total_price}
-                    </span>
+                    <span className="font-bold text-primary">₹{selectedOrder.total_price}</span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">Status</span>
@@ -461,49 +613,17 @@ const OrdersPage: React.FC = () => {
                       {selectedOrder.status}
                     </span>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-border">
+                  <div className="flex justify-between py-2">
                     <span className="text-muted-foreground">Order Date</span>
                     <span className="font-medium">
                       {new Date(selectedOrder.created_at).toLocaleString()}
                     </span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">Customer</span>
-                    <span className="font-medium">{profile?.name}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-muted-foreground">Email</span>
-                    <span className="font-medium text-sm">{profile?.email}</span>
                   </div>
                 </div>
               </div>
 
               {/* Order Timeline */}
               <OrderTimeline orderId={selectedOrder.id} currentStatus={selectedOrder.status} />
-
-              {selectedOrder.user_note && (
-                <div className="p-3 bg-muted rounded-xl">
-                  <p className="text-sm font-medium text-foreground">Your Note:</p>
-                  <p className="text-sm text-muted-foreground">{selectedOrder.user_note}</p>
-                </div>
-              )}
-
-              {selectedOrder.admin_note && (
-                <div className="p-3 bg-success/10 rounded-xl">
-                  <p className="text-sm font-medium text-success">Seller's Note:</p>
-                  <p className="text-sm text-foreground">{selectedOrder.admin_note}</p>
-                </div>
-              )}
-              
-              {selectedOrder.access_link && (
-                <Button
-                  className="w-full btn-gradient rounded-xl"
-                  onClick={() => window.open(selectedOrder.access_link, '_blank')}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download / Access
-                </Button>
-              )}
             </div>
           )}
         </DialogContent>

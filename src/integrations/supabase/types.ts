@@ -256,12 +256,15 @@ export type Database = {
         Row: {
           access_link: string | null
           admin_note: string | null
+          buyer_confirmed: boolean | null
           created_at: string | null
           id: string
+          is_withdrawable: boolean | null
           product_id: string | null
           product_image: string | null
           product_name: string
           quantity: number | null
+          seller_id: string | null
           status: string | null
           total_price: number
           unit_price: number
@@ -272,12 +275,15 @@ export type Database = {
         Insert: {
           access_link?: string | null
           admin_note?: string | null
+          buyer_confirmed?: boolean | null
           created_at?: string | null
           id?: string
+          is_withdrawable?: boolean | null
           product_id?: string | null
           product_image?: string | null
           product_name: string
           quantity?: number | null
+          seller_id?: string | null
           status?: string | null
           total_price: number
           unit_price: number
@@ -288,12 +294,15 @@ export type Database = {
         Update: {
           access_link?: string | null
           admin_note?: string | null
+          buyer_confirmed?: boolean | null
           created_at?: string | null
           id?: string
+          is_withdrawable?: boolean | null
           product_id?: string | null
           product_image?: string | null
           product_name?: string
           quantity?: number | null
+          seller_id?: string | null
           status?: string | null
           total_price?: number
           unit_price?: number
@@ -307,6 +316,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -407,6 +423,7 @@ export type Database = {
           last_daily_bonus: string | null
           name: string
           notifications_enabled: boolean | null
+          pending_balance: number | null
           phone: string | null
           referral_code: string | null
           referred_by: string | null
@@ -424,6 +441,7 @@ export type Database = {
           last_daily_bonus?: string | null
           name: string
           notifications_enabled?: boolean | null
+          pending_balance?: number | null
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null
@@ -441,6 +459,7 @@ export type Database = {
           last_daily_bonus?: string | null
           name?: string
           notifications_enabled?: boolean | null
+          pending_balance?: number | null
           phone?: string | null
           referral_code?: string | null
           referred_by?: string | null

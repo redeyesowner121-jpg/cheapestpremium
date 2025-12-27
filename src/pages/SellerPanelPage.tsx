@@ -83,6 +83,8 @@ interface SellerOrder {
   access_link: string | null;
   buyer_name?: string;
   buyer_email?: string;
+  buyer_confirmed?: boolean;
+  is_withdrawable?: boolean;
 }
 
 const categories = ['OTT', 'Gaming', 'Education', 'Software', 'Social Media', 'Music', 'Cloud', 'Other'];
@@ -149,42 +151,58 @@ const SellerPanelPage: React.FC = () => {
     if (!user) return;
     setOrdersLoading(true);
 
-    // Get seller's product IDs
+    // Get orders directly by seller_id first, then fallback to product name matching
+    const { data: directOrders } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('seller_id', user.id)
+      .order('created_at', { ascending: false });
+
+    let allOrders = directOrders || [];
+
+    // Also get orders by product name matching for backward compatibility
     const { data: sellerProducts } = await supabase
       .from('seller_products')
       .select('id, name')
       .eq('seller_id', user.id);
 
-    if (!sellerProducts || sellerProducts.length === 0) {
-      setOrders([]);
-      setOrdersLoading(false);
-      return;
+    if (sellerProducts && sellerProducts.length > 0) {
+      const productNames = sellerProducts.map(p => `[Seller: ${profile?.name}] ${p.name}`);
+      
+      const { data: nameMatchedOrders } = await supabase
+        .from('orders')
+        .select('*')
+        .in('product_name', productNames)
+        .order('created_at', { ascending: false });
+
+      if (nameMatchedOrders) {
+        // Merge and deduplicate
+        const existingIds = new Set(allOrders.map(o => o.id));
+        const newOrders = nameMatchedOrders.filter(o => !existingIds.has(o.id));
+        allOrders = [...allOrders, ...newOrders];
+      }
     }
 
-    const productNames = sellerProducts.map(p => p.name);
-
-    // Get orders that match seller's product names
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('*')
-      .in('product_name', productNames)
-      .order('created_at', { ascending: false });
-
-    if (ordersData) {
+    if (allOrders.length > 0) {
       // Fetch buyer profiles
-      const userIds = [...new Set(ordersData.map(o => o.user_id))];
+      const userIds = [...new Set(allOrders.map(o => o.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, name, email')
         .in('id', userIds);
 
-      const ordersWithBuyers = ordersData.map(order => ({
+      const ordersWithBuyers = allOrders.map(order => ({
         ...order,
         buyer_name: profiles?.find(p => p.id === order.user_id)?.name || 'Unknown',
         buyer_email: profiles?.find(p => p.id === order.user_id)?.email || ''
       }));
 
+      // Sort by created_at
+      ordersWithBuyers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
       setOrders(ordersWithBuyers);
+    } else {
+      setOrders([]);
     }
     setOrdersLoading(false);
   };
