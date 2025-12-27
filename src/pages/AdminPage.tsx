@@ -58,6 +58,7 @@ import { supabase } from '@/integrations/supabase/client';
 import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminAnalytics from '@/components/AdminAnalytics';
+import AdminCategoryManager from '@/components/AdminCategoryManager';
 import { useAdminOrderAlerts } from '@/hooks/useAdminOrderAlerts';
 import { toast } from 'sonner';
 
@@ -1128,6 +1129,9 @@ const AdminPage: React.FC = () => {
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4">
+            {/* Category Manager */}
+            <AdminCategoryManager products={products} onCategoryChange={loadData} />
+            
             <Button className="w-full btn-gradient rounded-xl" onClick={() => setShowProductModal(true)}>
               <Plus className="w-5 h-5 mr-2" />
               Add New Product
