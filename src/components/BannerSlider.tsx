@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
 import { motion } from 'framer-motion';
+import { ImageOff } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/pagination';
 
@@ -12,29 +13,27 @@ interface Banner {
   link?: string;
 }
 
-const defaultBanners: Banner[] = [
-  {
-    id: '1',
-    image: 'https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=800&h=400&fit=crop',
-    title: 'Flash Sale - Up to 70% OFF',
-  },
-  {
-    id: '2',
-    image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=400&fit=crop',
-    title: 'Premium Subscriptions',
-  },
-  {
-    id: '3',
-    image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800&h=400&fit=crop',
-    title: 'Deposit & Get Blue Tick',
-  },
-];
-
 interface BannerSliderProps {
   banners?: Banner[];
 }
 
-const BannerSlider: React.FC<BannerSliderProps> = ({ banners = defaultBanners }) => {
+const BannerSlider: React.FC<BannerSliderProps> = ({ banners }) => {
+  // If no banners from database, show empty state
+  if (!banners || banners.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full"
+      >
+        <div className="bg-card rounded-2xl h-40 md:h-52 flex flex-col items-center justify-center text-muted-foreground">
+          <ImageOff className="w-12 h-12 mb-2 opacity-50" />
+          <p className="text-sm">No banners available</p>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

@@ -95,15 +95,15 @@ const Index: React.FC = () => {
       <Header />
       
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-6">
-        <BannerSlider banners={banners.length > 0 ? banners : undefined} />
+        <BannerSlider banners={banners} />
         <QuickStats />
         <FlashSaleSlider 
-          items={flashSales.length > 0 ? flashSales : undefined} 
+          items={flashSales} 
           onItemClick={() => navigate('/products')} 
         />
         <CategoryGrid onCategoryClick={() => navigate('/products')} />
         <ProductGrid 
-          products={products.length > 0 ? products : undefined}
+          products={products}
           onBuyClick={() => navigate('/products')} 
         />
       </main>

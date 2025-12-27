@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWGrH9hRb6SFmwQO2cnyA710wLZ2bjHZI",
@@ -20,3 +20,18 @@ export const googleProvider = new GoogleAuthProvider();
 // Add scopes for user info
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
 googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+
+// Phone auth helpers
+export const setupRecaptcha = (containerId: string) => {
+  const recaptchaVerifier = new RecaptchaVerifier(firebaseAuth, containerId, {
+    size: 'invisible',
+    callback: () => {
+      // reCAPTCHA solved
+    }
+  });
+  return recaptchaVerifier;
+};
+
+export const sendPhoneOTP = async (phoneNumber: string, recaptchaVerifier: RecaptchaVerifier) => {
+  return signInWithPhoneNumber(firebaseAuth, phoneNumber, recaptchaVerifier);
+};
