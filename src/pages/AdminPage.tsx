@@ -59,6 +59,7 @@ import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminAnalytics from '@/components/AdminAnalytics';
 import AdminCategoryManager from '@/components/AdminCategoryManager';
+import AdminSearchAnalytics from '@/components/AdminSearchAnalytics';
 import { useAdminOrderAlerts } from '@/hooks/useAdminOrderAlerts';
 import { toast } from 'sonner';
 
@@ -891,6 +892,10 @@ const AdminPage: React.FC = () => {
           <TabsContent value="dashboard" className="space-y-6">
             {/* Analytics Section */}
             <AdminAnalytics orders={orders} products={products} />
+            
+            {/* Search Analytics */}
+            <AdminSearchAnalytics />
+            
             {/* Quick Actions */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Button

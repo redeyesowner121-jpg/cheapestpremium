@@ -94,24 +94,34 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
     
     if (productsInCategory.length > 0) {
       const confirm = window.confirm(
-        `This will delete ${productsInCategory.length} product(s) in "${categoryName}". Continue?`
+        `This will remove ${productsInCategory.length} product(s) in "${categoryName}". Products with orders will be deactivated. Continue?`
       );
       if (!confirm) return;
 
       setLoading(true);
       
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('category', categoryName);
-
-      if (error) {
-        toast.error('Failed to delete category');
-        setLoading(false);
-        return;
+      // Check each product for orders and handle accordingly
+      for (const product of productsInCategory) {
+        const { count: orderCount } = await supabase
+          .from('orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('product_id', product.id);
+        
+        if (orderCount && orderCount > 0) {
+          // Product has orders - deactivate instead
+          await supabase
+            .from('products')
+            .update({ is_active: false })
+            .eq('id', product.id);
+        } else {
+          // No orders - safe to delete
+          await supabase.from('product_variations').delete().eq('product_id', product.id);
+          await supabase.from('flash_sales').delete().eq('product_id', product.id);
+          await supabase.from('products').delete().eq('id', product.id);
+        }
       }
 
-      toast.success(`Deleted category "${categoryName}" and its products`);
+      toast.success(`Category "${categoryName}" products removed/deactivated`);
       setLoading(false);
       onCategoryChange();
     } else {
