@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import { 
   Search, 
   SlidersHorizontal,
@@ -52,6 +53,9 @@ const categories = [
 
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
+  const location = useLocation();
+  const flashSale = location.state?.flashSale;
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -60,10 +64,32 @@ const ProductsPage: React.FC = () => {
   const [orderNote, setOrderNote] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
 
   useEffect(() => {
     loadProducts();
   }, []);
+
+  // Handle flash sale click
+  useEffect(() => {
+    if (flashSale && flashSale.productData) {
+      const product = {
+        id: flashSale.productData.id,
+        name: flashSale.productData.name,
+        description: flashSale.productData.description || '',
+        price: flashSale.salePrice,
+        original_price: flashSale.productData.price,
+        image_url: flashSale.productData.image_url,
+        rating: flashSale.productData.rating || 4.5,
+        sold_count: flashSale.productData.sold_count || 0,
+        category: flashSale.productData.category,
+        access_link: flashSale.productData.access_link
+      };
+      setSelectedProduct(product as Product);
+      setFlashSalePrice(flashSale.salePrice);
+      setShowBuyModal(true);
+    }
+  }, [flashSale]);
 
   const loadProducts = async () => {
     setLoading(true);
@@ -85,8 +111,9 @@ const ProductsPage: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleBuy = (product: Product) => {
+  const handleBuy = (product: Product, salePrice?: number) => {
     setSelectedProduct(product);
+    setFlashSalePrice(salePrice || null);
     setQuantity(1);
     setOrderNote('');
     setShowBuyModal(true);
@@ -98,7 +125,8 @@ const ProductsPage: React.FC = () => {
       return;
     }
 
-    const totalPrice = selectedProduct.price * quantity;
+    const priceToUse = flashSalePrice || selectedProduct.price;
+    const totalPrice = priceToUse * quantity;
     
     if ((profile.wallet_balance || 0) < totalPrice) {
       toast.error('Insufficient wallet balance. Please add money first.');
@@ -125,7 +153,7 @@ const ProductsPage: React.FC = () => {
         product_name: selectedProduct.name,
         product_image: selectedProduct.image_url,
         quantity,
-        unit_price: selectedProduct.price,
+        unit_price: priceToUse,
         total_price: totalPrice,
         user_note: orderNote || null,
         access_link: selectedProduct.access_link || null,
@@ -336,9 +364,17 @@ const ProductsPage: React.FC = () => {
                 <div>
                   <h3 className="font-semibold text-foreground">{selectedProduct.name}</h3>
                   <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
-                  <p className="text-primary font-bold mt-1">
-                    ₹{selectedProduct.price} each
-                  </p>
+                  <div className="mt-1">
+                    {flashSalePrice ? (
+                      <div className="flex items-center gap-2">
+                        <p className="text-primary font-bold">₹{flashSalePrice} each</p>
+                        <span className="text-xs text-muted-foreground line-through">₹{selectedProduct.original_price || selectedProduct.price}</span>
+                        <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded">FLASH SALE</span>
+                      </div>
+                    ) : (
+                      <p className="text-primary font-bold">₹{selectedProduct.price} each</p>
+                    )}
+                  </div>
                   {selectedProduct.access_link && (
                     <p className="text-xs text-success flex items-center gap-1 mt-1">
                       <Download className="w-3 h-3" />
@@ -392,7 +428,7 @@ const ProductsPage: React.FC = () => {
               <div className="flex items-center justify-between p-4 gradient-primary rounded-xl">
                 <span className="font-medium text-primary-foreground">Total</span>
                 <span className="text-2xl font-bold text-primary-foreground">
-                  ₹{selectedProduct.price * quantity}
+                  ₹{(flashSalePrice || selectedProduct.price) * quantity}
                 </span>
               </div>
 

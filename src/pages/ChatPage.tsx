@@ -5,9 +5,8 @@ import {
   ArrowLeft, 
   Phone,
   PhoneCall,
-  MoreVertical,
-  Image,
-  Paperclip
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,6 +21,7 @@ interface Message {
   user_id: string;
   is_admin: boolean;
   created_at: string;
+  image_url?: string;
 }
 
 const ChatPage: React.FC = () => {
@@ -30,7 +30,11 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -83,21 +87,77 @@ const ChatPage: React.FC = () => {
     setLoading(false);
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image must be less than 5MB');
+        return;
+      }
+      setSelectedImage(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+    
+    const { data, error } = await supabase.storage
+      .from('chat-images')
+      .upload(fileName, file);
+
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('chat-images')
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
+
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if ((!newMessage.trim() && !selectedImage) || !user) return;
+
+    setUploading(true);
+    let imageUrl: string | null = null;
+
+    if (selectedImage) {
+      imageUrl = await uploadImage(selectedImage);
+      if (!imageUrl) {
+        toast.error('Failed to upload image');
+        setUploading(false);
+        return;
+      }
+    }
 
     const { error } = await supabase.from('chat_messages').insert({
       user_id: user.id,
-      message: newMessage.trim(),
-      is_admin: isAdmin || isTempAdmin
+      message: newMessage.trim() || (selectedImage ? '📷 Photo' : ''),
+      is_admin: isAdmin || isTempAdmin,
+      image_url: imageUrl
     });
 
     if (error) {
       toast.error('Failed to send message');
+      setUploading(false);
       return;
     }
 
     setNewMessage('');
+    removeSelectedImage();
+    setUploading(false);
     loadMessages();
   };
 
@@ -175,9 +235,19 @@ const ChatPage: React.FC = () => {
                       : 'gradient-primary text-primary-foreground rounded-tr-none'
                   }`}
                 >
-                  <p className={`text-sm ${message.is_admin ? 'text-foreground' : ''}`}>
-                    {message.message}
-                  </p>
+                  {message.image_url && (
+                    <img 
+                      src={message.image_url} 
+                      alt="Shared" 
+                      className="rounded-lg mb-2 max-w-full cursor-pointer"
+                      onClick={() => window.open(message.image_url, '_blank')}
+                    />
+                  )}
+                  {message.message && message.message !== '📷 Photo' && (
+                    <p className={`text-sm ${message.is_admin ? 'text-foreground' : ''}`}>
+                      {message.message}
+                    </p>
+                  )}
                   <p
                     className={`text-[10px] mt-1 text-right ${
                       message.is_admin ? 'text-muted-foreground' : 'text-primary-foreground/70'
@@ -198,20 +268,42 @@ const ChatPage: React.FC = () => {
         <div className="max-w-lg mx-auto">
           <div className="bg-accent/10 rounded-xl px-4 py-2 text-center">
             <p className="text-xs text-muted-foreground">
-              📞 Call/WhatsApp: <span className="font-semibold text-primary">+91 8900684167</span> (WhatsApp only)
+              📞 Call/WhatsApp: <span className="font-semibold text-primary">+91 8900684167</span>
             </p>
           </div>
         </div>
       </div>
 
+      {/* Image Preview */}
+      {imagePreview && (
+        <div className="fixed bottom-24 left-4 right-4 max-w-lg mx-auto">
+          <div className="bg-card rounded-xl p-2 shadow-card relative inline-block">
+            <img src={imagePreview} alt="Preview" className="h-20 rounded-lg" />
+            <button 
+              onClick={removeSelectedImage}
+              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <footer className="fixed bottom-0 left-0 right-0 glass border-t border-border px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center gap-2">
-          <button className="p-2">
-            <Paperclip className="w-5 h-5 text-muted-foreground" />
-          </button>
-          <button className="p-2">
-            <Image className="w-5 h-5 text-muted-foreground" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelect}
+            className="hidden"
+          />
+          <button 
+            className="p-2"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <ImageIcon className="w-5 h-5 text-muted-foreground" />
           </button>
           
           <Input
@@ -226,7 +318,7 @@ const ChatPage: React.FC = () => {
             size="icon"
             className="w-10 h-10 rounded-full btn-gradient"
             onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={(!newMessage.trim() && !selectedImage) || uploading}
           >
             <Send className="w-4 h-4" />
           </Button>

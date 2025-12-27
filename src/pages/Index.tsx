@@ -49,11 +49,13 @@ const Index: React.FC = () => {
     if (flashSalesData) {
       setFlashSales(flashSalesData.map(fs => ({
         id: fs.id,
+        productId: fs.product_id,
         name: fs.products?.name || 'Product',
         originalPrice: fs.products?.price || 0,
         salePrice: fs.sale_price,
         image: fs.products?.image_url || 'https://via.placeholder.com/200',
-        endTime: new Date(fs.end_time).getTime()
+        endTime: new Date(fs.end_time).getTime(),
+        productData: fs.products
       })));
     }
 
@@ -99,7 +101,7 @@ const Index: React.FC = () => {
         <QuickStats />
         <FlashSaleSlider 
           items={flashSales} 
-          onItemClick={() => navigate('/products')} 
+          onItemClick={(item) => navigate('/products', { state: { flashSale: item } })} 
         />
         <CategoryGrid onCategoryClick={() => navigate('/products')} />
         <ProductGrid 
