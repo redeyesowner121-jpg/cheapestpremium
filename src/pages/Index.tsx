@@ -143,7 +143,8 @@ const Index: React.FC = () => {
         <CategoryGrid onCategoryClick={() => navigate('/products')} />
         <ProductGrid 
           products={products}
-          onBuyClick={() => navigate('/products')} 
+          onProductClick={(product) => navigate('/product', { state: { product } })}
+          onBuyClick={(product) => navigate('/product', { state: { product } })} 
         />
       </main>
 
