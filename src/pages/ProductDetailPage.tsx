@@ -10,8 +10,10 @@ import {
   Package,
   Shield,
   Truck,
-  MessageCircle
+  MessageCircle,
+  AlertCircle
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -47,7 +49,10 @@ const ProductDetailPage: React.FC = () => {
   const [userNote, setUserNote] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [currentStock, setCurrentStock] = useState<number | null>(null);
+
   const displayProduct = flashSale?.productData || product;
+  const isOutOfStock = currentStock !== null && currentStock <= 0;
 
   useEffect(() => {
     if (!displayProduct) {
@@ -55,6 +60,8 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
     loadVariations();
+    // Initialize stock from product data
+    setCurrentStock(displayProduct.stock ?? null);
   }, [displayProduct]);
 
   const loadVariations = async () => {
@@ -70,6 +77,9 @@ const ProductDetailPage: React.FC = () => {
       setVariations(data);
     }
   };
+
+  // Check if quantity exceeds available stock
+  const exceedsStock = currentStock !== null && quantity > currentStock;
 
   const currentPrice = flashSale 
     ? flashSale.salePrice 
@@ -106,6 +116,16 @@ const ProductDetailPage: React.FC = () => {
     if (!user || !profile) {
       toast.error('Please login to purchase');
       navigate('/auth');
+      return;
+    }
+
+    if (isOutOfStock) {
+      toast.error('This product is out of stock');
+      return;
+    }
+
+    if (exceedsStock) {
+      toast.error(`Only ${currentStock} items available in stock`);
       return;
     }
 
@@ -164,11 +184,25 @@ const ProductDetailPage: React.FC = () => {
         type: 'order'
       });
 
-      // Update product sold count
+      // Update product sold count and decrease stock
+      const updateData: { sold_count: number; stock?: number } = {
+        sold_count: (displayProduct.sold_count || 0) + quantity
+      };
+      
+      // Only update stock if it's being tracked (not null)
+      if (currentStock !== null) {
+        updateData.stock = currentStock - quantity;
+      }
+
       await supabase
         .from('products')
-        .update({ sold_count: (displayProduct.sold_count || 0) + quantity })
+        .update(updateData)
         .eq('id', displayProduct.id);
+
+      // Update local stock state
+      if (currentStock !== null) {
+        setCurrentStock(currentStock - quantity);
+      }
 
       toast.success('Order placed successfully!');
       setShowPurchaseModal(false);
@@ -216,6 +250,14 @@ const ProductDetailPage: React.FC = () => {
               </span>
             </div>
           )}
+          {isOutOfStock && (
+            <div className="absolute top-4 right-4">
+              <Badge variant="destructive" className="text-sm font-bold px-3 py-1">
+                <AlertCircle className="w-4 h-4 mr-1" />
+                Out of Stock
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Product Info */}
@@ -225,14 +267,23 @@ const ProductDetailPage: React.FC = () => {
             <p className="text-sm text-muted-foreground mt-1">{displayProduct.category}</p>
           </div>
 
-          {/* Rating */}
-          <div className="flex items-center gap-2">
+          {/* Rating & Stock */}
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
               <span className="font-medium">{displayProduct.rating || 4.5}</span>
             </div>
             <span className="text-muted-foreground">•</span>
             <span className="text-muted-foreground">{displayProduct.sold_count || 0} sold</span>
+            {currentStock !== null && (
+              <>
+                <span className="text-muted-foreground">•</span>
+                <span className={`font-medium ${isOutOfStock ? 'text-destructive' : currentStock <= 5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  <Package className="w-4 h-4 inline mr-1" />
+                  {isOutOfStock ? 'Out of Stock' : currentStock <= 5 ? `Only ${currentStock} left` : `${currentStock} in stock`}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Price */}
@@ -311,11 +362,21 @@ const ProductDetailPage: React.FC = () => {
             <Share2 className="w-5 h-5" />
           </Button>
           <Button
-            className="flex-1 btn-gradient rounded-xl h-12"
-            onClick={() => setShowPurchaseModal(true)}
+            className={`flex-1 rounded-xl h-12 ${isOutOfStock ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'btn-gradient'}`}
+            onClick={() => !isOutOfStock && setShowPurchaseModal(true)}
+            disabled={isOutOfStock}
           >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            Buy Now - ₹{currentPrice}
+            {isOutOfStock ? (
+              <>
+                <AlertCircle className="w-5 h-5 mr-2" />
+                Out of Stock
+              </>
+            ) : (
+              <>
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                Buy Now - ₹{currentPrice}
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -343,7 +404,12 @@ const ProductDetailPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground">Quantity</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-muted-foreground">Quantity</label>
+                {currentStock !== null && (
+                  <span className="text-xs text-muted-foreground">{currentStock} available</span>
+                )}
+              </div>
               <div className="flex items-center gap-3 mt-1">
                 <Button
                   size="sm"
@@ -356,11 +422,17 @@ const ProductDetailPage: React.FC = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setQuantity(quantity + 1)}
+                  onClick={() => setQuantity(currentStock !== null ? Math.min(currentStock, quantity + 1) : quantity + 1)}
+                  disabled={currentStock !== null && quantity >= currentStock}
                 >
                   +
                 </Button>
               </div>
+              {exceedsStock && (
+                <p className="text-xs text-destructive mt-1">
+                  Maximum {currentStock} items available
+                </p>
+              )}
             </div>
 
             <div>
