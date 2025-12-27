@@ -78,6 +78,7 @@ const AdminPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState('all');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [alertsEnabled, setAlertsEnabled] = useState(true);
 
   // Admin order alerts with sound
@@ -1137,8 +1138,37 @@ const AdminPage: React.FC = () => {
               Add New Product
             </Button>
 
+            {/* Category Filter */}
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              <button
+                onClick={() => setProductCategoryFilter('all')}
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                  productCategoryFilter === 'all' 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted text-foreground hover:bg-muted/80'
+                }`}
+              >
+                All ({products.length})
+              </button>
+              {[...new Set(products.map(p => p.category))].sort().map(category => (
+                <button
+                  key={category}
+                  onClick={() => setProductCategoryFilter(category)}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
+                    productCategoryFilter === category 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted text-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {category} ({products.filter(p => p.category === category).length})
+                </button>
+              ))}
+            </div>
+
             <div className="space-y-3">
-              {products.map((product: any) => (
+              {products
+                .filter(product => productCategoryFilter === 'all' || product.category === productCategoryFilter)
+                .map((product: any) => (
                 <div key={product.id} className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4">
                   <img src={product.image_url || 'https://via.placeholder.com/64'} alt="" className="w-16 h-16 rounded-xl object-cover" />
                   <div className="flex-1">
