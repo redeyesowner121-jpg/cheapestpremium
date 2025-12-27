@@ -46,7 +46,7 @@ serve(async (req) => {
     // Get current user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('wallet_balance, total_deposit, has_blue_check')
+      .select('wallet_balance, total_deposit, has_blue_check, referred_by')
       .eq('id', userId)
       .single();
 
@@ -57,6 +57,10 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Check if this is first deposit and user was referred
+    const isFirstDeposit = (profile.total_deposit || 0) === 0;
+    let referralBonusGiven = false;
 
     let bonusAmount = 0;
     let shouldGetBlueTick = profile.has_blue_check;
@@ -104,6 +108,43 @@ serve(async (req) => {
       razorpay_order_id,
       razorpay_payment_id
     });
+
+    // Handle referral bonus on first deposit
+    if (isFirstDeposit && profile.referred_by) {
+      // Find the referrer by referral code
+      const { data: referrer } = await supabase
+        .from('profiles')
+        .select('id, wallet_balance')
+        .eq('referral_code', profile.referred_by)
+        .maybeSingle();
+
+      if (referrer) {
+        // Give ₹10 to referrer
+        await supabase
+          .from('profiles')
+          .update({ wallet_balance: (referrer.wallet_balance || 0) + 10 })
+          .eq('id', referrer.id);
+
+        await supabase.from('transactions').insert({
+          user_id: referrer.id,
+          type: 'referral',
+          amount: 10,
+          status: 'completed',
+          description: `Referral bonus - new user deposited`
+        });
+
+        // Notify referrer
+        await supabase.from('notifications').insert({
+          user_id: referrer.id,
+          title: 'Referral Bonus! 🎉',
+          message: 'You earned ₹10 because your referred user made their first deposit!',
+          type: 'bonus'
+        });
+
+        referralBonusGiven = true;
+        console.log('Referral bonus given to:', referrer.id);
+      }
+    }
 
     console.log('Payment verified and wallet updated for user:', userId);
 

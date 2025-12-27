@@ -1449,6 +1449,40 @@ const AdminPage: React.FC = () => {
                   Gift Money
                 </Button>
               </div>
+
+              {/* Make Seller Button */}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={async () => {
+                  // Check if already a seller
+                  const { data: existingRole } = await supabase
+                    .from('user_roles')
+                    .select('id')
+                    .eq('user_id', selectedUser.id)
+                    .eq('role', 'seller')
+                    .maybeSingle();
+
+                  if (existingRole) {
+                    // Remove seller role
+                    await supabase
+                      .from('user_roles')
+                      .delete()
+                      .eq('id', existingRole.id);
+                    toast.success('Seller role removed');
+                  } else {
+                    // Add seller role
+                    await supabase
+                      .from('user_roles')
+                      .insert({ user_id: selectedUser.id, role: 'seller' });
+                    toast.success('User is now a seller!');
+                  }
+                  setShowUserModal(false);
+                }}
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Toggle Seller Role
+              </Button>
             </div>
           )}
         </DialogContent>
@@ -1626,11 +1660,52 @@ const AdminPage: React.FC = () => {
               value={productForm.category}
               onChange={(e) => setProductForm({...productForm, category: e.target.value})}
             />
-            <Input
-              placeholder="Image URL"
-              value={productForm.image_url}
-              onChange={(e) => setProductForm({...productForm, image_url: e.target.value})}
-            />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Product Image</label>
+              <Input
+                placeholder="Image URL (paste link)"
+                value={productForm.image_url}
+                onChange={(e) => setProductForm({...productForm, image_url: e.target.value})}
+              />
+              <div className="text-center text-xs text-muted-foreground">or</div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  if (file.size > 2 * 1024 * 1024) {
+                    toast.error('Image must be less than 2MB');
+                    return;
+                  }
+                  
+                  toast.loading('Uploading image...');
+                  
+                  const fileExt = file.name.split('.').pop();
+                  const fileName = `product-${Date.now()}.${fileExt}`;
+                  
+                  const { error } = await supabase.storage
+                    .from('chat-images')
+                    .upload(`products/${fileName}`, file);
+                  
+                  if (error) {
+                    toast.dismiss();
+                    toast.error('Failed to upload');
+                    return;
+                  }
+                  
+                  const { data } = supabase.storage
+                    .from('chat-images')
+                    .getPublicUrl(`products/${fileName}`);
+                  
+                  setProductForm({...productForm, image_url: data.publicUrl});
+                  toast.dismiss();
+                  toast.success('Image uploaded!');
+                }}
+                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              />
+            </div>
             <Input
               placeholder="Access/Download Link (Optional)"
               value={productForm.access_link}

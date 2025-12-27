@@ -9,14 +9,15 @@ import AuthPage from "./pages/AuthPage";
 import WalletPage from "./pages/WalletPage";
 import OrdersPage from "./pages/OrdersPage";
 import ProfilePage from "./pages/ProfilePage";
+import ProfileEditPage from "./pages/ProfileEditPage";
 import ProductsPage from "./pages/ProductsPage";
+import ProductDetailPage from "./pages/ProductDetailPage";
 import ChatPage from "./pages/ChatPage";
 import UsersPage from "./pages/UsersPage";
-import NotificationsPage from "./pages/NotificationsPage";
+import NotificationHistoryPage from "./pages/NotificationHistoryPage";
 import AdminPage from "./pages/AdminPage";
 import SellersPage from "./pages/SellersPage";
 import SellerPanelPage from "./pages/SellerPanelPage";
-import NotificationHistoryPage from "./pages/NotificationHistoryPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,7 +35,9 @@ const App = () => (
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/edit" element={<ProfileEditPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/product" element={<ProductDetailPage />} />
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/notifications" element={<NotificationHistoryPage />} />

@@ -15,7 +15,8 @@ import {
   Gift,
   HelpCircle,
   Shield,
-  Calendar
+  Calendar,
+  Store
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +36,7 @@ import { toast } from 'sonner';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const { profile, logout, refreshProfile, user } = useAuth();
+  const { profile, logout, refreshProfile, user, isSeller, isAdmin } = useAuth();
   
   const [showEditReferral, setShowEditReferral] = useState(false);
   const [showDailyBonus, setShowDailyBonus] = useState(false);
@@ -223,6 +224,17 @@ const ProfilePage: React.FC = () => {
       onClick: () => {},
     },
   ];
+
+  // Add seller panel if user is seller
+  if (isSeller) {
+    menuItems.splice(2, 0, {
+      icon: <Store className="w-5 h-5" />,
+      label: 'Seller Panel',
+      color: 'text-purple-500',
+      bgColor: 'bg-purple-100',
+      onClick: () => navigate('/seller-panel'),
+    });
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
