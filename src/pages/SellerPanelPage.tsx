@@ -12,8 +12,15 @@ import {
   Camera,
   Save,
   X,
-  Image
+  Image,
+  ClipboardList,
+  Eye,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Truck
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,19 +65,39 @@ interface ProductVariation {
   is_active: boolean;
 }
 
+interface SellerOrder {
+  id: string;
+  product_name: string;
+  product_image: string | null;
+  total_price: number;
+  unit_price: number;
+  quantity: number;
+  status: string;
+  created_at: string;
+  user_id: string;
+  user_note: string | null;
+  admin_note: string | null;
+  access_link: string | null;
+  buyer_name?: string;
+  buyer_email?: string;
+}
+
 const categories = ['OTT', 'Gaming', 'Education', 'Software', 'Social Media', 'Music', 'Cloud', 'Other'];
 
 const SellerPanelPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const [products, setProducts] = useState<SellerProduct[]>([]);
+  const [orders, setOrders] = useState<SellerOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<SellerProduct | null>(null);
   const [showVariationsModal, setShowVariationsModal] = useState(false);
   const [selectedProductForVariations, setSelectedProductForVariations] = useState<SellerProduct | null>(null);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
+  const [activeTab, setActiveTab] = useState('products');
 
   // Product form
   const [productForm, setProductForm] = useState({
@@ -102,8 +129,53 @@ const SellerPanelPage: React.FC = () => {
     if (user) {
       loadProducts();
       loadStats();
+      loadOrders();
     }
   }, [user]);
+
+  const loadOrders = async () => {
+    if (!user) return;
+    setOrdersLoading(true);
+
+    // Get seller's product IDs
+    const { data: sellerProducts } = await supabase
+      .from('seller_products')
+      .select('id, name')
+      .eq('seller_id', user.id);
+
+    if (!sellerProducts || sellerProducts.length === 0) {
+      setOrders([]);
+      setOrdersLoading(false);
+      return;
+    }
+
+    const productNames = sellerProducts.map(p => p.name);
+
+    // Get orders that match seller's product names
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('*')
+      .in('product_name', productNames)
+      .order('created_at', { ascending: false });
+
+    if (ordersData) {
+      // Fetch buyer profiles
+      const userIds = [...new Set(ordersData.map(o => o.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', userIds);
+
+      const ordersWithBuyers = ordersData.map(order => ({
+        ...order,
+        buyer_name: profiles?.find(p => p.id === order.user_id)?.name || 'Unknown',
+        buyer_email: profiles?.find(p => p.id === order.user_id)?.email || ''
+      }));
+
+      setOrders(ordersWithBuyers);
+    }
+    setOrdersLoading(false);
+  };
 
   const loadProducts = async () => {
     if (!user) return;
@@ -380,100 +452,211 @@ const SellerPanelPage: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Add Product Button */}
-        <Button
-          className="w-full mb-6 btn-gradient rounded-xl h-12"
-          onClick={() => {
-            setEditingProduct(null);
-            resetProductForm();
-            setShowProductModal(true);
-          }}
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Add New Product
-        </Button>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl bg-muted">
+            <TabsTrigger value="products" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Package className="w-4 h-4 mr-2" />
+              Products
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Orders
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Products List */}
-        <div className="space-y-3">
-          {products.length === 0 ? (
-            <div className="text-center py-12">
-              <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-lg font-medium text-foreground">No products yet</p>
-              <p className="text-sm text-muted-foreground">Add your first product to start selling</p>
-            </div>
-          ) : (
-            products.map((product, index) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="bg-card rounded-2xl p-4 shadow-card"
-              >
-                <div className="flex items-start gap-3">
-                  <img
-                    src={product.image_url || 'https://via.placeholder.com/64'}
-                    alt={product.name}
-                    className="w-16 h-16 rounded-xl object-cover"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">{product.name}</h3>
-                        <p className="text-sm text-muted-foreground">{product.category}</p>
+          {/* Products Tab */}
+          <TabsContent value="products" className="mt-4">
+            {/* Add Product Button */}
+            <Button
+              className="w-full mb-6 btn-gradient rounded-xl h-12"
+              onClick={() => {
+                setEditingProduct(null);
+                resetProductForm();
+                setShowProductModal(true);
+              }}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add New Product
+            </Button>
+
+            {/* Products List */}
+            <div className="space-y-3">
+              {products.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-lg font-medium text-foreground">No products yet</p>
+                  <p className="text-sm text-muted-foreground">Add your first product to start selling</p>
+                </div>
+              ) : (
+                products.map((product, index) => (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="bg-card rounded-2xl p-4 shadow-card"
+                  >
+                    <div className="flex items-start gap-3">
+                      <img
+                        src={product.image_url || 'https://via.placeholder.com/64'}
+                        alt={product.name}
+                        className="w-16 h-16 rounded-xl object-cover"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{product.name}</h3>
+                            <p className="text-sm text-muted-foreground">{product.category}</p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            product.is_active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {product.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="font-bold text-primary">₹{product.price}</span>
+                          {product.original_price && (
+                            <span className="text-xs text-muted-foreground line-through">
+                              ₹{product.original_price}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {product.sold_count} sold
+                          </span>
+                        </div>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        product.is_active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {product.is_active ? 'Active' : 'Inactive'}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="font-bold text-primary">₹{product.price}</span>
-                      {product.original_price && (
-                        <span className="text-xs text-muted-foreground line-through">
-                          ₹{product.original_price}
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground ml-auto">
-                        {product.sold_count} sold
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="flex gap-2 mt-3">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={() => handleEditProduct(product)}
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1 rounded-xl"
-                    onClick={() => handleOpenVariations(product)}
-                  >
-                    <Image className="w-4 h-4 mr-1" />
-                    Variations
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="rounded-xl"
-                    onClick={() => handleDeleteProduct(product.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
+                    <div className="flex gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 rounded-xl"
+                        onClick={() => handleEditProduct(product)}
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 rounded-xl"
+                        onClick={() => handleOpenVariations(product)}
+                      >
+                        <Image className="w-4 h-4 mr-1" />
+                        Variations
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="rounded-xl"
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="mt-4">
+            {ordersLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="text-center py-12">
+                <ClipboardList className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg font-medium text-foreground">No orders yet</p>
+                <p className="text-sm text-muted-foreground">Orders for your products will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {orders.map((order, index) => {
+                  const getStatusIcon = () => {
+                    switch (order.status) {
+                      case 'completed': return <CheckCircle className="w-4 h-4 text-success" />;
+                      case 'pending': return <Clock className="w-4 h-4 text-warning" />;
+                      case 'processing': return <Truck className="w-4 h-4 text-primary" />;
+                      case 'cancelled': return <XCircle className="w-4 h-4 text-destructive" />;
+                      default: return <Clock className="w-4 h-4 text-muted-foreground" />;
+                    }
+                  };
+
+                  const getStatusColor = () => {
+                    switch (order.status) {
+                      case 'completed': return 'bg-success/10 text-success';
+                      case 'pending': return 'bg-warning/10 text-warning';
+                      case 'processing': return 'bg-primary/10 text-primary';
+                      case 'cancelled': return 'bg-destructive/10 text-destructive';
+                      default: return 'bg-muted text-muted-foreground';
+                    }
+                  };
+
+                  return (
+                    <motion.div
+                      key={order.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="bg-card rounded-2xl p-4 shadow-card"
+                    >
+                      <div className="flex items-start gap-3">
+                        <img
+                          src={order.product_image || 'https://via.placeholder.com/64'}
+                          alt={order.product_name}
+                          className="w-14 h-14 rounded-xl object-cover"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-foreground truncate">{order.product_name}</h3>
+                              <p className="text-xs text-muted-foreground">
+                                Buyer: {order.buyer_name}
+                              </p>
+                            </div>
+                            <span className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full whitespace-nowrap ${getStatusColor()}`}>
+                              {getStatusIcon()}
+                              {order.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="font-bold text-primary">₹{order.total_price}</span>
+                            <span className="text-xs text-muted-foreground">
+                              Qty: {order.quantity}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {new Date(order.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          {order.user_note && (
+                            <p className="text-xs text-muted-foreground mt-2 bg-muted p-2 rounded-lg">
+                              Note: {order.user_note}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {order.access_link && (
+                        <div className="mt-3 p-2 bg-success/10 rounded-xl">
+                          <p className="text-xs text-success font-medium flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            Access link provided
+                          </p>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Product Modal */}
