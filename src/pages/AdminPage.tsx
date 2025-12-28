@@ -724,16 +724,21 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-8">
-      {/* Header */}
-      <header className="glass sticky top-0 z-50 px-4 py-3">
-        <div className="max-w-4xl mx-auto flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="p-2">
+      {/* Enhanced Header */}
+      <header className="bg-gradient-to-r from-primary/10 via-background to-accent/10 sticky top-0 z-50 px-4 py-3 border-b border-border/50 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto flex items-center gap-3">
+          <motion.button 
+            onClick={() => navigate('/')} 
+            className="p-2 rounded-xl hover:bg-muted transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
+          </motion.button>
           <div className="flex-1">
             <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" />
-              Admin Panel
+              Admin Dashboard
             </h1>
             {isTempAdmin && tempAdminExpiry && (
               <p className="text-xs text-accent flex items-center gap-1">
@@ -742,150 +747,133 @@ const AdminPage: React.FC = () => {
               </p>
             )}
           </div>
-          {/* Alert Toggle */}
-          <Button 
-            size="icon" 
-            variant={alertsEnabled ? "default" : "outline"}
-            onClick={() => setAlertsEnabled(!alertsEnabled)}
-            title={alertsEnabled ? "Alerts ON - Click to mute" : "Alerts OFF - Click to enable"}
-          >
-            {alertsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => navigate('/chat')}>
-            <Phone className="w-4 h-4 mr-2" />
-            Contact Users
-          </Button>
+          
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-2">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                size="icon" 
+                variant={alertsEnabled ? "default" : "outline"}
+                onClick={() => setAlertsEnabled(!alertsEnabled)}
+                title={alertsEnabled ? "Alerts ON" : "Alerts OFF"}
+                className="rounded-xl"
+              >
+                {alertsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button size="sm" variant="outline" onClick={() => navigate('/chat')} className="rounded-xl">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Chat</span>
+              </Button>
+            </motion.div>
+          </div>
         </div>
       </header>
 
-      <main className="px-4 max-w-4xl mx-auto mt-4">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-card rounded-2xl p-4 shadow-card"
-          >
-            <div className="p-2 rounded-xl bg-primary/10 w-fit mb-2">
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{totalUsers}</p>
-            <p className="text-xs text-muted-foreground">Total Users</p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-            className="bg-card rounded-2xl p-4 shadow-card"
-          >
-            <div className="p-2 rounded-xl bg-success/10 w-fit mb-2">
-              <TrendingUp className="w-5 h-5 text-success" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">₹{totalDeposits.toFixed(0)}</p>
-            <p className="text-xs text-muted-foreground">Total Deposits</p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-card rounded-2xl p-4 shadow-card"
-          >
-            <div className="p-2 rounded-xl bg-accent/10 w-fit mb-2">
-              <ShoppingBag className="w-5 h-5 text-accent" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{totalOrders}</p>
-            <p className="text-xs text-muted-foreground">Total Orders</p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="bg-card rounded-2xl p-4 shadow-card"
-          >
-            <div className="p-2 rounded-xl bg-secondary/10 w-fit mb-2">
-              <Clock className="w-5 h-5 text-secondary" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{pendingOrders}</p>
-            <p className="text-xs text-muted-foreground">Pending Orders</p>
-          </motion.div>
+      <main className="px-4 max-w-5xl mx-auto mt-6">
+        {/* Compact Stats Grid */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          {[
+            { icon: Users, value: totalUsers, label: 'Users', color: 'primary' },
+            { icon: TrendingUp, value: `₹${totalDeposits.toFixed(0)}`, label: 'Deposits', color: 'success' },
+            { icon: ShoppingBag, value: totalOrders, label: 'Orders', color: 'accent' },
+            { icon: Clock, value: pendingOrders, label: 'Pending', color: 'secondary', highlight: pendingOrders > 0 }
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className={`bg-card rounded-2xl p-3 shadow-card text-center relative overflow-hidden ${
+                stat.highlight ? 'ring-2 ring-primary/50' : ''
+              }`}
+            >
+              {stat.highlight && (
+                <motion.div
+                  className="absolute inset-0 bg-primary/5"
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+              )}
+              <stat.icon className={`w-5 h-5 text-${stat.color} mx-auto mb-1`} />
+              <p className="text-lg font-bold text-foreground">{stat.value}</p>
+              <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+            </motion.div>
+          ))}
         </div>
         
-        {/* Additional Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-card rounded-xl p-3 shadow-card text-center">
-            <Award className="w-5 h-5 text-accent mx-auto mb-1" />
-            <p className="font-bold text-foreground">{blueTickUsers}</p>
-            <p className="text-[10px] text-muted-foreground">Blue Tick Users</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 shadow-card text-center">
-            <Calendar className="w-5 h-5 text-primary mx-auto mb-1" />
-            <p className="font-bold text-foreground">{todayOrders}</p>
-            <p className="text-[10px] text-muted-foreground">Today's Orders</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 shadow-card text-center">
-            <Package className="w-5 h-5 text-success mx-auto mb-1" />
-            <p className="font-bold text-foreground">{products.length}</p>
-            <p className="text-[10px] text-muted-foreground">Products</p>
-          </div>
+        {/* Mini Stats Row */}
+        <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
+          {[
+            { icon: Award, value: blueTickUsers, label: 'Blue Tick' },
+            { icon: Calendar, value: todayOrders, label: 'Today' },
+            { icon: Package, value: products.length, label: 'Products' },
+            { icon: UserPlus, value: tempAdmins.length, label: 'Temp Admins' }
+          ].map((stat) => (
+            <div 
+              key={stat.label}
+              className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2 min-w-fit"
+            >
+              <stat.icon className="w-4 h-4 text-muted-foreground" />
+              <span className="font-semibold text-sm text-foreground">{stat.value}</span>
+              <span className="text-xs text-muted-foreground">{stat.label}</span>
+            </div>
+          ))}
         </div>
 
-        {/* Low Stock Alert */}
+        {/* Stock Alert - Compact */}
         {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-destructive/10 border border-destructive/20 rounded-2xl p-4 mb-6"
+            className="bg-destructive/10 border border-destructive/20 rounded-xl p-3 mb-6 flex items-center gap-3"
           >
-            <h3 className="font-semibold text-destructive flex items-center gap-2 mb-3">
-              <Bell className="w-5 h-5" />
-              Stock Alerts
-            </h3>
-            {outOfStockProducts.length > 0 && (
-              <div className="mb-2">
-                <p className="text-sm font-medium text-destructive">Out of Stock ({outOfStockProducts.length}):</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {outOfStockProducts.slice(0, 5).map(p => (
-                    <span key={p.id} className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded">
-                      {p.name}
-                    </span>
-                  ))}
-                  {outOfStockProducts.length > 5 && (
-                    <span className="text-xs text-destructive">+{outOfStockProducts.length - 5} more</span>
-                  )}
-                </div>
-              </div>
-            )}
-            {lowStockProducts.length > 0 && (
-              <div>
-                <p className="text-sm font-medium text-yellow-600">Low Stock ({lowStockProducts.length}):</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {lowStockProducts.slice(0, 5).map(p => (
-                    <span key={p.id} className="text-xs bg-yellow-500/20 text-yellow-700 px-2 py-1 rounded">
-                      {p.name} ({p.stock})
-                    </span>
-                  ))}
-                  {lowStockProducts.length > 5 && (
-                    <span className="text-xs text-yellow-600">+{lowStockProducts.length - 5} more</span>
-                  )}
-                </div>
-              </div>
-            )}
+            <Bell className="w-5 h-5 text-destructive shrink-0" />
+            <div className="flex-1 flex flex-wrap gap-2">
+              {outOfStockProducts.length > 0 && (
+                <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded-lg">
+                  {outOfStockProducts.length} Out of Stock
+                </span>
+              )}
+              {lowStockProducts.length > 0 && (
+                <span className="text-xs bg-yellow-500/20 text-yellow-700 px-2 py-1 rounded-lg">
+                  {lowStockProducts.length} Low Stock
+                </span>
+              )}
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="text-xs"
+              onClick={() => setActiveTab('products')}
+            >
+              View
+            </Button>
           </motion.div>
         )}
 
-        {/* Tabs */}
+        {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full flex overflow-x-auto no-scrollbar mb-4">
-            <TabsTrigger value="dashboard" className="flex-1 text-xs">Dashboard</TabsTrigger>
-            <TabsTrigger value="users" className="flex-1 text-xs">Users</TabsTrigger>
-            <TabsTrigger value="orders" className="flex-1 text-xs">Orders</TabsTrigger>
-            <TabsTrigger value="products" className="flex-1 text-xs">Products</TabsTrigger>
-            <TabsTrigger value="chat" className="flex-1 text-xs">Chat</TabsTrigger>
-            <TabsTrigger value="content" className="flex-1 text-xs">Content</TabsTrigger>
-            {isAdmin && <TabsTrigger value="settings" className="flex-1 text-xs">Settings</TabsTrigger>}
+          <TabsList className="w-full grid grid-cols-7 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
+            {[
+              { value: 'dashboard', icon: TrendingUp, label: 'Dashboard' },
+              { value: 'users', icon: Users, label: 'Users' },
+              { value: 'orders', icon: ShoppingBag, label: 'Orders' },
+              { value: 'products', icon: Package, label: 'Products' },
+              { value: 'chat', icon: MessageCircle, label: 'Chat' },
+              { value: 'content', icon: Image, label: 'Content' },
+              ...(isAdmin ? [{ value: 'settings', icon: Settings, label: 'Settings' }] : [])
+            ].map((tab) => (
+              <TabsTrigger 
+                key={tab.value}
+                value={tab.value} 
+                className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
+              >
+                <tab.icon className="w-4 h-4" />
+                <span className="text-[10px] hidden sm:block">{tab.label}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Dashboard Tab */}
