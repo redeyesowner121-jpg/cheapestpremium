@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import SuccessModal from '@/components/SuccessModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -61,6 +62,13 @@ const WalletPage: React.FC = () => {
   
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successData, setSuccessData] = useState<{type: 'deposit' | 'bonus'; title: string; message: string; details: {label: string; value: string}[]}>({
+    type: 'deposit',
+    title: '',
+    message: '',
+    details: []
+  });
   const [depositAmount, setDepositAmount] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
   const [transferNote, setTransferNote] = useState('');
@@ -163,18 +171,31 @@ const WalletPage: React.FC = () => {
             return;
           }
 
+          const details: {label: string; value: string}[] = [
+            { label: 'Amount Added', value: `₹${amount}` }
+          ];
+          
           if (verifyData.bonusAmount > 0) {
-            toast.success(`🎉 You got Rs${verifyData.bonusAmount} bonus!`);
+            details.push({ label: 'Bonus Earned', value: `₹${verifyData.bonusAmount}` });
           }
           if (verifyData.gotBlueTick) {
-            toast.success('🎉 You earned your Blue Tick!');
+            details.push({ label: 'Special Reward', value: '✓ Blue Tick Unlocked!' });
           }
 
-          toast.success('Deposit successful!');
+          setSuccessData({
+            type: verifyData.bonusAmount > 0 ? 'bonus' : 'deposit',
+            title: verifyData.bonusAmount > 0 ? 'Bonus Claimed! 🎉' : 'Deposit Successful!',
+            message: verifyData.bonusAmount > 0 
+              ? 'Congratulations! You earned bonus money!' 
+              : 'Your wallet has been credited successfully',
+            details
+          });
+          
           refreshProfile();
           loadTransactions();
           setShowDepositModal(false);
           setDepositAmount('');
+          setShowSuccessModal(true);
         },
         prefill: {
           email: profile.email,
@@ -637,6 +658,18 @@ const WalletPage: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        type={successData.type}
+        title={successData.title}
+        message={successData.message}
+        details={successData.details}
+        actionLabel="View Wallet"
+        autoCloseDelay={4000}
+      />
 
       <BottomNav />
     </div>

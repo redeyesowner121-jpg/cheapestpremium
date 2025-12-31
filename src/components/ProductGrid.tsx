@@ -27,14 +27,23 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   onProductClick,
   onBuyClick
 }) => {
-  const handleShare = (e: React.MouseEvent, product: Product) => {
+  const handleShare = async (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: `Check out ${product.name} at RKR Premium Store!`,
-        url: window.location.href,
-      });
+    const productUrl = `${window.location.origin}/product/${product.id}`;
+    const shareData = {
+      title: product.name,
+      text: `Check out ${product.name} at RKR Premium Store! Only ₹${product.price}`,
+      url: productUrl,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+      }
+    } catch (error) {
+      // Silent fail
     }
   };
 
