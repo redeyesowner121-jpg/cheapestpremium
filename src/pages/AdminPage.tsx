@@ -107,6 +107,11 @@ const AdminPage: React.FC = () => {
   const [productVariations, setProductVariations] = useState<any[]>([]);
   const [newVariation, setNewVariation] = useState({ name: '', price: '' });
   
+  // Variations for product modal
+  const [pendingVariations, setPendingVariations] = useState<{name: string, price: string}[]>([]);
+  const [existingVariations, setExistingVariations] = useState<any[]>([]);
+  const [newModalVariation, setNewModalVariation] = useState({ name: '', price: '' });
+  
   // Form states
   const [giftAmount, setGiftAmount] = useState('');
   const [adminNote, setAdminNote] = useState('');
@@ -478,7 +483,7 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    const { error } = await supabase.from('products').insert({
+    const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name,
       description: productForm.description,
       price: parseFloat(productForm.price),
@@ -488,20 +493,33 @@ const AdminPage: React.FC = () => {
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active
-    });
+    }).select().single();
     
-    if (error) {
+    if (error || !newProduct) {
       toast.error('Failed to add product');
       return;
     }
     
+    // Add pending variations if any
+    if (pendingVariations.length > 0) {
+      const variationsToInsert = pendingVariations.map(v => ({
+        product_id: newProduct.id,
+        name: v.name,
+        price: parseFloat(v.price)
+      }));
+      
+      await supabase.from('product_variations').insert(variationsToInsert);
+    }
+    
     toast.success('Product added!');
     setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
+    setPendingVariations([]);
+    setNewModalVariation({ name: '', price: '' });
     setShowProductModal(false);
     loadData();
   };
 
-  const handleEditProduct = (product: any) => {
+  const handleEditProduct = async (product: any) => {
     setEditingProduct(product);
     setProductForm({
       name: product.name || '',
@@ -514,6 +532,17 @@ const AdminPage: React.FC = () => {
       stock: product.stock?.toString() || '',
       is_active: product.is_active !== false
     });
+    
+    // Load existing variations
+    const { data } = await supabase
+      .from('product_variations')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('created_at', { ascending: true });
+    setExistingVariations(data || []);
+    setPendingVariations([]);
+    setNewModalVariation({ name: '', price: '' });
+    
     setShowProductModal(true);
   };
 
@@ -540,12 +569,86 @@ const AdminPage: React.FC = () => {
       return;
     }
     
+    // Add any new pending variations for this product
+    if (pendingVariations.length > 0) {
+      const variationsToInsert = pendingVariations.map(v => ({
+        product_id: editingProduct.id,
+        name: v.name,
+        price: parseFloat(v.price)
+      }));
+      
+      await supabase.from('product_variations').insert(variationsToInsert);
+    }
+    
     toast.success('Product updated!');
     setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setEditingProduct(null);
+    setPendingVariations([]);
+    setExistingVariations([]);
+    setNewModalVariation({ name: '', price: '' });
     setShowProductModal(false);
     loadData();
   };
+  
+  // Handle adding variation in product modal
+  const handleAddModalVariation = () => {
+    if (!newModalVariation.name || !newModalVariation.price) {
+      toast.error('Please fill variation name and price');
+      return;
+    }
+    
+    if (editingProduct) {
+      // For existing product, save to DB immediately
+      supabase.from('product_variations').insert({
+        product_id: editingProduct.id,
+        name: newModalVariation.name,
+        price: parseFloat(newModalVariation.price)
+      }).then(({ error, data }) => {
+        if (error) {
+          toast.error('Failed to add variation');
+          return;
+        }
+        
+        // Reload variations
+        supabase
+          .from('product_variations')
+          .select('*')
+          .eq('product_id', editingProduct.id)
+          .order('created_at', { ascending: true })
+          .then(({ data }) => {
+            setExistingVariations(data || []);
+          });
+        
+        toast.success('Variation added!');
+        setNewModalVariation({ name: '', price: '' });
+      });
+    } else {
+      // For new product, add to pending list
+      setPendingVariations([...pendingVariations, { ...newModalVariation }]);
+      setNewModalVariation({ name: '', price: '' });
+    }
+  };
+  
+  // Handle deleting variation in product modal
+  const handleDeleteModalVariation = async (variationId: string, isExisting: boolean) => {
+    if (isExisting) {
+      await supabase.from('product_variations').delete().eq('id', variationId);
+      setExistingVariations(existingVariations.filter(v => v.id !== variationId));
+      toast.success('Variation deleted!');
+    } else {
+      // Remove from pending list (variationId is the index in this case)
+      const index = parseInt(variationId);
+      setPendingVariations(pendingVariations.filter((_, i) => i !== index));
+    }
+  };
+  
+  // Quick templates for common variations
+  const quickVariationTemplates = [
+    { name: '1 Month', price: '49' },
+    { name: '3 Months', price: '129' },
+    { name: '6 Months', price: '249' },
+    { name: '1 Year', price: '449' },
+  ];
   
   const handleDeleteProduct = async (productId: string) => {
     // Check if product has orders
@@ -1800,9 +1903,12 @@ const AdminPage: React.FC = () => {
         if (!open) {
           setEditingProduct(null);
           setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
+          setPendingVariations([]);
+          setExistingVariations([]);
+          setNewModalVariation({ name: '', price: '' });
         }
       }}>
-        <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
@@ -1901,6 +2007,123 @@ const AdminPage: React.FC = () => {
                 onCheckedChange={(v) => setProductForm({...productForm, is_active: v})}
               />
             </div>
+            
+            {/* Variations Section */}
+            <div className="border-t border-border pt-4">
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4 text-primary" />
+                Product Variations (Optional)
+              </h4>
+              
+              {/* Quick Templates */}
+              <div className="mb-3">
+                <p className="text-xs text-muted-foreground mb-2">Quick Add Templates:</p>
+                <div className="flex flex-wrap gap-1">
+                  {quickVariationTemplates.map((template, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+                      onClick={() => {
+                        if (editingProduct) {
+                          supabase.from('product_variations').insert({
+                            product_id: editingProduct.id,
+                            name: template.name,
+                            price: parseFloat(template.price)
+                          }).then(() => {
+                            supabase
+                              .from('product_variations')
+                              .select('*')
+                              .eq('product_id', editingProduct.id)
+                              .order('created_at', { ascending: true })
+                              .then(({ data }) => {
+                                setExistingVariations(data || []);
+                              });
+                            toast.success(`${template.name} added!`);
+                          });
+                        } else {
+                          setPendingVariations([...pendingVariations, { ...template }]);
+                        }
+                      }}
+                    >
+                      + {template.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Existing Variations (for edit mode) */}
+              {existingVariations.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  <p className="text-xs text-muted-foreground">Current Variations:</p>
+                  {existingVariations.map((v) => (
+                    <div key={v.id} className="flex items-center justify-between p-2 bg-muted rounded-xl">
+                      <div>
+                        <span className="text-sm font-medium">{v.name}</span>
+                        <span className="text-primary font-bold text-sm ml-2">₹{v.price}</span>
+                      </div>
+                      <Button 
+                        size="icon" 
+                        variant="destructive" 
+                        className="h-7 w-7" 
+                        onClick={() => handleDeleteModalVariation(v.id, true)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Pending Variations (for new product) */}
+              {pendingVariations.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  <p className="text-xs text-muted-foreground">Variations to Add:</p>
+                  {pendingVariations.map((v, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-accent/10 rounded-xl">
+                      <div>
+                        <span className="text-sm font-medium">{v.name}</span>
+                        <span className="text-primary font-bold text-sm ml-2">₹{v.price}</span>
+                      </div>
+                      <Button 
+                        size="icon" 
+                        variant="outline" 
+                        className="h-7 w-7" 
+                        onClick={() => handleDeleteModalVariation(idx.toString(), false)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Add New Variation */}
+              <div className="grid grid-cols-5 gap-2">
+                <Input
+                  placeholder="Name (e.g. 1 Month)"
+                  value={newModalVariation.name}
+                  onChange={(e) => setNewModalVariation({...newModalVariation, name: e.target.value})}
+                  className="col-span-2"
+                />
+                <Input
+                  type="number"
+                  placeholder="Price"
+                  value={newModalVariation.price}
+                  onChange={(e) => setNewModalVariation({...newModalVariation, price: e.target.value})}
+                  className="col-span-2"
+                />
+                <Button 
+                  type="button" 
+                  size="icon" 
+                  onClick={handleAddModalVariation}
+                  className="h-10 w-10"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
             <Button className="w-full btn-gradient" onClick={editingProduct ? handleUpdateProduct : handleAddProduct}>
               {editingProduct ? 'Update Product' : 'Add Product'}
             </Button>
