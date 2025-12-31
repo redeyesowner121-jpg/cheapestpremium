@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -11,7 +11,9 @@ import {
   Shield,
   Truck,
   MessageCircle,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  Check
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,11 +40,13 @@ interface ProductVariation {
 const ProductDetailPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, refreshProfile } = useAuth();
+  const { id: productId } = useParams();
+  const { user, profile, refreshProfile, isAdmin, isTempAdmin } = useAuth();
   
-  const product = location.state?.product;
+  const stateProduct = location.state?.product;
   const flashSale = location.state?.flashSale;
   
+  const [product, setProduct] = useState<any>(stateProduct || null);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -51,35 +55,56 @@ const ProductDetailPage: React.FC = () => {
   const [successOrderData, setSuccessOrderData] = useState({ productName: '', totalPrice: 0 });
   const [userNote, setUserNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingProduct, setLoadingProduct] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   const [currentStock, setCurrentStock] = useState<number | null>(null);
 
-  const displayProduct = flashSale?.productData || product;
-  const isOutOfStock = currentStock !== null && currentStock <= 0;
-
+  // Load product from URL param if not passed via state
   useEffect(() => {
-    if (!displayProduct) {
+    if (!stateProduct && productId) {
+      loadProductById(productId);
+    } else if (stateProduct) {
+      setProduct(flashSale?.productData || stateProduct);
+      setCurrentStock(stateProduct.stock ?? null);
+      loadVariations(stateProduct.id);
+    }
+  }, [productId, stateProduct]);
+
+  const loadProductById = async (id: string) => {
+    setLoadingProduct(true);
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (error || !data) {
+      toast.error('Product not found');
       navigate('/products');
       return;
     }
-    loadVariations();
-    // Initialize stock from product data
-    setCurrentStock(displayProduct.stock ?? null);
-  }, [displayProduct]);
-
-  const loadVariations = async () => {
-    if (!displayProduct?.id) return;
     
+    setProduct(data);
+    setCurrentStock(data.stock ?? null);
+    loadVariations(id);
+    setLoadingProduct(false);
+  };
+
+  const loadVariations = async (id: string) => {
     const { data } = await supabase
       .from('product_variations')
       .select('*')
-      .eq('product_id', displayProduct.id)
+      .eq('product_id', id)
       .eq('is_active', true);
     
     if (data) {
       setVariations(data);
     }
   };
+
+  const displayProduct = flashSale?.productData || product;
+  const isOutOfStock = currentStock !== null && currentStock <= 0;
 
   // Check if quantity exceeds available stock
   const exceedsStock = currentStock !== null && quantity > currentStock;
@@ -91,10 +116,11 @@ const ProductDetailPage: React.FC = () => {
   const totalPrice = currentPrice * quantity;
 
   const handleShare = async () => {
+    const productUrl = `${window.location.origin}/product/${displayProduct?.id}`;
     const shareData = {
       title: displayProduct?.name,
       text: `Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`,
-      url: window.location.href,
+      url: productUrl,
     };
 
     try {
@@ -226,8 +252,12 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  if (!displayProduct) {
-    return null;
+  if (!displayProduct || loadingProduct) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (
@@ -239,125 +269,214 @@ const ProductDetailPage: React.FC = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-lg font-bold">Product Details</h1>
-          <button onClick={handleShare} className="p-2">
-            <Share2 className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {(isAdmin || isTempAdmin) && (
+              <button 
+                onClick={() => navigate('/admin', { state: { editProduct: displayProduct } })} 
+                className="p-2 bg-primary/10 rounded-lg"
+              >
+                <Edit className="w-5 h-5 text-primary" />
+              </button>
+            )}
+            <button 
+              onClick={() => setIsFavorite(!isFavorite)} 
+              className="p-2"
+            >
+              <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
+            </button>
+            <button onClick={handleShare} className="p-2">
+              <Share2 className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="pt-16 max-w-lg mx-auto">
-        {/* Product Image */}
-        <div className="relative">
-          <img
+        {/* Product Image with enhanced styling */}
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="relative overflow-hidden"
+        >
+          <motion.img
+            initial={{ scale: 1.1 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5 }}
             src={displayProduct.image_url || displayProduct.image || 'https://via.placeholder.com/400'}
             alt={displayProduct.name}
-            className="w-full h-72 object-cover"
+            className="w-full h-80 object-cover"
           />
-          {flashSale && (
-            <div className="absolute top-4 left-4 gradient-accent px-3 py-1 rounded-full">
-              <span className="text-sm font-bold text-accent-foreground">
-                Flash Sale!
-              </span>
-            </div>
-          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          
+          {/* Badges */}
+          <div className="absolute top-4 left-4 flex flex-col gap-2">
+            {flashSale && (
+              <motion.div 
+                initial={{ x: -50, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                className="gradient-accent px-3 py-1.5 rounded-full shadow-lg"
+              >
+                <span className="text-sm font-bold text-accent-foreground">⚡ Flash Sale!</span>
+              </motion.div>
+            )}
+            {displayProduct.original_price && !flashSale && (
+              <motion.div 
+                initial={{ x: -50, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                className="bg-destructive px-3 py-1.5 rounded-full shadow-lg"
+              >
+                <span className="text-sm font-bold text-destructive-foreground">
+                  -{Math.round(((displayProduct.original_price - displayProduct.price) / displayProduct.original_price) * 100)}% OFF
+                </span>
+              </motion.div>
+            )}
+          </div>
+          
           {isOutOfStock && (
-            <div className="absolute top-4 right-4">
-              <Badge variant="destructive" className="text-sm font-bold px-3 py-1">
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="absolute top-4 right-4"
+            >
+              <Badge variant="destructive" className="text-sm font-bold px-3 py-1.5 shadow-lg">
                 <AlertCircle className="w-4 h-4 mr-1" />
                 Out of Stock
               </Badge>
-            </div>
+            </motion.div>
           )}
-        </div>
-
-        {/* Product Info */}
-        <div className="px-4 py-6 space-y-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{displayProduct.name}</h1>
-            <p className="text-sm text-muted-foreground mt-1">{displayProduct.category}</p>
-          </div>
-
-          {/* Rating & Stock */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-              <span className="font-medium">{displayProduct.rating || 4.5}</span>
-            </div>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">{displayProduct.sold_count || 0} sold</span>
-            {currentStock !== null && (
-              <>
-                <span className="text-muted-foreground">•</span>
-                <span className={`font-medium ${isOutOfStock ? 'text-destructive' : currentStock <= 5 ? 'text-yellow-600' : 'text-green-600'}`}>
-                  <Package className="w-4 h-4 inline mr-1" />
-                  {isOutOfStock ? 'Out of Stock' : currentStock <= 5 ? `Only ${currentStock} left` : `${currentStock} in stock`}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Price */}
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-primary">₹{currentPrice}</span>
-            {(flashSale || displayProduct.original_price) && (
-              <span className="text-lg text-muted-foreground line-through">
-                ₹{flashSale ? displayProduct.price : displayProduct.original_price}
-              </span>
-            )}
-            {flashSale && (
-              <span className="px-2 py-0.5 bg-destructive/10 text-destructive text-sm font-medium rounded">
-                -{Math.round(((displayProduct.price - flashSale.salePrice) / displayProduct.price) * 100)}%
-              </span>
-            )}
-          </div>
-
-          {/* Variations */}
-          {variations.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Select Variation</p>
-              <div className="flex flex-wrap gap-2">
-                {variations.map((variation) => (
-                  <button
-                    key={variation.id}
-                    onClick={() => setSelectedVariation(variation)}
-                    className={`px-4 py-2 rounded-xl border transition-all ${
-                      selectedVariation?.id === variation.id
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-foreground hover:border-primary/50'
-                    }`}
-                  >
-                    <span className="block text-sm font-medium">{variation.name}</span>
-                    <span className="block text-xs text-muted-foreground">₹{variation.price}</span>
-                  </button>
-                ))}
+          
+          {/* Price overlay */}
+          <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="absolute bottom-4 left-4 right-4"
+          >
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-3xl font-bold text-primary">₹{currentPrice}</span>
+                  {(flashSale || displayProduct.original_price) && (
+                    <span className="text-sm text-muted-foreground line-through ml-2">
+                      ₹{flashSale ? displayProduct.price : displayProduct.original_price}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">
+                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                  <span className="font-bold text-yellow-700">{displayProduct.rating || 4.5}</span>
+                </div>
               </div>
             </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Product Info */}
+        <motion.div 
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="px-4 py-6 space-y-5"
+        >
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{displayProduct.name}</h1>
+            <div className="flex items-center gap-3 mt-2">
+              <Badge variant="secondary" className="text-xs">{displayProduct.category}</Badge>
+              <span className="text-sm text-muted-foreground">{displayProduct.sold_count || 0} sold</span>
+              {currentStock !== null && (
+                <span className={`text-sm font-medium flex items-center gap-1 ${isOutOfStock ? 'text-destructive' : currentStock <= 5 ? 'text-yellow-600' : 'text-green-600'}`}>
+                  <Package className="w-4 h-4" />
+                  {isOutOfStock ? 'Out of Stock' : currentStock <= 5 ? `Only ${currentStock} left!` : `${currentStock} available`}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Variations with enhanced UI */}
+          {variations.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="w-1 h-4 bg-primary rounded-full"></span>
+                Select Duration
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {variations.map((variation, index) => (
+                  <motion.button
+                    key={variation.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + index * 0.05 }}
+                    onClick={() => setSelectedVariation(variation)}
+                    className={`relative p-3 rounded-xl border-2 transition-all ${
+                      selectedVariation?.id === variation.id
+                        ? 'border-primary bg-primary/10 shadow-lg'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                    }`}
+                  >
+                    {selectedVariation?.id === variation.id && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+                      >
+                        <Check className="w-3 h-3 text-primary-foreground" />
+                      </motion.div>
+                    )}
+                    <span className="block text-sm font-semibold text-foreground">{variation.name}</span>
+                    <span className="block text-lg font-bold text-primary mt-0.5">₹{variation.price}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
           )}
 
           {/* Description */}
           {displayProduct.description && (
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Description</p>
-              <p className="text-sm text-muted-foreground">{displayProduct.description}</p>
-            </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="bg-muted/50 rounded-2xl p-4"
+            >
+              <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                <span className="w-1 h-4 bg-primary rounded-full"></span>
+                About this product
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{displayProduct.description}</p>
+            </motion.div>
           )}
 
-          {/* Features */}
-          <div className="grid grid-cols-3 gap-3 py-4">
-            <div className="flex flex-col items-center gap-1 p-3 bg-muted rounded-xl">
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="text-xs text-center text-muted-foreground">100% Secure</span>
+          {/* Features with enhanced styling */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="grid grid-cols-3 gap-3"
+          >
+            <div className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-2xl border border-green-200 dark:border-green-800">
+              <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-green-600" />
+              </div>
+              <span className="text-xs text-center font-medium text-green-700 dark:text-green-300">Secure Payment</span>
             </div>
-            <div className="flex flex-col items-center gap-1 p-3 bg-muted rounded-xl">
-              <Truck className="w-5 h-5 text-primary" />
-              <span className="text-xs text-center text-muted-foreground">Fast Delivery</span>
+            <div className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-2xl border border-blue-200 dark:border-blue-800">
+              <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <Truck className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-xs text-center font-medium text-blue-700 dark:text-blue-300">Instant Delivery</span>
             </div>
-            <div className="flex flex-col items-center gap-1 p-3 bg-muted rounded-xl">
-              <MessageCircle className="w-5 h-5 text-primary" />
-              <span className="text-xs text-center text-muted-foreground">24/7 Support</span>
+            <div className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 rounded-2xl border border-purple-200 dark:border-purple-800">
+              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                <MessageCircle className="w-5 h-5 text-purple-600" />
+              </div>
+              <span className="text-xs text-center font-medium text-purple-700 dark:text-purple-300">24/7 Support</span>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </main>
 
       {/* Bottom Action Bar */}
