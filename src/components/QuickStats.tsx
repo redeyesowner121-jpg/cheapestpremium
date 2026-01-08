@@ -6,13 +6,21 @@ import {
   TrendingUp, 
   Award,
   Wallet,
-  ShoppingBag
+  ShoppingBag,
+  Crown
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import BlueTick from './BlueTick';
+import { RankBadgeInline } from './RankBadge';
+import { getUserRank, getNextRank, getProgressToNextRank } from '@/lib/ranks';
+import { Progress } from '@/components/ui/progress';
 
 const QuickStats: React.FC = () => {
   const { profile } = useAuth();
+  const rankBalance = profile?.rank_balance || 0;
+  const rank = getUserRank(rankBalance);
+  const nextRank = getNextRank(rankBalance);
+  const { progress, remaining } = getProgressToNextRank(rankBalance);
 
   const stats = [
     {
@@ -37,11 +45,11 @@ const QuickStats: React.FC = () => {
       bgColor: 'bg-accent/10',
     },
     {
-      icon: <Users className="w-5 h-5" />,
-      label: 'Referrals',
-      value: '0',
-      color: 'text-secondary',
-      bgColor: 'bg-secondary/10',
+      icon: <Crown className="w-5 h-5" />,
+      label: 'Rank',
+      value: <RankBadgeInline rankBalance={rankBalance} size="sm" />,
+      color: rank.color,
+      bgColor: rank.bgColor,
     },
   ];
 
@@ -79,8 +87,8 @@ const QuickStats: React.FC = () => {
         ))}
       </div>
 
-      {/* Blue Tick Progress */}
-      {!profile?.has_blue_check && (
+      {/* Rank Progress */}
+      {nextRank && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -89,24 +97,57 @@ const QuickStats: React.FC = () => {
         >
           <div className="flex items-center gap-3">
             <div className="p-2 gradient-primary rounded-xl">
-              <Award className="w-5 h-5 text-primary-foreground" />
+              <Crown className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground text-sm">Get Blue Tick!</p>
+              <p className="font-semibold text-foreground text-sm">
+                Next: {nextRank.icon} {nextRank.name}
+              </p>
               <p className="text-xs text-muted-foreground">
-                Deposit Rs1000 total to get free Blue Tick
+                Deposit ₹{remaining.toLocaleString()} more to upgrade
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Progress</p>
               <p className="font-bold text-primary">
+                {Math.round(progress)}%
+              </p>
+            </div>
+          </div>
+          <div className="mt-3">
+            <Progress value={progress} className="h-2" />
+          </div>
+        </motion.div>
+      )}
+
+      {/* Blue Tick Progress */}
+      {!profile?.has_blue_check && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="mt-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-2xl p-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-xl">
+              <Award className="w-5 h-5 text-blue-500" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground text-sm">Get Blue Tick!</p>
+              <p className="text-xs text-muted-foreground">
+                Deposit ₹1000 total to get free Blue Tick
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Progress</p>
+              <p className="font-bold text-blue-500">
                 {Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100).toFixed(0)}%
               </p>
             </div>
           </div>
           <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
             <motion.div
-              className="h-full gradient-primary rounded-full"
+              className="h-full bg-blue-500 rounded-full"
               initial={{ width: 0 }}
               animate={{ 
                 width: `${Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100)}%` 
@@ -131,7 +172,7 @@ const QuickStats: React.FC = () => {
           <div>
             <p className="font-bold text-accent-foreground text-sm">Special Offer!</p>
             <p className="text-xs text-accent-foreground/80">
-              Deposit Rs1000 at once → Get Rs100 bonus + Blue Tick!
+              Deposit ₹1000 at once → Get ₹100 bonus + Blue Tick!
             </p>
           </div>
         </div>

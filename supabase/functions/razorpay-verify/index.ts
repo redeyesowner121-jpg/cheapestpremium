@@ -46,7 +46,7 @@ serve(async (req) => {
     // Get current user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('wallet_balance, total_deposit, has_blue_check, referred_by')
+      .select('wallet_balance, total_deposit, has_blue_check, referred_by, rank_balance')
       .eq('id', userId)
       .single();
 
@@ -72,6 +72,7 @@ serve(async (req) => {
     }
 
     const newTotalDeposit = (profile.total_deposit || 0) + amount;
+    const newRankBalance = (profile.rank_balance || 0) + amount;
 
     // Check for total Rs 1000 deposit blue tick
     if (!shouldGetBlueTick && newTotalDeposit >= 1000) {
@@ -86,7 +87,8 @@ serve(async (req) => {
       .update({
         wallet_balance: newBalance,
         total_deposit: newTotalDeposit,
-        has_blue_check: shouldGetBlueTick
+        has_blue_check: shouldGetBlueTick,
+        rank_balance: newRankBalance
       })
       .eq('id', userId);
 

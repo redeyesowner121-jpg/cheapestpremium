@@ -12,9 +12,11 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import BlueTick from '@/components/BlueTick';
+import { RankBadgeInline } from '@/components/RankBadge';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { supabase } from '@/integrations/supabase/client';
+import { getUserRank } from '@/lib/ranks';
 
 interface UserProfile {
   id: string;
@@ -25,6 +27,8 @@ interface UserProfile {
   total_orders: number;
   has_blue_check: boolean;
   created_at: string;
+  rank_balance: number;
+  is_reseller: boolean;
 }
 
 const UsersPage: React.FC = () => {
@@ -43,8 +47,8 @@ const UsersPage: React.FC = () => {
     setLoading(true);
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, email, avatar_url, total_deposit, total_orders, has_blue_check, created_at')
-      .order('total_deposit', { ascending: false });
+      .select('id, name, email, avatar_url, total_deposit, total_orders, has_blue_check, created_at, rank_balance, is_reseller')
+      .order('rank_balance', { ascending: false });
 
     if (data) {
       setUsers(data);
@@ -73,8 +77,8 @@ const UsersPage: React.FC = () => {
     user.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Sort by total deposit
-  const sortedUsers = [...filteredUsers].sort((a, b) => (b.total_deposit || 0) - (a.total_deposit || 0));
+  // Sort by rank_balance
+  const sortedUsers = [...filteredUsers].sort((a, b) => (b.rank_balance || 0) - (a.rank_balance || 0));
 
   if (loading) {
     return (
@@ -144,8 +148,9 @@ const UsersPage: React.FC = () => {
                   <p className="text-sm font-medium text-foreground mt-2 truncate">
                     {user.name?.split(' ')[0] || 'User'}
                   </p>
-                  <p className="text-xs text-success font-medium">
-                    ₹{(user.total_deposit || 0).toLocaleString()}
+                  <RankBadgeInline rankBalance={user.rank_balance || 0} size="sm" />
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    ₹{(user.rank_balance || 0).toLocaleString()}
                   </p>
                 </motion.div>
               ))}
@@ -176,14 +181,22 @@ const UsersPage: React.FC = () => {
                 </div>
 
                 <div className="flex-1">
-                  <h3 className="font-semibold text-foreground flex items-center gap-1">
-                    {user.name || 'User'}
-                    {user.has_blue_check && <BlueTick size="sm" />}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-foreground flex items-center gap-1">
+                      {user.name || 'User'}
+                      {user.has_blue_check && <BlueTick size="sm" />}
+                    </h3>
+                    <RankBadgeInline rankBalance={user.rank_balance || 0} size="sm" />
+                    {user.is_reseller && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
+                        Reseller
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-4 mt-1">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <TrendingUp className="w-3 h-3 text-success" />
-                      <span>₹{(user.total_deposit || 0).toLocaleString()}</span>
+                      <span>₹{(user.rank_balance || 0).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <ShoppingBag className="w-3 h-3 text-primary" />

@@ -20,6 +20,9 @@ export interface UserProfile {
   notifications_enabled: boolean;
   last_daily_bonus?: string;
   created_at: string;
+  rank_balance: number;
+  is_reseller: boolean;
+  last_rank_decay?: string;
 }
 
 interface AuthContextType {

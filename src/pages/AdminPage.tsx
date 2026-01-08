@@ -127,6 +127,7 @@ const AdminPage: React.FC = () => {
     description: '',
     price: '',
     original_price: '',
+    reseller_price: '',
     category: '',
     image_url: '',
     access_link: '',
@@ -512,7 +513,7 @@ const AdminPage: React.FC = () => {
     }
     
     toast.success('Product added!');
-    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
+    setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setPendingVariations([]);
     setNewModalVariation({ name: '', price: '' });
     setShowProductModal(false);
@@ -526,6 +527,7 @@ const AdminPage: React.FC = () => {
       description: product.description || '',
       price: product.price?.toString() || '',
       original_price: product.original_price?.toString() || '',
+      reseller_price: product.reseller_price?.toString() || '',
       category: product.category || '',
       image_url: product.image_url || '',
       access_link: product.access_link || '',
@@ -581,7 +583,7 @@ const AdminPage: React.FC = () => {
     }
     
     toast.success('Product updated!');
-    setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
+    setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setEditingProduct(null);
     setPendingVariations([]);
     setExistingVariations([]);
@@ -1677,6 +1679,28 @@ const AdminPage: React.FC = () => {
                 </Button>
               </div>
 
+              {/* Make Reseller Toggle */}
+              <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">💼 Reseller Status</span>
+                  {selectedUser.is_reseller && (
+                    <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Active</span>
+                  )}
+                </div>
+                <Switch 
+                  checked={selectedUser.is_reseller || false}
+                  onCheckedChange={async (checked) => {
+                    await supabase
+                      .from('profiles')
+                      .update({ is_reseller: checked })
+                      .eq('id', selectedUser.id);
+                    toast.success(checked ? 'User is now a Reseller!' : 'Reseller status removed');
+                    setSelectedUser({ ...selectedUser, is_reseller: checked });
+                    loadData();
+                  }}
+                />
+              </div>
+
               <div className="flex gap-2">
                 <Input
                   type="number"
@@ -1902,7 +1926,7 @@ const AdminPage: React.FC = () => {
         setShowProductModal(open);
         if (!open) {
           setEditingProduct(null);
-          setProductForm({ name: '', description: '', price: '', original_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
+          setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
           setPendingVariations([]);
           setExistingVariations([]);
           setNewModalVariation({ name: '', price: '' });
@@ -1924,7 +1948,7 @@ const AdminPage: React.FC = () => {
               onChange={(e) => setProductForm({...productForm, description: e.target.value})}
               rows={2}
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Input
                 type="number"
                 placeholder="Price *"
@@ -1937,7 +1961,14 @@ const AdminPage: React.FC = () => {
                 value={productForm.original_price}
                 onChange={(e) => setProductForm({...productForm, original_price: e.target.value})}
               />
+              <Input
+                type="number"
+                placeholder="Reseller Price"
+                value={productForm.reseller_price}
+                onChange={(e) => setProductForm({...productForm, reseller_price: e.target.value})}
+              />
             </div>
+            <p className="text-xs text-muted-foreground">💼 Reseller price is for Diamond/Titan users</p>
             <Input
               placeholder="Category *"
               value={productForm.category}

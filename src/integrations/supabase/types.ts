@@ -375,6 +375,7 @@ export type Database = {
           original_price: number | null
           price: number
           rating: number | null
+          reseller_price: number | null
           sold_count: number | null
           stock: number | null
           updated_at: string | null
@@ -391,6 +392,7 @@ export type Database = {
           original_price?: number | null
           price: number
           rating?: number | null
+          reseller_price?: number | null
           sold_count?: number | null
           stock?: number | null
           updated_at?: string | null
@@ -407,6 +409,7 @@ export type Database = {
           original_price?: number | null
           price?: number
           rating?: number | null
+          reseller_price?: number | null
           sold_count?: number | null
           stock?: number | null
           updated_at?: string | null
@@ -420,11 +423,14 @@ export type Database = {
           email: string
           has_blue_check: boolean | null
           id: string
+          is_reseller: boolean | null
           last_daily_bonus: string | null
+          last_rank_decay: string | null
           name: string
           notifications_enabled: boolean | null
           pending_balance: number | null
           phone: string | null
+          rank_balance: number | null
           referral_code: string | null
           referred_by: string | null
           total_deposit: number | null
@@ -438,11 +444,14 @@ export type Database = {
           email: string
           has_blue_check?: boolean | null
           id: string
+          is_reseller?: boolean | null
           last_daily_bonus?: string | null
+          last_rank_decay?: string | null
           name: string
           notifications_enabled?: boolean | null
           pending_balance?: number | null
           phone?: string | null
+          rank_balance?: number | null
           referral_code?: string | null
           referred_by?: string | null
           total_deposit?: number | null
@@ -456,11 +465,14 @@ export type Database = {
           email?: string
           has_blue_check?: boolean | null
           id?: string
+          is_reseller?: boolean | null
           last_daily_bonus?: string | null
+          last_rank_decay?: string | null
           name?: string
           notifications_enabled?: boolean | null
           pending_balance?: number | null
           phone?: string | null
+          rank_balance?: number | null
           referral_code?: string | null
           referred_by?: string | null
           total_deposit?: number | null
@@ -542,6 +554,7 @@ export type Database = {
           original_price: number | null
           price: number
           rating: number | null
+          reseller_price: number | null
           seller_id: string
           sold_count: number | null
           stock: number | null
@@ -559,6 +572,7 @@ export type Database = {
           original_price?: number | null
           price: number
           rating?: number | null
+          reseller_price?: number | null
           seller_id: string
           sold_count?: number | null
           stock?: number | null
@@ -576,6 +590,7 @@ export type Database = {
           original_price?: number | null
           price?: number
           rating?: number | null
+          reseller_price?: number | null
           seller_id?: string
           sold_count?: number | null
           stock?: number | null

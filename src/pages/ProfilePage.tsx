@@ -14,7 +14,8 @@ import {
   Gift,
   HelpCircle,
   Shield,
-  Calendar
+  Calendar,
+  TrendingDown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,9 +29,11 @@ import {
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BlueTick from '@/components/BlueTick';
+import { RankBadge } from '@/components/RankBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getUserRank, getNextRank, getProgressToNextRank, getDecayAmount, getNextDecayDate } from '@/lib/ranks';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -283,6 +286,53 @@ const ProfilePage: React.FC = () => {
               <p className="text-2xl font-bold text-primary-foreground">0</p>
               <p className="text-xs text-primary-foreground/70">Referrals</p>
             </div>
+          </div>
+
+          {/* Rank Badge */}
+          <div className="mt-4 p-3 bg-white/10 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-primary-foreground/80">Your Rank</span>
+              <RankBadge rankBalance={profile?.rank_balance || 0} size="md" />
+            </div>
+            {(() => {
+              const rankBalance = profile?.rank_balance || 0;
+              const rank = getUserRank(rankBalance);
+              const nextRank = getNextRank(rankBalance);
+              const { progress, remaining } = getProgressToNextRank(rankBalance);
+              const decayAmount = getDecayAmount(rankBalance);
+              
+              return (
+                <>
+                  <div className="flex items-center justify-between text-xs text-primary-foreground/70 mb-1">
+                    <span>Rank Balance: ₹{rankBalance.toLocaleString()}</span>
+                    {rank.discount > 0 && <span>{rank.discount}% off</span>}
+                    {rank.usesResellerPrice && !rank.titanBonus && <span>Reseller Price</span>}
+                    {rank.titanBonus && <span>RP +20%</span>}
+                  </div>
+                  {nextRank ? (
+                    <>
+                      <div className="w-full bg-white/20 rounded-full h-2 mb-1">
+                        <div 
+                          className="bg-white h-2 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-primary-foreground/70">
+                        ₹{remaining.toLocaleString()} more for {nextRank.icon} {nextRank.name}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-primary-foreground font-medium">🏆 Highest rank!</p>
+                  )}
+                  {decayAmount > 0 && (
+                    <p className="text-xs text-primary-foreground/60 mt-1 flex items-center gap-1">
+                      <TrendingDown className="w-3 h-3" />
+                      Next decay: -₹{decayAmount.toLocaleString()} on {getNextDecayDate().toLocaleDateString()}
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
           
           {/* Blue Tick Progress */}
