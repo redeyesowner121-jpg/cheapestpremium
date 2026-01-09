@@ -8,7 +8,8 @@ import {
   Share2,
   ShoppingCart,
   Filter,
-  Download
+  Download,
+  Tag
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,9 +24,11 @@ import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
+import { RankBadgeInline } from '@/components/RankBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 
 interface Product {
   id: string;
@@ -38,6 +41,7 @@ interface Product {
   sold_count: number;
   category: string;
   access_link?: string;
+  reseller_price?: number;
 }
 
 interface ProductVariation {
@@ -179,8 +183,22 @@ const ProductsPage: React.FC = () => {
       return;
     }
 
-    // Use variation price if selected, otherwise flash sale price or regular price
-    const priceToUse = selectedVariation?.price || flashSalePrice || selectedProduct.price;
+    // Calculate rank-based price
+    const userRank = getUserRank(profile.rank_balance || 0);
+    const isReseller = profile.is_reseller || false;
+    const basePrice = selectedVariation?.price || flashSalePrice || selectedProduct.price;
+    
+    // Only apply rank discount if not flash sale
+    const { finalPrice } = flashSalePrice 
+      ? { finalPrice: flashSalePrice }
+      : calculateFinalPrice(
+          basePrice,
+          selectedProduct.reseller_price || null,
+          userRank,
+          isReseller
+        );
+    
+    const priceToUse = Math.round(finalPrice * 100) / 100;
     const totalPrice = priceToUse * quantity;
     
     if ((profile.wallet_balance || 0) < totalPrice) {
@@ -378,14 +396,33 @@ const ProductsPage: React.FC = () => {
                     {product.price === 0 ? (
                       <span className="text-success font-bold">Free</span>
                     ) : (
-                      <>
-                        <span className="text-primary font-bold">₹{product.price}</span>
-                        {product.original_price && product.original_price > product.price && (
-                          <span className="text-xs text-muted-foreground line-through ml-1">
-                            ₹{product.original_price}
-                          </span>
-                        )}
-                      </>
+                      (() => {
+                        const userRank = getUserRank(profile?.rank_balance || 0);
+                        const isReseller = profile?.is_reseller || false;
+                        const { finalPrice, savings } = calculateFinalPrice(
+                          product.price,
+                          product.reseller_price || null,
+                          userRank,
+                          isReseller
+                        );
+                        const hasRankDiscount = savings > 0;
+                        return (
+                          <>
+                            <span className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100}</span>
+                            {(hasRankDiscount || (product.original_price && product.original_price > product.price)) && (
+                              <span className="text-xs text-muted-foreground line-through ml-1">
+                                ₹{hasRankDiscount ? product.price : product.original_price}
+                              </span>
+                            )}
+                            {hasRankDiscount && (
+                              <div className="flex items-center gap-0.5 mt-0.5">
+                                <Tag className="w-2.5 h-2.5 text-green-600" />
+                                <span className="text-[9px] text-green-600">{userRank.icon}</span>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()
                     )}
                   </div>
                   <Button
@@ -441,7 +478,32 @@ const ProductsPage: React.FC = () => {
                         <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded">FLASH SALE</span>
                       </div>
                     ) : (
-                      <p className="text-primary font-bold">₹{selectedProduct.price} each</p>
+                      (() => {
+                        const userRank = getUserRank(profile?.rank_balance || 0);
+                        const isReseller = profile?.is_reseller || false;
+                        const { finalPrice, savings, discountType } = calculateFinalPrice(
+                          selectedProduct.price,
+                          selectedProduct.reseller_price || null,
+                          userRank,
+                          isReseller
+                        );
+                        return (
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100} each</p>
+                              {savings > 0 && (
+                                <span className="text-xs text-muted-foreground line-through">₹{selectedProduct.price}</span>
+                              )}
+                            </div>
+                            {savings > 0 && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Tag className="w-3 h-3 text-green-600" />
+                                <span className="text-xs text-green-600">{discountType}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                   {selectedProduct.access_link && (

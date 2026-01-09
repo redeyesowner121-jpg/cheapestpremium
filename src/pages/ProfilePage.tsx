@@ -291,8 +291,8 @@ const ProfilePage: React.FC = () => {
           {/* Rank Badge */}
           <div className="mt-4 p-3 bg-white/10 rounded-xl">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-primary-foreground/80">Your Rank</span>
-              <RankBadge rankBalance={profile?.rank_balance || 0} size="md" />
+              <span className="text-xs text-primary-foreground/80">Your Rank (ক্লিক করুন)</span>
+              <RankBadge rankBalance={profile?.rank_balance || 0} size="md" clickable={true} />
             </div>
             {(() => {
               const rankBalance = profile?.rank_balance || 0;

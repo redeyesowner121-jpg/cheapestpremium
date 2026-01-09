@@ -13,7 +13,8 @@ import {
   MessageCircle,
   AlertCircle,
   Edit,
-  Check
+  Check,
+  Tag
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,9 +27,11 @@ import {
 } from '@/components/ui/dialog';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
+import { RankBadgeInline } from '@/components/RankBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 
 interface ProductVariation {
   id: string;
@@ -109,10 +112,25 @@ const ProductDetailPage: React.FC = () => {
   // Check if quantity exceeds available stock
   const exceedsStock = currentStock !== null && quantity > currentStock;
 
-  const currentPrice = flashSale 
+  // Calculate rank-based pricing
+  const userRank = getUserRank(profile?.rank_balance || 0);
+  const isReseller = profile?.is_reseller || false;
+  
+  const basePrice = flashSale 
     ? flashSale.salePrice 
     : (selectedVariation?.price || displayProduct?.price || 0);
+  
+  const resellerPrice = displayProduct?.reseller_price || null;
+  
+  // Calculate final price with rank discount
+  const { finalPrice: rankDiscountedPrice, savings, discountType } = calculateFinalPrice(
+    basePrice,
+    resellerPrice,
+    userRank,
+    isReseller
+  );
 
+  const currentPrice = flashSale ? flashSale.salePrice : rankDiscountedPrice;
   const totalPrice = currentPrice * quantity;
 
   const handleShare = async () => {
@@ -355,11 +373,27 @@ const ProductDetailPage: React.FC = () => {
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-3xl font-bold text-primary">₹{currentPrice}</span>
-                  {(flashSale || displayProduct.original_price) && (
-                    <span className="text-sm text-muted-foreground line-through ml-2">
-                      ₹{flashSale ? displayProduct.price : displayProduct.original_price}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-3xl font-bold text-primary">₹{Math.round(currentPrice * 100) / 100}</span>
+                    {!flashSale && savings > 0 && (
+                      <span className="text-sm text-muted-foreground line-through">
+                        ₹{basePrice}
+                      </span>
+                    )}
+                    {flashSale && (
+                      <span className="text-sm text-muted-foreground line-through">
+                        ₹{displayProduct.price}
+                      </span>
+                    )}
+                  </div>
+                  {/* Rank Discount Badge */}
+                  {!flashSale && savings > 0 && profile && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Tag className="w-3 h-3 text-green-600" />
+                      <span className="text-xs text-green-600 font-medium">
+                        {discountType} - ₹{Math.round(savings * 100) / 100} saved
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-1 bg-yellow-100 px-2 py-1 rounded-lg">

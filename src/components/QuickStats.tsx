@@ -47,7 +47,7 @@ const QuickStats: React.FC = () => {
     {
       icon: <Crown className="w-5 h-5" />,
       label: 'Rank',
-      value: <RankBadgeInline rankBalance={rankBalance} size="sm" />,
+      value: <RankBadgeInline rankBalance={rankBalance} size="sm" clickable={true} />,
       color: rank.color,
       bgColor: rank.bgColor,
     },

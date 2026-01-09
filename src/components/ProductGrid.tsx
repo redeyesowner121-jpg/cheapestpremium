@@ -1,7 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, Share2, Package } from 'lucide-react';
+import { Star, Share2, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 
 interface Product {
   id: string;
@@ -14,6 +16,7 @@ interface Product {
   soldCount: number;
   category?: string;
   hasAccessLink?: boolean;
+  reseller_price?: number;
 }
 
 interface ProductGridProps {
@@ -27,6 +30,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({
   onProductClick,
   onBuyClick
 }) => {
+  const { profile } = useAuth();
   const handleShare = async (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
     const productUrl = `${window.location.origin}/product/${product.id}`;
@@ -116,14 +120,33 @@ const ProductGrid: React.FC<ProductGridProps> = ({
               </div>
               
               <div className="flex items-center justify-between mt-2">
-                <div>
-                  <span className="text-primary font-bold">₹{product.price}</span>
-                  {product.originalPrice && (
-                    <span className="text-xs text-muted-foreground line-through ml-1">
-                      ₹{product.originalPrice}
-                    </span>
-                  )}
-                </div>
+                {(() => {
+                  const userRank = getUserRank(profile?.rank_balance || 0);
+                  const isReseller = profile?.is_reseller || false;
+                  const { finalPrice, savings } = calculateFinalPrice(
+                    product.price,
+                    product.reseller_price || null,
+                    userRank,
+                    isReseller
+                  );
+                  const hasRankDiscount = savings > 0;
+                  return (
+                    <div>
+                      <span className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100}</span>
+                      {(hasRankDiscount || product.originalPrice) && (
+                        <span className="text-xs text-muted-foreground line-through ml-1">
+                          ₹{hasRankDiscount ? product.price : product.originalPrice}
+                        </span>
+                      )}
+                      {hasRankDiscount && (
+                        <div className="flex items-center gap-0.5 mt-0.5">
+                          <Tag className="w-2.5 h-2.5 text-green-600" />
+                          <span className="text-[9px] text-green-600">{userRank.icon}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <Button
                   size="sm"
                   className="h-7 px-3 text-xs btn-gradient rounded-lg"
