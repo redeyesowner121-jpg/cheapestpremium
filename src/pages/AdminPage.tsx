@@ -60,6 +60,7 @@ import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminAnalytics from '@/components/AdminAnalytics';
 import AdminCategoryManager from '@/components/AdminCategoryManager';
 import AdminSearchAnalytics from '@/components/AdminSearchAnalytics';
+import AdminPaymentSettings from '@/components/AdminPaymentSettings';
 import { useAdminOrderAlerts } from '@/hooks/useAdminOrderAlerts';
 import { toast } from 'sonner';
 
@@ -960,7 +961,7 @@ const AdminPage: React.FC = () => {
 
         {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-7 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
+          <TabsList className="w-full grid grid-cols-8 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
             {[
               { value: 'dashboard', icon: TrendingUp, label: 'Dashboard' },
               { value: 'users', icon: Users, label: 'Users' },
@@ -968,6 +969,7 @@ const AdminPage: React.FC = () => {
               { value: 'products', icon: Package, label: 'Products' },
               { value: 'chat', icon: MessageCircle, label: 'Chat' },
               { value: 'content', icon: Image, label: 'Content' },
+              { value: 'payments', icon: CreditCard, label: 'Payments' },
               ...(isAdmin ? [{ value: 'settings', icon: Settings, label: 'Settings' }] : [])
             ].map((tab) => (
               <TabsTrigger 
@@ -1405,6 +1407,11 @@ const AdminPage: React.FC = () => {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* Payments Tab */}
+          <TabsContent value="payments" className="space-y-6">
+            <AdminPaymentSettings />
           </TabsContent>
 
           {/* Settings Tab (Only for main admin) */}
