@@ -92,6 +92,30 @@ export type Database = {
         }
         Relationships: []
       }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string | null
@@ -398,6 +422,7 @@ export type Database = {
           name: string
           price: number
           product_id: string
+          reseller_price: number | null
         }
         Insert: {
           created_at?: string | null
@@ -406,6 +431,7 @@ export type Database = {
           name: string
           price: number
           product_id: string
+          reseller_price?: number | null
         }
         Update: {
           created_at?: string | null
@@ -414,6 +440,7 @@ export type Database = {
           name?: string
           price?: number
           product_id?: string
+          reseller_price?: number | null
         }
         Relationships: [
           {

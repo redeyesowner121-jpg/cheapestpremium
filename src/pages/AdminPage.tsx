@@ -41,6 +41,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -76,6 +83,7 @@ const AdminPage: React.FC = () => {
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [tempAdmins, setTempAdmins] = useState<any[]>([]);
+  const [categories, setCategories] = useState<{id: string; name: string}[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,9 +117,9 @@ const AdminPage: React.FC = () => {
   const [newVariation, setNewVariation] = useState({ name: '', price: '' });
   
   // Variations for product modal
-  const [pendingVariations, setPendingVariations] = useState<{name: string, price: string}[]>([]);
+  const [pendingVariations, setPendingVariations] = useState<{name: string, price: string, reseller_price: string}[]>([]);
   const [existingVariations, setExistingVariations] = useState<any[]>([]);
-  const [newModalVariation, setNewModalVariation] = useState({ name: '', price: '' });
+  const [newModalVariation, setNewModalVariation] = useState({ name: '', price: '', reseller_price: '' });
   
   // Form states
   const [giftAmount, setGiftAmount] = useState('');
@@ -241,6 +249,14 @@ const AdminPage: React.FC = () => {
         setTempAdmins(tempAdminsWithProfiles);
       }
     }
+
+    // Load categories
+    const { data: categoriesData } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    setCategories(categoriesData || []);
 
     // Load settings
     const { data: settingsData } = await supabase
@@ -507,7 +523,8 @@ const AdminPage: React.FC = () => {
       const variationsToInsert = pendingVariations.map(v => ({
         product_id: newProduct.id,
         name: v.name,
-        price: parseFloat(v.price)
+        price: parseFloat(v.price),
+        reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
       }));
       
       await supabase.from('product_variations').insert(variationsToInsert);
@@ -516,7 +533,7 @@ const AdminPage: React.FC = () => {
     toast.success('Product added!');
     setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setPendingVariations([]);
-    setNewModalVariation({ name: '', price: '' });
+    setNewModalVariation({ name: '', price: '', reseller_price: '' });
     setShowProductModal(false);
     loadData();
   };
@@ -544,7 +561,7 @@ const AdminPage: React.FC = () => {
       .order('created_at', { ascending: true });
     setExistingVariations(data || []);
     setPendingVariations([]);
-    setNewModalVariation({ name: '', price: '' });
+    setNewModalVariation({ name: '', price: '', reseller_price: '' });
     
     setShowProductModal(true);
   };
@@ -577,7 +594,8 @@ const AdminPage: React.FC = () => {
       const variationsToInsert = pendingVariations.map(v => ({
         product_id: editingProduct.id,
         name: v.name,
-        price: parseFloat(v.price)
+        price: parseFloat(v.price),
+        reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
       }));
       
       await supabase.from('product_variations').insert(variationsToInsert);
@@ -588,7 +606,7 @@ const AdminPage: React.FC = () => {
     setEditingProduct(null);
     setPendingVariations([]);
     setExistingVariations([]);
-    setNewModalVariation({ name: '', price: '' });
+    setNewModalVariation({ name: '', price: '', reseller_price: '' });
     setShowProductModal(false);
     loadData();
   };
@@ -605,7 +623,8 @@ const AdminPage: React.FC = () => {
       supabase.from('product_variations').insert({
         product_id: editingProduct.id,
         name: newModalVariation.name,
-        price: parseFloat(newModalVariation.price)
+        price: parseFloat(newModalVariation.price),
+        reseller_price: newModalVariation.reseller_price ? parseFloat(newModalVariation.reseller_price) : null
       }).then(({ error, data }) => {
         if (error) {
           toast.error('Failed to add variation');
@@ -623,12 +642,12 @@ const AdminPage: React.FC = () => {
           });
         
         toast.success('Variation added!');
-        setNewModalVariation({ name: '', price: '' });
+        setNewModalVariation({ name: '', price: '', reseller_price: '' });
       });
     } else {
       // For new product, add to pending list
       setPendingVariations([...pendingVariations, { ...newModalVariation }]);
-      setNewModalVariation({ name: '', price: '' });
+      setNewModalVariation({ name: '', price: '', reseller_price: '' });
     }
   };
   
@@ -647,10 +666,10 @@ const AdminPage: React.FC = () => {
   
   // Quick templates for common variations
   const quickVariationTemplates = [
-    { name: '1 Month', price: '49' },
-    { name: '3 Months', price: '129' },
-    { name: '6 Months', price: '249' },
-    { name: '1 Year', price: '449' },
+    { name: '1 Month', price: '49', reseller_price: '' },
+    { name: '3 Months', price: '129', reseller_price: '' },
+    { name: '6 Months', price: '249', reseller_price: '' },
+    { name: '1 Year', price: '449', reseller_price: '' },
   ];
   
   const handleDeleteProduct = async (productId: string) => {
@@ -1936,7 +1955,7 @@ const AdminPage: React.FC = () => {
           setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
           setPendingVariations([]);
           setExistingVariations([]);
-          setNewModalVariation({ name: '', price: '' });
+          setNewModalVariation({ name: '', price: '', reseller_price: '' });
         }
       }}>
         <DialogContent className="max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
@@ -1976,11 +1995,24 @@ const AdminPage: React.FC = () => {
               />
             </div>
             <p className="text-xs text-muted-foreground">💼 Reseller price is for Diamond/Titan users</p>
-            <Input
-              placeholder="Category *"
-              value={productForm.category}
-              onChange={(e) => setProductForm({...productForm, category: e.target.value})}
-            />
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Category *</label>
+              <Select
+                value={productForm.category}
+                onValueChange={(value) => setProductForm({...productForm, category: value})}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Product Image</label>
               <Input
@@ -2096,9 +2128,12 @@ const AdminPage: React.FC = () => {
                   <p className="text-xs text-muted-foreground">Current Variations:</p>
                   {existingVariations.map((v) => (
                     <div key={v.id} className="flex items-center justify-between p-2 bg-muted rounded-xl">
-                      <div>
+                      <div className="flex-1">
                         <span className="text-sm font-medium">{v.name}</span>
                         <span className="text-primary font-bold text-sm ml-2">₹{v.price}</span>
+                        {v.reseller_price && (
+                          <span className="text-xs text-green-600 ml-2">(Reseller: ₹{v.reseller_price})</span>
+                        )}
                       </div>
                       <Button 
                         size="icon" 
@@ -2119,9 +2154,12 @@ const AdminPage: React.FC = () => {
                   <p className="text-xs text-muted-foreground">Variations to Add:</p>
                   {pendingVariations.map((v, idx) => (
                     <div key={idx} className="flex items-center justify-between p-2 bg-accent/10 rounded-xl">
-                      <div>
+                      <div className="flex-1">
                         <span className="text-sm font-medium">{v.name}</span>
                         <span className="text-primary font-bold text-sm ml-2">₹{v.price}</span>
+                        {v.reseller_price && (
+                          <span className="text-xs text-green-600 ml-2">(Reseller: ₹{v.reseller_price})</span>
+                        )}
                       </div>
                       <Button 
                         size="icon" 
@@ -2137,28 +2175,37 @@ const AdminPage: React.FC = () => {
               )}
               
               {/* Add New Variation */}
-              <div className="grid grid-cols-5 gap-2">
-                <Input
-                  placeholder="Name (e.g. 1 Month)"
-                  value={newModalVariation.name}
-                  onChange={(e) => setNewModalVariation({...newModalVariation, name: e.target.value})}
-                  className="col-span-2"
-                />
-                <Input
-                  type="number"
-                  placeholder="Price"
-                  value={newModalVariation.price}
-                  onChange={(e) => setNewModalVariation({...newModalVariation, price: e.target.value})}
-                  className="col-span-2"
-                />
-                <Button 
-                  type="button" 
-                  size="icon" 
-                  onClick={handleAddModalVariation}
-                  className="h-10 w-10"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Name (e.g. 1 Month)"
+                    value={newModalVariation.name}
+                    onChange={(e) => setNewModalVariation({...newModalVariation, name: e.target.value})}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Price *"
+                    value={newModalVariation.price}
+                    onChange={(e) => setNewModalVariation({...newModalVariation, price: e.target.value})}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Reseller Price (optional)"
+                    value={newModalVariation.reseller_price}
+                    onChange={(e) => setNewModalVariation({...newModalVariation, reseller_price: e.target.value})}
+                    className="flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    onClick={handleAddModalVariation}
+                    className="px-4"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
               </div>
             </div>
             

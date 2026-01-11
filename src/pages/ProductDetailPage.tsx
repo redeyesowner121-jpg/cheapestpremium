@@ -37,6 +37,7 @@ interface ProductVariation {
   id: string;
   name: string;
   price: number;
+  reseller_price?: number | null;
   is_active: boolean;
 }
 
@@ -116,20 +117,26 @@ const ProductDetailPage: React.FC = () => {
   const userRank = getUserRank(profile?.rank_balance || 0);
   const isReseller = profile?.is_reseller || false;
   
-  const basePrice = flashSale 
-    ? flashSale.salePrice 
-    : (selectedVariation?.price || displayProduct?.price || 0);
+  // For variations, use variation's reseller_price if available
+  const variationResellerPrice = selectedVariation?.reseller_price || null;
+  const productResellerPrice = displayProduct?.reseller_price || null;
   
-  const resellerPrice = displayProduct?.reseller_price || null;
+  // Determine base price and reseller price based on selection
+  const basePrice = selectedVariation?.price || displayProduct?.price || 0;
+  const applicableResellerPrice = selectedVariation ? variationResellerPrice : productResellerPrice;
   
-  // Calculate final price with rank discount
+  // For flash sale, use flash sale price directly
+  const priceForCalculation = flashSale ? flashSale.salePrice : basePrice;
+  
+  // Calculate final price with rank discount (only for non-flash-sale)
   const { finalPrice: rankDiscountedPrice, savings, discountType } = calculateFinalPrice(
-    basePrice,
-    resellerPrice,
+    priceForCalculation,
+    flashSale ? null : applicableResellerPrice, // No reseller discount on flash sale items
     userRank,
     isReseller
   );
 
+  // For flash sale, use flash sale price directly; otherwise use rank-discounted price
   const currentPrice = flashSale ? flashSale.salePrice : rankDiscountedPrice;
   const totalPrice = currentPrice * quantity;
 
@@ -438,32 +445,49 @@ const ProductDetailPage: React.FC = () => {
                 Select Duration
               </p>
               <div className="grid grid-cols-3 gap-2">
-                {variations.map((variation, index) => (
-                  <motion.button
-                    key={variation.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 + index * 0.05 }}
-                    onClick={() => setSelectedVariation(variation)}
-                    className={`relative p-3 rounded-xl border-2 transition-all ${
-                      selectedVariation?.id === variation.id
-                        ? 'border-primary bg-primary/10 shadow-lg'
-                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                    }`}
-                  >
-                    {selectedVariation?.id === variation.id && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
-                      >
-                        <Check className="w-3 h-3 text-primary-foreground" />
-                      </motion.div>
-                    )}
-                    <span className="block text-sm font-semibold text-foreground">{variation.name}</span>
-                    <span className="block text-lg font-bold text-primary mt-0.5">₹{variation.price}</span>
-                  </motion.button>
-                ))}
+                {variations.map((variation, index) => {
+                  // Calculate discounted price for this variation
+                  const varResellerPrice = variation.reseller_price || null;
+                  const { finalPrice: varFinalPrice } = calculateFinalPrice(
+                    variation.price,
+                    varResellerPrice,
+                    userRank,
+                    isReseller
+                  );
+                  const hasDiscount = varFinalPrice < variation.price;
+                  
+                  return (
+                    <motion.button
+                      key={variation.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + index * 0.05 }}
+                      onClick={() => setSelectedVariation(variation)}
+                      className={`relative p-3 rounded-xl border-2 transition-all ${
+                        selectedVariation?.id === variation.id
+                          ? 'border-primary bg-primary/10 shadow-lg'
+                          : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }`}
+                    >
+                      {selectedVariation?.id === variation.id && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center"
+                        >
+                          <Check className="w-3 h-3 text-primary-foreground" />
+                        </motion.div>
+                      )}
+                      <span className="block text-sm font-semibold text-foreground">{variation.name}</span>
+                      <div className="mt-0.5">
+                        <span className="block text-lg font-bold text-primary">₹{Math.round(varFinalPrice)}</span>
+                        {hasDiscount && (
+                          <span className="text-xs text-muted-foreground line-through">₹{variation.price}</span>
+                        )}
+                      </div>
+                    </motion.button>
+                  );
+                })}
               </div>
             </motion.div>
           )}
