@@ -62,7 +62,8 @@ const AdminPaymentSettings: React.FC = () => {
   // Form states
   const [paymentLink, setPaymentLink] = useState('');
   const [instructions, setInstructions] = useState('');
-
+  const [upiId, setUpiId] = useState('');
+  const [upiName, setUpiName] = useState('');
   useEffect(() => {
     loadData();
   }, []);
@@ -79,8 +80,12 @@ const AdminPaymentSettings: React.FC = () => {
       setSettings(settingsData);
       const linkSetting = settingsData.find(s => s.setting_key === 'manual_payment_link');
       const instructionSetting = settingsData.find(s => s.setting_key === 'manual_payment_instructions');
+      const upiIdSetting = settingsData.find(s => s.setting_key === 'upi_id');
+      const upiNameSetting = settingsData.find(s => s.setting_key === 'upi_name');
       if (linkSetting) setPaymentLink(linkSetting.setting_value || '');
       if (instructionSetting) setInstructions(instructionSetting.setting_value || '');
+      if (upiIdSetting) setUpiId(upiIdSetting.setting_value || '');
+      if (upiNameSetting) setUpiName(upiNameSetting.setting_value || '');
     }
 
     // Load pending deposit requests with user info
@@ -168,6 +173,41 @@ const AdminPaymentSettings: React.FC = () => {
   const saveInstructions = async () => {
     await updateSetting('manual_payment_instructions', instructions, true);
     toast.success('Instructions saved');
+  };
+
+  const saveUpiDetails = async () => {
+    // Insert or update UPI settings
+    const upiIdSetting = getSetting('upi_id');
+    const upiNameSetting = getSetting('upi_name');
+
+    if (upiIdSetting) {
+      await supabase
+        .from('payment_settings')
+        .update({ setting_value: upiId, is_enabled: true })
+        .eq('id', upiIdSetting.id);
+    } else {
+      await supabase.from('payment_settings').insert({
+        setting_key: 'upi_id',
+        setting_value: upiId,
+        is_enabled: true
+      });
+    }
+
+    if (upiNameSetting) {
+      await supabase
+        .from('payment_settings')
+        .update({ setting_value: upiName, is_enabled: true })
+        .eq('id', upiNameSetting.id);
+    } else {
+      await supabase.from('payment_settings').insert({
+        setting_key: 'upi_name',
+        setting_value: upiName,
+        is_enabled: true
+      });
+    }
+
+    toast.success('UPI details saved');
+    loadData();
   };
 
   const handleApproveRequest = async () => {
@@ -388,6 +428,54 @@ const AdminPaymentSettings: React.FC = () => {
           <Button onClick={savePaymentLink} className="rounded-xl">
             Save
           </Button>
+        </div>
+      </motion.div>
+
+      {/* UPI Dynamic QR Settings */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+        className="bg-card rounded-2xl p-4 shadow-card"
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-xl bg-success/10">
+            <QrCode className="w-5 h-5 text-success" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground">Dynamic UPI QR</h3>
+            <p className="text-sm text-muted-foreground">Auto-generate QR with amount</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">UPI ID</label>
+            <Input
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="example@upi"
+              className="rounded-xl"
+            />
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-1 block">Payee Name</label>
+            <Input
+              value={upiName}
+              onChange={(e) => setUpiName(e.target.value)}
+              placeholder="Your Name"
+              className="rounded-xl"
+            />
+          </div>
+          <Button onClick={saveUpiDetails} className="w-full rounded-xl">
+            Save UPI Details
+          </Button>
+          
+          {upiId && (
+            <p className="text-xs text-muted-foreground bg-muted p-2 rounded-lg break-all">
+              Preview: upi://pay?pa={upiId}&pn={encodeURIComponent(upiName)}&am=100
+            </p>
+          )}
         </div>
       </motion.div>
 
