@@ -71,6 +71,8 @@ interface PaymentSettings {
   manual_payment_qr: { setting_value: string | null; is_enabled: boolean };
   manual_payment_link: { setting_value: string | null; is_enabled: boolean };
   manual_payment_instructions: { setting_value: string | null };
+  upi_id: { setting_value: string | null; is_enabled: boolean };
+  upi_name: { setting_value: string | null; is_enabled: boolean };
 }
 
 const WalletPage: React.FC = () => {
@@ -667,8 +669,52 @@ const WalletPage: React.FC = () => {
 
             {/* Manual Payment Tab */}
             <TabsContent value="manual" className="mt-4 space-y-4">
-              {/* Payment QR */}
-              {paymentSettings?.manual_payment_qr?.setting_value && (
+              {/* Amount Input First - for dynamic QR */}
+              <div className="space-y-3">
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="h-14 text-2xl text-center font-bold rounded-xl"
+                />
+
+                <div className="flex flex-wrap gap-2">
+                  {quickAmounts.map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={() => setDepositAmount(amount.toString())}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                        depositAmount === amount.toString()
+                          ? 'gradient-primary text-primary-foreground'
+                          : 'bg-muted text-foreground hover:bg-muted/80'
+                      }`}
+                    >
+                      ₹{amount}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic UPI QR Code */}
+              {paymentSettings?.upi_id?.setting_value && depositAmount && parseFloat(depositAmount) >= 10 && (
+                <div className="flex flex-col items-center p-4 bg-muted/50 rounded-xl">
+                  <p className="text-sm font-medium text-foreground mb-3">Scan to Pay ₹{depositAmount}</p>
+                  <img 
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                      `upi://pay?pa=${paymentSettings.upi_id.setting_value}&pn=${encodeURIComponent(paymentSettings?.upi_name?.setting_value || 'Merchant')}&am=${depositAmount}&cu=INR`
+                    )}`}
+                    alt="Payment QR"
+                    className="w-48 h-48 object-contain rounded-xl border bg-white p-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Pay to: {paymentSettings.upi_id.setting_value}
+                  </p>
+                </div>
+              )}
+
+              {/* Fallback Static QR if no UPI ID set */}
+              {!paymentSettings?.upi_id?.setting_value && paymentSettings?.manual_payment_qr?.setting_value && (
                 <div className="flex flex-col items-center">
                   <img 
                     src={paymentSettings.manual_payment_qr.setting_value} 
@@ -709,30 +755,6 @@ const WalletPage: React.FC = () => {
               )}
 
               <div className="space-y-3">
-                <Input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="h-14 text-2xl text-center font-bold rounded-xl"
-                />
-
-                <div className="flex flex-wrap gap-2">
-                  {quickAmounts.map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setDepositAmount(amount.toString())}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                        depositAmount === amount.toString()
-                          ? 'gradient-primary text-primary-foreground'
-                          : 'bg-muted text-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      ₹{amount}
-                    </button>
-                  ))}
-                </div>
-
                 <Input
                   placeholder="Enter Transaction ID"
                   value={transactionId}

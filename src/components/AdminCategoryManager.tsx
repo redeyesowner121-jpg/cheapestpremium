@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, FolderOpen, Check, X } from 'lucide-react';
+import { Plus, Trash2, Edit, FolderOpen, Check, X, GripVertical, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface Category {
+  id: string;
   name: string;
-  count: number;
+  sort_order: number | null;
+  is_active: boolean | null;
+  created_at: string;
+  productCount?: number;
 }
 
 interface AdminCategoryManagerProps {
@@ -18,25 +23,31 @@ interface AdminCategoryManagerProps {
 const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, onCategoryChange }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState('');
-  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    extractCategories();
+    loadCategories();
   }, [products]);
 
-  const extractCategories = () => {
-    const categoryMap: Record<string, number> = {};
-    products.forEach(product => {
-      if (product.category) {
-        categoryMap[product.category] = (categoryMap[product.category] || 0) + 1;
-      }
-    });
+  const loadCategories = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('sort_order', { ascending: true });
     
-    const cats = Object.entries(categoryMap).map(([name, count]) => ({ name, count }));
-    cats.sort((a, b) => a.name.localeCompare(b.name));
-    setCategories(cats);
+    if (data) {
+      // Count products in each category
+      const categoriesWithCount = data.map(cat => ({
+        ...cat,
+        productCount: products.filter(p => p.category === cat.name).length
+      }));
+      setCategories(categoriesWithCount);
+    }
+    setLoading(false);
   };
 
   const handleAddCategory = async () => {
@@ -51,88 +62,143 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
       return;
     }
 
-    // Create a placeholder product with this category to register it
-    // Or you can just add it locally - categories are derived from products
-    toast.success(`Category "${newCategory}" is ready to use. Add products to this category.`);
+    setSaving(true);
+    const { error } = await supabase.from('categories').insert({
+      name: newCategory.trim(),
+      sort_order: categories.length + 1,
+      is_active: true
+    });
+
+    if (error) {
+      toast.error('Failed to add category');
+      setSaving(false);
+      return;
+    }
+
+    toast.success(`Category "${newCategory}" added`);
     setNewCategory('');
+    setSaving(false);
+    loadCategories();
+    onCategoryChange();
   };
 
   const handleRenameCategory = async () => {
-    if (!editingCategory || !editedName.trim()) {
+    if (!editingId || !editedName.trim()) {
       toast.error('Please enter a new name');
       return;
     }
 
-    if (editedName.trim().toLowerCase() === editingCategory.toLowerCase()) {
-      setEditingCategory(null);
+    const category = categories.find(c => c.id === editingId);
+    if (!category) return;
+
+    if (editedName.trim().toLowerCase() === category.name.toLowerCase()) {
+      setEditingId(null);
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
     
-    // Update all products with the old category to the new category
-    const { error } = await supabase
+    // Update category name
+    const { error: catError } = await supabase
+      .from('categories')
+      .update({ name: editedName.trim() })
+      .eq('id', editingId);
+
+    if (catError) {
+      toast.error('Failed to rename category');
+      setSaving(false);
+      return;
+    }
+
+    // Also update all products with the old category name
+    await supabase
       .from('products')
       .update({ category: editedName.trim() })
-      .eq('category', editingCategory);
-
-    if (error) {
-      toast.error('Failed to rename category');
-      setLoading(false);
-      return;
-    }
+      .eq('category', category.name);
 
     toast.success(`Category renamed to "${editedName}"`);
-    setEditingCategory(null);
+    setEditingId(null);
     setEditedName('');
-    setLoading(false);
+    setSaving(false);
+    loadCategories();
     onCategoryChange();
   };
 
-  const handleDeleteCategory = async (categoryName: string) => {
-    const productsInCategory = products.filter(p => p.category === categoryName);
-    
-    if (productsInCategory.length > 0) {
+  const handleDeleteCategory = async (category: Category) => {
+    if (category.productCount && category.productCount > 0) {
       const confirm = window.confirm(
-        `This will remove ${productsInCategory.length} product(s) in "${categoryName}". Products with orders will be deactivated. Continue?`
+        `This category has ${category.productCount} product(s). Products with orders will be deactivated, others will be deleted. Continue?`
       );
       if (!confirm) return;
-
-      setLoading(true);
-      
-      // Check each product for orders and handle accordingly
-      for (const product of productsInCategory) {
-        const { count: orderCount } = await supabase
-          .from('orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('product_id', product.id);
-        
-        if (orderCount && orderCount > 0) {
-          // Product has orders - deactivate instead
-          await supabase
-            .from('products')
-            .update({ is_active: false })
-            .eq('id', product.id);
-        } else {
-          // No orders - safe to delete
-          await supabase.from('product_variations').delete().eq('product_id', product.id);
-          await supabase.from('flash_sales').delete().eq('product_id', product.id);
-          await supabase.from('products').delete().eq('id', product.id);
-        }
-      }
-
-      toast.success(`Category "${categoryName}" products removed/deactivated`);
-      setLoading(false);
-      onCategoryChange();
-    } else {
-      toast.info('Category is already empty');
     }
+
+    setSaving(true);
+
+    // Handle products in this category
+    const productsInCategory = products.filter(p => p.category === category.name);
+    
+    for (const product of productsInCategory) {
+      const { count: orderCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('product_id', product.id);
+      
+      if (orderCount && orderCount > 0) {
+        // Product has orders - deactivate instead
+        await supabase
+          .from('products')
+          .update({ is_active: false })
+          .eq('id', product.id);
+      } else {
+        // No orders - safe to delete
+        await supabase.from('product_variations').delete().eq('product_id', product.id);
+        await supabase.from('flash_sales').delete().eq('product_id', product.id);
+        await supabase.from('products').delete().eq('id', product.id);
+      }
+    }
+
+    // Delete the category
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', category.id);
+
+    if (error) {
+      toast.error('Failed to delete category');
+      setSaving(false);
+      return;
+    }
+
+    toast.success(`Category "${category.name}" deleted`);
+    setSaving(false);
+    loadCategories();
+    onCategoryChange();
   };
 
-  const startEdit = (categoryName: string) => {
-    setEditingCategory(categoryName);
-    setEditedName(categoryName);
+  const toggleCategoryActive = async (category: Category) => {
+    await supabase
+      .from('categories')
+      .update({ is_active: !category.is_active })
+      .eq('id', category.id);
+    
+    toast.success(category.is_active ? 'Category disabled' : 'Category enabled');
+    loadCategories();
   };
+
+  const startEdit = (category: Category) => {
+    setEditingId(category.id);
+    setEditedName(category.name);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
@@ -151,26 +217,29 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
           onChange={(e) => setNewCategory(e.target.value)}
           className="flex-1 h-10 rounded-xl"
           onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+          disabled={saving}
         />
-        <Button onClick={handleAddCategory} size="sm" className="h-10 px-4">
-          <Plus className="w-4 h-4 mr-1" />
+        <Button onClick={handleAddCategory} size="sm" className="h-10 px-4" disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4 mr-1" />}
           Add
         </Button>
       </div>
 
       {/* Category List */}
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      <div className="space-y-2 max-h-80 overflow-y-auto">
         {categories.length === 0 ? (
           <p className="text-center text-muted-foreground text-sm py-4">
-            No categories yet. Add products to create categories.
+            No categories yet. Add your first category!
           </p>
         ) : (
           categories.map((category) => (
             <div
-              key={category.name}
-              className="flex items-center gap-3 p-3 bg-muted rounded-xl group"
+              key={category.id}
+              className={`flex items-center gap-3 p-3 rounded-xl group transition-colors ${
+                category.is_active ? 'bg-muted' : 'bg-muted/50 opacity-60'
+              }`}
             >
-              {editingCategory === category.name ? (
+              {editingId === category.id ? (
                 <>
                   <Input
                     value={editedName}
@@ -179,15 +248,16 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleRenameCategory();
-                      if (e.key === 'Escape') setEditingCategory(null);
+                      if (e.key === 'Escape') setEditingId(null);
                     }}
+                    disabled={saving}
                   />
                   <Button
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7"
                     onClick={handleRenameCategory}
-                    disabled={loading}
+                    disabled={saving}
                   >
                     <Check className="w-4 h-4 text-success" />
                   </Button>
@@ -195,22 +265,30 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7"
-                    onClick={() => setEditingCategory(null)}
+                    onClick={() => setEditingId(null)}
                   >
                     <X className="w-4 h-4 text-destructive" />
                   </Button>
                 </>
               ) : (
                 <>
+                  <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
                   <div className="flex-1">
                     <p className="font-medium text-sm text-foreground">{category.name}</p>
-                    <p className="text-xs text-muted-foreground">{category.count} product(s)</p>
+                    <p className="text-xs text-muted-foreground">
+                      {category.productCount || 0} product(s)
+                    </p>
                   </div>
+                  <Switch
+                    checked={category.is_active ?? true}
+                    onCheckedChange={() => toggleCategoryActive(category)}
+                    className="scale-75"
+                  />
                   <Button
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => startEdit(category.name)}
+                    onClick={() => startEdit(category)}
                   >
                     <Edit className="w-4 h-4" />
                   </Button>
@@ -218,8 +296,8 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteCategory(category.name)}
-                    disabled={loading}
+                    onClick={() => handleDeleteCategory(category)}
+                    disabled={saving}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
