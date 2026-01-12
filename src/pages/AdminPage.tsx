@@ -1,36 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft,
   Users,
   ShoppingBag,
-  DollarSign,
   Settings,
   Image,
-  Zap,
   Bell,
-  UserPlus,
   Gift,
   Clock,
   CheckCircle,
   XCircle,
-  Eye,
   Edit,
   Trash2,
   Plus,
-  Search,
-  ChevronRight,
   Award,
   TrendingUp,
   MessageCircle,
   Shield,
   Timer,
-  Phone,
-  Download,
-  ExternalLink,
-  Mail,
-  Calendar,
   CreditCard,
   Package,
   Volume2,
@@ -64,11 +53,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
-import AdminAnalytics from '@/components/AdminAnalytics';
-import AdminCategoryManager from '@/components/AdminCategoryManager';
-import AdminSearchAnalytics from '@/components/AdminSearchAnalytics';
 import AdminPaymentSettings from '@/components/AdminPaymentSettings';
+import { useAdminData } from '@/hooks/useAdminData';
 import { useAdminOrderAlerts } from '@/hooks/useAdminOrderAlerts';
+import { 
+  AdminDashboard, 
+  AdminUsersTab, 
+  AdminOrdersTab, 
+  AdminProductsTab, 
+  AdminContentTab,
+  AdminSettingsTab 
+} from '@/components/admin';
 import { toast } from 'sonner';
 
 const AdminPage: React.FC = () => {
@@ -76,29 +71,10 @@ const AdminPage: React.FC = () => {
   const { isAdmin, isTempAdmin, tempAdminExpiry, profile } = useAuth();
   
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [users, setUsers] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [banners, setBanners] = useState<any[]>([]);
-  const [flashSales, setFlashSales] = useState<any[]>([]);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [tempAdmins, setTempAdmins] = useState<any[]>([]);
-  const [categories, setCategories] = useState<{id: string; name: string}[]>([]);
-  const [settings, setSettings] = useState<any>({});
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [orderStatusFilter, setOrderStatusFilter] = useState('all');
-  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
   const [alertsEnabled, setAlertsEnabled] = useState(true);
-
-  // Admin order alerts with sound
-  useAdminOrderAlerts(
-    (isAdmin || isTempAdmin) && alertsEnabled,
-    (newOrder) => {
-      // Refresh orders when new order arrives
-      loadData();
-    }
-  );
+  
+  // Use custom hook for data loading
+  const { data, stats, loading, loadData, setData } = useAdminData(isAdmin, isTempAdmin);
   
   // Modals
   const [showUserModal, setShowUserModal] = useState(false);
@@ -161,144 +137,18 @@ const AdminPage: React.FC = () => {
     is_active: true
   });
 
-  useEffect(() => {
+  // Admin order alerts with sound
+  useAdminOrderAlerts(
+    (isAdmin || isTempAdmin) && alertsEnabled,
+    () => loadData()
+  );
+
+  // Redirect if not admin
+  React.useEffect(() => {
     if (!isAdmin && !isTempAdmin) {
       navigate('/');
-      return;
     }
-    loadData();
   }, [isAdmin, isTempAdmin, navigate]);
-
-  const loadData = async () => {
-    setLoading(true);
-    
-    // Load users
-    const { data: usersData } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setUsers(usersData || []);
-
-    // Load orders with profile info
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    // Fetch user profiles for orders
-    if (ordersData) {
-      const userIds = [...new Set(ordersData.map(o => o.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name, email, phone')
-        .in('id', userIds);
-      
-      const ordersWithProfiles = ordersData.map(order => ({
-        ...order,
-        profiles: profiles?.find(p => p.id === order.user_id)
-      }));
-      setOrders(ordersWithProfiles);
-    }
-
-    // Load products
-    const { data: productsData } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setProducts(productsData || []);
-
-    // Load banners
-    const { data: bannersData } = await supabase
-      .from('banners')
-      .select('*')
-      .order('sort_order', { ascending: true });
-    setBanners(bannersData || []);
-    
-    // Load flash sales
-    const { data: flashSalesData } = await supabase
-      .from('flash_sales')
-      .select('*, products(name, image_url)')
-      .order('created_at', { ascending: false });
-    setFlashSales(flashSalesData || []);
-
-    // Load announcements
-    const { data: announcementsData } = await supabase
-      .from('announcements')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setAnnouncements(announcementsData || []);
-
-    // Load temp admins (only for main admin)
-    if (isAdmin) {
-      const { data: tempAdminsData } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('role', 'temp_admin');
-      
-      if (tempAdminsData) {
-        const userIds = tempAdminsData.map(ta => ta.user_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .in('id', userIds);
-        
-        const tempAdminsWithProfiles = tempAdminsData.map(ta => ({
-          ...ta,
-          profiles: profiles?.find(p => p.id === ta.user_id)
-        }));
-        setTempAdmins(tempAdminsWithProfiles);
-      }
-    }
-
-    // Load categories
-    const { data: categoriesData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    setCategories(categoriesData || []);
-
-    // Load settings
-    const { data: settingsData } = await supabase
-      .from('app_settings')
-      .select('*');
-    const settingsObj: any = {};
-    settingsData?.forEach(s => {
-      settingsObj[s.key] = s.value;
-    });
-    setSettings(settingsObj);
-
-    setLoading(false);
-  };
-
-  // Stats
-  const totalUsers = users.length;
-  const totalDeposits = users.reduce((sum, u) => sum + (u.total_deposit || 0), 0);
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.status === 'pending').length;
-  const blueTickUsers = users.filter(u => u.has_blue_check).length;
-  const todayOrders = orders.filter(o => {
-    const orderDate = new Date(o.created_at);
-    const today = new Date();
-    return orderDate.toDateString() === today.toDateString();
-  }).length;
-  
-  // Low stock products (threshold from settings or default to 5)
-  const lowStockThreshold = parseInt(settings.low_stock_threshold || '5');
-  const lowStockProducts = products.filter(p => p.stock !== null && p.stock <= lowStockThreshold && p.stock > 0);
-  const outOfStockProducts = products.filter(p => p.stock !== null && p.stock <= 0);
-
-  // Filter users
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-  // Filter orders
-  const filteredOrders = orders.filter(o => {
-    if (orderStatusFilter === 'all') return true;
-    return o.status === orderStatusFilter;
-  });
 
   // User actions
   const handleGiftBlueTick = async (userId: string) => {
@@ -348,7 +198,7 @@ const AdminPage: React.FC = () => {
 
   // Order actions
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const order = orders.find(o => o.id === orderId);
+    const order = data.orders.find(o => o.id === orderId);
     
     const updateData: any = { 
       status, 
@@ -531,11 +381,17 @@ const AdminPage: React.FC = () => {
     }
     
     toast.success('Product added!');
+    resetProductForm();
+    loadData();
+  };
+
+  const resetProductForm = () => {
     setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
     setPendingVariations([]);
     setNewModalVariation({ name: '', price: '', reseller_price: '' });
+    setEditingProduct(null);
+    setExistingVariations([]);
     setShowProductModal(false);
-    loadData();
   };
 
   const handleEditProduct = async (product: any) => {
@@ -554,12 +410,12 @@ const AdminPage: React.FC = () => {
     });
     
     // Load existing variations
-    const { data } = await supabase
+    const { data: variationsData } = await supabase
       .from('product_variations')
       .select('*')
       .eq('product_id', product.id)
       .order('created_at', { ascending: true });
-    setExistingVariations(data || []);
+    setExistingVariations(variationsData || []);
     setPendingVariations([]);
     setNewModalVariation({ name: '', price: '', reseller_price: '' });
     
@@ -602,16 +458,10 @@ const AdminPage: React.FC = () => {
     }
     
     toast.success('Product updated!');
-    setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
-    setEditingProduct(null);
-    setPendingVariations([]);
-    setExistingVariations([]);
-    setNewModalVariation({ name: '', price: '', reseller_price: '' });
-    setShowProductModal(false);
+    resetProductForm();
     loadData();
   };
   
-  // Handle adding variation in product modal
   const handleAddModalVariation = () => {
     if (!newModalVariation.name || !newModalVariation.price) {
       toast.error('Please fill variation name and price');
@@ -619,52 +469,46 @@ const AdminPage: React.FC = () => {
     }
     
     if (editingProduct) {
-      // For existing product, save to DB immediately
       supabase.from('product_variations').insert({
         product_id: editingProduct.id,
         name: newModalVariation.name,
         price: parseFloat(newModalVariation.price),
         reseller_price: newModalVariation.reseller_price ? parseFloat(newModalVariation.reseller_price) : null
-      }).then(({ error, data }) => {
+      }).then(({ error }) => {
         if (error) {
           toast.error('Failed to add variation');
           return;
         }
         
-        // Reload variations
         supabase
           .from('product_variations')
           .select('*')
           .eq('product_id', editingProduct.id)
           .order('created_at', { ascending: true })
-          .then(({ data }) => {
-            setExistingVariations(data || []);
+          .then(({ data: varData }) => {
+            setExistingVariations(varData || []);
           });
         
         toast.success('Variation added!');
         setNewModalVariation({ name: '', price: '', reseller_price: '' });
       });
     } else {
-      // For new product, add to pending list
       setPendingVariations([...pendingVariations, { ...newModalVariation }]);
       setNewModalVariation({ name: '', price: '', reseller_price: '' });
     }
   };
   
-  // Handle deleting variation in product modal
   const handleDeleteModalVariation = async (variationId: string, isExisting: boolean) => {
     if (isExisting) {
       await supabase.from('product_variations').delete().eq('id', variationId);
       setExistingVariations(existingVariations.filter(v => v.id !== variationId));
       toast.success('Variation deleted!');
     } else {
-      // Remove from pending list (variationId is the index in this case)
       const index = parseInt(variationId);
       setPendingVariations(pendingVariations.filter((_, i) => i !== index));
     }
   };
   
-  // Quick templates for common variations
   const quickVariationTemplates = [
     { name: '1 Month', price: '49', reseller_price: '' },
     { name: '3 Months', price: '129', reseller_price: '' },
@@ -673,21 +517,18 @@ const AdminPage: React.FC = () => {
   ];
   
   const handleDeleteProduct = async (productId: string) => {
-    // Check if product has orders
     const { count: orderCount } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('product_id', productId);
     
     if (orderCount && orderCount > 0) {
-      // Product has orders - deactivate instead of delete
       const { error } = await supabase
         .from('products')
         .update({ is_active: false })
         .eq('id', productId);
       
       if (error) {
-        console.error('Deactivate error:', error);
         toast.error('Failed to deactivate product');
         return;
       }
@@ -696,30 +537,24 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    // No orders - safe to delete
-    // First delete variations
     await supabase.from('product_variations').delete().eq('product_id', productId);
-    
-    // Then delete product
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (error) {
-      console.error('Delete error:', error);
-      toast.error('Failed to delete product: ' + error.message);
+      toast.error('Failed to delete product');
       return;
     }
     toast.success('Product deleted!');
     loadData();
   };
 
-  // Variations actions
   const handleOpenVariations = async (product: any) => {
     setSelectedProductForVariations(product);
-    const { data } = await supabase
+    const { data: varData } = await supabase
       .from('product_variations')
       .select('*')
       .eq('product_id', product.id)
       .order('created_at', { ascending: true });
-    setProductVariations(data || []);
+    setProductVariations(varData || []);
     setShowVariationsModal(true);
   };
 
@@ -729,16 +564,11 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    const { error } = await supabase.from('product_variations').insert({
+    await supabase.from('product_variations').insert({
       product_id: selectedProductForVariations.id,
       name: newVariation.name,
       price: parseFloat(newVariation.price)
     });
-
-    if (error) {
-      toast.error('Failed to add variation');
-      return;
-    }
 
     toast.success('Variation added!');
     setNewVariation({ name: '', price: '' });
@@ -760,18 +590,13 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    const { error } = await supabase.from('banners').insert({
+    await supabase.from('banners').insert({
       title: bannerForm.title,
       image_url: bannerForm.image_url,
       link: bannerForm.link || null,
       is_active: bannerForm.is_active,
-      sort_order: banners.length
+      sort_order: data.banners.length
     });
-    
-    if (error) {
-      toast.error('Failed to add banner');
-      return;
-    }
     
     toast.success('Banner added!');
     setBannerForm({ title: '', image_url: '', link: '', is_active: true });
@@ -797,18 +622,13 @@ const AdminPage: React.FC = () => {
       return;
     }
     
-    const { error } = await supabase.from('flash_sales').insert({
+    await supabase.from('flash_sales').insert({
       product_id: flashSaleForm.product_id,
       sale_price: parseFloat(flashSaleForm.sale_price),
       start_time: flashSaleForm.start_time || new Date().toISOString(),
       end_time: flashSaleForm.end_time,
       is_active: flashSaleForm.is_active
     });
-    
-    if (error) {
-      toast.error('Failed to add flash sale');
-      return;
-    }
     
     toast.success('Flash sale added!');
     setFlashSaleForm({ product_id: '', sale_price: '', start_time: '', end_time: '', is_active: true });
@@ -825,19 +645,9 @@ const AdminPage: React.FC = () => {
   // Settings update
   const handleUpdateSetting = async (key: string, value: string) => {
     await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() });
-    setSettings({ ...settings, [key]: value });
+    setData({ ...data, settings: { ...data.settings, [key]: value } });
     toast.success('Setting updated!');
   };
-
-  // Initialize default settings if empty
-  const defaultSettings = [
-    'app_name', 'contact_whatsapp', 'contact_email', 'payment_qr_code',
-    'min_deposit', 'referral_bonus', 'login_bonus', 'daily_bonus_min',
-    'daily_bonus_max', 'blue_tick_threshold', 'single_deposit_bonus_threshold',
-    'single_deposit_bonus_amount', 'currency_symbol', 'app_language',
-    'maintenance_mode', 'allow_registration', 'auto_approve_orders',
-    'notification_enabled', 'razorpay_enabled', 'google_login_enabled'
-  ];
 
   if (loading) {
     return (
@@ -849,7 +659,7 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-8">
-      {/* Enhanced Header */}
+      {/* Header */}
       <header className="bg-gradient-to-r from-primary/10 via-background to-accent/10 sticky top-0 z-50 px-4 py-3 border-b border-border/50 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto flex items-center gap-3">
           <motion.button 
@@ -873,7 +683,6 @@ const AdminPage: React.FC = () => {
             )}
           </div>
           
-          {/* Quick Action Buttons */}
           <div className="flex items-center gap-2">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button 
@@ -897,88 +706,6 @@ const AdminPage: React.FC = () => {
       </header>
 
       <main className="px-4 max-w-5xl mx-auto mt-6">
-        {/* Compact Stats Grid */}
-        <div className="grid grid-cols-4 gap-3 mb-6">
-          {[
-            { icon: Users, value: totalUsers, label: 'Users', color: 'primary' },
-            { icon: TrendingUp, value: `₹${totalDeposits.toFixed(0)}`, label: 'Deposits', color: 'success' },
-            { icon: ShoppingBag, value: totalOrders, label: 'Orders', color: 'accent' },
-            { icon: Clock, value: pendingOrders, label: 'Pending', color: 'secondary', highlight: pendingOrders > 0 }
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={`bg-card rounded-2xl p-3 shadow-card text-center relative overflow-hidden ${
-                stat.highlight ? 'ring-2 ring-primary/50' : ''
-              }`}
-            >
-              {stat.highlight && (
-                <motion.div
-                  className="absolute inset-0 bg-primary/5"
-                  animate={{ opacity: [0.3, 0.6, 0.3] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
-              )}
-              <stat.icon className={`w-5 h-5 text-${stat.color} mx-auto mb-1`} />
-              <p className="text-lg font-bold text-foreground">{stat.value}</p>
-              <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-            </motion.div>
-          ))}
-        </div>
-        
-        {/* Mini Stats Row */}
-        <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
-          {[
-            { icon: Award, value: blueTickUsers, label: 'Blue Tick' },
-            { icon: Calendar, value: todayOrders, label: 'Today' },
-            { icon: Package, value: products.length, label: 'Products' },
-            { icon: UserPlus, value: tempAdmins.length, label: 'Temp Admins' }
-          ].map((stat) => (
-            <div 
-              key={stat.label}
-              className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2 min-w-fit"
-            >
-              <stat.icon className="w-4 h-4 text-muted-foreground" />
-              <span className="font-semibold text-sm text-foreground">{stat.value}</span>
-              <span className="text-xs text-muted-foreground">{stat.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Stock Alert - Compact */}
-        {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-destructive/10 border border-destructive/20 rounded-xl p-3 mb-6 flex items-center gap-3"
-          >
-            <Bell className="w-5 h-5 text-destructive shrink-0" />
-            <div className="flex-1 flex flex-wrap gap-2">
-              {outOfStockProducts.length > 0 && (
-                <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded-lg">
-                  {outOfStockProducts.length} Out of Stock
-                </span>
-              )}
-              {lowStockProducts.length > 0 && (
-                <span className="text-xs bg-yellow-500/20 text-yellow-700 px-2 py-1 rounded-lg">
-                  {lowStockProducts.length} Low Stock
-                </span>
-              )}
-            </div>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="text-xs"
-              onClick={() => setActiveTab('products')}
-            >
-              View
-            </Button>
-          </motion.div>
-        )}
-
-        {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full grid grid-cols-8 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
             {[
@@ -1002,642 +729,79 @@ const AdminPage: React.FC = () => {
             ))}
           </TabsList>
 
-          {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* Analytics Section */}
-            <AdminAnalytics orders={orders} products={products} />
-            
-            {/* Search Analytics */}
-            <AdminSearchAnalytics />
-            
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 rounded-2xl"
-                onClick={() => setShowAnnouncementModal(true)}
-              >
-                <Bell className="w-6 h-6 text-primary" />
-                <span className="text-xs">Announcement</span>
-              </Button>
-              
-              {isAdmin && (
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col items-center gap-2 rounded-2xl"
-                  onClick={() => setShowTempAdminModal(true)}
-                >
-                  <UserPlus className="w-6 h-6 text-secondary" />
-                  <span className="text-xs">Add Temp Admin</span>
-                </Button>
-              )}
-
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 rounded-2xl"
-                onClick={() => setActiveTab('orders')}
-              >
-                <ShoppingBag className="w-6 h-6 text-accent" />
-                <span className="text-xs">Manage Orders</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                className="h-auto py-4 flex flex-col items-center gap-2 rounded-2xl"
-                onClick={() => navigate('/chat')}
-              >
-                <MessageCircle className="w-6 h-6 text-success" />
-                <span className="text-xs">Messages</span>
-              </Button>
-            </div>
-
-            {/* Temp Admins List (Only for main admin) */}
-            {isAdmin && tempAdmins.length > 0 && (
-              <div className="bg-card rounded-2xl p-4 shadow-card">
-                <h3 className="font-semibold text-foreground mb-3">Temporary Admins</h3>
-                <div className="space-y-2">
-                  {tempAdmins.map((ta: any) => (
-                    <div key={ta.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                      <div>
-                        <p className="font-medium text-foreground">{ta.profiles?.name || ta.profiles?.email}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Expires: {new Date(ta.temp_admin_expiry).toLocaleString()}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleRemoveTempAdmin(ta.user_id)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Recent Orders */}
-            <div className="bg-card rounded-2xl p-4 shadow-card">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-foreground">Recent Orders</h3>
-                <button onClick={() => setActiveTab('orders')} className="text-sm text-primary">
-                  View All
-                </button>
-              </div>
-              <div className="space-y-2">
-                {orders.slice(0, 5).map((order: any) => (
-                  <div key={order.id} className="flex items-center gap-3 p-3 bg-muted rounded-xl">
-                    <img src={order.product_image || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 rounded-lg object-cover" />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground text-sm">{order.product_name}</p>
-                      <p className="text-xs text-muted-foreground">{order.profiles?.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-foreground">₹{order.total_price}</p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        order.status === 'completed' ? 'bg-success/10 text-success' :
-                        order.status === 'pending' ? 'bg-primary/10 text-primary' :
-                        'bg-destructive/10 text-destructive'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <TabsContent value="dashboard">
+            <AdminDashboard 
+              stats={stats}
+              data={data}
+              isAdmin={isAdmin}
+              onShowAnnouncementModal={() => setShowAnnouncementModal(true)}
+              onShowTempAdminModal={() => setShowTempAdminModal(true)}
+              onTabChange={setActiveTab}
+              onRemoveTempAdmin={handleRemoveTempAdmin}
+            />
           </TabsContent>
 
-          {/* Users Tab */}
-          <TabsContent value="users" className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input 
-                placeholder="Search users..." 
-                className="pl-12 h-12 rounded-xl"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-3">
-              {filteredUsers.map((user: any) => (
-                <motion.div
-                  key={user.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-card rounded-2xl p-4 shadow-card"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
-                      {user.name?.charAt(0) || 'U'}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground flex items-center gap-1">
-                        {user.name}
-                        {user.has_blue_check && <BlueTick size="sm" />}
-                      </p>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                      <p className="text-xs text-muted-foreground">{user.phone || 'No phone'}</p>
-                      <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
-                        <span>Balance: ₹{user.wallet_balance || 0}</span>
-                        <span>Deposit: ₹{user.total_deposit || 0}</span>
-                        <span>Orders: {user.total_orders || 0}</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Joined: {new Date(user.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setShowUserModal(true);
-                      }}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+          <TabsContent value="users">
+            <AdminUsersTab 
+              users={data.users}
+              onSelectUser={(user) => {
+                setSelectedUser(user);
+                setShowUserModal(true);
+              }}
+            />
           </TabsContent>
 
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-4">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar">
-              {['all', 'pending', 'processing', 'completed', 'cancelled'].map(status => (
-                <button
-                  key={status}
-                  onClick={() => setOrderStatusFilter(status)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-                    orderStatusFilter === status 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
-                  {status !== 'all' && (
-                    <span className="ml-1 text-xs">
-                      ({orders.filter(o => o.status === status).length})
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              {filteredOrders.map((order: any) => (
-                <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-card rounded-2xl p-4 shadow-card"
-                >
-                  <div className="flex items-start gap-4">
-                    <img src={order.product_image || 'https://via.placeholder.com/64'} alt="" className="w-16 h-16 rounded-xl object-cover" />
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">{order.product_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {order.profiles?.name} • {order.profiles?.email}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Phone: {order.profiles?.phone || 'N/A'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Qty: {order.quantity} | Total: ₹{order.total_price}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {new Date(order.created_at).toLocaleString()}
-                      </p>
-                      {order.user_note && (
-                        <p className="text-xs text-primary mt-1 bg-primary/5 p-2 rounded">
-                          📝 Note: {order.user_note}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        order.status === 'completed' ? 'bg-success/10 text-success' :
-                        order.status === 'pending' ? 'bg-primary/10 text-primary' :
-                        order.status === 'processing' ? 'bg-accent/10 text-accent' :
-                        'bg-destructive/10 text-destructive'
-                      }`}>
-                        {order.status}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="mt-2"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setAdminNote(order.admin_note || '');
-                          setAccessLink(order.access_link || '');
-                          setShowOrderModal(true);
-                        }}
-                      >
-                        Manage
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+          <TabsContent value="orders">
+            <AdminOrdersTab 
+              orders={data.orders}
+              onSelectOrder={(order) => {
+                setSelectedOrder(order);
+                setAdminNote(order.admin_note || '');
+                setAccessLink(order.access_link || '');
+                setShowOrderModal(true);
+              }}
+            />
           </TabsContent>
 
-          {/* Products Tab */}
-          <TabsContent value="products" className="space-y-4">
-            {/* Category Manager */}
-            <AdminCategoryManager products={products} onCategoryChange={loadData} />
-            
-            <Button className="w-full btn-gradient rounded-xl" onClick={() => setShowProductModal(true)}>
-              <Plus className="w-5 h-5 mr-2" />
-              Add New Product
-            </Button>
-
-            {/* Category Filter */}
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              <button
-                onClick={() => setProductCategoryFilter('all')}
-                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-                  productCategoryFilter === 'all' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
-              >
-                All ({products.length})
-              </button>
-              {[...new Set(products.map(p => p.category))].sort().map(category => (
-                <button
-                  key={category}
-                  onClick={() => setProductCategoryFilter(category)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
-                    productCategoryFilter === category 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted text-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {category} ({products.filter(p => p.category === category).length})
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              {products
-                .filter(product => productCategoryFilter === 'all' || product.category === productCategoryFilter)
-                .map((product: any) => (
-                <div key={product.id} className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4">
-                  <img src={product.image_url || 'https://via.placeholder.com/64'} alt="" className="w-16 h-16 rounded-xl object-cover" />
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">{product.category}</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-primary font-bold">₹{product.price}</p>
-                      {product.original_price && (
-                        <p className="text-xs text-muted-foreground line-through">₹{product.original_price}</p>
-                      )}
-                    </div>
-                    {product.access_link && (
-                      <p className="text-xs text-success flex items-center gap-1 mt-1">
-                        <Download className="w-3 h-3" />
-                        Has download link
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="icon" variant="outline" onClick={() => handleOpenVariations(product)} title="Variations">
-                      <Package className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="outline" onClick={() => handleEditProduct(product)}>
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="destructive" onClick={() => handleDeleteProduct(product.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <TabsContent value="products">
+            <AdminProductsTab 
+              products={data.products}
+              onAddProduct={() => setShowProductModal(true)}
+              onEditProduct={handleEditProduct}
+              onDeleteProduct={handleDeleteProduct}
+              onOpenVariations={handleOpenVariations}
+              onDataChange={loadData}
+            />
           </TabsContent>
           
-          {/* Chat Tab */}
           <TabsContent value="chat">
             <AdminChatPanel />
           </TabsContent>
           
-          {/* Content Tab (Banners & Flash Sales) */}
-          <TabsContent value="content" className="space-y-6">
-            {/* Banners Section */}
-            <div className="bg-card rounded-2xl p-4 shadow-card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Image className="w-5 h-5 text-primary" />
-                  Banners
-                </h3>
-                <Button size="sm" onClick={() => setShowBannerModal(true)}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {banners.map((banner: any) => (
-                  <div key={banner.id} className="flex items-center gap-3 p-2 bg-muted rounded-xl">
-                    <img src={banner.image_url} alt="" className="w-24 h-12 rounded object-cover" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{banner.title}</p>
-                      {banner.link && <p className="text-xs text-muted-foreground truncate">{banner.link}</p>}
-                    </div>
-                    <Switch 
-                      checked={banner.is_active} 
-                      onCheckedChange={() => handleToggleBanner(banner.id, banner.is_active)}
-                    />
-                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteBanner(banner.id)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ))}
-                {banners.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm py-4">No banners yet</p>
-                )}
-              </div>
-            </div>
-            
-            {/* Flash Sales Section */}
-            <div className="bg-card rounded-2xl p-4 shadow-card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-accent" />
-                  Flash Sales
-                </h3>
-                <Button size="sm" onClick={() => setShowFlashSaleModal(true)}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {flashSales.map((sale: any) => (
-                  <div key={sale.id} className="flex items-center gap-3 p-2 bg-muted rounded-xl">
-                    <img src={sale.products?.image_url || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 rounded object-cover" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{sale.products?.name}</p>
-                      <p className="text-xs text-success font-bold">₹{sale.sale_price}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Ends: {new Date(sale.end_time).toLocaleString()}
-                      </p>
-                    </div>
-                    <Switch checked={sale.is_active} />
-                    <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteFlashSale(sale.id)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                ))}
-                {flashSales.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm py-4">No flash sales yet</p>
-                )}
-              </div>
-            </div>
-            
-            {/* Announcements Section */}
-            <div className="bg-card rounded-2xl p-4 shadow-card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-secondary" />
-                  Announcements
-                </h3>
-                <Button size="sm" onClick={() => setShowAnnouncementModal(true)}>
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {announcements.map((ann: any) => (
-                  <div key={ann.id} className="p-3 bg-muted rounded-xl">
-                    <p className="font-medium text-sm">{ann.title}</p>
-                    <p className="text-xs text-muted-foreground">{ann.message}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {new Date(ann.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-                {announcements.length === 0 && (
-                  <p className="text-center text-muted-foreground text-sm py-4">No announcements yet</p>
-                )}
-              </div>
-            </div>
+          <TabsContent value="content">
+            <AdminContentTab 
+              banners={data.banners}
+              flashSales={data.flashSales}
+              announcements={data.announcements}
+              onShowBannerModal={() => setShowBannerModal(true)}
+              onShowFlashSaleModal={() => setShowFlashSaleModal(true)}
+              onShowAnnouncementModal={() => setShowAnnouncementModal(true)}
+              onDeleteBanner={handleDeleteBanner}
+              onToggleBanner={handleToggleBanner}
+              onDeleteFlashSale={handleDeleteFlashSale}
+            />
           </TabsContent>
 
-          {/* Payments Tab */}
-          <TabsContent value="payments" className="space-y-6">
+          <TabsContent value="payments">
             <AdminPaymentSettings />
           </TabsContent>
 
-          {/* Settings Tab (Only for main admin) */}
           {isAdmin && (
-            <TabsContent value="settings" className="space-y-4">
-              <div className="bg-card rounded-2xl p-4 shadow-card">
-                <h3 className="font-semibold text-foreground mb-4">App Settings (20+ Options)</h3>
-                
-                <div className="space-y-4">
-                  {/* App Info */}
-                  <div className="border-b border-border pb-4">
-                    <h4 className="text-sm font-medium text-primary mb-2">App Information</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">App Name</span>
-                        <Input
-                          value={settings.app_name || 'RKR Premium Store'}
-                          onChange={(e) => handleUpdateSetting('app_name', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Language</span>
-                        <Input
-                          value={settings.app_language || 'English'}
-                          onChange={(e) => handleUpdateSetting('app_language', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Currency Symbol</span>
-                        <Input
-                          value={settings.currency_symbol || '₹'}
-                          onChange={(e) => handleUpdateSetting('currency_symbol', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Contact */}
-                  <div className="border-b border-border pb-4">
-                    <h4 className="text-sm font-medium text-primary mb-2">Contact Info</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">WhatsApp</span>
-                        <Input
-                          value={settings.contact_whatsapp || '+918900684167'}
-                          onChange={(e) => handleUpdateSetting('contact_whatsapp', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Email</span>
-                        <Input
-                          value={settings.contact_email || ''}
-                          onChange={(e) => handleUpdateSetting('contact_email', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Payments */}
-                  <div className="border-b border-border pb-4">
-                    <h4 className="text-sm font-medium text-primary mb-2">Payment Settings</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Min Deposit (Rs)</span>
-                        <Input
-                          value={settings.min_deposit || '10'}
-                          onChange={(e) => handleUpdateSetting('min_deposit', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Payment QR Code URL</span>
-                        <Input
-                          value={settings.payment_qr_code || ''}
-                          onChange={(e) => handleUpdateSetting('payment_qr_code', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                          placeholder="QR code URL"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Bonuses */}
-                  <div className="border-b border-border pb-4">
-                    <h4 className="text-sm font-medium text-primary mb-2">Bonus Settings</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Login Bonus (Rs)</span>
-                        <Input
-                          value={settings.login_bonus || '0'}
-                          onChange={(e) => handleUpdateSetting('login_bonus', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Daily Bonus Min (Rs)</span>
-                        <Input
-                          value={settings.daily_bonus_min || '0.10'}
-                          onChange={(e) => handleUpdateSetting('daily_bonus_min', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Daily Bonus Max (Rs)</span>
-                        <Input
-                          value={settings.daily_bonus_max || '0.60'}
-                          onChange={(e) => handleUpdateSetting('daily_bonus_max', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Referral Bonus (Rs)</span>
-                        <Input
-                          value={settings.referral_bonus || '10'}
-                          onChange={(e) => handleUpdateSetting('referral_bonus', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Blue Tick */}
-                  <div className="border-b border-border pb-4">
-                    <h4 className="text-sm font-medium text-primary mb-2">Blue Tick Settings</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Total Deposit Threshold (Rs)</span>
-                        <Input
-                          value={settings.blue_tick_threshold || '1000'}
-                          onChange={(e) => handleUpdateSetting('blue_tick_threshold', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Single Deposit Bonus Threshold</span>
-                        <Input
-                          value={settings.single_deposit_bonus_threshold || '1000'}
-                          onChange={(e) => handleUpdateSetting('single_deposit_bonus_threshold', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Single Deposit Bonus Amount</span>
-                        <Input
-                          value={settings.single_deposit_bonus_amount || '100'}
-                          onChange={(e) => handleUpdateSetting('single_deposit_bonus_amount', e.target.value)}
-                          className="w-40 h-8 text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Features */}
-                  <div>
-                    <h4 className="text-sm font-medium text-primary mb-2">Feature Toggles</h4>
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Maintenance Mode</span>
-                        <Switch 
-                          checked={settings.maintenance_mode === 'true'} 
-                          onCheckedChange={(v) => handleUpdateSetting('maintenance_mode', v.toString())}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Allow Registration</span>
-                        <Switch 
-                          checked={settings.allow_registration !== 'false'} 
-                          onCheckedChange={(v) => handleUpdateSetting('allow_registration', v.toString())}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Razorpay Enabled</span>
-                        <Switch 
-                          checked={settings.razorpay_enabled !== 'false'} 
-                          onCheckedChange={(v) => handleUpdateSetting('razorpay_enabled', v.toString())}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Google Login</span>
-                        <Switch 
-                          checked={settings.google_login_enabled !== 'false'} 
-                          onCheckedChange={(v) => handleUpdateSetting('google_login_enabled', v.toString())}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Notifications Enabled</span>
-                        <Switch 
-                          checked={settings.notification_enabled !== 'false'} 
-                          onCheckedChange={(v) => handleUpdateSetting('notification_enabled', v.toString())}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Auto Approve Orders</span>
-                        <Switch 
-                          checked={settings.auto_approve_orders === 'true'} 
-                          onCheckedChange={(v) => handleUpdateSetting('auto_approve_orders', v.toString())}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <TabsContent value="settings">
+              <AdminSettingsTab 
+                settings={data.settings}
+                onUpdateSetting={handleUpdateSetting}
+              />
             </TabsContent>
           )}
         </Tabs>
@@ -1682,30 +846,22 @@ const AdminPage: React.FC = () => {
                 <p><strong>Referral Code:</strong> {selectedUser.referral_code}</p>
                 <p><strong>Referred By:</strong> {selectedUser.referred_by || 'None'}</p>
                 <p><strong>Joined:</strong> {new Date(selectedUser.created_at).toLocaleDateString()}</p>
-                <p><strong>Notifications:</strong> {selectedUser.notifications_enabled ? 'Enabled' : 'Disabled'}</p>
+                <p><strong>Rank Balance:</strong> ₹{selectedUser.rank_balance || 0}</p>
               </div>
 
               <div className="flex gap-2">
                 {!selectedUser.has_blue_check && (
-                  <Button
-                    onClick={() => handleGiftBlueTick(selectedUser.id)}
-                    className="flex-1 btn-gradient"
-                  >
+                  <Button onClick={() => handleGiftBlueTick(selectedUser.id)} className="flex-1 btn-gradient">
                     <Award className="w-4 h-4 mr-2" />
                     Gift Blue Tick
                   </Button>
                 )}
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => navigate('/chat')}
-                >
+                <Button variant="outline" className="flex-1" onClick={() => navigate('/chat')}>
                   <MessageCircle className="w-4 h-4 mr-2" />
                   Message
                 </Button>
               </div>
 
-              {/* Make Reseller Toggle */}
               <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">💼 Reseller Status</span>
@@ -1716,10 +872,7 @@ const AdminPage: React.FC = () => {
                 <Switch 
                   checked={selectedUser.is_reseller || false}
                   onCheckedChange={async (checked) => {
-                    await supabase
-                      .from('profiles')
-                      .update({ is_reseller: checked })
-                      .eq('id', selectedUser.id);
+                    await supabase.from('profiles').update({ is_reseller: checked }).eq('id', selectedUser.id);
                     toast.success(checked ? 'User is now a Reseller!' : 'Reseller status removed');
                     setSelectedUser({ ...selectedUser, is_reseller: checked });
                     loadData();
@@ -1741,12 +894,10 @@ const AdminPage: React.FC = () => {
                 </Button>
               </div>
 
-              {/* Make Seller Button */}
               <Button
                 variant="outline"
                 className="w-full"
                 onClick={async () => {
-                  // Check if already a seller
                   const { data: existingRole } = await supabase
                     .from('user_roles')
                     .select('id')
@@ -1755,17 +906,10 @@ const AdminPage: React.FC = () => {
                     .maybeSingle();
 
                   if (existingRole) {
-                    // Remove seller role
-                    await supabase
-                      .from('user_roles')
-                      .delete()
-                      .eq('id', existingRole.id);
-                    toast.success('Seller role removed - User is now a normal user');
+                    await supabase.from('user_roles').delete().eq('id', existingRole.id);
+                    toast.success('Seller role removed');
                   } else {
-                    // Add seller role
-                    await supabase
-                      .from('user_roles')
-                      .insert({ user_id: selectedUser.id, role: 'seller' });
+                    await supabase.from('user_roles').insert({ user_id: selectedUser.id, role: 'seller' });
                     toast.success('User is now a seller!');
                   }
                   setShowUserModal(false);
@@ -1776,35 +920,20 @@ const AdminPage: React.FC = () => {
                 Toggle Seller Role
               </Button>
 
-              {/* Delete User - Only for main admin */}
               {isAdmin && (
                 <Button
                   variant="destructive"
                   className="w-full"
                   onClick={async () => {
-                    if (!confirm(`Are you sure you want to delete ${selectedUser.name}? This will remove all their data including orders, transactions, and messages.`)) return;
+                    if (!confirm(`Are you sure you want to delete ${selectedUser.name}?`)) return;
                     
-                    // Delete user roles first
                     await supabase.from('user_roles').delete().eq('user_id', selectedUser.id);
-                    
-                    // Delete notifications
                     await supabase.from('notifications').delete().eq('user_id', selectedUser.id);
-                    
-                    // Delete transactions
                     await supabase.from('transactions').delete().eq('user_id', selectedUser.id);
-                    
-                    // Delete orders
                     await supabase.from('orders').delete().eq('user_id', selectedUser.id);
+                    await supabase.from('profiles').delete().eq('id', selectedUser.id);
                     
-                    // Delete profile
-                    const { error } = await supabase.from('profiles').delete().eq('id', selectedUser.id);
-                    
-                    if (error) {
-                      toast.error('Failed to delete user');
-                      return;
-                    }
-                    
-                    toast.success('User deleted successfully');
+                    toast.success('User deleted');
                     setShowUserModal(false);
                     loadData();
                   }}
@@ -1835,13 +964,11 @@ const AdminPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* Customer Info */}
               <div className="bg-muted rounded-xl p-3 text-sm space-y-1">
                 <p className="font-medium">Customer Details:</p>
                 <p>Name: {selectedOrder.profiles?.name}</p>
                 <p>Email: {selectedOrder.profiles?.email}</p>
                 <p>Phone: {selectedOrder.profiles?.phone || 'N/A'}</p>
-                <p>Date: {new Date(selectedOrder.created_at).toLocaleString()}</p>
               </div>
 
               {selectedOrder.user_note && (
@@ -1852,7 +979,7 @@ const AdminPage: React.FC = () => {
               )}
               
               <div>
-                <label className="text-sm font-medium mb-1 block">Access/Download Link (Optional)</label>
+                <label className="text-sm font-medium mb-1 block">Access Link</label>
                 <Input
                   placeholder="https://..."
                   value={accessLink}
@@ -1867,26 +994,16 @@ const AdminPage: React.FC = () => {
               />
 
               <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'processing')}
-                >
+                <Button variant="outline" onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'processing')}>
                   <Clock className="w-4 h-4 mr-2" />
                   Processing
                 </Button>
-                <Button
-                  className="bg-success text-success-foreground hover:bg-success/90"
-                  onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'completed')}
-                >
+                <Button className="bg-success text-success-foreground hover:bg-success/90" onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'completed')}>
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Complete
                 </Button>
               </div>
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'cancelled')}
-              >
+              <Button variant="destructive" className="w-full" onClick={() => handleUpdateOrderStatus(selectedOrder.id, 'cancelled')}>
                 <XCircle className="w-4 h-4 mr-2" />
                 Cancel & Refund
               </Button>
@@ -1902,21 +1019,9 @@ const AdminPage: React.FC = () => {
             <DialogTitle>Add Temporary Admin</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              type="email"
-              placeholder="User email"
-              value={tempAdminEmail}
-              onChange={(e) => setTempAdminEmail(e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Duration (hours)"
-              value={tempAdminHours}
-              onChange={(e) => setTempAdminHours(e.target.value)}
-            />
-            <Button className="w-full btn-gradient" onClick={handleAddTempAdmin}>
-              Add Temporary Admin
-            </Button>
+            <Input type="email" placeholder="User email" value={tempAdminEmail} onChange={(e) => setTempAdminEmail(e.target.value)} />
+            <Input type="number" placeholder="Duration (hours)" value={tempAdminHours} onChange={(e) => setTempAdminHours(e.target.value)} />
+            <Button className="w-full btn-gradient" onClick={handleAddTempAdmin}>Add Temporary Admin</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -1928,17 +1033,8 @@ const AdminPage: React.FC = () => {
             <DialogTitle>Create Announcement</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Title"
-              value={announcementTitle}
-              onChange={(e) => setAnnouncementTitle(e.target.value)}
-            />
-            <Textarea
-              placeholder="Message"
-              value={announcementMessage}
-              onChange={(e) => setAnnouncementMessage(e.target.value)}
-              rows={4}
-            />
+            <Input placeholder="Title" value={announcementTitle} onChange={(e) => setAnnouncementTitle(e.target.value)} />
+            <Textarea placeholder="Message" value={announcementMessage} onChange={(e) => setAnnouncementMessage(e.target.value)} rows={4} />
             <Button className="w-full btn-gradient" onClick={handleCreateAnnouncement}>
               <Bell className="w-4 h-4 mr-2" />
               Send Announcement
@@ -1947,200 +1043,84 @@ const AdminPage: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Add/Edit Product Modal */}
+      {/* Product Modal */}
       <Dialog open={showProductModal} onOpenChange={(open) => {
-        setShowProductModal(open);
-        if (!open) {
-          setEditingProduct(null);
-          setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
-          setPendingVariations([]);
-          setExistingVariations([]);
-          setNewModalVariation({ name: '', price: '', reseller_price: '' });
-        }
+        if (!open) resetProductForm();
+        else setShowProductModal(open);
       }}>
         <DialogContent className="max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Product Name *"
-              value={productForm.name}
-              onChange={(e) => setProductForm({...productForm, name: e.target.value})}
-            />
-            <Textarea
-              placeholder="Description"
-              value={productForm.description}
-              onChange={(e) => setProductForm({...productForm, description: e.target.value})}
-              rows={2}
-            />
+            <Input placeholder="Product Name *" value={productForm.name} onChange={(e) => setProductForm({...productForm, name: e.target.value})} />
+            <Textarea placeholder="Description" value={productForm.description} onChange={(e) => setProductForm({...productForm, description: e.target.value})} rows={2} />
             <div className="grid grid-cols-3 gap-2">
-              <Input
-                type="number"
-                placeholder="Price *"
-                value={productForm.price}
-                onChange={(e) => setProductForm({...productForm, price: e.target.value})}
-              />
-              <Input
-                type="number"
-                placeholder="Original Price"
-                value={productForm.original_price}
-                onChange={(e) => setProductForm({...productForm, original_price: e.target.value})}
-              />
-              <Input
-                type="number"
-                placeholder="Reseller Price"
-                value={productForm.reseller_price}
-                onChange={(e) => setProductForm({...productForm, reseller_price: e.target.value})}
-              />
+              <Input type="number" placeholder="Price *" value={productForm.price} onChange={(e) => setProductForm({...productForm, price: e.target.value})} />
+              <Input type="number" placeholder="Original" value={productForm.original_price} onChange={(e) => setProductForm({...productForm, original_price: e.target.value})} />
+              <Input type="number" placeholder="Reseller" value={productForm.reseller_price} onChange={(e) => setProductForm({...productForm, reseller_price: e.target.value})} />
             </div>
-            <p className="text-xs text-muted-foreground">💼 Reseller price is for Diamond/Titan users</p>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Category *</label>
-              <Select
-                value={productForm.category}
-                onValueChange={(value) => setProductForm({...productForm, category: value})}
-              >
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Product Image</label>
-              <Input
-                placeholder="Image URL (paste link)"
-                value={productForm.image_url}
-                onChange={(e) => setProductForm({...productForm, image_url: e.target.value})}
-              />
-              <div className="text-center text-xs text-muted-foreground">or</div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  
-                  if (file.size > 2 * 1024 * 1024) {
-                    toast.error('Image must be less than 2MB');
-                    return;
-                  }
-                  
-                  toast.loading('Uploading image...');
-                  
-                  const fileExt = file.name.split('.').pop();
-                  const fileName = `product-${Date.now()}.${fileExt}`;
-                  
-                  const { error } = await supabase.storage
-                    .from('chat-images')
-                    .upload(`products/${fileName}`, file);
-                  
-                  if (error) {
-                    toast.dismiss();
-                    toast.error('Failed to upload');
-                    return;
-                  }
-                  
-                  const { data } = supabase.storage
-                    .from('chat-images')
-                    .getPublicUrl(`products/${fileName}`);
-                  
-                  setProductForm({...productForm, image_url: data.publicUrl});
-                  toast.dismiss();
-                  toast.success('Image uploaded!');
-                }}
-                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              />
-            </div>
-            <Input
-              placeholder="Access/Download Link (Optional)"
-              value={productForm.access_link}
-              onChange={(e) => setProductForm({...productForm, access_link: e.target.value})}
-            />
-            <Input
-              type="number"
-              placeholder="Stock Quantity (leave empty for unlimited)"
-              value={productForm.stock}
-              onChange={(e) => setProductForm({...productForm, stock: e.target.value})}
-            />
+            <Select value={productForm.category} onValueChange={(value) => setProductForm({...productForm, category: value})}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {data.categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input placeholder="Image URL" value={productForm.image_url} onChange={(e) => setProductForm({...productForm, image_url: e.target.value})} />
+            <Input placeholder="Access Link (Optional)" value={productForm.access_link} onChange={(e) => setProductForm({...productForm, access_link: e.target.value})} />
+            <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({...productForm, stock: e.target.value})} />
             <div className="flex items-center justify-between">
               <span className="text-sm">Active</span>
-              <Switch 
-                checked={productForm.is_active} 
-                onCheckedChange={(v) => setProductForm({...productForm, is_active: v})}
-              />
+              <Switch checked={productForm.is_active} onCheckedChange={(v) => setProductForm({...productForm, is_active: v})} />
             </div>
             
             {/* Variations Section */}
             <div className="border-t border-border pt-4">
               <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <Package className="w-4 h-4 text-primary" />
-                Product Variations (Optional)
+                Variations (Optional)
               </h4>
               
-              {/* Quick Templates */}
-              <div className="mb-3">
-                <p className="text-xs text-muted-foreground mb-2">Quick Add Templates:</p>
-                <div className="flex flex-wrap gap-1">
-                  {quickVariationTemplates.map((template, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
-                      onClick={() => {
-                        if (editingProduct) {
-                          supabase.from('product_variations').insert({
-                            product_id: editingProduct.id,
-                            name: template.name,
-                            price: parseFloat(template.price)
-                          }).then(() => {
-                            supabase
-                              .from('product_variations')
-                              .select('*')
-                              .eq('product_id', editingProduct.id)
-                              .order('created_at', { ascending: true })
-                              .then(({ data }) => {
-                                setExistingVariations(data || []);
-                              });
-                            toast.success(`${template.name} added!`);
-                          });
-                        } else {
-                          setPendingVariations([...pendingVariations, { ...template }]);
-                        }
-                      }}
-                    >
-                      + {template.name}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-1 mb-3">
+                {quickVariationTemplates.map((template, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg hover:bg-primary/20"
+                    onClick={() => {
+                      if (editingProduct) {
+                        supabase.from('product_variations').insert({
+                          product_id: editingProduct.id,
+                          name: template.name,
+                          price: parseFloat(template.price)
+                        }).then(() => {
+                          supabase.from('product_variations')
+                            .select('*')
+                            .eq('product_id', editingProduct.id)
+                            .order('created_at', { ascending: true })
+                            .then(({ data: varData }) => setExistingVariations(varData || []));
+                          toast.success(`${template.name} added!`);
+                        });
+                      } else {
+                        setPendingVariations([...pendingVariations, { ...template }]);
+                      }
+                    }}
+                  >
+                    + {template.name}
+                  </button>
+                ))}
               </div>
               
-              {/* Existing Variations (for edit mode) */}
               {existingVariations.length > 0 && (
                 <div className="space-y-2 mb-3">
-                  <p className="text-xs text-muted-foreground">Current Variations:</p>
                   {existingVariations.map((v) => (
                     <div key={v.id} className="flex items-center justify-between p-2 bg-muted rounded-xl">
-                      <div className="flex-1">
-                        <span className="text-sm font-medium">{v.name}</span>
-                        <span className="text-primary font-bold text-sm ml-2">₹{v.price}</span>
-                        {v.reseller_price && (
-                          <span className="text-xs text-green-600 ml-2">(Reseller: ₹{v.reseller_price})</span>
-                        )}
-                      </div>
-                      <Button 
-                        size="icon" 
-                        variant="destructive" 
-                        className="h-7 w-7" 
-                        onClick={() => handleDeleteModalVariation(v.id, true)}
-                      >
+                      <span className="text-sm">{v.name} - ₹{v.price}</span>
+                      <Button size="icon" variant="destructive" className="h-7 w-7" onClick={() => handleDeleteModalVariation(v.id, true)}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
@@ -2148,25 +1128,12 @@ const AdminPage: React.FC = () => {
                 </div>
               )}
               
-              {/* Pending Variations (for new product) */}
               {pendingVariations.length > 0 && (
                 <div className="space-y-2 mb-3">
-                  <p className="text-xs text-muted-foreground">Variations to Add:</p>
                   {pendingVariations.map((v, idx) => (
                     <div key={idx} className="flex items-center justify-between p-2 bg-accent/10 rounded-xl">
-                      <div className="flex-1">
-                        <span className="text-sm font-medium">{v.name}</span>
-                        <span className="text-primary font-bold text-sm ml-2">₹{v.price}</span>
-                        {v.reseller_price && (
-                          <span className="text-xs text-green-600 ml-2">(Reseller: ₹{v.reseller_price})</span>
-                        )}
-                      </div>
-                      <Button 
-                        size="icon" 
-                        variant="outline" 
-                        className="h-7 w-7" 
-                        onClick={() => handleDeleteModalVariation(idx.toString(), false)}
-                      >
+                      <span className="text-sm">{v.name} - ₹{v.price}</span>
+                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => handleDeleteModalVariation(idx.toString(), false)}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
@@ -2174,38 +1141,13 @@ const AdminPage: React.FC = () => {
                 </div>
               )}
               
-              {/* Add New Variation */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Name (e.g. 1 Month)"
-                    value={newModalVariation.name}
-                    onChange={(e) => setNewModalVariation({...newModalVariation, name: e.target.value})}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Price *"
-                    value={newModalVariation.price}
-                    onChange={(e) => setNewModalVariation({...newModalVariation, price: e.target.value})}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Reseller Price (optional)"
-                    value={newModalVariation.reseller_price}
-                    onChange={(e) => setNewModalVariation({...newModalVariation, reseller_price: e.target.value})}
-                    className="flex-1"
-                  />
-                  <Button 
-                    type="button" 
-                    onClick={handleAddModalVariation}
-                    className="px-4"
-                  >
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="Name" value={newModalVariation.name} onChange={(e) => setNewModalVariation({...newModalVariation, name: e.target.value})} />
+                <Input type="number" placeholder="Price" value={newModalVariation.price} onChange={(e) => setNewModalVariation({...newModalVariation, price: e.target.value})} />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Input type="number" placeholder="Reseller Price" value={newModalVariation.reseller_price} onChange={(e) => setNewModalVariation({...newModalVariation, reseller_price: e.target.value})} />
+                <Button onClick={handleAddModalVariation}><Plus className="w-4 h-4 mr-1" />Add</Button>
               </div>
             </div>
             
@@ -2216,43 +1158,26 @@ const AdminPage: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Add Banner Modal */}
+      {/* Banner Modal */}
       <Dialog open={showBannerModal} onOpenChange={setShowBannerModal}>
         <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader>
             <DialogTitle>Add Banner</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input
-              placeholder="Banner Title *"
-              value={bannerForm.title}
-              onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})}
-            />
-            <Input
-              placeholder="Image URL *"
-              value={bannerForm.image_url}
-              onChange={(e) => setBannerForm({...bannerForm, image_url: e.target.value})}
-            />
-            <Input
-              placeholder="Link (Optional)"
-              value={bannerForm.link}
-              onChange={(e) => setBannerForm({...bannerForm, link: e.target.value})}
-            />
+            <Input placeholder="Banner Title *" value={bannerForm.title} onChange={(e) => setBannerForm({...bannerForm, title: e.target.value})} />
+            <Input placeholder="Image URL *" value={bannerForm.image_url} onChange={(e) => setBannerForm({...bannerForm, image_url: e.target.value})} />
+            <Input placeholder="Link (Optional)" value={bannerForm.link} onChange={(e) => setBannerForm({...bannerForm, link: e.target.value})} />
             <div className="flex items-center justify-between">
               <span className="text-sm">Active</span>
-              <Switch 
-                checked={bannerForm.is_active} 
-                onCheckedChange={(v) => setBannerForm({...bannerForm, is_active: v})}
-              />
+              <Switch checked={bannerForm.is_active} onCheckedChange={(v) => setBannerForm({...bannerForm, is_active: v})} />
             </div>
-            <Button className="w-full btn-gradient" onClick={handleAddBanner}>
-              Add Banner
-            </Button>
+            <Button className="w-full btn-gradient" onClick={handleAddBanner}>Add Banner</Button>
           </div>
         </DialogContent>
       </Dialog>
       
-      {/* Add Flash Sale Modal */}
+      {/* Flash Sale Modal */}
       <Dialog open={showFlashSaleModal} onOpenChange={setShowFlashSaleModal}>
         <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader>
@@ -2265,49 +1190,32 @@ const AdminPage: React.FC = () => {
               onChange={(e) => setFlashSaleForm({...flashSaleForm, product_id: e.target.value})}
             >
               <option value="">Select Product *</option>
-              {products.map(p => (
+              {data.products.map(p => (
                 <option key={p.id} value={p.id}>{p.name} (₹{p.price})</option>
               ))}
             </select>
-            <Input
-              type="number"
-              placeholder="Sale Price *"
-              value={flashSaleForm.sale_price}
-              onChange={(e) => setFlashSaleForm({...flashSaleForm, sale_price: e.target.value})}
-            />
+            <Input type="number" placeholder="Sale Price *" value={flashSaleForm.sale_price} onChange={(e) => setFlashSaleForm({...flashSaleForm, sale_price: e.target.value})} />
             <div>
               <label className="text-xs text-muted-foreground">End Time *</label>
-              <Input
-                type="datetime-local"
-                value={flashSaleForm.end_time}
-                onChange={(e) => setFlashSaleForm({...flashSaleForm, end_time: e.target.value})}
-              />
+              <Input type="datetime-local" value={flashSaleForm.end_time} onChange={(e) => setFlashSaleForm({...flashSaleForm, end_time: e.target.value})} />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm">Active</span>
-              <Switch 
-                checked={flashSaleForm.is_active} 
-                onCheckedChange={(v) => setFlashSaleForm({...flashSaleForm, is_active: v})}
-              />
+              <Switch checked={flashSaleForm.is_active} onCheckedChange={(v) => setFlashSaleForm({...flashSaleForm, is_active: v})} />
             </div>
-            <Button className="w-full btn-gradient" onClick={handleAddFlashSale}>
-              Add Flash Sale
-            </Button>
+            <Button className="w-full btn-gradient" onClick={handleAddFlashSale}>Add Flash Sale</Button>
           </div>
         </DialogContent>
       </Dialog>
       
-      {/* Product Variations Modal */}
+      {/* Variations Modal */}
       <Dialog open={showVariationsModal} onOpenChange={setShowVariationsModal}>
         <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Product Variations</DialogTitle>
-            <DialogDescription>
-              {selectedProductForVariations?.name}
-            </DialogDescription>
+            <DialogDescription>{selectedProductForVariations?.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Existing Variations */}
             <div className="space-y-2">
               {productVariations.map((v: any) => (
                 <div key={v.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
@@ -2325,21 +1233,11 @@ const AdminPage: React.FC = () => {
               )}
             </div>
             
-            {/* Add New Variation */}
             <div className="border-t border-border pt-4">
               <h4 className="text-sm font-medium mb-2">Add New Variation</h4>
               <div className="grid grid-cols-2 gap-2 mb-2">
-                <Input
-                  placeholder="Variation Name"
-                  value={newVariation.name}
-                  onChange={(e) => setNewVariation({...newVariation, name: e.target.value})}
-                />
-                <Input
-                  type="number"
-                  placeholder="Price"
-                  value={newVariation.price}
-                  onChange={(e) => setNewVariation({...newVariation, price: e.target.value})}
-                />
+                <Input placeholder="Variation Name" value={newVariation.name} onChange={(e) => setNewVariation({...newVariation, name: e.target.value})} />
+                <Input type="number" placeholder="Price" value={newVariation.price} onChange={(e) => setNewVariation({...newVariation, price: e.target.value})} />
               </div>
               <Button className="w-full" onClick={handleAddVariation}>
                 <Plus className="w-4 h-4 mr-1" />

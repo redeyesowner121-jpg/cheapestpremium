@@ -227,13 +227,14 @@ const AdminPaymentSettings: React.FC = () => {
       // Get user's current balance
       const { data: profile } = await supabase
         .from('profiles')
-        .select('wallet_balance, total_deposit, has_blue_check')
+        .select('wallet_balance, total_deposit, has_blue_check, rank_balance')
         .eq('id', selectedRequest.user_id)
         .single();
 
       if (profile) {
         const newBalance = (profile.wallet_balance || 0) + selectedRequest.amount;
         const newTotalDeposit = (profile.total_deposit || 0) + selectedRequest.amount;
+        const newRankBalance = (profile.rank_balance || 0) + selectedRequest.amount;
         
         // Check if user should get blue tick
         const shouldGetBlueTick = !profile.has_blue_check && selectedRequest.amount >= 1000;
@@ -243,6 +244,7 @@ const AdminPaymentSettings: React.FC = () => {
           .update({ 
             wallet_balance: newBalance,
             total_deposit: newTotalDeposit,
+            rank_balance: newRankBalance,
             ...(shouldGetBlueTick && { has_blue_check: true })
           })
           .eq('id', selectedRequest.user_id);

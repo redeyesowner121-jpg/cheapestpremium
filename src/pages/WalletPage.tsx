@@ -710,6 +710,18 @@ const WalletPage: React.FC = () => {
                   <p className="text-xs text-muted-foreground mt-2">
                     Pay to: {paymentSettings.upi_id.setting_value}
                   </p>
+                  
+                  {/* Pay Now Button - Opens UPI App on Mobile */}
+                  <Button
+                    className="w-full mt-3 btn-gradient rounded-xl"
+                    onClick={() => {
+                      const upiUrl = `upi://pay?pa=${paymentSettings.upi_id.setting_value}&pn=${encodeURIComponent(paymentSettings?.upi_name?.setting_value || 'Merchant')}&am=${depositAmount}&cu=INR`;
+                      window.location.href = upiUrl;
+                    }}
+                  >
+                    <Smartphone className="w-4 h-4 mr-2" />
+                    Pay Now ₹{depositAmount}
+                  </Button>
                 </div>
               )}
 
