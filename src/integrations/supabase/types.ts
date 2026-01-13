@@ -572,6 +572,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ranks: {
+        Row: {
+          bg_color: string | null
+          color: string | null
+          created_at: string
+          discount_percent: number
+          discount_type: string
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          min_balance: number
+          name: string
+          reseller_discount_percent: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          bg_color?: string | null
+          color?: string | null
+          created_at?: string
+          discount_percent?: number
+          discount_type?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_balance?: number
+          name: string
+          reseller_discount_percent?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          bg_color?: string | null
+          color?: string | null
+          created_at?: string
+          discount_percent?: number
+          discount_type?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_balance?: number
+          name?: string
+          reseller_discount_percent?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string | null
