@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { getUserRank, getNextRank, getProgressToNextRank, RANK_TIERS } from '@/lib/ranks';
+import { useState, useEffect } from 'react';
+import { getUserRank, getNextRank, getProgressToNextRank, getRanksSync, fetchRanks, RankTier } from '@/lib/ranks';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { RankInfoModal } from './RankInfoModal';
@@ -22,9 +22,15 @@ export function RankBadge({
   clickable = false
 }: RankBadgeProps) {
   const [showModal, setShowModal] = useState(false);
-  const rank = getUserRank(rankBalance);
-  const nextRank = getNextRank(rankBalance);
-  const { progress, remaining } = getProgressToNextRank(rankBalance);
+  const [ranks, setRanks] = useState<RankTier[]>(getRanksSync());
+  
+  useEffect(() => {
+    fetchRanks().then(setRanks);
+  }, []);
+
+  const rank = getUserRank(rankBalance, ranks);
+  const nextRank = getNextRank(rankBalance, ranks);
+  const { progress, remaining } = getProgressToNextRank(rankBalance, ranks);
 
   const sizeClasses = {
     sm: 'text-xs px-1.5 py-0.5',
@@ -44,6 +50,18 @@ export function RankBadge({
     }
   };
 
+  // Get discount display text
+  const getDiscountDisplay = (r: RankTier) => {
+    if (r.discountType === 'reseller_extra' && r.resellerDiscountPercent > 0) {
+      return `(RP+${r.resellerDiscountPercent}%)`;
+    } else if (r.discountType === 'reseller') {
+      return '(RP)';
+    } else if (r.discount > 0) {
+      return `(${r.discount}%)`;
+    }
+    return '';
+  };
+
   return (
     <>
       <div 
@@ -59,14 +77,8 @@ export function RankBadge({
         )}>
           <span className={iconSizes[size]}>{rank.icon}</span>
           <span>{rank.name}</span>
-          {rank.discount > 0 && !rank.usesResellerPrice && (
-            <span className="opacity-75">({rank.discount}%)</span>
-          )}
-          {rank.usesResellerPrice && !rank.titanBonus && (
-            <span className="opacity-75 text-[10px]">(RP)</span>
-          )}
-          {rank.titanBonus && (
-            <span className="opacity-75 text-[10px]">(RP+20%)</span>
+          {getDiscountDisplay(rank) && (
+            <span className="opacity-75 text-[10px]">{getDiscountDisplay(rank)}</span>
           )}
         </div>
 
@@ -92,9 +104,15 @@ export function RankBadge({
         {showDetails && (
           <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
             <p>Balance: ₹{rankBalance.toLocaleString()}</p>
-            {rank.discount > 0 && <p>Discount: {rank.discount}%</p>}
-            {rank.usesResellerPrice && !rank.titanBonus && <p>Gets: Reseller Price</p>}
-            {rank.titanBonus && <p>Gets: Reseller +20% Extra</p>}
+            {rank.discountType === 'percentage' && rank.discount > 0 && (
+              <p>Discount: {rank.discount}%</p>
+            )}
+            {rank.discountType === 'reseller' && (
+              <p>Gets: Reseller Price</p>
+            )}
+            {rank.discountType === 'reseller_extra' && (
+              <p>Gets: Reseller + {rank.resellerDiscountPercent}% Extra</p>
+            )}
           </div>
         )}
       </div>

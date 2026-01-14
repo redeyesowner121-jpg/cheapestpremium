@@ -10,6 +10,7 @@ import FlashSaleDetailModal from '@/components/FlashSaleDetailModal';
 import CategoryGrid from '@/components/CategoryGrid';
 import ProductGrid from '@/components/ProductGrid';
 import QuickStats from '@/components/QuickStats';
+import DailyBonusBanner from '@/components/DailyBonusBanner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -31,7 +32,6 @@ const Index: React.FC = () => {
     
     // Auto-request notification permission when user is logged in
     if (user && permission === 'default') {
-      // Small delay to avoid blocking initial render
       setTimeout(async () => {
         await requestPermission();
       }, 1500);
@@ -103,18 +103,18 @@ const Index: React.FC = () => {
     );
   }
 
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
+  // Guest browsing allowed - don't redirect
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <Header />
       
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-6">
+        {/* Daily Bonus Banner - shows until claimed */}
+        {user && <DailyBonusBanner />}
+        
         <BannerSlider banners={banners} />
-        <QuickStats />
+        {user && <QuickStats />}
         <FlashSaleSlider 
           items={flashSales} 
           onItemClick={(item) => {

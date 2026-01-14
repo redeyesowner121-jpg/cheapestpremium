@@ -305,9 +305,9 @@ const ProfilePage: React.FC = () => {
                 <>
                   <div className="flex items-center justify-between text-xs text-primary-foreground/70 mb-1">
                     <span>Rank Balance: ₹{rankBalance.toLocaleString()}</span>
-                    {rank.discount > 0 && <span>{rank.discount}% off</span>}
-                    {rank.usesResellerPrice && !rank.titanBonus && <span>Reseller Price</span>}
-                    {rank.titanBonus && <span>RP +20%</span>}
+                    {rank.discountType === 'percentage' && rank.discount > 0 && <span>{rank.discount}% off</span>}
+                    {rank.discountType === 'reseller' && <span>Reseller Price</span>}
+                    {rank.discountType === 'reseller_extra' && <span>RP +{rank.resellerDiscountPercent}%</span>}
                   </div>
                   {nextRank ? (
                     <>

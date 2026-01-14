@@ -33,6 +33,7 @@ const UserModal: React.FC<UserModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [giftAmount, setGiftAmount] = React.useState('');
+  const [rankBalanceInput, setRankBalanceInput] = React.useState('');
 
   const handleGiftBlueTick = async (userId: string) => {
     const { error } = await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
@@ -105,6 +106,30 @@ const UserModal: React.FC<UserModalProps> = ({
     onRefresh();
   };
 
+  const handleUpdateRankBalance = async () => {
+    if (!user || !rankBalanceInput) return;
+    const newRankBalance = parseFloat(rankBalanceInput);
+    if (isNaN(newRankBalance) || newRankBalance < 0) {
+      toast.error('Invalid rank balance');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ rank_balance: newRankBalance })
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Failed to update rank balance');
+      return;
+    }
+
+    toast.success(`Rank balance updated to ₹${newRankBalance}`);
+    setRankBalanceInput('');
+    setUser({ ...user, rank_balance: newRankBalance });
+    onRefresh();
+  };
+
   const handleDeleteUser = async () => {
     if (!confirm(`Are you sure you want to delete ${user.name}?`)) return;
     
@@ -160,6 +185,26 @@ const UserModal: React.FC<UserModalProps> = ({
             <p><strong>Referred By:</strong> {user.referred_by || 'None'}</p>
             <p><strong>Joined:</strong> {new Date(user.created_at).toLocaleDateString()}</p>
             <p><strong>Rank Balance:</strong> ₹{user.rank_balance || 0}</p>
+          </div>
+
+          {/* Admin Rank Balance Update */}
+          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/50 rounded-xl p-3 space-y-2">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <Award className="w-4 h-4 text-purple-600" />
+              Update Rank Balance
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder={`Current: ₹${user.rank_balance || 0}`}
+                value={rankBalanceInput}
+                onChange={(e) => setRankBalanceInput(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={handleUpdateRankBalance} size="sm" className="bg-purple-600 hover:bg-purple-700">
+                Update
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-2">
