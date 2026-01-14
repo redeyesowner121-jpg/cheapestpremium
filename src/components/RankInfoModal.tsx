@@ -1,6 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { RANK_TIERS, getUserRank, getNextRank, getProgressToNextRank, getDecayAmount, getNextDecayDate } from '@/lib/ranks';
+import { getUserRank, getNextRank, getProgressToNextRank, getDecayAmount, getNextDecayDate, fetchRanks, RankTier } from '@/lib/ranks';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { TrendingDown, Check, Crown, Sparkles } from 'lucide-react';
@@ -12,11 +13,42 @@ interface RankInfoModalProps {
 }
 
 export function RankInfoModal({ open, onOpenChange, rankBalance }: RankInfoModalProps) {
-  const currentRank = getUserRank(rankBalance);
-  const nextRank = getNextRank(rankBalance);
-  const { progress, remaining } = getProgressToNextRank(rankBalance);
+  const [ranks, setRanks] = useState<RankTier[]>([]);
+  
+  useEffect(() => {
+    if (open) {
+      fetchRanks().then(setRanks);
+    }
+  }, [open]);
+
+  const currentRank = getUserRank(rankBalance, ranks);
+  const nextRank = getNextRank(rankBalance, ranks);
+  const { progress, remaining } = getProgressToNextRank(rankBalance, ranks);
   const decayAmount = getDecayAmount(rankBalance);
   const nextDecayDate = getNextDecayDate();
+
+  // Get discount description
+  const getDiscountText = (tier: RankTier) => {
+    if (tier.discountType === 'reseller_extra' && tier.resellerDiscountPercent > 0) {
+      return `Reseller Price + ${tier.resellerDiscountPercent}% Extra`;
+    } else if (tier.discountType === 'reseller') {
+      return 'Reseller Price পাবেন';
+    } else if (tier.discount > 0) {
+      return `${tier.discount}% ছাড়`;
+    }
+    return 'কোন ছাড় নেই';
+  };
+
+  const getDiscountBadge = (tier: RankTier) => {
+    if (tier.discountType === 'reseller_extra') {
+      return { text: `RP+${tier.resellerDiscountPercent}%`, color: 'text-indigo-600' };
+    } else if (tier.discountType === 'reseller') {
+      return { text: '💎 RP', color: 'text-blue-500' };
+    } else if (tier.discount > 0) {
+      return { text: `${tier.discount}%`, color: 'text-green-600' };
+    }
+    return { text: '0%', color: 'text-muted-foreground' };
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -100,25 +132,14 @@ export function RankInfoModal({ open, onOpenChange, rankBalance }: RankInfoModal
             </h3>
             
             <div className="space-y-2">
-              {RANK_TIERS.map((tier, index) => {
+              {ranks.map((tier) => {
                 const isCurrentRank = tier.name === currentRank.name;
                 const isUnlocked = rankBalance >= tier.minBalance;
-                
-                // Calculate discount description
-                let discountText = '';
-                if (tier.titanBonus) {
-                  discountText = 'Reseller Price - (Reseller Discount × 20%)';
-                } else if (tier.usesResellerPrice) {
-                  discountText = 'Reseller Price পাবেন';
-                } else if (tier.discount > 0) {
-                  discountText = `${tier.discount}% ছাড়`;
-                } else {
-                  discountText = 'কোন ছাড় নেই';
-                }
+                const badge = getDiscountBadge(tier);
 
                 return (
                   <div
-                    key={tier.name}
+                    key={tier.id}
                     className={cn(
                       'p-3 rounded-xl border-2 transition-all',
                       isCurrentRank 
@@ -149,18 +170,11 @@ export function RankInfoModal({ open, onOpenChange, rankBalance }: RankInfoModal
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={cn(
-                          'text-sm font-bold',
-                          tier.titanBonus ? 'text-indigo-600' : 
-                          tier.usesResellerPrice ? 'text-blue-500' : 
-                          tier.discount > 0 ? 'text-green-600' : 'text-muted-foreground'
-                        )}>
-                          {tier.titanBonus ? '⚡ Max Discount' : 
-                           tier.usesResellerPrice ? '💎 RP' : 
-                           tier.discount > 0 ? `${tier.discount}%` : '0%'}
+                        <p className={cn('text-sm font-bold', badge.color)}>
+                          {badge.text}
                         </p>
                         <p className="text-[10px] text-muted-foreground max-w-[100px] truncate">
-                          {discountText}
+                          {getDiscountText(tier)}
                         </p>
                       </div>
                     </div>
@@ -173,9 +187,10 @@ export function RankInfoModal({ open, onOpenChange, rankBalance }: RankInfoModal
           {/* Explanation */}
           <div className="bg-muted/50 rounded-xl p-3 text-xs text-muted-foreground space-y-1.5">
             <p><strong>💎 Diamond:</strong> রিসেলারদের সমান দাম পাবেন</p>
-            <p><strong>⚡ Titan:</strong> রিসেলার দাম + রিসেলার ডিসকাউন্টের ২০% অতিরিক্ত ছাড়</p>
-            <p className="text-[10px] italic">
-              উদাহরণ: ১০০ টাকার প্রোডাক্টে রিসেলার ১০ টাকা ছাড় পেলে, Titan পাবে ১০ + (১০×২০%) = ১২ টাকা ছাড়
+            <p><strong>⚔️ Heroic+:</strong> রিসেলার দাম + অতিরিক্ত % ছাড়</p>
+            <p><strong>⚡ Titan:</strong> সর্বোচ্চ ছাড় (Reseller + 1% extra)</p>
+            <p className="text-[10px] italic pt-1 border-t border-border">
+              রিসেলাররা সবসময় রিসেলার প্রাইস পাবেন। Crystal এর উপরে থাকলে অতিরিক্ত ছাড় যোগ হবে।
             </p>
           </div>
         </div>

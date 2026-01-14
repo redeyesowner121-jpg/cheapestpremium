@@ -414,6 +414,48 @@ export type Database = {
         }
         Relationships: []
       }
+      price_history: {
+        Row: {
+          id: string
+          price: number
+          product_id: string | null
+          recorded_at: string
+          reseller_price: number | null
+          variation_id: string | null
+        }
+        Insert: {
+          id?: string
+          price: number
+          product_id?: string | null
+          recorded_at?: string
+          reseller_price?: number | null
+          variation_id?: string | null
+        }
+        Update: {
+          id?: string
+          price?: number
+          product_id?: string | null
+          recorded_at?: string
+          reseller_price?: number | null
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_history_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variations: {
         Row: {
           created_at: string | null
