@@ -192,11 +192,13 @@ const AuthPage: React.FC = () => {
                   <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                   <Input
                     type="tel"
-                    placeholder="Phone Number (Optional)"
+                    placeholder="Phone Number *"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="pl-12 h-12 rounded-xl bg-muted border-0"
+                    required
                   />
+                  <p className="text-xs text-muted-foreground mt-1 ml-1">Required for order delivery</p>
                 </div>
               </>
             )}
