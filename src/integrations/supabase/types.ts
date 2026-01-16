@@ -553,6 +553,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string | null
           email: string
+          fcm_token: string | null
           has_blue_check: boolean | null
           id: string
           is_reseller: boolean | null
@@ -574,6 +575,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           email: string
+          fcm_token?: string | null
           has_blue_check?: boolean | null
           id: string
           is_reseller?: boolean | null
@@ -595,6 +597,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string | null
           email?: string
+          fcm_token?: string | null
           has_blue_check?: boolean | null
           id?: string
           is_reseller?: boolean | null
