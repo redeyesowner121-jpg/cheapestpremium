@@ -49,8 +49,20 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) =
 
     setClaiming(true);
     try {
-      // Give 1-5 Rs random bonus
-      const bonusAmount = Math.floor(Math.random() * 5) + 1;
+      // Fetch admin-configured bonus settings
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .in('key', ['daily_bonus_min', 'daily_bonus_max']);
+      
+      const settingsMap: Record<string, string> = {};
+      settings?.forEach(s => { settingsMap[s.key] = s.value || ''; });
+      
+      const minBonus = parseFloat(settingsMap.daily_bonus_min) || 0.10;
+      const maxBonus = parseFloat(settingsMap.daily_bonus_max) || 1.00;
+      
+      // Generate random bonus within admin-configured range
+      const bonusAmount = Math.round((Math.random() * (maxBonus - minBonus) + minBonus) * 100) / 100;
       const newBalance = (profile.wallet_balance || 0) + bonusAmount;
 
       const { error: updateError } = await supabase

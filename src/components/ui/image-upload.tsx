@@ -1,9 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ImageUploadProps {
   value: string;
@@ -11,6 +13,10 @@ interface ImageUploadProps {
   placeholder?: string;
   className?: string;
   previewHeight?: string;
+  useStorage?: boolean;
+  bucket?: string;
+  folder?: string;
+  maxSizeMB?: number;
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -18,11 +24,84 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   onChange,
   placeholder = 'Enter image URL or drag & drop',
   className,
-  previewHeight = 'h-40'
+  previewHeight = 'h-40',
+  useStorage = false,
+  bucket = 'product-images',
+  folder = 'products',
+  maxSizeMB = 5
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      img.onload = () => {
+        const maxWidth = 1200;
+        const maxHeight = 1200;
+        
+        let { width, height } = img;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = (width * maxHeight) / height;
+          height = maxHeight;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => blob ? resolve(blob) : reject(new Error('Failed to compress')),
+          'image/jpeg',
+          0.85
+        );
+      };
+
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const uploadToStorage = async (file: File): Promise<string> => {
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      throw new Error(`File size must be less than ${maxSizeMB}MB`);
+    }
+
+    let uploadFile: File | Blob = file;
+    
+    // Compress if larger than 1MB
+    if (file.size > 1024 * 1024) {
+      uploadFile = await compressImage(file);
+    }
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, uploadFile, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(data.path);
+
+    return urlData.publicUrl;
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -34,7 +113,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -51,21 +130,49 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     if (files && files.length > 0) {
       const file = files[0];
       if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            onChange(event.target.result as string);
-            setPreviewError(false);
+        if (useStorage) {
+          setUploading(true);
+          try {
+            const url = await uploadToStorage(file);
+            onChange(url);
+            toast.success('Image uploaded successfully!');
+          } catch (error: any) {
+            toast.error(error.message || 'Failed to upload');
+          } finally {
+            setUploading(false);
           }
-        };
-        reader.readAsDataURL(file);
+        } else {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              onChange(event.target.result as string);
+              setPreviewError(false);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
       }
     }
-  }, [onChange]);
+  }, [onChange, useStorage, bucket, folder]);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
+    if (!file || !file.type.startsWith('image/')) return;
+
+    if (useStorage) {
+      setUploading(true);
+      try {
+        const url = await uploadToStorage(file);
+        onChange(url);
+        setPreviewError(false);
+        toast.success('Image uploaded successfully!');
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to upload');
+      } finally {
+        setUploading(false);
+        if (inputRef.current) inputRef.current.value = '';
+      }
+    } else {
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
@@ -75,7 +182,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       };
       reader.readAsDataURL(file);
     }
-  }, [onChange]);
+  }, [onChange, useStorage, bucket, folder]);
 
   const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
@@ -97,8 +204,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           value={value}
           onChange={handleUrlChange}
           className="pr-10"
+          disabled={uploading}
         />
-        {value && (
+        {value && !uploading && (
           <button
             type="button"
             onClick={handleClear}
@@ -114,14 +222,15 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => !uploading && inputRef.current?.click()}
         className={cn(
           'relative rounded-xl border-2 border-dashed cursor-pointer transition-all overflow-hidden',
           previewHeight,
           isDragging 
             ? 'border-primary bg-primary/5 scale-[1.02]' 
             : 'border-border hover:border-primary/50 hover:bg-muted/50',
-          value && !previewError && 'border-solid border-primary/30'
+          value && !previewError && 'border-solid border-primary/30',
+          uploading && 'pointer-events-none opacity-70'
         )}
         animate={{ scale: isDragging ? 1.02 : 1 }}
         transition={{ duration: 0.2 }}
@@ -132,10 +241,22 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
           accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
+          disabled={uploading}
         />
 
         <AnimatePresence mode="wait">
-          {value && !previewError ? (
+          {uploading ? (
+            <motion.div
+              key="uploading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+            >
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              <p className="text-xs text-muted-foreground">Uploading...</p>
+            </motion.div>
+          ) : value && !previewError ? (
             <motion.div
               key="preview"
               initial={{ opacity: 0 }}
@@ -201,8 +322,11 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                 )}
               </motion.div>
               <p className="text-xs text-center px-4">
-                {isDragging ? 'Drop image here' : 'Click or drag image here'}
+                {isDragging ? 'Drop image here' : useStorage ? 'Click or drag to upload' : 'Click or drag image here'}
               </p>
+              {useStorage && (
+                <p className="text-[10px] text-muted-foreground/70">Max {maxSizeMB}MB, auto-optimized</p>
+              )}
               {previewError && (
                 <p className="text-xs text-destructive">
                   Failed to load image
