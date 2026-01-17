@@ -708,112 +708,112 @@ const AdminPage: React.FC = () => {
       </header>
 
       <main className="px-4 max-w-5xl mx-auto mt-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-9 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
-            {[
-              { value: 'overview', icon: TrendingUp, label: 'Overview' },
-              { value: 'control', icon: Shield, label: 'Control' },
-              { value: 'users', icon: Users, label: 'Users' },
-              { value: 'orders', icon: ShoppingBag, label: 'Orders' },
-              { value: 'products', icon: Package, label: 'Products' },
-              { value: 'chat', icon: MessageCircle, label: 'Chat' },
-              { value: 'content', icon: Image, label: 'Content' },
-              { value: 'payments', icon: CreditCard, label: 'Payments' },
-              ...(isAdmin ? [{ value: 'settings', icon: Settings, label: 'Settings' }] : [])
-            ].map((tab) => (
-              <TabsTrigger 
-                key={tab.value}
-                value={tab.value} 
-                className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
-              >
-                <tab.icon className="w-4 h-4" />
-                <span className="text-[10px] hidden sm:block">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        {/* Beautiful 2-Button Navigation */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTab('overview')}
+            className={`relative overflow-hidden rounded-3xl p-6 transition-all ${
+              activeTab === 'overview' 
+                ? 'bg-gradient-to-br from-primary via-primary/90 to-accent shadow-lg shadow-primary/25' 
+                : 'bg-card border border-border hover:border-primary/50 hover:shadow-md'
+            }`}
+          >
+            <div className={`flex flex-col items-center gap-3 ${activeTab === 'overview' ? 'text-primary-foreground' : 'text-foreground'}`}>
+              <div className={`p-4 rounded-2xl ${activeTab === 'overview' ? 'bg-white/20' : 'bg-primary/10'}`}>
+                <TrendingUp className="w-8 h-8" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold">Analytics</h3>
+                <p className={`text-sm mt-1 ${activeTab === 'overview' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                  Overview & Reports
+                </p>
+              </div>
+            </div>
+            {activeTab === 'overview' && (
+              <motion.div 
+                layoutId="activeIndicator"
+                className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-accent -z-10"
+              />
+            )}
+          </motion.button>
 
-          <TabsContent value="overview">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setActiveTab('control')}
+            className={`relative overflow-hidden rounded-3xl p-6 transition-all ${
+              activeTab === 'control' 
+                ? 'bg-gradient-to-br from-secondary via-secondary/90 to-accent shadow-lg shadow-secondary/25' 
+                : 'bg-card border border-border hover:border-secondary/50 hover:shadow-md'
+            }`}
+          >
+            <div className={`flex flex-col items-center gap-3 ${activeTab === 'control' ? 'text-secondary-foreground' : 'text-foreground'}`}>
+              <div className={`p-4 rounded-2xl ${activeTab === 'control' ? 'bg-white/20' : 'bg-secondary/10'}`}>
+                <Shield className="w-8 h-8" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-bold">Control</h3>
+                <p className={`text-sm mt-1 ${activeTab === 'control' ? 'text-secondary-foreground/70' : 'text-muted-foreground'}`}>
+                  Manage Everything
+                </p>
+              </div>
+            </div>
+          </motion.button>
+        </div>
+
+        {/* Content Area */}
+        {activeTab === 'overview' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <AdminOverviewTab 
               stats={stats}
               data={data}
             />
-          </TabsContent>
+          </motion.div>
+        )}
 
-          <TabsContent value="control">
+        {activeTab === 'control' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <AdminControlTab 
               data={data}
+              stats={stats}
               isAdmin={isAdmin}
               onShowAnnouncementModal={() => setShowAnnouncementModal(true)}
               onShowTempAdminModal={() => setShowTempAdminModal(true)}
-              onTabChange={setActiveTab}
               onRemoveTempAdmin={handleRemoveTempAdmin}
-            />
-          </TabsContent>
-
-          <TabsContent value="users">
-            <AdminUsersTab 
-              users={data.users}
               onSelectUser={(user) => {
                 setSelectedUser(user);
                 setShowUserModal(true);
               }}
-            />
-          </TabsContent>
-
-          <TabsContent value="orders">
-            <AdminOrdersTab 
-              orders={data.orders}
               onSelectOrder={(order) => {
                 setSelectedOrder(order);
                 setAdminNote(order.admin_note || '');
                 setAccessLink(order.access_link || '');
                 setShowOrderModal(true);
               }}
-            />
-          </TabsContent>
-
-          <TabsContent value="products">
-            <AdminProductsTab 
-              products={data.products}
               onAddProduct={() => setShowProductModal(true)}
               onEditProduct={handleEditProduct}
               onDeleteProduct={handleDeleteProduct}
               onOpenVariations={handleOpenVariations}
-              onDataChange={loadData}
-            />
-          </TabsContent>
-          
-          <TabsContent value="chat">
-            <AdminChatPanel />
-          </TabsContent>
-          
-          <TabsContent value="content">
-            <AdminContentTab 
-              banners={data.banners}
-              flashSales={data.flashSales}
-              announcements={data.announcements}
               onShowBannerModal={() => setShowBannerModal(true)}
               onShowFlashSaleModal={() => setShowFlashSaleModal(true)}
-              onShowAnnouncementModal={() => setShowAnnouncementModal(true)}
               onDeleteBanner={handleDeleteBanner}
               onToggleBanner={handleToggleBanner}
               onDeleteFlashSale={handleDeleteFlashSale}
+              onUpdateSetting={handleUpdateSetting}
+              onDataChange={loadData}
             />
-          </TabsContent>
-
-          <TabsContent value="payments">
-            <AdminPaymentSettings />
-          </TabsContent>
-
-          {isAdmin && (
-            <TabsContent value="settings">
-              <AdminSettingsTab 
-                settings={data.settings}
-                onUpdateSetting={handleUpdateSetting}
-              />
-            </TabsContent>
-          )}
-        </Tabs>
+          </motion.div>
+        )}
       </main>
 
       {/* User Modal */}
