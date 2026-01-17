@@ -62,7 +62,9 @@ import {
   AdminOrdersTab, 
   AdminProductsTab, 
   AdminContentTab,
-  AdminSettingsTab 
+  AdminSettingsTab,
+  AdminOverviewTab,
+  AdminControlTab
 } from '@/components/admin';
 import { toast } from 'sonner';
 
@@ -70,7 +72,7 @@ const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   const { isAdmin, isTempAdmin, tempAdminExpiry, profile } = useAuth();
   
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('overview');
   const [alertsEnabled, setAlertsEnabled] = useState(true);
   
   // Use custom hook for data loading
@@ -707,9 +709,10 @@ const AdminPage: React.FC = () => {
 
       <main className="px-4 max-w-5xl mx-auto mt-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full grid grid-cols-8 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
+          <TabsList className="w-full grid grid-cols-9 gap-1 bg-muted/50 p-1 rounded-2xl mb-6">
             {[
-              { value: 'dashboard', icon: TrendingUp, label: 'Dashboard' },
+              { value: 'overview', icon: TrendingUp, label: 'Overview' },
+              { value: 'control', icon: Shield, label: 'Control' },
               { value: 'users', icon: Users, label: 'Users' },
               { value: 'orders', icon: ShoppingBag, label: 'Orders' },
               { value: 'products', icon: Package, label: 'Products' },
@@ -729,9 +732,15 @@ const AdminPage: React.FC = () => {
             ))}
           </TabsList>
 
-          <TabsContent value="dashboard">
-            <AdminDashboard 
+          <TabsContent value="overview">
+            <AdminOverviewTab 
               stats={stats}
+              data={data}
+            />
+          </TabsContent>
+
+          <TabsContent value="control">
+            <AdminControlTab 
               data={data}
               isAdmin={isAdmin}
               onShowAnnouncementModal={() => setShowAnnouncementModal(true)}
