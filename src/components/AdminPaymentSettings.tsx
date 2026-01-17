@@ -39,6 +39,7 @@ interface ManualDepositRequest {
   user_id: string;
   amount: number;
   transaction_id: string;
+  sender_name: string | null;
   payment_method: string;
   status: string;
   admin_note: string | null;
@@ -461,11 +462,11 @@ const AdminPaymentSettings: React.FC = () => {
             />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">Payee Name</label>
+            <label className="text-sm text-muted-foreground mb-1 block">Receiver Name (shown to users)</label>
             <Input
               value={upiName}
               onChange={(e) => setUpiName(e.target.value)}
-              placeholder="Your Name"
+              placeholder="Your Name / Business Name"
               className="rounded-xl"
             />
           </div>
@@ -554,6 +555,9 @@ const AdminPaymentSettings: React.FC = () => {
                       {request.profiles?.name || 'Unknown User'}
                     </p>
                     <p className="text-sm text-muted-foreground">
+                      Sender: {request.sender_name || 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       TXN: {request.transaction_id}
                     </p>
                   </div>
@@ -588,12 +592,16 @@ const AdminPaymentSettings: React.FC = () => {
             <div className="space-y-4">
               <div className="bg-muted rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-muted-foreground">User</span>
+                  <span className="text-muted-foreground">User Account</span>
                   <span className="font-medium">{selectedRequest.profiles?.name}</span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-muted-foreground">Email</span>
                   <span className="font-medium text-sm">{selectedRequest.profiles?.email}</span>
+                </div>
+                <div className="flex items-center justify-between mb-2 py-2 border-y border-border">
+                  <span className="text-muted-foreground">Sender Name</span>
+                  <span className="font-bold text-primary">{selectedRequest.sender_name || 'Not provided'}</span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-muted-foreground">Amount</span>

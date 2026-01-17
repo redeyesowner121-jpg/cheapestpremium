@@ -218,6 +218,7 @@ export type Database = {
           created_at: string
           id: string
           payment_method: string | null
+          sender_name: string | null
           status: string | null
           transaction_id: string
           updated_at: string
@@ -229,6 +230,7 @@ export type Database = {
           created_at?: string
           id?: string
           payment_method?: string | null
+          sender_name?: string | null
           status?: string | null
           transaction_id: string
           updated_at?: string
@@ -240,6 +242,7 @@ export type Database = {
           created_at?: string
           id?: string
           payment_method?: string | null
+          sender_name?: string | null
           status?: string | null
           transaction_id?: string
           updated_at?: string

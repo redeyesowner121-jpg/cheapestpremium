@@ -102,6 +102,7 @@ const WalletPage: React.FC = () => {
   const [depositTab, setDepositTab] = useState<'auto' | 'manual'>('auto');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [transactionId, setTransactionId] = useState('');
+  const [senderName, setSenderName] = useState('');
   const [submittingManual, setSubmittingManual] = useState(false);
 
   useEffect(() => {
@@ -279,12 +280,18 @@ const WalletPage: React.FC = () => {
       return;
     }
 
+    if (!senderName.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
+
     setSubmittingManual(true);
     try {
       const { error } = await supabase.from('manual_deposit_requests').insert({
         user_id: user.id,
         amount,
         transaction_id: transactionId.trim(),
+        sender_name: senderName.trim(),
         payment_method: 'qr',
         status: 'pending'
       });
@@ -295,6 +302,7 @@ const WalletPage: React.FC = () => {
       setShowDepositModal(false);
       setDepositAmount('');
       setTransactionId('');
+      setSenderName('');
     } catch (error: any) {
       toast.error('Failed to submit request');
     } finally {
@@ -768,7 +776,14 @@ const WalletPage: React.FC = () => {
 
               <div className="space-y-3">
                 <Input
-                  placeholder="Enter Transaction ID"
+                  placeholder="Your Name (Sender Name)"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  className="rounded-xl"
+                />
+                
+                <Input
+                  placeholder="Enter Transaction ID / UTR Number"
                   value={transactionId}
                   onChange={(e) => setTransactionId(e.target.value)}
                   className="rounded-xl"
@@ -777,7 +792,7 @@ const WalletPage: React.FC = () => {
                 <Button
                   onClick={handleManualDeposit}
                   className="w-full h-12 btn-gradient rounded-xl"
-                  disabled={submittingManual || !depositAmount || !transactionId}
+                  disabled={submittingManual || !depositAmount || !transactionId || !senderName}
                 >
                   {submittingManual ? (
                     <>
