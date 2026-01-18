@@ -104,13 +104,26 @@ const WalletPage: React.FC = () => {
   const [transactionId, setTransactionId] = useState('');
   const [senderName, setSenderName] = useState('');
   const [submittingManual, setSubmittingManual] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadTransactions();
       loadPaymentSettings();
+      checkPendingRequests();
     }
   }, [user]);
+
+  const checkPendingRequests = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('manual_deposit_requests')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'pending')
+      .limit(1);
+    setHasPendingRequest((data?.length || 0) > 0);
+  };
 
   const loadTransactions = async () => {
     if (!user) return;
@@ -299,6 +312,7 @@ const WalletPage: React.FC = () => {
       if (error) throw error;
 
       toast.success('Deposit request submitted! Waiting for admin approval.');
+      setHasPendingRequest(true);
       setShowDepositModal(false);
       setDepositAmount('');
       setTransactionId('');
@@ -507,10 +521,13 @@ const WalletPage: React.FC = () => {
           <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
           <div className="grid grid-cols-4 gap-3">
             <motion.button
-              className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
+              className={`bg-card rounded-2xl p-4 shadow-card text-center card-hover relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowDepositModal(true)}
             >
+              {hasPendingRequest && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
+              )}
               <div className="w-12 h-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-2">
                 <Smartphone className="w-6 h-6 text-primary" />
               </div>
@@ -707,17 +724,18 @@ const WalletPage: React.FC = () => {
               {/* Dynamic UPI QR Code */}
               {paymentSettings?.upi_id?.setting_value && depositAmount && parseFloat(depositAmount) >= 10 && (
                 <div className="flex flex-col items-center p-4 bg-muted/50 rounded-xl">
-                  <p className="text-sm font-medium text-foreground mb-3">Scan to Pay ₹{depositAmount}</p>
+                  <p className="text-sm font-medium text-foreground mb-1">Scan to Pay ₹{depositAmount}</p>
+                  <p className="text-xs text-primary font-medium mb-3">
+                    Pay to: {paymentSettings?.upi_name?.setting_value || 'Merchant'}
+                  </p>
                   <img 
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
                       `upi://pay?pa=${paymentSettings.upi_id.setting_value}&pn=${encodeURIComponent(paymentSettings?.upi_name?.setting_value || 'Merchant')}&am=${depositAmount}&cu=INR`
                     )}`}
                     alt="Payment QR"
                     className="w-48 h-48 object-contain rounded-xl border bg-white p-2"
+                    loading="lazy"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Pay to: {paymentSettings.upi_id.setting_value}
-                  </p>
                   
                   {/* Pay Now Button - Opens UPI App on Mobile */}
                   <Button
