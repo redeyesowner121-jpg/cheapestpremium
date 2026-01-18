@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AreaChart,
@@ -13,17 +13,10 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from 'recharts';
 import { 
   TrendingUp, 
-  TrendingDown,
-  ShoppingBag, 
-  Package, 
   IndianRupee,
-  Users,
-  Calendar,
   Clock,
   Target,
   Award,
@@ -31,10 +24,10 @@ import {
   ArrowDownRight,
   Flame,
   Star,
-  Eye,
-  RefreshCw
+  Calendar,
+  ShoppingBag,
+  Package,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 interface Order {
   id: string;
@@ -55,16 +48,28 @@ interface Product {
   stock?: number | null;
 }
 
+interface User {
+  id: string;
+  total_deposit?: number;
+  created_at?: string;
+}
+
 interface AdminAnalyticsProps {
   orders: Order[];
   products: Product[];
+  users?: User[];
 }
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--secondary))', 'hsl(var(--success))', 'hsl(var(--destructive))'];
 
-const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products }) => {
+const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products, users = [] }) => {
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | 'all'>('7d');
   const [showDetails, setShowDetails] = useState(false);
+
+  // Calculate total deposits
+  const totalDeposits = useMemo(() => {
+    return users.reduce((sum, u) => sum + (u.total_deposit || 0), 0);
+  }, [users]);
 
   // Calculate REAL sales from orders (not fake sold_count)
   const realSalesData = useMemo(() => {
@@ -382,81 +387,91 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products }) => 
         </div>
       </div>
 
-      {/* Sales Trend Chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-card rounded-2xl p-4 shadow-card"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Sales Trend
-          </h3>
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            className="h-8"
-            onClick={() => setShowDetails(!showDetails)}
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            {showDetails ? 'Hide' : 'Details'}
-          </Button>
-        </div>
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={salesByDay}>
-              <defs>
-                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-                interval={selectedPeriod === '7d' ? 0 : 'preserveStartEnd'}
-              />
-              <YAxis 
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                axisLine={{ stroke: 'hsl(var(--border))' }}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                  color: 'hsl(var(--foreground))',
-                }}
-                formatter={(value: number, name: string) => [
-                  name === 'revenue' ? `₹${value}` : value,
-                  name === 'revenue' ? 'Revenue' : 'Orders'
-                ]}
-              />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorRevenue)"
-              />
-              {showDetails && (
-                <Line
-                  type="monotone"
-                  dataKey="orders"
-                  stroke="hsl(var(--accent))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--accent))', strokeWidth: 2 }}
+      {/* Side by Side Charts - Sales & Deposits */}
+      <div className="grid md:grid-cols-2 gap-4">
+        {/* Sales Trend Chart */}
+        <div className="bg-card rounded-2xl p-4 shadow-card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Sales Trend
+            </h3>
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={salesByDay}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  interval="preserveStartEnd"
                 />
-              )}
-            </AreaChart>
-          </ResponsiveContainer>
+                <YAxis 
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                  axisLine={{ stroke: 'hsl(var(--border))' }}
+                  width={40}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    color: 'hsl(var(--foreground))',
+                  }}
+                  formatter={(value: number) => [`₹${value}`, 'Revenue']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </motion.div>
+
+        {/* Deposits Card */}
+        <div className="bg-card rounded-2xl p-4 shadow-card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground flex items-center gap-2">
+              <IndianRupee className="w-5 h-5 text-success" />
+              Total Deposits
+            </h3>
+          </div>
+          <div className="h-40 flex flex-col items-center justify-center">
+            <p className="text-4xl font-bold text-success">
+              ₹{totalDeposits.toLocaleString()}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              From {users.length} users
+            </p>
+            <div className="mt-4 grid grid-cols-2 gap-4 w-full">
+              <div className="bg-muted/50 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-foreground">
+                  ₹{users.length > 0 ? Math.round(totalDeposits / users.length) : 0}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Avg per user</p>
+              </div>
+              <div className="bg-muted/50 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-foreground">
+                  {users.filter(u => (u.total_deposit || 0) > 0).length}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Active depositors</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Top Products & Order Status */}
       <div className="grid md:grid-cols-2 gap-4">
@@ -666,4 +681,4 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products }) => 
   );
 };
 
-export default AdminAnalytics;
+export default memo(AdminAnalytics);
