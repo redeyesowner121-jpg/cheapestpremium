@@ -162,7 +162,7 @@ const ProductDetailPage: React.FC = () => {
     setShowPurchaseModal(true);
   };
 
-  const handleBuy = async (donationAmount: number = 0) => {
+  const handleBuy = async (donationAmount: number = 0, discount: number = 0) => {
     if (!user || !profile) {
       setShowLoginModal(true);
       return;
@@ -184,7 +184,7 @@ const ProductDetailPage: React.FC = () => {
       return;
     }
 
-    const finalTotal = totalPrice + donationAmount;
+    const finalTotal = totalPrice - discount + donationAmount;
     
     if ((profile.wallet_balance || 0) < finalTotal) {
       toast.error('Insufficient wallet balance');
@@ -462,6 +462,7 @@ const ProductDetailPage: React.FC = () => {
         totalPrice={totalPrice}
         loading={loading}
         onBuy={handleBuy}
+        flashSaleId={flashSale?.id}
       />
 
       {/* Login Required Modal */}
