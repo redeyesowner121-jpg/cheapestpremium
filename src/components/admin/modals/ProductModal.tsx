@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import ImageUpload from '@/components/ui/image-upload';
+import MultiImageUpload from '@/components/ui/multi-image-upload';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -36,7 +36,7 @@ interface ProductForm {
   original_price: string;
   reseller_price: string;
   category: string;
-  image_url: string;
+  images: string[];
   access_link: string;
   stock: string;
   is_active: boolean;
@@ -69,7 +69,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
     original_price: '',
     reseller_price: '',
     category: '',
-    image_url: '',
+    images: [],
     access_link: '',
     stock: '',
     is_active: true
@@ -80,6 +80,22 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
   React.useEffect(() => {
     if (editingProduct) {
+      // Parse existing images - support both single image_url and new images array
+      const existingImages: string[] = [];
+      if (editingProduct.image_url) {
+        // Check if it's a JSON array or single URL
+        try {
+          const parsed = JSON.parse(editingProduct.image_url);
+          if (Array.isArray(parsed)) {
+            existingImages.push(...parsed);
+          } else {
+            existingImages.push(editingProduct.image_url);
+          }
+        } catch {
+          existingImages.push(editingProduct.image_url);
+        }
+      }
+      
       setProductForm({
         name: editingProduct.name || '',
         description: editingProduct.description || '',
@@ -87,7 +103,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
         original_price: editingProduct.original_price?.toString() || '',
         reseller_price: editingProduct.reseller_price?.toString() || '',
         category: editingProduct.category || '',
-        image_url: editingProduct.image_url || '',
+        images: existingImages,
         access_link: editingProduct.access_link || '',
         stock: editingProduct.stock?.toString() || '',
         is_active: editingProduct.is_active !== false
@@ -117,7 +133,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
       original_price: '',
       reseller_price: '',
       category: '',
-      image_url: '',
+      images: [],
       access_link: '',
       stock: '',
       is_active: true
@@ -133,13 +149,18 @@ const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
     
+    // Store images as JSON array or first image URL for backward compatibility
+    const imageUrl = productForm.images.length > 1 
+      ? JSON.stringify(productForm.images)
+      : productForm.images[0] || '';
+    
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name,
       description: productForm.description,
       price: parseFloat(productForm.price),
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       category: productForm.category,
-      image_url: productForm.image_url,
+      image_url: imageUrl,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active
@@ -173,13 +194,18 @@ const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
     
+    // Store images as JSON array or first image URL for backward compatibility
+    const imageUrl = productForm.images.length > 1 
+      ? JSON.stringify(productForm.images)
+      : productForm.images[0] || '';
+    
     const { error } = await supabase.from('products').update({
       name: productForm.name,
       description: productForm.description,
       price: parseFloat(productForm.price),
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       category: productForm.category,
-      image_url: productForm.image_url,
+      image_url: imageUrl,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active
@@ -313,14 +339,13 @@ const ProductModal: React.FC<ProductModalProps> = ({
             </SelectContent>
           </Select>
           
-          {/* Image Upload with Preview */}
+          {/* Multi Image Upload */}
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Product Image</label>
-            <ImageUpload
-              value={productForm.image_url}
-              onChange={(url) => setProductForm({...productForm, image_url: url})}
-              placeholder="Enter image URL or drag & drop"
-              previewHeight="h-32"
+            <label className="text-xs text-muted-foreground mb-1 block">Product Images (up to 5)</label>
+            <MultiImageUpload
+              values={productForm.images}
+              onChange={(urls) => setProductForm({...productForm, images: urls})}
+              maxImages={5}
             />
           </div>
           
