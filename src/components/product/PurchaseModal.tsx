@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, Ticket, Check, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -9,11 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface PurchaseModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: {
+    id?: string;
     name: string;
     image_url?: string;
     image?: string;
@@ -29,7 +32,16 @@ interface PurchaseModalProps {
   walletBalance: number;
   totalPrice: number;
   loading: boolean;
-  onBuy: (donationAmount: number) => void;
+  onBuy: (donationAmount: number, discount?: number) => void;
+  flashSaleId?: string;
+}
+
+interface AppliedCoupon {
+  id: string;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  max_discount: number | null;
 }
 
 const PurchaseModal: React.FC<PurchaseModalProps> = ({
@@ -48,12 +60,128 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   totalPrice,
   loading,
   onBuy,
+  flashSaleId,
 }) => {
   const [donationEnabled, setDonationEnabled] = useState(false);
   const [donationAmount, setDonationAmount] = useState('1');
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
   
   const donation = donationEnabled ? Math.max(1, parseFloat(donationAmount) || 0) : 0;
-  const finalTotal = totalPrice + donation;
+  
+  // Calculate discount
+  const calculateDiscount = () => {
+    if (!appliedCoupon) return 0;
+    
+    let discount = 0;
+    if (appliedCoupon.discount_type === 'percentage') {
+      discount = (totalPrice * appliedCoupon.discount_value) / 100;
+      if (appliedCoupon.max_discount && discount > appliedCoupon.max_discount) {
+        discount = appliedCoupon.max_discount;
+      }
+    } else {
+      discount = appliedCoupon.discount_value;
+    }
+    
+    return Math.min(discount, totalPrice);
+  };
+  
+  const discountAmount = calculateDiscount();
+  const finalTotal = totalPrice - discountAmount + donation;
+
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Please enter a coupon code');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError('');
+
+    try {
+      const { data: coupon, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', couponCode.trim().toUpperCase())
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!coupon) {
+        setCouponError('Invalid coupon code');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check expiry
+      if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+        setCouponError('This coupon has expired');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check start date
+      if (coupon.starts_at && new Date(coupon.starts_at) > new Date()) {
+        setCouponError('This coupon is not yet active');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check usage limit
+      if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) {
+        setCouponError('This coupon has been fully redeemed');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check minimum purchase
+      if (coupon.min_purchase && totalPrice < coupon.min_purchase) {
+        setCouponError(`Minimum purchase of ₹${coupon.min_purchase} required`);
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check product-specific coupon
+      if (coupon.product_id && coupon.product_id !== product.id) {
+        setCouponError('This coupon is not valid for this product');
+        setCouponLoading(false);
+        return;
+      }
+
+      // Check flash sale specific coupon
+      if (coupon.flash_sale_id && coupon.flash_sale_id !== flashSaleId) {
+        setCouponError('This coupon is only valid for a specific flash sale');
+        setCouponLoading(false);
+        return;
+      }
+
+      setAppliedCoupon({
+        id: coupon.id,
+        code: coupon.code,
+        discount_type: coupon.discount_type,
+        discount_value: coupon.discount_value,
+        max_discount: coupon.max_discount,
+      });
+      setCouponCode('');
+      toast.success('Coupon applied successfully!');
+    } catch (err) {
+      setCouponError('Failed to validate coupon');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError('');
+  };
+
+  const handleBuy = () => {
+    onBuy(donation, discountAmount);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,6 +237,66 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
             )}
           </div>
 
+          {/* Coupon Code Input */}
+          <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-xl border border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2 mb-2">
+              <Ticket className="w-4 h-4 text-amber-500" />
+              <span className="text-sm font-medium">Have a coupon?</span>
+            </div>
+            
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                    {appliedCoupon.code}
+                  </span>
+                  <span className="text-xs text-green-600 dark:text-green-500">
+                    ({appliedCoupon.discount_type === 'percentage' 
+                      ? `${appliedCoupon.discount_value}% OFF` 
+                      : `₹${appliedCoupon.discount_value} OFF`})
+                  </span>
+                </div>
+                <button
+                  onClick={removeCoupon}
+                  className="p-1 hover:bg-green-200 dark:hover:bg-green-800 rounded-full transition-colors"
+                >
+                  <X className="w-4 h-4 text-green-700 dark:text-green-400" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Enter coupon code"
+                    value={couponCode}
+                    onChange={(e) => {
+                      setCouponCode(e.target.value.toUpperCase());
+                      setCouponError('');
+                    }}
+                    className="h-9 uppercase"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={validateCoupon}
+                    disabled={couponLoading}
+                    className="px-4"
+                  >
+                    {couponLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      'Apply'
+                    )}
+                  </Button>
+                </div>
+                {couponError && (
+                  <p className="text-xs text-destructive mt-1">{couponError}</p>
+                )}
+              </>
+            )}
+          </div>
+
           <div>
             <label className="text-sm text-muted-foreground">Note (optional)</label>
             <Input
@@ -156,6 +344,12 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <span className="text-muted-foreground">Subtotal</span>
               <span>₹{totalPrice}</span>
             </div>
+            {appliedCoupon && discountAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-green-600">Discount</span>
+                <span className="text-green-600">-₹{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
             {donationEnabled && donation > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-pink-500">Donation</span>
@@ -165,7 +359,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
             <div className="flex justify-between items-center pt-2 border-t border-border">
               <span className="font-medium">Total</span>
               <span className="text-xl font-bold text-primary">
-                ₹{finalTotal}
+                ₹{finalTotal.toFixed(2)}
               </span>
             </div>
           </div>
@@ -176,10 +370,10 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
           <Button 
             className="w-full btn-gradient rounded-xl h-12" 
-            onClick={() => onBuy(donation)}
+            onClick={handleBuy}
             disabled={loading || finalTotal > walletBalance}
           >
-            {loading ? 'Processing...' : `Pay ₹${finalTotal}`}
+            {loading ? 'Processing...' : `Pay ₹${finalTotal.toFixed(2)}`}
           </Button>
         </div>
       </DialogContent>

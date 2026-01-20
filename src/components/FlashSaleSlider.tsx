@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay } from 'swiper/modules';
 import { motion } from 'framer-motion';
-import { Clock, Zap, ShoppingBag } from 'lucide-react';
+import { Clock, Zap, ShoppingBag, Ticket, Copy, Check } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import 'swiper/css';
 
 interface FlashSaleItem {
@@ -16,6 +18,14 @@ interface FlashSaleItem {
   productData?: any;
 }
 
+interface FlashSaleCoupon {
+  id: string;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  flash_sale_id: string;
+}
+
 interface FlashSaleSliderProps {
   items?: FlashSaleItem[];
   onItemClick?: (item: FlashSaleItem) => void;
@@ -25,6 +35,44 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
   items,
   onItemClick 
 }) => {
+  const [coupons, setCoupons] = useState<Record<string, FlashSaleCoupon>>({});
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (items && items.length > 0) {
+      loadFlashSaleCoupons();
+    }
+  }, [items]);
+
+  const loadFlashSaleCoupons = async () => {
+    if (!items) return;
+    
+    const flashSaleIds = items.map(item => item.id);
+    const { data } = await supabase
+      .from('coupons')
+      .select('*')
+      .in('flash_sale_id', flashSaleIds)
+      .eq('is_active', true);
+    
+    if (data) {
+      const couponMap: Record<string, FlashSaleCoupon> = {};
+      data.forEach(coupon => {
+        if (coupon.flash_sale_id) {
+          couponMap[coupon.flash_sale_id] = coupon;
+        }
+      });
+      setCoupons(couponMap);
+    }
+  };
+
+  const handleCopyCoupon = (e: React.MouseEvent, code: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    toast.success(`Coupon "${code}" copied!`);
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
   const calculateDiscount = (original: number, sale: number) => {
     return Math.round(((original - sale) / original) * 100);
   };
@@ -79,37 +127,69 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
         autoplay={{ delay: 3000, disableOnInteraction: false }}
         className="overflow-visible"
       >
-        {items.map((item) => (
-          <SwiperSlide key={item.id}>
-            <motion.div
-              onClick={() => onItemClick?.(item)}
-              className="bg-card rounded-2xl overflow-hidden shadow-card card-hover cursor-pointer"
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="relative">
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="w-full h-24 object-cover"
-                />
-                <div className="absolute top-2 right-2 gradient-accent px-2 py-0.5 rounded-full">
-                  <span className="text-xs font-bold text-accent-foreground">
-                    -{calculateDiscount(item.originalPrice, item.salePrice)}%
-                  </span>
+        {items.map((item) => {
+          const coupon = coupons[item.id];
+          return (
+            <SwiperSlide key={item.id}>
+              <motion.div
+                onClick={() => onItemClick?.(item)}
+                className="bg-card rounded-2xl overflow-hidden shadow-card card-hover cursor-pointer"
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="relative">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-full h-24 object-cover"
+                  />
+                  <div className="absolute top-2 right-2 gradient-accent px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-bold text-accent-foreground">
+                      -{calculateDiscount(item.originalPrice, item.salePrice)}%
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="p-3">
-                <h3 className="font-semibold text-sm text-foreground truncate">{item.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-primary font-bold">₹{item.salePrice}</span>
-                  <span className="text-xs text-muted-foreground line-through">
-                    ₹{item.originalPrice}
-                  </span>
+                <div className="p-3">
+                  <h3 className="font-semibold text-sm text-foreground truncate">{item.name}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-primary font-bold">₹{item.salePrice}</span>
+                    <span className="text-xs text-muted-foreground line-through">
+                      ₹{item.originalPrice}
+                    </span>
+                  </div>
+                  
+                  {/* Coupon Badge */}
+                  {coupon && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      onClick={(e) => handleCopyCoupon(e, coupon.code)}
+                      className="mt-2 w-full flex items-center justify-between gap-1 px-2 py-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg hover:from-amber-500/30 hover:to-orange-500/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        <Ticket className="w-3 h-3 text-amber-500" />
+                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                          {coupon.code}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-amber-600/80 dark:text-amber-400/80">
+                          {coupon.discount_type === 'percentage' 
+                            ? `${coupon.discount_value}% OFF` 
+                            : `₹${coupon.discount_value} OFF`}
+                        </span>
+                        {copiedCode === coupon.code ? (
+                          <Check className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <Copy className="w-3 h-3 text-amber-500" />
+                        )}
+                      </div>
+                    </motion.button>
+                  )}
                 </div>
-              </div>
-            </motion.div>
-          </SwiperSlide>
-        ))}
+              </motion.div>
+            </SwiperSlide>
+          );
+        })}
       </Swiper>
     </motion.div>
   );
