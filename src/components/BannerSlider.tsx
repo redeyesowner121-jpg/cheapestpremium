@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { memo, useCallback } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
-import { motion } from 'framer-motion';
 import { ImageOff } from 'lucide-react';
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -17,29 +16,30 @@ interface BannerSliderProps {
   banners?: Banner[];
 }
 
-const BannerSlider: React.FC<BannerSliderProps> = ({ banners }) => {
-  // If no banners from database, show empty state
+const BannerSlider: React.FC<BannerSliderProps> = memo(({ banners }) => {
+  const handleBannerClick = useCallback((link?: string) => {
+    if (link) {
+      if (link.startsWith('http')) {
+        window.open(link, '_blank');
+      } else {
+        window.location.href = link;
+      }
+    }
+  }, []);
+
   if (!banners || banners.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full"
-      >
+      <div className="w-full">
         <div className="bg-card rounded-2xl h-40 md:h-52 flex flex-col items-center justify-center text-muted-foreground">
           <ImageOff className="w-12 h-12 mb-2 opacity-50" />
           <p className="text-sm">No banners available</p>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full"
-    >
+    <div className="w-full">
       <Swiper
         modules={[Autoplay, Pagination]}
         spaceBetween={16}
@@ -52,20 +52,13 @@ const BannerSlider: React.FC<BannerSliderProps> = ({ banners }) => {
           <SwiperSlide key={banner.id}>
             <div 
               className="relative h-40 md:h-52 cursor-pointer"
-              onClick={() => {
-                if (banner.link) {
-                  if (banner.link.startsWith('http')) {
-                    window.open(banner.link, '_blank');
-                  } else {
-                    window.location.href = banner.link;
-                  }
-                }
-              }}
+              onClick={() => handleBannerClick(banner.link)}
             >
               <img
                 src={banner.image}
                 alt={banner.title}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-4 left-4 right-4">
@@ -75,8 +68,10 @@ const BannerSlider: React.FC<BannerSliderProps> = ({ banners }) => {
           </SwiperSlide>
         ))}
       </Swiper>
-    </motion.div>
+    </div>
   );
-};
+});
+
+BannerSlider.displayName = 'BannerSlider';
 
 export default BannerSlider;

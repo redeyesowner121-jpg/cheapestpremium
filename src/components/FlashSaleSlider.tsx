@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo, useCallback } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay } from 'swiper/modules';
-import { motion } from 'framer-motion';
 import { Clock, Zap, ShoppingBag, Ticket, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -31,7 +30,7 @@ interface FlashSaleSliderProps {
   onItemClick?: (item: FlashSaleItem) => void;
 }
 
-const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({ 
+const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({ 
   items,
   onItemClick 
 }) => {
@@ -65,26 +64,21 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
     }
   };
 
-  const handleCopyCoupon = (e: React.MouseEvent, code: string) => {
+  const handleCopyCoupon = useCallback((e: React.MouseEvent, code: string) => {
     e.stopPropagation();
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
     toast.success(`Coupon "${code}" copied!`);
     setTimeout(() => setCopiedCode(null), 2000);
-  };
+  }, []);
 
-  const calculateDiscount = (original: number, sale: number) => {
+  const calculateDiscount = useCallback((original: number, sale: number) => {
     return Math.round(((original - sale) / original) * 100);
-  };
+  }, []);
 
-  // If no flash sales from database, show empty state
   if (!items || items.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full"
-      >
+      <div className="w-full">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="p-2 gradient-accent rounded-xl">
@@ -97,16 +91,12 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
           <ShoppingBag className="w-10 h-10 mb-2 opacity-50" />
           <p className="text-sm">No flash sales right now</p>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full"
-    >
+    <div className="w-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="p-2 gradient-accent rounded-xl">
@@ -131,16 +121,16 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
           const coupon = coupons[item.id];
           return (
             <SwiperSlide key={item.id}>
-              <motion.div
+              <div
                 onClick={() => onItemClick?.(item)}
-                className="bg-card rounded-2xl overflow-hidden shadow-card card-hover cursor-pointer"
-                whileTap={{ scale: 0.98 }}
+                className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
               >
                 <div className="relative">
                   <img
                     src={item.image}
                     alt={item.name}
                     className="w-full h-24 object-cover"
+                    loading="lazy"
                   />
                   <div className="absolute top-2 right-2 gradient-accent px-2 py-0.5 rounded-full">
                     <span className="text-xs font-bold text-accent-foreground">
@@ -157,11 +147,8 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
                     </span>
                   </div>
                   
-                  {/* Coupon Badge */}
                   {coupon && (
-                    <motion.button
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
+                    <button
                       onClick={(e) => handleCopyCoupon(e, coupon.code)}
                       className="mt-2 w-full flex items-center justify-between gap-1 px-2 py-1.5 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-lg hover:from-amber-500/30 hover:to-orange-500/30 transition-colors"
                     >
@@ -183,16 +170,18 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = ({
                           <Copy className="w-3 h-3 text-amber-500" />
                         )}
                       </div>
-                    </motion.button>
+                    </button>
                   )}
                 </div>
-              </motion.div>
+              </div>
             </SwiperSlide>
           );
         })}
       </Swiper>
-    </motion.div>
+    </div>
   );
-};
+});
+
+FlashSaleSlider.displayName = 'FlashSaleSlider';
 
 export default FlashSaleSlider;
