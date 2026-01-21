@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { ChevronDown, ChevronRight, Settings, Ticket } from 'lucide-react';
+import { ChevronDown, ChevronRight, Settings, Ticket, Gift } from 'lucide-react';
 import AdminCouponManager from './AdminCouponManager';
+import AdminRedeemCodeManager from './AdminRedeemCodeManager';
 
 interface AdminSettingsTabProps {
   settings: Record<string, string>;
@@ -11,6 +12,7 @@ interface AdminSettingsTabProps {
 
 const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateSetting }) => {
   const [showCoupons, setShowCoupons] = useState(false);
+  const [showRedeemCodes, setShowRedeemCodes] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -38,6 +40,34 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
         {showCoupons && (
           <div className="p-4 border-t border-border">
             <AdminCouponManager />
+          </div>
+        )}
+      </div>
+
+      {/* Redeem Codes Section */}
+      <div className="bg-card rounded-2xl shadow-card overflow-hidden">
+        <button
+          onClick={() => setShowRedeemCodes(!showRedeemCodes)}
+          className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-success/10 rounded-xl">
+              <Gift className="w-5 h-5 text-success" />
+            </div>
+            <div className="text-left">
+              <h3 className="font-semibold text-foreground">Redeem Codes</h3>
+              <p className="text-xs text-muted-foreground">Gift codes that add money to user wallet</p>
+            </div>
+          </div>
+          {showRedeemCodes ? (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          )}
+        </button>
+        {showRedeemCodes && (
+          <div className="p-4 border-t border-border">
+            <AdminRedeemCodeManager />
           </div>
         )}
       </div>

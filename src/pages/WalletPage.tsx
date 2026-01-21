@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { 
   Plus, 
   Minus, 
@@ -81,6 +80,7 @@ const WalletPage: React.FC = () => {
   
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState<{type: 'deposit' | 'bonus'; title: string; message: string; details: {label: string; value: string}[]}>({
     type: 'deposit',
@@ -105,6 +105,10 @@ const WalletPage: React.FC = () => {
   const [senderName, setSenderName] = useState('');
   const [submittingManual, setSubmittingManual] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  
+  // Redeem code states
+  const [redeemCode, setRedeemCode] = useState('');
+  const [redeemingCode, setRedeemingCode] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -428,6 +432,110 @@ const WalletPage: React.FC = () => {
     }
   };
 
+  // Handle redeem code
+  const handleRedeemCode = async () => {
+    if (!user || !profile) return;
+    
+    const code = redeemCode.trim().toUpperCase();
+    if (!code) {
+      toast.error('Please enter a code');
+      return;
+    }
+
+    setRedeemingCode(true);
+    try {
+      // Find the redeem code
+      const { data: codeData, error: codeError } = await supabase
+        .from('redeem_codes')
+        .select('*')
+        .eq('code', code)
+        .eq('is_active', true)
+        .single();
+
+      if (codeError || !codeData) {
+        toast.error('Invalid or inactive code');
+        setRedeemingCode(false);
+        return;
+      }
+
+      // Check expiry
+      if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) {
+        toast.error('This code has expired');
+        setRedeemingCode(false);
+        return;
+      }
+
+      // Check usage limit
+      if (codeData.used_count >= codeData.usage_limit) {
+        toast.error('This code has reached its usage limit');
+        setRedeemingCode(false);
+        return;
+      }
+
+      // Check if user already used this code
+      const { data: usageData } = await supabase
+        .from('redeem_code_usage')
+        .select('id')
+        .eq('code_id', codeData.id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (usageData) {
+        toast.error('You have already used this code');
+        setRedeemingCode(false);
+        return;
+      }
+
+      // Add to wallet
+      const newBalance = (profile.wallet_balance || 0) + codeData.amount;
+      await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', user.id);
+
+      // Record usage
+      await supabase.from('redeem_code_usage').insert({
+        code_id: codeData.id,
+        user_id: user.id
+      });
+
+      // Increment used_count
+      await supabase
+        .from('redeem_codes')
+        .update({ used_count: codeData.used_count + 1 })
+        .eq('id', codeData.id);
+
+      // Create transaction
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'gift',
+        amount: codeData.amount,
+        status: 'completed',
+        description: `Redeemed code: ${code}`
+      });
+
+      setSuccessData({
+        type: 'bonus',
+        title: 'Code Redeemed! 🎉',
+        message: codeData.description || 'Gift code successfully redeemed!',
+        details: [
+          { label: 'Amount Added', value: `₹${codeData.amount}` },
+          { label: 'New Balance', value: `₹${newBalance.toFixed(2)}` }
+        ]
+      });
+
+      refreshProfile();
+      loadTransactions();
+      setShowRedeemModal(false);
+      setRedeemCode('');
+      setShowSuccessModal(true);
+    } catch (error) {
+      toast.error('Failed to redeem code');
+    } finally {
+      setRedeemingCode(false);
+    }
+  };
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit':
@@ -469,11 +577,7 @@ const WalletPage: React.FC = () => {
 
       <main className="pt-20 px-4 max-w-lg mx-auto">
         {/* Balance Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="gradient-primary rounded-3xl p-6 text-center shadow-glow"
-        >
+        <div className="gradient-primary rounded-3xl p-6 text-center shadow-glow">
           <p className="text-primary-foreground/80 text-sm">Available Balance</p>
           <h1 className="text-4xl font-bold text-primary-foreground mt-2">
             ₹{profile?.wallet_balance?.toFixed(2) || '0.00'}
@@ -509,20 +613,14 @@ const WalletPage: React.FC = () => {
               Withdraw
             </Button>
           </div>
-        </motion.div>
+        </div>
 
         {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mt-6"
-        >
+        <div className="mt-6">
           <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
           <div className="grid grid-cols-4 gap-3">
-            <motion.button
-              className={`bg-card rounded-2xl p-4 shadow-card text-center card-hover relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
-              whileTap={{ scale: 0.95 }}
+            <button
+              className={`bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
               onClick={() => setShowDepositModal(true)}
             >
               {hasPendingRequest && (
@@ -532,50 +630,51 @@ const WalletPage: React.FC = () => {
                 <Smartphone className="w-6 h-6 text-primary" />
               </div>
               <span className="text-xs font-medium text-foreground">UPI</span>
-            </motion.button>
+            </button>
             
-            <motion.button
-              className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
-              whileTap={{ scale: 0.95 }}
+            <button
+              className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform"
               onClick={() => setShowDepositModal(true)}
             >
               <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
                 <QrCode className="w-6 h-6 text-secondary" />
               </div>
               <span className="text-xs font-medium text-foreground">QR Pay</span>
-            </motion.button>
+            </button>
             
-            <motion.button
-              className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
-              whileTap={{ scale: 0.95 }}
+            <button
+              className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform"
               onClick={() => setShowDepositModal(true)}
             >
               <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2">
                 <CreditCard className="w-6 h-6 text-accent" />
               </div>
               <span className="text-xs font-medium text-foreground">Card</span>
-            </motion.button>
+            </button>
 
-            <motion.button
-              className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
-              whileTap={{ scale: 0.95 }}
+            <button
+              className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform"
               onClick={() => setShowTransferModal(true)}
             >
               <div className="w-12 h-12 mx-auto rounded-xl bg-success/10 flex items-center justify-center mb-2">
                 <Send className="w-6 h-6 text-success" />
               </div>
               <span className="text-xs font-medium text-foreground">Transfer</span>
-            </motion.button>
+            </button>
           </div>
-        </motion.div>
+
+          {/* Redeem Code Button */}
+          <button
+            onClick={() => setShowRedeemModal(true)}
+            className="w-full mt-4 bg-accent/10 border border-accent/30 rounded-2xl p-4 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
+          >
+            <Gift className="w-6 h-6 text-accent" />
+            <span className="font-semibold text-accent">Redeem Gift Code</span>
+          </button>
+        </div>
 
         {/* Transactions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-6"
-        >
+        <div className="mt-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-foreground">Recent Transactions</h2>
             <button className="text-sm text-primary font-medium">See All</button>
@@ -587,12 +686,9 @@ const WalletPage: React.FC = () => {
                 No transactions yet
               </div>
             ) : (
-              transactions.map((txn, index) => (
-                <motion.div
+              transactions.map((txn) => (
+                <div
                   key={txn.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + index * 0.05 }}
                   className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4"
                 >
                   <div className="p-2 rounded-xl bg-muted">
@@ -615,12 +711,56 @@ const WalletPage: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))
             )}
           </div>
-        </motion.div>
+        </div>
       </main>
+
+      {/* Redeem Code Modal */}
+      <Dialog open={showRedeemModal} onOpenChange={setShowRedeemModal}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-accent" />
+              Redeem Gift Code
+            </DialogTitle>
+            <DialogDescription>
+              Enter your gift code to add money to your wallet
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div>
+              <Input
+                value={redeemCode}
+                onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
+                placeholder="Enter code (e.g. GIFT100)"
+                className="font-mono text-center text-lg h-12"
+              />
+            </div>
+
+            <Button
+              onClick={handleRedeemCode}
+              disabled={redeemingCode || !redeemCode.trim()}
+              className="w-full h-12 btn-gradient rounded-xl"
+            >
+              {redeemingCode ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Redeeming...
+                </>
+              ) : (
+                <>
+                  <Gift className="w-5 h-5 mr-2" />
+                  Redeem Code
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Deposit Modal */}
       <Dialog open={showDepositModal} onOpenChange={setShowDepositModal}>
