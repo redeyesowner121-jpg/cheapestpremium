@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
   Star, 
@@ -45,6 +44,7 @@ const ProductDetailPage: React.FC = () => {
   const { user, profile, refreshProfile, isAdmin, isTempAdmin } = useAuth();
   
   const stateProduct = location.state?.product;
+  const flashSalePrice = location.state?.flashSalePrice;
   const flashSale = location.state?.flashSale;
   
   const [product, setProduct] = useState<any>(stateProduct || null);
@@ -115,18 +115,21 @@ const ProductDetailPage: React.FC = () => {
   const variationResellerPrice = selectedVariation?.reseller_price || null;
   const productResellerPrice = displayProduct?.reseller_price || null;
   
+  // Determine base price - prioritize flash sale price
+  const actualFlashSalePrice = flashSalePrice || flashSale?.salePrice;
   const basePrice = selectedVariation?.price || displayProduct?.price || 0;
   const applicableResellerPrice = selectedVariation ? variationResellerPrice : productResellerPrice;
-  const priceForCalculation = flashSale ? flashSale.salePrice : basePrice;
   
+  // If flash sale, use flash sale price directly without rank discounts
   const { finalPrice: rankDiscountedPrice, savings, discountType } = calculateFinalPrice(
-    priceForCalculation,
-    flashSale ? null : applicableResellerPrice,
+    actualFlashSalePrice || basePrice,
+    actualFlashSalePrice ? null : applicableResellerPrice,
     userRank,
     isReseller
   );
 
-  const currentPrice = flashSale ? flashSale.salePrice : rankDiscountedPrice;
+  // For flash sale, use the sale price directly
+  const currentPrice = actualFlashSalePrice || rankDiscountedPrice;
   const totalPrice = currentPrice * quantity;
 
   const handleShare = async () => {
@@ -312,41 +315,40 @@ const ProductDetailPage: React.FC = () => {
 
       <main className="pt-16 max-w-lg mx-auto">
         {/* Product Image */}
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="relative overflow-hidden"
-        >
-          <motion.img
-            initial={{ scale: 1.1 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.5 }}
+        <div className="relative overflow-hidden">
+          <img
             src={displayProduct.image_url || displayProduct.image || 'https://via.placeholder.com/400'}
             alt={displayProduct.name}
             className="w-full h-80 object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           
-          <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="absolute bottom-4 left-4 right-4"
-          >
+          <div className="absolute bottom-4 left-4 right-4">
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-3xl font-bold text-primary">₹{Math.round(currentPrice * 100) / 100}</span>
-                    {!flashSale && savings > 0 && (
+                    {!actualFlashSalePrice && savings > 0 && (
+                      <span className="text-sm text-muted-foreground line-through">₹{basePrice}</span>
+                    )}
+                    {actualFlashSalePrice && basePrice > actualFlashSalePrice && (
                       <span className="text-sm text-muted-foreground line-through">₹{basePrice}</span>
                     )}
                   </div>
-                  {!flashSale && savings > 0 && profile && (
+                  {!actualFlashSalePrice && savings > 0 && profile && (
                     <div className="flex items-center gap-1 mt-1">
                       <Tag className="w-3 h-3 text-green-600" />
                       <span className="text-xs text-green-600 font-medium">
                         {discountType} - ₹{Math.round(savings * 100) / 100} saved
+                      </span>
+                    </div>
+                  )}
+                  {actualFlashSalePrice && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Tag className="w-3 h-3 text-orange-600" />
+                      <span className="text-xs text-orange-600 font-medium">
+                        Flash Sale - ₹{Math.round((basePrice - actualFlashSalePrice) * 100) / 100} saved
                       </span>
                     </div>
                   )}
@@ -357,16 +359,11 @@ const ProductDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Product Info */}
-        <motion.div 
-          initial={{ y: 30, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="px-4 py-6 space-y-5"
-        >
+        <div className="px-4 py-6 space-y-5">
           <div>
             <h1 className="text-2xl font-bold text-foreground">{displayProduct.name}</h1>
             <div className="flex items-center gap-3 mt-2">
@@ -404,23 +401,18 @@ const ProductDetailPage: React.FC = () => {
 
           {/* Description */}
           {displayProduct.description && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-              className="bg-muted/50 rounded-2xl p-4"
-            >
+            <div className="bg-muted/50 rounded-2xl p-4">
               <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
                 <span className="w-1 h-4 bg-primary rounded-full"></span>
                 About this product
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">{displayProduct.description}</p>
-            </motion.div>
+            </div>
           )}
 
           {/* Features */}
           <ProductFeatures />
-        </motion.div>
+        </div>
       </main>
 
       {/* Bottom Action Bar */}
