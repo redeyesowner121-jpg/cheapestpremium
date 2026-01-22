@@ -454,12 +454,15 @@ const AdminCouponManager: React.FC = () => {
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">Product Specific (Optional)</label>
-              <Select value={productId} onValueChange={setProductId}>
+              <Select 
+                value={productId || "all"} 
+                onValueChange={(v) => setProductId(v === "all" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All products" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All products</SelectItem>
+                  <SelectItem value="all">All products</SelectItem>
                   {products.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
@@ -469,12 +472,15 @@ const AdminCouponManager: React.FC = () => {
 
             <div>
               <label className="text-sm font-medium text-muted-foreground">Flash Sale Specific (Optional)</label>
-              <Select value={flashSaleId} onValueChange={setFlashSaleId}>
+              <Select 
+                value={flashSaleId || "all"} 
+                onValueChange={(v) => setFlashSaleId(v === "all" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All sales" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All sales</SelectItem>
+                  <SelectItem value="all">All sales</SelectItem>
                   {flashSales.map(s => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.products?.name || 'Flash Sale'}

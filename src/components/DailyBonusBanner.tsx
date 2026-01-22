@@ -65,11 +65,14 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) =
       const bonusAmount = Math.round((Math.random() * (maxBonus - minBonus) + minBonus) * 100) / 100;
       const newBalance = (profile.wallet_balance || 0) + bonusAmount;
 
+      // Format date as YYYY-MM-DD for date field
+      const todayDate = new Date().toISOString().split('T')[0];
+      
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
           wallet_balance: newBalance,
-          last_daily_bonus: new Date().toISOString()
+          last_daily_bonus: todayDate
         })
         .eq('id', user.id);
 
