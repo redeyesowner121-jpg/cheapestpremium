@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, ShoppingBag, Wallet, Clock, User } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
@@ -23,54 +22,34 @@ const BottomNav: React.FC = () => {
           const Icon = item.icon;
           
           return (
-            <motion.button
+            <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all min-w-[60px] ${
+              className={`relative flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all min-w-[60px] active:scale-95 ${
                 isActive 
                   ? 'text-primary-foreground' 
                   : 'text-muted-foreground hover:text-foreground'
               }`}
-              whileTap={{ scale: 0.9 }}
-              whileHover={{ scale: 1.05 }}
             >
               {/* Active Background */}
               {isActive && (
-                <motion.div
-                  layoutId="activeNavBg"
-                  className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-2xl shadow-lg shadow-primary/30"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
+                <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-2xl shadow-lg shadow-primary/30" />
               )}
               
               {/* Icon Container */}
-              <motion.div
-                className="relative z-10"
-                animate={isActive ? { y: -2 } : { y: 0 }}
-                transition={{ type: 'spring', stiffness: 300 }}
-              >
+              <div className={`relative z-10 ${isActive ? '-translate-y-0.5' : ''}`}>
                 <Icon className={`w-5 h-5 ${isActive ? 'text-primary-foreground' : ''}`} />
-              </motion.div>
+              </div>
               
               {/* Label */}
-              <motion.span 
+              <span 
                 className={`text-[10px] mt-0.5 font-medium relative z-10 ${
                   isActive ? 'text-primary-foreground' : ''
                 }`}
-                animate={isActive ? { scale: 1.05 } : { scale: 1 }}
               >
                 {item.label}
-              </motion.span>
-              
-              {/* Active Dot Indicator */}
-              {isActive && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full"
-                />
-              )}
-            </motion.button>
+              </span>
+            </button>
           );
         })}
       </div>
