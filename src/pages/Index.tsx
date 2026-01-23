@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Bell } from 'lucide-react';
+import { Lightbulb, GraduationCap } from 'lucide-react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
@@ -9,12 +8,12 @@ import FlashSaleSlider from '@/components/FlashSaleSlider';
 import FlashSaleDetailModal from '@/components/FlashSaleDetailModal';
 import CategoryGrid from '@/components/CategoryGrid';
 import ProductGrid from '@/components/ProductGrid';
+import CategorySection from '@/components/CategorySection';
 import QuickStats from '@/components/QuickStats';
 import DailyBonusBanner from '@/components/DailyBonusBanner';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Button } from '@/components/ui/button';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
@@ -23,7 +22,8 @@ const Index: React.FC = () => {
   const [banners, setBanners] = useState<any[]>([]);
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
-  const [showNotificationBanner, setShowNotificationBanner] = useState(false);
+  const [methodsProducts, setMethodsProducts] = useState<any[]>([]);
+  const [coursesProducts, setCoursesProducts] = useState<any[]>([]);
   const [selectedFlashSale, setSelectedFlashSale] = useState<any>(null);
   const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
 
@@ -39,15 +39,39 @@ const Index: React.FC = () => {
   }, [user, permission]);
 
   const loadData = async () => {
-    // Load banners
-    const { data: bannersData } = await supabase
-      .from('banners')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    
-    if (bannersData && bannersData.length > 0) {
-      setBanners(bannersData.map(b => ({
+    // Load all data in parallel
+    const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes] = await Promise.all([
+      supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true }),
+      supabase
+        .from('flash_sales')
+        .select('*, products(*)')
+        .eq('is_active', true)
+        .gt('end_time', new Date().toISOString()),
+      supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .limit(8),
+      supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .ilike('category', '%methods%')
+        .limit(6),
+      supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .ilike('category', '%courses%')
+        .limit(6)
+    ]);
+
+    if (bannersRes.data && bannersRes.data.length > 0) {
+      setBanners(bannersRes.data.map(b => ({
         id: b.id,
         image: b.image_url,
         title: b.title,
@@ -55,15 +79,8 @@ const Index: React.FC = () => {
       })));
     }
 
-    // Load flash sales
-    const { data: flashSalesData } = await supabase
-      .from('flash_sales')
-      .select('*, products(*)')
-      .eq('is_active', true)
-      .gt('end_time', new Date().toISOString());
-    
-    if (flashSalesData) {
-      setFlashSales(flashSalesData.map(fs => ({
+    if (flashSalesRes.data) {
+      setFlashSales(flashSalesRes.data.map(fs => ({
         id: fs.id,
         productId: fs.product_id,
         name: fs.products?.name || 'Product',
@@ -75,24 +92,48 @@ const Index: React.FC = () => {
       })));
     }
 
-    // Load products
-    const { data: productsData } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_active', true)
-      .limit(8);
-    
-    if (productsData) {
-      setProducts(productsData.map(p => ({
+    if (productsRes.data) {
+      setProducts(productsRes.data.map(p => ({
         id: p.id,
         name: p.name,
         price: p.price,
         originalPrice: p.original_price,
         image: p.image_url || 'https://via.placeholder.com/200',
         rating: p.rating || 4.5,
-        soldCount: p.sold_count || 0
+        soldCount: p.sold_count || 0,
+        reseller_price: p.reseller_price
       })));
     }
+
+    if (methodsRes.data) {
+      setMethodsProducts(methodsRes.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        originalPrice: p.original_price,
+        image: p.image_url || 'https://via.placeholder.com/200',
+        rating: p.rating || 4.5,
+        soldCount: p.sold_count || 0,
+        reseller_price: p.reseller_price
+      })));
+    }
+
+    if (coursesRes.data) {
+      setCoursesProducts(coursesRes.data.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        originalPrice: p.original_price,
+        image: p.image_url || 'https://via.placeholder.com/200',
+        rating: p.rating || 4.5,
+        soldCount: p.sold_count || 0,
+        reseller_price: p.reseller_price
+      })));
+    }
+  };
+
+  const handleProductClick = (product: any) => {
+    navigate('/product', { state: { product } });
   };
 
   if (loading) {
@@ -102,8 +143,6 @@ const Index: React.FC = () => {
       </div>
     );
   }
-
-  // Guest browsing allowed - don't redirect
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -123,10 +162,33 @@ const Index: React.FC = () => {
           }} 
         />
         <CategoryGrid onCategoryClick={() => navigate('/products')} />
+        
+        {/* Methods Section */}
+        <CategorySection
+          title="Methods"
+          icon={<Lightbulb className="w-5 h-5" />}
+          products={methodsProducts}
+          onProductClick={handleProductClick}
+          onViewAll={() => navigate('/products', { state: { category: 'Methods' } })}
+          bgColor="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+          accentColor="text-orange-600"
+        />
+        
+        {/* Courses Section */}
+        <CategorySection
+          title="Courses"
+          icon={<GraduationCap className="w-5 h-5" />}
+          products={coursesProducts}
+          onProductClick={handleProductClick}
+          onViewAll={() => navigate('/products', { state: { category: 'Courses' } })}
+          bgColor="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30"
+          accentColor="text-indigo-600"
+        />
+        
         <ProductGrid 
           products={products}
-          onProductClick={(product) => navigate('/product', { state: { product } })}
-          onBuyClick={(product) => navigate('/product', { state: { product } })} 
+          onProductClick={handleProductClick}
+          onBuyClick={handleProductClick} 
         />
       </main>
 
