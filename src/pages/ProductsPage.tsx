@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Search, 
@@ -9,7 +8,10 @@ import {
   ShoppingCart,
   Filter,
   Download,
-  Tag
+  Tag,
+  Lightbulb,
+  GraduationCap,
+  ChevronRight
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,8 @@ const categories = [
   { id: 'cloud', name: 'Cloud' },
   { id: 'free', name: 'Free' },
   { id: 'earning', name: 'Earning' },
+  { id: 'methods', name: 'Methods' },
+  { id: 'courses', name: 'Courses' },
 ];
 
 const ProductsPage: React.FC = () => {
@@ -67,9 +71,10 @@ const ProductsPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const flashSale = location.state?.flashSale;
+  const initialCategory = location.state?.category?.toLowerCase() || 'all';
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -86,6 +91,13 @@ const ProductsPage: React.FC = () => {
   useEffect(() => {
     loadProducts();
   }, []);
+  
+  // Handle category from navigation state
+  useEffect(() => {
+    if (location.state?.category) {
+      setSelectedCategory(location.state.category.toLowerCase());
+    }
+  }, [location.state?.category]);
 
   // Log search queries (debounced)
   useEffect(() => {
@@ -147,11 +159,23 @@ const ProductsPage: React.FC = () => {
     setLoading(false);
   };
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = useMemo(() => products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesCategory = selectedCategory === 'all' || 
+      product.category?.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
-  });
+  }), [products, searchQuery, selectedCategory]);
+  
+  // Get Methods and Courses products for dedicated sections
+  const methodsProducts = useMemo(() => 
+    products.filter(p => p.category?.toLowerCase() === 'methods').slice(0, 6),
+    [products]
+  );
+  
+  const coursesProducts = useMemo(() => 
+    products.filter(p => p.category?.toLowerCase() === 'courses').slice(0, 6),
+    [products]
+  );
 
   const handleBuy = async (product: Product, salePrice?: number) => {
     setSelectedProduct(product);
@@ -294,13 +318,9 @@ const ProductsPage: React.FC = () => {
     <div className="min-h-screen bg-background pb-24">
       <Header />
 
-      <main className="pt-20 px-4 max-w-lg mx-auto">
+      <main className="pt-20 px-4 max-w-lg mx-auto space-y-4">
         {/* Search */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative mb-4"
-        >
+        <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             placeholder="Search products..."
@@ -311,21 +331,16 @@ const ProductsPage: React.FC = () => {
           <button className="absolute right-4 top-1/2 -translate-y-1/2">
             <SlidersHorizontal className="w-5 h-5 text-muted-foreground" />
           </button>
-        </motion.div>
+        </div>
 
         {/* Categories */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6 -mx-4 px-4 overflow-x-auto no-scrollbar"
-        >
+        <div className="mb-2 -mx-4 px-4 overflow-x-auto no-scrollbar">
           <div className="flex gap-2 min-w-max">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === cat.id
                     ? 'gradient-primary text-primary-foreground shadow-card'
                     : 'bg-card text-foreground hover:bg-muted'
@@ -335,23 +350,101 @@ const ProductsPage: React.FC = () => {
               </button>
             ))}
           </div>
-        </motion.div>
+        </div>
+        
+        {/* Methods Section */}
+        {selectedCategory === 'all' && methodsProducts.length > 0 && (
+          <div className="rounded-2xl p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-white/80 text-orange-600">
+                  <Lightbulb className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Methods</h2>
+              </div>
+              <button 
+                onClick={() => setSelectedCategory('methods')}
+                className="flex items-center gap-1 text-sm font-medium text-orange-600"
+              >
+                View All
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+              {methodsProducts.map((product) => (
+                <div
+                  key={product.id}
+                  onClick={() => navigate('/product', { state: { product } })}
+                  className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
+                >
+                  <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
+                  <div className="p-2">
+                    <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="w-2.5 h-2.5 text-accent fill-accent" />
+                      <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+                    </div>
+                    <span className="text-primary font-bold text-sm">₹{product.price}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Courses Section */}
+        {selectedCategory === 'all' && coursesProducts.length > 0 && (
+          <div className="rounded-2xl p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-white/80 text-indigo-600">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Courses</h2>
+              </div>
+              <button 
+                onClick={() => setSelectedCategory('courses')}
+                className="flex items-center gap-1 text-sm font-medium text-indigo-600"
+              >
+                View All
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
+              {coursesProducts.map((product) => (
+                <div
+                  key={product.id}
+                  onClick={() => navigate('/product', { state: { product } })}
+                  className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
+                >
+                  <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
+                  <div className="p-2">
+                    <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Star className="w-2.5 h-2.5 text-accent fill-accent" />
+                      <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+                    </div>
+                    <span className="text-primary font-bold text-sm">₹{product.price}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 gap-3">
-          {filteredProducts.map((product, index) => (
-            <motion.div
+          {filteredProducts.map((product) => (
+            <div
               key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + index * 0.03 }}
-              className="bg-card rounded-2xl overflow-hidden shadow-card card-hover"
+              className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform"
             >
               <div className="relative">
                 <img
                   src={product.image_url || 'https://via.placeholder.com/200'}
                   alt={product.name}
                   className="w-full h-28 object-cover"
+                  loading="lazy"
                 />
                 {product.original_price && product.original_price > product.price && (
                   <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
@@ -434,7 +527,7 @@ const ProductsPage: React.FC = () => {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
