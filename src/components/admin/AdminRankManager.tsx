@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  Award, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  Save, 
-  X, 
-  ChevronUp, 
-  ChevronDown,
-  RefreshCw
-} from 'lucide-react';
+import { Award, Plus, Save, X, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,123 +18,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface Rank {
-  id: string;
-  name: string;
-  min_balance: number;
-  discount_percent: number;
-  color: string;
-  bg_color: string;
-  icon: string;
-  discount_type: string;
-  reseller_discount_percent: number;
-  sort_order: number;
-  is_active: boolean;
-}
-
-const DISCOUNT_TYPES = [
-  { value: 'percentage', label: 'Percentage Discount' },
-  { value: 'reseller', label: 'Reseller Price' },
-  { value: 'reseller_extra', label: 'Reseller + Extra Discount' },
-];
-
-const ICON_OPTIONS = ['🥉', '🥈', '🥇', '💠', '💎', '🔮', '⚔️', '👑', '🏆', '⚡', '🌟', '🎖️', '🏅', '🎯'];
-
-const COLOR_OPTIONS = [
-  { value: 'text-amber-700', label: 'Amber' },
-  { value: 'text-slate-500', label: 'Slate' },
-  { value: 'text-yellow-600', label: 'Yellow' },
-  { value: 'text-cyan-600', label: 'Cyan' },
-  { value: 'text-blue-500', label: 'Blue' },
-  { value: 'text-purple-500', label: 'Purple' },
-  { value: 'text-red-500', label: 'Red' },
-  { value: 'text-orange-500', label: 'Orange' },
-  { value: 'text-pink-500', label: 'Pink' },
-  { value: 'text-indigo-600', label: 'Indigo' },
-  { value: 'text-green-500', label: 'Green' },
-];
-
-const BG_COLOR_OPTIONS = [
-  { value: 'bg-amber-100', label: 'Amber' },
-  { value: 'bg-slate-100', label: 'Slate' },
-  { value: 'bg-yellow-100', label: 'Yellow' },
-  { value: 'bg-cyan-100', label: 'Cyan' },
-  { value: 'bg-blue-100', label: 'Blue' },
-  { value: 'bg-purple-100', label: 'Purple' },
-  { value: 'bg-red-100', label: 'Red' },
-  { value: 'bg-orange-100', label: 'Orange' },
-  { value: 'bg-pink-100', label: 'Pink' },
-  { value: 'bg-indigo-100', label: 'Indigo' },
-  { value: 'bg-green-100', label: 'Green' },
-  { value: 'bg-gradient-to-r from-indigo-100 to-purple-100', label: 'Gradient' },
-];
-
-// Inline Edit Component for quick updates
-const InlineEdit: React.FC<{
-  value: number;
-  onSave: (value: number) => Promise<void>;
-  prefix?: string;
-  suffix?: string;
-  type?: string;
-  step?: string;
-}> = ({ value, onSave, prefix = '', suffix = '', type = 'number', step = '1' }) => {
-  const [editing, setEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(value.toString());
-  const inputRef = React.useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setLocalValue(value.toString());
-  }, [value]);
-
-  useEffect(() => {
-    if (editing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [editing]);
-
-  const handleSave = async () => {
-    const numValue = parseFloat(localValue) || 0;
-    if (numValue !== value) {
-      await onSave(numValue);
-    }
-    setEditing(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setLocalValue(value.toString());
-      setEditing(false);
-    }
-  };
-
-  if (editing) {
-    return (
-      <Input
-        ref={inputRef}
-        type={type}
-        step={step}
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={handleKeyDown}
-        className="h-7 w-20 text-right text-sm"
-      />
-    );
-  }
-
-  return (
-    <button
-      onClick={() => setEditing(true)}
-      className="px-2 py-1 rounded hover:bg-muted transition-colors text-sm font-medium"
-    >
-      {prefix}{value.toLocaleString()}{suffix}
-    </button>
-  );
-};
+import { RankTable, DISCOUNT_TYPES, ICON_OPTIONS, COLOR_OPTIONS, BG_COLOR_OPTIONS, Rank } from './rank';
 
 const AdminRankManager: React.FC = () => {
   const [ranks, setRanks] = useState<Rank[]>([]);
@@ -153,461 +26,93 @@ const AdminRankManager: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingRank, setEditingRank] = useState<Rank | null>(null);
   const [formData, setFormData] = useState<Partial<Rank>>({
-    name: '',
-    min_balance: 0,
-    discount_percent: 0,
-    color: 'text-gray-500',
-    bg_color: 'bg-gray-100',
-    icon: '🏅',
-    discount_type: 'percentage',
-    reseller_discount_percent: 0,
-    is_active: true,
+    name: '', min_balance: 0, discount_percent: 0, color: 'text-gray-500',
+    bg_color: 'bg-gray-100', icon: '🏅', discount_type: 'percentage',
+    reseller_discount_percent: 0, is_active: true,
   });
 
   const loadRanks = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('ranks')
-      .select('*')
-      .order('sort_order', { ascending: true });
-
-    if (error) {
-      toast.error('Failed to load ranks');
-      console.error(error);
-    } else {
-      setRanks(data || []);
-    }
+    const { data, error } = await supabase.from('ranks').select('*').order('sort_order', { ascending: true });
+    if (error) { toast.error('Failed to load ranks'); } else { setRanks(data || []); }
     setLoading(false);
   };
 
-  useEffect(() => {
-    loadRanks();
-  }, []);
+  useEffect(() => { loadRanks(); }, []);
 
-  // Quick inline update for min_balance and discount_percent
   const handleQuickUpdate = async (rankId: string, field: 'min_balance' | 'discount_percent', value: number) => {
-    const { error } = await supabase
-      .from('ranks')
-      .update({ [field]: value })
-      .eq('id', rankId);
-    
-    if (error) {
-      toast.error('Failed to update');
-      console.error(error);
-      return;
-    }
-    
+    const { error } = await supabase.from('ranks').update({ [field]: value }).eq('id', rankId);
+    if (error) { toast.error('Failed to update'); return; }
     toast.success('Updated!');
     loadRanks();
   };
 
-
   const handleOpenModal = (rank?: Rank) => {
-    if (rank) {
-      setEditingRank(rank);
-      setFormData(rank);
-    } else {
-      setEditingRank(null);
-      setFormData({
-        name: '',
-        min_balance: 0,
-        discount_percent: 0,
-        color: 'text-gray-500',
-        bg_color: 'bg-gray-100',
-        icon: '🏅',
-        discount_type: 'percentage',
-        reseller_discount_percent: 0,
-        is_active: true,
-      });
-    }
+    if (rank) { setEditingRank(rank); setFormData(rank); }
+    else { setEditingRank(null); setFormData({ name: '', min_balance: 0, discount_percent: 0, color: 'text-gray-500', bg_color: 'bg-gray-100', icon: '🏅', discount_type: 'percentage', reseller_discount_percent: 0, is_active: true }); }
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!formData.name) {
-      toast.error('Rank name is required');
-      return;
-    }
-
-    const rankData = {
-      name: formData.name,
-      min_balance: formData.min_balance || 0,
-      discount_percent: formData.discount_percent || 0,
-      color: formData.color || 'text-gray-500',
-      bg_color: formData.bg_color || 'bg-gray-100',
-      icon: formData.icon || '🏅',
-      discount_type: formData.discount_type || 'percentage',
-      reseller_discount_percent: formData.reseller_discount_percent || 0,
-      is_active: formData.is_active ?? true,
-      sort_order: editingRank ? editingRank.sort_order : ranks.length + 1,
-    };
-
-    if (editingRank) {
-      const { error } = await supabase
-        .from('ranks')
-        .update(rankData)
-        .eq('id', editingRank.id);
-
-      if (error) {
-        toast.error('Failed to update rank');
-        console.error(error);
-        return;
-      }
-      toast.success('Rank updated!');
-    } else {
-      const { error } = await supabase.from('ranks').insert(rankData);
-
-      if (error) {
-        toast.error('Failed to create rank');
-        console.error(error);
-        return;
-      }
-      toast.success('Rank created!');
-    }
-
-    setShowModal(false);
-    loadRanks();
+    if (!formData.name) { toast.error('Rank name is required'); return; }
+    const rankData = { name: formData.name, min_balance: formData.min_balance || 0, discount_percent: formData.discount_percent || 0, color: formData.color || 'text-gray-500', bg_color: formData.bg_color || 'bg-gray-100', icon: formData.icon || '🏅', discount_type: formData.discount_type || 'percentage', reseller_discount_percent: formData.reseller_discount_percent || 0, is_active: formData.is_active ?? true, sort_order: editingRank ? editingRank.sort_order : ranks.length + 1 };
+    if (editingRank) { const { error } = await supabase.from('ranks').update(rankData).eq('id', editingRank.id); if (error) { toast.error('Failed to update rank'); return; } toast.success('Rank updated!'); }
+    else { const { error } = await supabase.from('ranks').insert(rankData); if (error) { toast.error('Failed to create rank'); return; } toast.success('Rank created!'); }
+    setShowModal(false); loadRanks();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this rank?')) return;
-
     const { error } = await supabase.from('ranks').delete().eq('id', id);
-
-    if (error) {
-      toast.error('Failed to delete rank');
-      console.error(error);
-      return;
-    }
-    toast.success('Rank deleted!');
-    loadRanks();
+    if (error) { toast.error('Failed to delete rank'); return; }
+    toast.success('Rank deleted!'); loadRanks();
   };
 
   const handleMoveOrder = async (id: string, direction: 'up' | 'down') => {
-    const index = ranks.findIndex(r => r.id === id);
-    if (index === -1) return;
-    
+    const index = ranks.findIndex(r => r.id === id); if (index === -1) return;
     const newIndex = direction === 'up' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= ranks.length) return;
-
-    const swappedRank = ranks[newIndex];
-    const currentRank = ranks[index];
-
     await Promise.all([
-      supabase.from('ranks').update({ sort_order: newIndex + 1 }).eq('id', currentRank.id),
-      supabase.from('ranks').update({ sort_order: index + 1 }).eq('id', swappedRank.id),
+      supabase.from('ranks').update({ sort_order: newIndex + 1 }).eq('id', ranks[index].id),
+      supabase.from('ranks').update({ sort_order: index + 1 }).eq('id', ranks[newIndex].id),
     ]);
-
     loadRanks();
   };
 
   const handleToggleActive = async (id: string, isActive: boolean) => {
-    await supabase.from('ranks').update({ is_active: !isActive }).eq('id', id);
-    loadRanks();
+    await supabase.from('ranks').update({ is_active: !isActive }).eq('id', id); loadRanks();
   };
 
-  const getDiscountDescription = (rank: Rank): string => {
-    switch (rank.discount_type) {
-      case 'percentage':
-        return `${rank.discount_percent}% discount`;
-      case 'reseller':
-        return 'Reseller price';
-      case 'reseller_extra':
-        return `Reseller -${rank.reseller_discount_percent}%`;
-      default:
-        return 'No discount';
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-8">
-        <RefreshCw className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center py-8"><RefreshCw className="w-6 h-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground flex items-center gap-2">
-          <Award className="w-5 h-5 text-primary" />
-          Rank System
-        </h3>
-        <Button size="sm" onClick={() => handleOpenModal()}>
-          <Plus className="w-4 h-4 mr-1" />
-          Add Rank
-        </Button>
+        <h3 className="font-semibold text-foreground flex items-center gap-2"><Award className="w-5 h-5 text-primary" />Rank System</h3>
+        <Button size="sm" onClick={() => handleOpenModal()}><Plus className="w-4 h-4 mr-1" />Add Rank</Button>
       </div>
+      <RankTable ranks={ranks} onQuickUpdate={handleQuickUpdate} onMoveOrder={handleMoveOrder} onToggleActive={handleToggleActive} onEdit={handleOpenModal} onDelete={handleDelete} />
+      {ranks.length === 0 && <p className="text-center text-muted-foreground py-8">No ranks configured. Add your first rank!</p>}
 
-      {/* Quick Edit Table View */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-2 px-1 font-medium text-muted-foreground">Rank</th>
-              <th className="text-right py-2 px-1 font-medium text-muted-foreground">Min Balance</th>
-              <th className="text-right py-2 px-1 font-medium text-muted-foreground">Discount %</th>
-              <th className="text-center py-2 px-1 font-medium text-muted-foreground">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ranks.map((rank, index) => (
-              <motion.tr
-                key={rank.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-                className={`border-b border-border/50 ${!rank.is_active ? 'opacity-50' : ''}`}
-              >
-                <td className="py-2 px-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{rank.icon}</span>
-                    <span className={`font-medium ${rank.color}`}>{rank.name}</span>
-                    {!rank.is_active && (
-                      <span className="text-[10px] px-1 py-0.5 bg-muted rounded">Off</span>
-                    )}
-                  </div>
-                </td>
-                <td className="py-2 px-1 text-right">
-                  <InlineEdit
-                    value={rank.min_balance}
-                    onSave={(val) => handleQuickUpdate(rank.id, 'min_balance', val)}
-                    prefix="₹"
-                    type="number"
-                  />
-                </td>
-                <td className="py-2 px-1 text-right">
-                  <InlineEdit
-                    value={rank.discount_percent}
-                    onSave={(val) => handleQuickUpdate(rank.id, 'discount_percent', val)}
-                    suffix="%"
-                    type="number"
-                    step="0.1"
-                  />
-                </td>
-                <td className="py-2 px-1">
-                  <div className="flex items-center justify-center gap-0.5">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => handleMoveOrder(rank.id, 'up')}
-                      disabled={index === 0}
-                    >
-                      <ChevronUp className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-6 w-6"
-                      onClick={() => handleMoveOrder(rank.id, 'down')}
-                      disabled={index === ranks.length - 1}
-                    >
-                      <ChevronDown className="w-3 h-3" />
-                    </Button>
-                    <Switch
-                      checked={rank.is_active}
-                      onCheckedChange={() => handleToggleActive(rank.id, rank.is_active)}
-                      className="scale-75"
-                    />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="h-6 w-6"
-                      onClick={() => handleOpenModal(rank)}
-                    >
-                      <Edit className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      className="h-6 w-6"
-                      onClick={() => handleDelete(rank.id)}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </td>
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {ranks.length === 0 && (
-        <p className="text-center text-muted-foreground py-8">
-          No ranks configured. Add your first rank!
-        </p>
-      )}
-
-      {/* Rank Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingRank ? 'Edit Rank' : 'Add New Rank'}</DialogTitle>
-          </DialogHeader>
-          
+          <DialogHeader><DialogTitle>{editingRank ? 'Edit Rank' : 'Add New Rank'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Rank Name *</label>
-                <Input
-                  placeholder="e.g., Gold"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Min Balance (₹) *</label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={formData.min_balance || ''}
-                  onChange={(e) => setFormData({ ...formData, min_balance: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">Rank Name *</label><Input placeholder="e.g., Gold" value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} /></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">Min Balance (₹) *</label><Input type="number" placeholder="0" value={formData.min_balance || ''} onChange={(e) => setFormData({ ...formData, min_balance: parseFloat(e.target.value) || 0 })} /></div>
             </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Icon</label>
-              <div className="flex flex-wrap gap-2">
-                {ICON_OPTIONS.map((icon) => (
-                  <button
-                    key={icon}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, icon })}
-                    className={`text-xl p-2 rounded-lg transition-all ${
-                      formData.icon === icon 
-                        ? 'bg-primary/20 ring-2 ring-primary' 
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}
-                  >
-                    {icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Discount Type *</label>
-              <Select 
-                value={formData.discount_type || 'percentage'} 
-                onValueChange={(value: 'percentage' | 'reseller' | 'reseller_extra') => 
-                  setFormData({ ...formData, discount_type: value })
-                }
-              >
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DISCOUNT_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {formData.discount_type === 'percentage' && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Discount Percentage (%)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="0"
-                  value={formData.discount_percent || ''}
-                  onChange={(e) => setFormData({ ...formData, discount_percent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            )}
-
-            {formData.discount_type === 'reseller_extra' && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Extra Discount on Reseller (%)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="0.5"
-                  value={formData.reseller_discount_percent || ''}
-                  onChange={(e) => setFormData({ ...formData, reseller_discount_percent: parseFloat(e.target.value) || 0 })}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  This will give reseller price minus {formData.reseller_discount_percent || 0}%
-                </p>
-              </div>
-            )}
-
+            <div><label className="text-xs text-muted-foreground mb-1 block">Icon</label><div className="flex flex-wrap gap-2">{ICON_OPTIONS.map((icon) => (<button key={icon} type="button" onClick={() => setFormData({ ...formData, icon })} className={`text-xl p-2 rounded-lg transition-all ${formData.icon === icon ? 'bg-primary/20 ring-2 ring-primary' : 'bg-muted hover:bg-muted/80'}`}>{icon}</button>))}</div></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">Discount Type *</label><Select value={formData.discount_type || 'percentage'} onValueChange={(value) => setFormData({ ...formData, discount_type: value })}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{DISCOUNT_TYPES.map((type) => (<SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>))}</SelectContent></Select></div>
+            {formData.discount_type === 'percentage' && <div><label className="text-xs text-muted-foreground mb-1 block">Discount Percentage (%)</label><Input type="number" step="0.1" placeholder="0" value={formData.discount_percent || ''} onChange={(e) => setFormData({ ...formData, discount_percent: parseFloat(e.target.value) || 0 })} /></div>}
+            {formData.discount_type === 'reseller_extra' && <div><label className="text-xs text-muted-foreground mb-1 block">Extra Discount on Reseller (%)</label><Input type="number" step="0.1" placeholder="0.5" value={formData.reseller_discount_percent || ''} onChange={(e) => setFormData({ ...formData, reseller_discount_percent: parseFloat(e.target.value) || 0 })} /><p className="text-xs text-muted-foreground mt-1">This will give reseller price minus {formData.reseller_discount_percent || 0}%</p></div>}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Text Color</label>
-                <Select 
-                  value={formData.color || 'text-gray-500'} 
-                  onValueChange={(value) => setFormData({ ...formData, color: value })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COLOR_OPTIONS.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>
-                        <span className={color.value}>{color.label}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Background Color</label>
-                <Select 
-                  value={formData.bg_color || 'bg-gray-100'} 
-                  onValueChange={(value) => setFormData({ ...formData, bg_color: value })}
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BG_COLOR_OPTIONS.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>{color.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">Text Color</label><Select value={formData.color || 'text-gray-500'} onValueChange={(value) => setFormData({ ...formData, color: value })}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{COLOR_OPTIONS.map((color) => (<SelectItem key={color.value} value={color.value}><span className={color.value}>{color.label}</span></SelectItem>))}</SelectContent></Select></div>
+              <div><label className="text-xs text-muted-foreground mb-1 block">Background Color</label><Select value={formData.bg_color || 'bg-gray-100'} onValueChange={(value) => setFormData({ ...formData, bg_color: value })}><SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{BG_COLOR_OPTIONS.map((color) => (<SelectItem key={color.value} value={color.value}>{color.label}</SelectItem>))}</SelectContent></Select></div>
             </div>
-
-            <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
-              <span className="text-sm font-medium">Active</span>
-              <Switch
-                checked={formData.is_active ?? true}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-              />
-            </div>
-
-            {/* Preview */}
-            <div className="p-4 border border-border rounded-xl">
-              <p className="text-xs text-muted-foreground mb-2">Preview</p>
-              <div className={`flex items-center gap-3 p-3 rounded-xl ${formData.bg_color || 'bg-gray-100'}`}>
-                <span className="text-2xl">{formData.icon || '🏅'}</span>
-                <div>
-                  <p className={`font-semibold ${formData.color || 'text-gray-500'}`}>
-                    {formData.name || 'Rank Name'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Min: ₹{(formData.min_balance || 0).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>
-                <X className="w-4 h-4 mr-1" />
-                Cancel
-              </Button>
-              <Button className="flex-1 btn-gradient" onClick={handleSave}>
-                <Save className="w-4 h-4 mr-1" />
-                {editingRank ? 'Update' : 'Create'}
-              </Button>
-            </div>
+            <div className="flex items-center justify-between p-3 bg-muted rounded-xl"><span className="text-sm font-medium">Active</span><Switch checked={formData.is_active ?? true} onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })} /></div>
+            <div className="p-4 border border-border rounded-xl"><p className="text-xs text-muted-foreground mb-2">Preview</p><div className={`flex items-center gap-3 p-3 rounded-xl ${formData.bg_color || 'bg-gray-100'}`}><span className="text-2xl">{formData.icon || '🏅'}</span><div><p className={`font-semibold ${formData.color || 'text-gray-500'}`}>{formData.name || 'Rank Name'}</p><p className="text-xs text-muted-foreground">Min: ₹{(formData.min_balance || 0).toLocaleString()}</p></div></div></div>
+            <div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}><X className="w-4 h-4 mr-1" />Cancel</Button><Button className="flex-1 btn-gradient" onClick={handleSave}><Save className="w-4 h-4 mr-1" />{editingRank ? 'Update' : 'Create'}</Button></div>
           </div>
         </DialogContent>
       </Dialog>
