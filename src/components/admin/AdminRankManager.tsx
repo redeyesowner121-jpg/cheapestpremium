@@ -81,6 +81,72 @@ const BG_COLOR_OPTIONS = [
   { value: 'bg-gradient-to-r from-indigo-100 to-purple-100', label: 'Gradient' },
 ];
 
+// Inline Edit Component for quick updates
+const InlineEdit: React.FC<{
+  value: number;
+  onSave: (value: number) => Promise<void>;
+  prefix?: string;
+  suffix?: string;
+  type?: string;
+  step?: string;
+}> = ({ value, onSave, prefix = '', suffix = '', type = 'number', step = '1' }) => {
+  const [editing, setEditing] = useState(false);
+  const [localValue, setLocalValue] = useState(value.toString());
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalValue(value.toString());
+  }, [value]);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  const handleSave = async () => {
+    const numValue = parseFloat(localValue) || 0;
+    if (numValue !== value) {
+      await onSave(numValue);
+    }
+    setEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setLocalValue(value.toString());
+      setEditing(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <Input
+        ref={inputRef}
+        type={type}
+        step={step}
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className="h-7 w-20 text-right text-sm"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="px-2 py-1 rounded hover:bg-muted transition-colors text-sm font-medium"
+    >
+      {prefix}{value.toLocaleString()}{suffix}
+    </button>
+  );
+};
+
 const AdminRankManager: React.FC = () => {
   const [ranks, setRanks] = useState<Rank[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +183,24 @@ const AdminRankManager: React.FC = () => {
   useEffect(() => {
     loadRanks();
   }, []);
+
+  // Quick inline update for min_balance and discount_percent
+  const handleQuickUpdate = async (rankId: string, field: 'min_balance' | 'discount_percent', value: number) => {
+    const { error } = await supabase
+      .from('ranks')
+      .update({ [field]: value })
+      .eq('id', rankId);
+    
+    if (error) {
+      toast.error('Failed to update');
+      console.error(error);
+      return;
+    }
+    
+    toast.success('Updated!');
+    loadRanks();
+  };
+
 
   const handleOpenModal = (rank?: Rank) => {
     if (rank) {
@@ -256,77 +340,106 @@ const AdminRankManager: React.FC = () => {
         </Button>
       </div>
 
-      <div className="space-y-2">
-        {ranks.map((rank, index) => (
-          <motion.div
-            key={rank.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className={`flex items-center gap-3 p-3 rounded-xl ${rank.bg_color} ${!rank.is_active ? 'opacity-50' : ''}`}
-          >
-            <span className="text-2xl">{rank.icon}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className={`font-semibold ${rank.color}`}>{rank.name}</p>
-                {!rank.is_active && (
-                  <span className="text-xs px-1.5 py-0.5 bg-muted rounded">Inactive</span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Min: ₹{rank.min_balance.toLocaleString()} • {getDiscountDescription(rank)}
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                onClick={() => handleMoveOrder(rank.id, 'up')}
-                disabled={index === 0}
+      {/* Quick Edit Table View */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-2 px-1 font-medium text-muted-foreground">Rank</th>
+              <th className="text-right py-2 px-1 font-medium text-muted-foreground">Min Balance</th>
+              <th className="text-right py-2 px-1 font-medium text-muted-foreground">Discount %</th>
+              <th className="text-center py-2 px-1 font-medium text-muted-foreground">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranks.map((rank, index) => (
+              <motion.tr
+                key={rank.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className={`border-b border-border/50 ${!rank.is_active ? 'opacity-50' : ''}`}
               >
-                <ChevronUp className="w-4 h-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                onClick={() => handleMoveOrder(rank.id, 'down')}
-                disabled={index === ranks.length - 1}
-              >
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-              <Switch
-                checked={rank.is_active}
-                onCheckedChange={() => handleToggleActive(rank.id, rank.is_active)}
-              />
-              <Button
-                size="icon"
-                variant="outline"
-                className="h-7 w-7"
-                onClick={() => handleOpenModal(rank)}
-              >
-                <Edit className="w-3 h-3" />
-              </Button>
-              <Button
-                size="icon"
-                variant="destructive"
-                className="h-7 w-7"
-                onClick={() => handleDelete(rank.id)}
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </div>
-          </motion.div>
-        ))}
-
-        {ranks.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">
-            No ranks configured. Add your first rank!
-          </p>
-        )}
+                <td className="py-2 px-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{rank.icon}</span>
+                    <span className={`font-medium ${rank.color}`}>{rank.name}</span>
+                    {!rank.is_active && (
+                      <span className="text-[10px] px-1 py-0.5 bg-muted rounded">Off</span>
+                    )}
+                  </div>
+                </td>
+                <td className="py-2 px-1 text-right">
+                  <InlineEdit
+                    value={rank.min_balance}
+                    onSave={(val) => handleQuickUpdate(rank.id, 'min_balance', val)}
+                    prefix="₹"
+                    type="number"
+                  />
+                </td>
+                <td className="py-2 px-1 text-right">
+                  <InlineEdit
+                    value={rank.discount_percent}
+                    onSave={(val) => handleQuickUpdate(rank.id, 'discount_percent', val)}
+                    suffix="%"
+                    type="number"
+                    step="0.1"
+                  />
+                </td>
+                <td className="py-2 px-1">
+                  <div className="flex items-center justify-center gap-0.5">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => handleMoveOrder(rank.id, 'up')}
+                      disabled={index === 0}
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => handleMoveOrder(rank.id, 'down')}
+                      disabled={index === ranks.length - 1}
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                    <Switch
+                      checked={rank.is_active}
+                      onCheckedChange={() => handleToggleActive(rank.id, rank.is_active)}
+                      className="scale-75"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-6 w-6"
+                      onClick={() => handleOpenModal(rank)}
+                    >
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      className="h-6 w-6"
+                      onClick={() => handleDelete(rank.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </td>
+              </motion.tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {ranks.length === 0 && (
+        <p className="text-center text-muted-foreground py-8">
+          No ranks configured. Add your first rank!
+        </p>
+      )}
 
       {/* Rank Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
