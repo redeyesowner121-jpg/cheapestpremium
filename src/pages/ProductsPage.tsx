@@ -291,8 +291,9 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleShare = (product: Product) => {
+    const appDomain = 'https://cheapestpremium.lovable.app';
+    const shareUrl = `${appDomain}/product/${product.id}`;
     const shareText = `Check out ${product.name} at RKR Premium Store for just ₹${product.price}!`;
-    const shareUrl = `${window.location.origin}/products?id=${product.id}`;
     
     if (navigator.share) {
       navigator.share({

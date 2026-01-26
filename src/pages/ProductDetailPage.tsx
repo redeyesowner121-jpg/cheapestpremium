@@ -133,7 +133,8 @@ const ProductDetailPage: React.FC = () => {
   const totalPrice = currentPrice * quantity;
 
   const handleShare = async () => {
-    const productUrl = `${window.location.origin}/product/${displayProduct?.id}`;
+    const appDomain = 'https://cheapestpremium.lovable.app';
+    const productUrl = `${appDomain}/product/${displayProduct?.id}`;
     const shareData = {
       title: displayProduct?.name,
       text: `Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`,

@@ -16,8 +16,9 @@ const ReferralSection: React.FC<ReferralSectionProps> = ({ referralCode, onCusto
   };
 
   const handleShare = async () => {
+    const appDomain = 'https://cheapestpremium.lovable.app';
+    const shareUrl = `${appDomain}/auth?ref=${referralCode}`;
     const shareText = `Join RKR Premium Store with my referral code ${referralCode} and get bonus!`;
-    const shareUrl = `${window.location.origin}?ref=${referralCode}`;
     
     const shareData = {
       title: 'Join RKR Premium Store',
