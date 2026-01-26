@@ -30,6 +30,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BlueTick from '@/components/BlueTick';
 import { RankBadge } from '@/components/RankBadge';
+import { RankProgressionCard } from '@/components/RankProgressionCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -294,45 +295,6 @@ const ProfilePage: React.FC = () => {
               <span className="text-xs text-primary-foreground/80">Your Rank (ক্লিক করুন)</span>
               <RankBadge rankBalance={profile?.rank_balance || 0} size="md" clickable={true} />
             </div>
-            {(() => {
-              const rankBalance = profile?.rank_balance || 0;
-              const rank = getUserRank(rankBalance);
-              const nextRank = getNextRank(rankBalance);
-              const { progress, remaining } = getProgressToNextRank(rankBalance);
-              const decayAmount = getDecayAmount(rankBalance);
-              
-              return (
-                <>
-                  <div className="flex items-center justify-between text-xs text-primary-foreground/70 mb-1">
-                    <span>Rank Balance: ₹{rankBalance.toLocaleString()}</span>
-                    {rank.discountType === 'percentage' && rank.discount > 0 && <span>{rank.discount}% off</span>}
-                    {rank.discountType === 'reseller' && <span>Reseller Price</span>}
-                    {rank.discountType === 'reseller_extra' && <span>RP +{rank.resellerDiscountPercent}%</span>}
-                  </div>
-                  {nextRank ? (
-                    <>
-                      <div className="w-full bg-white/20 rounded-full h-2 mb-1">
-                        <div 
-                          className="bg-white h-2 rounded-full transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-primary-foreground/70">
-                        ₹{remaining.toLocaleString()} more for {nextRank.icon} {nextRank.name}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-primary-foreground font-medium">🏆 Highest rank!</p>
-                  )}
-                  {decayAmount > 0 && (
-                    <p className="text-xs text-primary-foreground/60 mt-1 flex items-center gap-1">
-                      <TrendingDown className="w-3 h-3" />
-                      Next decay: -₹{decayAmount.toLocaleString()} on {getNextDecayDate().toLocaleDateString()}
-                    </p>
-                  )}
-                </>
-              );
-            })()}
           </div>
           
           {/* Blue Tick Progress */}
@@ -359,6 +321,12 @@ const ProfilePage: React.FC = () => {
             Edit Profile
           </Button>
         </motion.div>
+
+        {/* Rank Progression Card */}
+        <RankProgressionCard 
+          rankBalance={profile?.rank_balance || 0} 
+          className="mt-6"
+        />
 
         {/* Referral Section */}
         <motion.div
