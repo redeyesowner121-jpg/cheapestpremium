@@ -371,23 +371,31 @@ const ProductsPage: React.FC = () => {
               </button>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
-              {methodsProducts.map((product) => (
-                <div
-                  key={product.id}
-                  onClick={() => navigate('/product', { state: { product } })}
-                  className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
-                >
-                  <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
-                  <div className="p-2">
-                    <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-2.5 h-2.5 text-accent fill-accent" />
-                      <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+              {methodsProducts.map((product) => {
+                const productForDetail = {
+                  ...product,
+                  image: product.image_url,
+                  soldCount: product.sold_count || 0,
+                  originalPrice: product.original_price
+                };
+                return (
+                  <div
+                    key={product.id}
+                    onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
+                    className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
+                  >
+                    <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
+                    <div className="p-2">
+                      <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-2.5 h-2.5 text-accent fill-accent" />
+                        <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+                      </div>
+                      <span className="text-primary font-bold text-sm">₹{product.price}</span>
                     </div>
-                    <span className="text-primary font-bold text-sm">₹{product.price}</span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -411,118 +419,146 @@ const ProductsPage: React.FC = () => {
               </button>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
-              {coursesProducts.map((product) => (
-                <div
-                  key={product.id}
-                  onClick={() => navigate('/product', { state: { product } })}
-                  className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
-                >
-                  <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
-                  <div className="p-2">
-                    <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Star className="w-2.5 h-2.5 text-accent fill-accent" />
-                      <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+              {coursesProducts.map((product) => {
+                const productForDetail = {
+                  ...product,
+                  image: product.image_url,
+                  soldCount: product.sold_count || 0,
+                  originalPrice: product.original_price
+                };
+                return (
+                  <div
+                    key={product.id}
+                    onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
+                    className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
+                  >
+                    <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
+                    <div className="p-2">
+                      <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
+                      <div className="flex items-center gap-1 mt-1">
+                        <Star className="w-2.5 h-2.5 text-accent fill-accent" />
+                        <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+                      </div>
+                      <span className="text-primary font-bold text-sm">₹{product.price}</span>
                     </div>
-                    <span className="text-primary font-bold text-sm">₹{product.price}</span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 gap-3">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => navigate('/product', { state: { product } })}
-              className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
-            >
-              <div className="relative">
-                <img
-                  src={product.image_url || 'https://via.placeholder.com/200'}
-                  alt={product.name}
-                  className="w-full h-28 object-cover"
-                  loading="lazy"
-                />
-                {product.original_price && product.original_price > product.price && (
-                  <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
-                    <span className="text-[10px] font-bold text-accent-foreground">
-                      -{Math.round(((product.original_price - product.price) / product.original_price) * 100)}%
-                    </span>
-                  </div>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleShare(product); }}
-                  className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"
-                >
-                  <Share2 className="w-3.5 h-3.5 text-foreground" />
-                </button>
-                {product.price === 0 && (
-                  <div className="absolute bottom-2 left-2 gradient-success px-2 py-0.5 rounded-full">
-                    <span className="text-[10px] font-bold text-success-foreground">FREE</span>
-                  </div>
-                )}
-                {product.access_link && (
-                  <div className="absolute bottom-2 right-2 bg-success/90 px-2 py-0.5 rounded-full">
-                    <span className="text-[10px] font-bold text-success-foreground flex items-center gap-0.5">
-                      <Download className="w-3 h-3" />
-                      Instant
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-3">
-                <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
-                <p className="text-xs text-muted-foreground truncate">{product.description}</p>
-
-                <div className="flex items-center gap-1 mt-1.5">
-                  <Star className="w-3 h-3 text-accent fill-accent" />
-                  <span className="text-xs text-foreground font-medium">{product.rating || 4.5}</span>
-                  <span className="text-xs text-muted-foreground">({product.sold_count || 0})</span>
+          {filteredProducts.map((product) => {
+            // Transform product to match homepage format
+            const productForDetail = {
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              price: product.price,
+              originalPrice: product.original_price,
+              image: product.image_url,
+              image_url: product.image_url,
+              rating: product.rating || 4.5,
+              soldCount: product.sold_count || 0,
+              sold_count: product.sold_count || 0,
+              category: product.category,
+              access_link: product.access_link,
+              reseller_price: product.reseller_price,
+              stock: (product as any).stock
+            };
+            
+            return (
+              <div
+                key={product.id}
+                onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
+                className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
+              >
+                <div className="relative">
+                  <img
+                    src={product.image_url || 'https://via.placeholder.com/200'}
+                    alt={product.name}
+                    className="w-full h-28 object-cover"
+                    loading="lazy"
+                  />
+                  {product.original_price && product.original_price > product.price && (
+                    <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-accent-foreground">
+                        -{Math.round(((product.original_price - product.price) / product.original_price) * 100)}%
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleShare(product); }}
+                    className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-foreground" />
+                  </button>
+                  {product.price === 0 && (
+                    <div className="absolute bottom-2 left-2 gradient-success px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-success-foreground">FREE</span>
+                    </div>
+                  )}
+                  {product.access_link && (
+                    <div className="absolute bottom-2 right-2 bg-success/90 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-bold text-success-foreground flex items-center gap-0.5">
+                        <Download className="w-3 h-3" />
+                        Instant
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-between mt-2">
-                  <div>
-                    {product.price === 0 ? (
-                      <span className="text-success font-bold">Free</span>
-                    ) : (
-                      (() => {
-                        const userRank = getUserRank(profile?.rank_balance || 0);
-                        const isReseller = profile?.is_reseller || false;
-                        const { finalPrice, savings } = calculateFinalPrice(
-                          product.price,
-                          product.reseller_price || null,
-                          userRank,
-                          isReseller
-                        );
-                        const hasRankDiscount = savings > 0;
-                        return (
-                          <>
-                            <span className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100}</span>
-                            {(hasRankDiscount || (product.original_price && product.original_price > product.price)) && (
-                              <span className="text-xs text-muted-foreground line-through ml-1">
-                                ₹{hasRankDiscount ? product.price : product.original_price}
-                              </span>
-                            )}
-                            {hasRankDiscount && (
-                              <div className="flex items-center gap-0.5 mt-0.5">
-                                <Tag className="w-2.5 h-2.5 text-green-600" />
-                                <span className="text-[9px] text-green-600">{userRank.icon}</span>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()
-                    )}
+                <div className="p-3">
+                  <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{product.description}</p>
+
+                  <div className="flex items-center gap-1 mt-1.5">
+                    <Star className="w-3 h-3 text-accent fill-accent" />
+                    <span className="text-xs text-foreground font-medium">{product.rating || 4.5}</span>
+                    <span className="text-xs text-muted-foreground">({product.sold_count || 0})</span>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2">
+                    <div>
+                      {product.price === 0 ? (
+                        <span className="text-success font-bold">Free</span>
+                      ) : (
+                        (() => {
+                          const userRank = getUserRank(profile?.rank_balance || 0);
+                          const isReseller = profile?.is_reseller || false;
+                          const { finalPrice, savings } = calculateFinalPrice(
+                            product.price,
+                            product.reseller_price || null,
+                            userRank,
+                            isReseller
+                          );
+                          const hasRankDiscount = savings > 0;
+                          return (
+                            <>
+                              <span className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100}</span>
+                              {(hasRankDiscount || (product.original_price && product.original_price > product.price)) && (
+                                <span className="text-xs text-muted-foreground line-through ml-1">
+                                  ₹{hasRankDiscount ? product.price : product.original_price}
+                                </span>
+                              )}
+                              {hasRankDiscount && (
+                                <div className="flex items-center gap-0.5 mt-0.5">
+                                  <Tag className="w-2.5 h-2.5 text-green-600" />
+                                  <span className="text-[9px] text-green-600">{userRank.icon}</span>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {filteredProducts.length === 0 && (
