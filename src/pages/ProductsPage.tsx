@@ -437,7 +437,8 @@ const ProductsPage: React.FC = () => {
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform"
+              onClick={() => navigate('/product', { state: { product } })}
+              className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
             >
               <div className="relative">
                 <img
@@ -454,7 +455,7 @@ const ProductsPage: React.FC = () => {
                   </div>
                 )}
                 <button
-                  onClick={() => handleShare(product)}
+                  onClick={(e) => { e.stopPropagation(); handleShare(product); }}
                   className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"
                 >
                   <Share2 className="w-3.5 h-3.5 text-foreground" />
@@ -466,7 +467,7 @@ const ProductsPage: React.FC = () => {
                 )}
                 {product.access_link && (
                   <div className="absolute bottom-2 right-2 bg-success/90 px-2 py-0.5 rounded-full">
-                    <span className="text-[10px] font-bold text-white flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-success-foreground flex items-center gap-0.5">
                       <Download className="w-3 h-3" />
                       Instant
                     </span>
@@ -518,13 +519,6 @@ const ProductsPage: React.FC = () => {
                       })()
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    className="h-7 px-3 text-xs btn-gradient rounded-lg"
-                    onClick={() => handleBuy(product)}
-                  >
-                    {product.price === 0 ? 'Get' : 'Buy'}
-                  </Button>
                 </div>
               </div>
             </div>
