@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Phone, Eye, EyeOff, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ type AuthMode = 'email' | 'phone';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, register, loginWithGoogle, sendPhoneOTP, verifyPhoneOTP, user } = useAuth();
   
   const [isLogin, setIsLogin] = useState(true);
@@ -30,7 +31,16 @@ const AuthPage: React.FC = () => {
     referralCode: '',
   });
 
-  React.useEffect(() => {
+  // Check for referral code in URL and auto-switch to signup mode
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      setFormData(prev => ({ ...prev, referralCode: refCode.toUpperCase() }));
+      setIsLogin(false);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (user) {
       navigate('/');
     }
