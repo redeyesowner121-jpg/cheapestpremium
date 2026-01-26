@@ -133,7 +133,20 @@ const Index: React.FC = () => {
   };
 
   const handleProductClick = (product: any) => {
-    navigate('/product', { state: { product } });
+    // Ensure consistent product format for detail page
+    const productForDetail = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      image_url: product.image,
+      rating: product.rating || 4.5,
+      soldCount: product.soldCount || 0,
+      sold_count: product.soldCount || 0,
+      reseller_price: product.reseller_price
+    };
+    navigate(`/product/${product.id}`, { state: { product: productForDetail } });
   };
 
   if (loading) {
