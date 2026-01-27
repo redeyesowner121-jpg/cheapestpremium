@@ -132,29 +132,40 @@ const ProductDetailPage: React.FC = () => {
   const currentPrice = actualFlashSalePrice || rankDiscountedPrice;
   const totalPrice = currentPrice * quantity;
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/products');
+    }
+  };
+
   const handleShare = async () => {
     const appDomain = 'https://cheapestpremium.lovable.app';
     const productUrl = `${appDomain}/product/${displayProduct?.id}`;
-    const shareData = {
-      title: displayProduct?.name,
-      text: `Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`,
-      url: productUrl,
-    };
+    const shareText = `Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`;
 
-    try {
-      if (navigator.share && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-        toast.success('Link copied to clipboard!');
-      }
-    } catch (error) {
+    // Try native share first (works on mobile)
+    if (navigator.share) {
       try {
-        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
-        toast.success('Link copied to clipboard!');
-      } catch (e) {
-        toast.error('Failed to share');
+        await navigator.share({
+          title: displayProduct?.name,
+          text: shareText,
+          url: productUrl,
+        });
+        return;
+      } catch (error) {
+        // User cancelled or share failed, fall through to clipboard
+        if ((error as Error).name === 'AbortError') return;
       }
+    }
+
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${productUrl}`);
+      toast.success('Link copied to clipboard!');
+    } catch (e) {
+      toast.error('Failed to share');
     }
   };
 
@@ -288,7 +299,7 @@ const ProductDetailPage: React.FC = () => {
       {/* Header */}
       <header className="glass fixed top-0 left-0 right-0 z-50 px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="p-2">
+          <button onClick={handleBack} className="p-2">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-lg font-bold">Product Details</h1>
