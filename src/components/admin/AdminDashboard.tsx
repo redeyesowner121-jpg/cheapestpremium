@@ -115,7 +115,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* Analytics */}
-      <AdminAnalytics orders={data.orders} products={data.products} />
+      <AdminAnalytics orders={data.orders} products={data.products} users={data.users} transactions={data.transactions} />
       <AdminSearchAnalytics />
       
       {/* Quick Actions */}

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import ShareButtons from '@/components/ShareButtons';
 
 interface ReferralSectionProps {
   referralCode: string;
@@ -10,16 +11,16 @@ interface ReferralSectionProps {
 }
 
 const ReferralSection: React.FC<ReferralSectionProps> = ({ referralCode, onCustomize }) => {
+  const appDomain = 'https://cheapestpremium.lovable.app';
+  const shareUrl = `${appDomain}/auth?ref=${referralCode}`;
+  const shareText = `Join RKR Premium Store with my referral code ${referralCode} and get bonus!`;
+
   const handleCopyReferralCode = () => {
     navigator.clipboard.writeText(referralCode || '');
     toast.success('Referral code copied!');
   };
 
   const handleShare = async () => {
-    const appDomain = 'https://cheapestpremium.lovable.app';
-    const shareUrl = `${appDomain}/auth?ref=${referralCode}`;
-    const shareText = `Join RKR Premium Store with my referral code ${referralCode} and get bonus!`;
-    
     const shareData = {
       title: 'Join RKR Premium Store',
       text: shareText,
@@ -69,9 +70,13 @@ const ReferralSection: React.FC<ReferralSectionProps> = ({ referralCode, onCusto
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground mt-2">
-        Earn ₹10 for every friend who signs up using your code!
-      </p>
+      {/* WhatsApp & Telegram Share Buttons */}
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Earn ₹10 for every friend who signs up!
+        </p>
+        <ShareButtons text={shareText} url={shareUrl} size="sm" />
+      </div>
     </motion.div>
   );
 };
