@@ -23,6 +23,7 @@ import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
 import LoginRequiredModal from '@/components/LoginRequiredModal';
 import PriceHistoryChart from '@/components/PriceHistoryChart';
+import ShareButtons from '@/components/ShareButtons';
 import { ProductVariationSelector, ProductFeatures, PurchaseModal } from '@/components/product';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -431,14 +432,11 @@ const ProductDetailPage: React.FC = () => {
       {/* Bottom Action Bar */}
       <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-xl"
-            onClick={handleShare}
-          >
-            <Share2 className="w-5 h-5" />
-          </Button>
+          <ShareButtons 
+            text={`Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`}
+            url={`https://cheapestpremium.lovable.app/product/${displayProduct?.id}`}
+            size="sm"
+          />
           <Button
             className={`flex-1 rounded-xl h-12 ${isOutOfStock ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'btn-gradient'}`}
             onClick={handleBuyClick}

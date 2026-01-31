@@ -11,6 +11,7 @@ export interface AdminData {
   tempAdmins: any[];
   categories: { id: string; name: string }[];
   settings: Record<string, string>;
+  transactions: any[];
 }
 
 export interface AdminStats {
@@ -34,7 +35,8 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
     announcements: [],
     tempAdmins: [],
     categories: [],
-    settings: {}
+    settings: {},
+    transactions: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -129,6 +131,12 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
       settingsObj[s.key] = s.value || '';
     });
 
+    // Load transactions for analytics
+    const { data: transactionsData } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
     setData({
       users: usersData || [],
       orders: ordersWithProfiles,
@@ -138,7 +146,8 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
       announcements: announcementsData || [],
       tempAdmins: tempAdminsWithProfiles,
       categories: categoriesData || [],
-      settings: settingsObj
+      settings: settingsObj,
+      transactions: transactionsData || []
     });
 
     setLoading(false);

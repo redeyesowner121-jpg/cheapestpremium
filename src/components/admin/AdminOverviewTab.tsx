@@ -190,7 +190,7 @@ const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({ stats, data }) => {
 
       {/* Analytics Charts */}
       <div className="space-y-6">
-        <AdminAnalytics orders={data.orders} products={data.products} users={data.users} />
+        <AdminAnalytics orders={data.orders} products={data.products} users={data.users} transactions={data.transactions} />
         <AdminSearchAnalytics />
       </div>
     </div>
