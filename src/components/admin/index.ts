@@ -7,3 +7,4 @@ export { default as AdminSettingsTab } from './AdminSettingsTab';
 export { default as AdminOverviewTab } from './AdminOverviewTab';
 export { default as AdminControlTab } from './AdminControlTab';
 export { default as AdminRankManager } from './AdminRankManager';
+export { default as AdminAdvancedFilters } from './AdminAdvancedFilters';

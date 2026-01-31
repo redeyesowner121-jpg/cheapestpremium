@@ -11,6 +11,8 @@ import ProductGrid from '@/components/ProductGrid';
 import CategorySection from '@/components/CategorySection';
 import QuickStats from '@/components/QuickStats';
 import DailyBonusBanner from '@/components/DailyBonusBanner';
+import OnboardingTour from '@/components/OnboardingTour';
+import PersonalizedRecommendations from '@/components/PersonalizedRecommendations';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -174,6 +176,10 @@ const Index: React.FC = () => {
             setShowFlashSaleModal(true);
           }} 
         />
+        
+        {/* Personalized Recommendations */}
+        <PersonalizedRecommendations />
+        
         <CategoryGrid onCategoryClick={() => navigate('/products')} />
         
         {/* Methods Section */}
@@ -220,6 +226,9 @@ const Index: React.FC = () => {
           });
         }}
       />
+
+      {/* Onboarding Tour for New Users */}
+      <OnboardingTour />
 
       <BottomNav />
     </div>
