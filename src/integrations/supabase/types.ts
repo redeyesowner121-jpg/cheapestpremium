@@ -393,6 +393,7 @@ export type Database = {
           admin_note: string | null
           buyer_confirmed: boolean | null
           created_at: string | null
+          discount_applied: number | null
           id: string
           is_withdrawable: boolean | null
           product_id: string | null
@@ -412,6 +413,7 @@ export type Database = {
           admin_note?: string | null
           buyer_confirmed?: boolean | null
           created_at?: string | null
+          discount_applied?: number | null
           id?: string
           is_withdrawable?: boolean | null
           product_id?: string | null
@@ -431,6 +433,7 @@ export type Database = {
           admin_note?: string | null
           buyer_confirmed?: boolean | null
           created_at?: string | null
+          discount_applied?: number | null
           id?: string
           is_withdrawable?: boolean | null
           product_id?: string | null

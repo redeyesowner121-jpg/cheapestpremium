@@ -232,7 +232,8 @@ const ProductDetailPage: React.FC = () => {
         total_price: totalPrice,
         quantity: quantity,
         user_note: userNote + (donationAmount > 0 ? ` [Donation: ₹${donationAmount}]` : ''),
-        status: 'pending'
+        status: 'pending',
+        discount_applied: discount
       });
 
       if (orderError) throw orderError;

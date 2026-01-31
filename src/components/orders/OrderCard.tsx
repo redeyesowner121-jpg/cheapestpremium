@@ -24,6 +24,7 @@ interface Order {
   admin_note?: string;
   seller_id?: string;
   buyer_confirmed?: boolean;
+  discount_applied?: number;
 }
 
 interface OrderCardProps {
