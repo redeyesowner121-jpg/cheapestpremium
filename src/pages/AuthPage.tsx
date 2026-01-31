@@ -5,29 +5,22 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { ConfirmationResult } from 'firebase/auth';
 import appLogo from '@/assets/app-logo.jpg';
-
-type AuthMode = 'email' | 'phone';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, register, loginWithGoogle, sendPhoneOTP, verifyPhoneOTP, user } = useAuth();
+  const { login, register, loginWithGoogle, user } = useAuth();
   
   const [isLogin, setIsLogin] = useState(true);
-  const [authMode, setAuthMode] = useState<AuthMode>('email');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     phone: '',
-    otp: '',
     referralCode: '',
   });
 
@@ -70,39 +63,6 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  const handleSendOTP = async () => {
-    if (!formData.phone) return;
-    setLoading(true);
-    
-    try {
-      const phoneWithCode = formData.phone.startsWith('+') ? formData.phone : `+91${formData.phone}`;
-      const result = await sendPhoneOTP(phoneWithCode, 'recaptcha-container');
-      if (result) {
-        setConfirmationResult(result);
-        setOtpSent(true);
-      }
-    } catch (error) {
-      // Error handled in context
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!confirmationResult) return;
-    setLoading(true);
-    
-    try {
-      await verifyPhoneOTP(confirmationResult, formData.otp, formData.name || 'User');
-      navigate('/');
-    } catch (error) {
-      // Error handled in context
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
@@ -116,9 +76,6 @@ const AuthPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* reCAPTCHA container */}
-      <div id="recaptcha-container"></div>
-      
       {/* Header */}
       <div className="gradient-primary pt-12 pb-20 px-6 text-center">
         <motion.img
@@ -154,213 +111,91 @@ const AuthPage: React.FC = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', damping: 20 }}
       >
-        {/* Auth Mode Toggle */}
-        <div className="flex rounded-xl bg-muted p-1 mb-6">
-          <button
-            type="button"
-            onClick={() => { setAuthMode('email'); setOtpSent(false); }}
-            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
-              authMode === 'email' 
-                ? 'bg-card text-foreground shadow-sm' 
-                : 'text-muted-foreground'
-            }`}
-          >
-            <Mail className="w-4 h-4 inline mr-2" />
-            Email
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAuthMode('phone'); setOtpSent(false); }}
-            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-all ${
-              authMode === 'phone' 
-                ? 'bg-card text-foreground shadow-sm' 
-                : 'text-muted-foreground'
-            }`}
-          >
-            <Phone className="w-4 h-4 inline mr-2" />
-            Phone
-          </button>
-        </div>
-
-        {authMode === 'email' ? (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            {!isLogin && (
-              <>
-                <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Full Name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="pl-12 h-12 rounded-xl bg-muted border-0"
-                    required
-                  />
-                </div>
-
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="tel"
-                    placeholder="Phone Number *"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="pl-12 h-12 rounded-xl bg-muted border-0"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1 ml-1">Required for order delivery</p>
-                </div>
-              </>
-            )}
-
-            <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type="email"
-                placeholder="Email Address"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="pl-12 h-12 rounded-xl bg-muted border-0"
-                required
-              />
-            </div>
-
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="pl-12 pr-12 h-12 rounded-xl bg-muted border-0"
-                required
-                minLength={6}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <Eye className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
-            </div>
-
-            {!isLogin && (
+        <form onSubmit={handleEmailSubmit} className="space-y-4">
+          {!isLogin && (
+            <>
               <div className="relative">
-                <Gift className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="Referral Code (Optional)"
-                  value={formData.referralCode}
-                  onChange={(e) => setFormData({ ...formData, referralCode: e.target.value.toUpperCase() })}
-                  className="pl-12 h-12 rounded-xl bg-muted border-0 uppercase"
+                  placeholder="Full Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="pl-12 h-12 rounded-xl bg-muted border-0"
+                  required
                 />
               </div>
-            )}
 
-            <Button
-              type="submit"
-              className="w-full h-12 btn-gradient rounded-xl font-semibold"
-              disabled={loading}
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="tel"
+                  placeholder="Phone Number (optional)"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="pl-12 h-12 rounded-xl bg-muted border-0"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="relative">
+            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type="email"
+              placeholder="Email Address"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              className="pl-12 h-12 rounded-xl bg-muted border-0"
+              required
+            />
+          </div>
+
+          <div className="relative">
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="pl-12 pr-12 h-12 rounded-xl bg-muted border-0"
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2"
             >
-              {loading ? 'Please wait...' : (isLogin ? 'Login' : 'Create Account')}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOTP} className="space-y-4">
-            {!otpSent ? (
-              <>
-                {!isLogin && (
-                  <div className="relative">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Full Name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="pl-12 h-12 rounded-xl bg-muted border-0"
-                      required
-                    />
-                  </div>
-                )}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5 text-muted-foreground" />
+              ) : (
+                <Eye className="w-5 h-5 text-muted-foreground" />
+              )}
+            </button>
+          </div>
 
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="tel"
-                    placeholder="Phone Number (e.g., 9876543210)"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="pl-12 h-12 rounded-xl bg-muted border-0"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  We'll send an OTP to +91{formData.phone || 'XXXXXXXXXX'}
-                </p>
+          {!isLogin && (
+            <div className="relative">
+              <Gift className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Referral Code (Optional)"
+                value={formData.referralCode}
+                onChange={(e) => setFormData({ ...formData, referralCode: e.target.value.toUpperCase() })}
+                className="pl-12 h-12 rounded-xl bg-muted border-0 uppercase"
+              />
+            </div>
+          )}
 
-                <Button
-                  type="button"
-                  onClick={handleSendOTP}
-                  className="w-full h-12 btn-gradient rounded-xl font-semibold"
-                  disabled={loading || !formData.phone}
-                >
-                  {loading ? 'Sending OTP...' : 'Send OTP'}
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="text-center mb-4">
-                  <p className="text-sm text-muted-foreground">
-                    OTP sent to +91{formData.phone}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setOtpSent(false)}
-                    className="text-primary text-sm font-medium mt-1"
-                  >
-                    Change number
-                  </button>
-                </div>
-
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Enter 6-digit OTP"
-                    value={formData.otp}
-                    onChange={(e) => setFormData({ ...formData, otp: e.target.value })}
-                    className="pl-12 h-12 rounded-xl bg-muted border-0 text-center text-xl tracking-widest"
-                    maxLength={6}
-                    required
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full h-12 btn-gradient rounded-xl font-semibold"
-                  disabled={loading || formData.otp.length !== 6}
-                >
-                  {loading ? 'Verifying...' : 'Verify OTP'}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleSendOTP}
-                  disabled={loading}
-                  className="w-full"
-                >
-                  Resend OTP
-                </Button>
-              </>
-            )}
-          </form>
-        )}
+          <Button
+            type="submit"
+            className="w-full h-12 btn-gradient rounded-xl font-semibold"
+            disabled={loading}
+          >
+            {loading ? 'Please wait...' : (isLogin ? 'Login' : 'Create Account')}
+          </Button>
+        </form>
 
         <div className="my-6 flex items-center gap-4">
           <div className="flex-1 h-px bg-border" />
@@ -400,7 +235,7 @@ const AuthPage: React.FC = () => {
           {isLogin ? "Don't have an account? " : 'Already have an account? '}
           <button
             type="button"
-            onClick={() => { setIsLogin(!isLogin); setOtpSent(false); }}
+            onClick={() => setIsLogin(!isLogin)}
             className="text-primary font-semibold"
           >
             {isLogin ? 'Sign Up' : 'Login'}
