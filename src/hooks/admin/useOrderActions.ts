@@ -69,26 +69,30 @@ export async function handleUpdateOrderStatus(
       type: 'order'
     });
 
-    // If cancelled/refunded, refund money
+    // If cancelled/refunded, refund money ONLY if no discount/coupon was used
     if (status === 'cancelled' || status === 'refunded') {
-      const { data: userProfile } = await supabase
-        .from('profiles')
-        .select('wallet_balance')
-        .eq('id', order.user_id)
-        .single();
+      const hasDiscount = (order.discount_applied || 0) > 0;
       
-      if (userProfile) {
-        await supabase.from('profiles').update({
-          wallet_balance: (userProfile.wallet_balance || 0) + order.total_price
-        }).eq('id', order.user_id);
+      if (!hasDiscount) {
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('wallet_balance')
+          .eq('id', order.user_id)
+          .single();
+        
+        if (userProfile) {
+          await supabase.from('profiles').update({
+            wallet_balance: (userProfile.wallet_balance || 0) + order.total_price
+          }).eq('id', order.user_id);
 
-        await supabase.from('transactions').insert({
-          user_id: order.user_id,
-          type: 'refund',
-          amount: order.total_price,
-          status: 'completed',
-          description: `Order refund - ${order.product_name}`
-        });
+          await supabase.from('transactions').insert({
+            user_id: order.user_id,
+            type: 'refund',
+            amount: order.total_price,
+            status: 'completed',
+            description: `Order refund - ${order.product_name}`
+          });
+        }
       }
     }
   }
