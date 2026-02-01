@@ -593,7 +593,12 @@ const WalletPage: React.FC = () => {
             <div className="w-px h-10 bg-primary-foreground/20" />
             <div className="text-center">
               <p className="text-primary-foreground/60 text-xs">Total Spent</p>
-              <p className="text-primary-foreground font-semibold">₹0.00</p>
+              <p className="text-primary-foreground font-semibold">
+                ₹{transactions
+                  .filter(t => t.type === 'purchase' && t.status === 'completed')
+                  .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+                  .toFixed(2)}
+              </p>
             </div>
           </div>
 

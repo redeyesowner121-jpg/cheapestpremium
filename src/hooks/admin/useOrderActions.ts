@@ -39,6 +39,7 @@ export async function handleUpdateOrderStatus(
   if (order) {
     let notificationTitle = '';
     let notificationMessage = '';
+    const hasDiscount = (order.discount_applied || 0) > 0;
     
     switch (status) {
       case 'completed':
@@ -51,11 +52,15 @@ export async function handleUpdateOrderStatus(
         break;
       case 'cancelled':
         notificationTitle = 'Order Cancelled ❌';
-        notificationMessage = `Your order for ${order.product_name} has been cancelled. Refund added to wallet.`;
+        notificationMessage = hasDiscount 
+          ? `Your order for ${order.product_name} has been cancelled. No refund (coupon/discount was used).`
+          : `Your order for ${order.product_name} has been cancelled. Refund added to wallet.`;
         break;
       case 'refunded':
         notificationTitle = 'Order Refunded 💰';
-        notificationMessage = `Your order for ${order.product_name} has been refunded.`;
+        notificationMessage = hasDiscount
+          ? `Your order for ${order.product_name} has been cancelled. No refund (coupon/discount was used).`
+          : `Your order for ${order.product_name} has been refunded.`;
         break;
       default:
         notificationTitle = 'Order Update';
