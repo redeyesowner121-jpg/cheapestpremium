@@ -71,28 +71,38 @@ const OrdersPage: React.FC = () => {
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order || order.status !== 'pending') return;
+    // Re-fetch fresh order data to prevent race conditions
+    const { data: freshOrder } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+    
+    if (!freshOrder || freshOrder.status !== 'pending') {
+      toast.error('Order status has changed. Please refresh.');
+      loadOrders();
+      return;
+    }
     
     // Check if coupon/discount was used - no refund if discount applied
-    const hasDiscount = (order.discount_applied || 0) > 0;
+    const hasDiscount = (freshOrder.discount_applied || 0) > 0;
     
     try {
       await supabase.from('orders').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', orderId);
       
       // Only refund if no discount/coupon was used
       if (profile && !hasDiscount) {
-        const newBalance = (profile.wallet_balance || 0) + order.total_price;
+        const newBalance = (profile.wallet_balance || 0) + freshOrder.total_price;
         await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user?.id);
-        await supabase.from('transactions').insert({ user_id: user?.id, type: 'refund', amount: order.total_price, status: 'completed', description: `Order cancelled - ${order.product_name}` });
+        await supabase.from('transactions').insert({ user_id: user?.id, type: 'refund', amount: freshOrder.total_price, status: 'completed', description: `Order cancelled - ${freshOrder.product_name}` });
       }
       
-      if (order.seller_id) {
-        const sellerEarnings = order.total_price * 0.90;
-        const { data: sellerProfile } = await supabase.from('profiles').select('pending_balance').eq('id', order.seller_id).single();
-        if (sellerProfile) { await supabase.from('profiles').update({ pending_balance: Math.max(0, (sellerProfile.pending_balance || 0) - sellerEarnings) }).eq('id', order.seller_id); }
-        await supabase.from('transactions').delete().eq('user_id', order.seller_id).eq('type', 'sale_pending').eq('status', 'pending');
-        await supabase.from('notifications').insert({ user_id: order.seller_id, title: 'Order Cancelled', message: `Order for ${order.product_name} was cancelled by the buyer.`, type: 'order' });
+      if (freshOrder.seller_id) {
+        const sellerEarnings = freshOrder.total_price * 0.90;
+        const { data: sellerProfile } = await supabase.from('profiles').select('pending_balance').eq('id', freshOrder.seller_id).single();
+        if (sellerProfile) { await supabase.from('profiles').update({ pending_balance: Math.max(0, (sellerProfile.pending_balance || 0) - sellerEarnings) }).eq('id', freshOrder.seller_id); }
+        await supabase.from('transactions').delete().eq('user_id', freshOrder.seller_id).eq('type', 'sale_pending').eq('status', 'pending');
+        await supabase.from('notifications').insert({ user_id: freshOrder.seller_id, title: 'Order Cancelled', message: `Order for ${freshOrder.product_name} was cancelled by the buyer.`, type: 'order' });
       }
       
       const message = hasDiscount 

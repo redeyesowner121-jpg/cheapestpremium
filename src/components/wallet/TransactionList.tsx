@@ -96,8 +96,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
                 </p>
               </div>
               <div className="text-right">
-                <p className={`font-bold ${txn.amount >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {txn.amount >= 0 ? '+' : ''}₹{Math.abs(txn.amount)}
+                <p className={`font-bold ${['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? 'text-destructive' : 'text-success'}`}>
+                  {['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount)}
                 </p>
                 <div className="flex items-center justify-end gap-1">
                   {getStatusIcon(txn.status)}
