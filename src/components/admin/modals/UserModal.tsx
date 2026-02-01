@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, MessageCircle, Gift, Shield } from 'lucide-react';
+import { Award, MessageCircle, Gift, Shield, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -34,6 +34,7 @@ const UserModal: React.FC<UserModalProps> = ({
   const navigate = useNavigate();
   const [giftAmount, setGiftAmount] = React.useState('');
   const [rankBalanceInput, setRankBalanceInput] = React.useState('');
+  const [walletBalanceInput, setWalletBalanceInput] = React.useState('');
 
   const handleGiftBlueTick = async (userId: string) => {
     const { error } = await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
@@ -84,6 +85,30 @@ const UserModal: React.FC<UserModalProps> = ({
     await supabase.from('profiles').update({ is_reseller: checked }).eq('id', user.id);
     toast.success(checked ? 'User is now a Reseller!' : 'Reseller status removed');
     setUser({ ...user, is_reseller: checked });
+    onRefresh();
+  };
+
+  const handleUpdateWalletBalance = async () => {
+    if (!user || !walletBalanceInput) return;
+    const newBalance = parseFloat(walletBalanceInput);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast.error('Invalid balance amount');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ wallet_balance: newBalance })
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Failed to update wallet balance');
+      return;
+    }
+
+    toast.success(`Wallet balance updated to ₹${newBalance}`);
+    setWalletBalanceInput('');
+    setUser({ ...user, wallet_balance: newBalance });
     onRefresh();
   };
 
@@ -185,6 +210,26 @@ const UserModal: React.FC<UserModalProps> = ({
             <p><strong>Referred By:</strong> {user.referred_by || 'None'}</p>
             <p><strong>Joined:</strong> {new Date(user.created_at).toLocaleDateString()}</p>
             <p><strong>Rank Balance:</strong> ₹{user.rank_balance || 0}</p>
+          </div>
+
+          {/* Admin Wallet Balance Edit */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 rounded-xl p-3 space-y-2">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-green-600" />
+              Edit Wallet Balance
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder={`Current: ₹${user.wallet_balance || 0}`}
+                value={walletBalanceInput}
+                onChange={(e) => setWalletBalanceInput(e.target.value)}
+                className="flex-1"
+              />
+              <Button onClick={handleUpdateWalletBalance} size="sm" className="bg-green-600 hover:bg-green-700">
+                Set
+              </Button>
+            </div>
           </div>
 
           {/* Admin Rank Balance Update */}
