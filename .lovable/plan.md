@@ -1,180 +1,247 @@
 
+# Wallet, Transactions, Purchase ও Refund সিস্টেমের সমস্যা এবং সমাধান
 
-# Implementation Plan: Smart User Interaction and Advanced Search/Filtering
-
-## Overview
-This plan covers two major feature sets:
-1. **Smart User Interaction** - Onboarding tour for new users + personalized product recommendations
-2. **Advanced Search and Filtering** - Enhanced search for both users and admin panel
+আমি কোডবেস পুঙ্খানুপুঙ্খভাবে বিশ্লেষণ করেছি এবং নিম্নলিখিত গুরুত্বপূর্ণ সমস্যাগুলি খুঁজে পেয়েছি:
 
 ---
 
-## Part 1: Smart User Interaction
+## সমস্যা #1: Transaction Amount এ অসঙ্গতি (Critical Bug)
 
-### 1.1 User Onboarding Tour
+### সমস্যা:
+তিনটি ভিন্ন জায়গায় purchase transaction তৈরি হচ্ছে ভিন্ন ভিন্ন ফর্ম্যাটে:
 
-**What it does:**
-- Shows new users a guided tour of the app's key features
-- Appears only once (on first login)
-- Highlights: Home, Products, Wallet, Orders, Profile sections
+| Location | Amount Format | সমস্যা |
+|----------|--------------|--------|
+| `ProductDetailPage.tsx` (Line 242-248) | `amount: finalTotal` (positive) | ✗ ভুল - ব্যালেন্স কাটা হচ্ছে কিন্তু positive amount |
+| `ProductsPage.tsx` (Line 267-273) | `amount: -totalPrice` (negative) | ✓ সঠিক |
+| Database query results | Mixed: `0.00`, `29.00`, `15.00`, `69.00` | অসঙ্গতি |
 
-**Components to create:**
-- `src/components/OnboardingTour.tsx` - Main tour modal with step-by-step guide
-- Uses localStorage to track if tour was shown
+**Database থেকে প্রমাণ:**
+```
+Purchase: YouTube Premium - amount: 0.00 (ভুল!)
+Purchase: Netflix Premium 1 Month - amount: 69.00 (positive, অসঙ্গত)
+Order refund - YouTube Premium - amount: 29.00 (positive, সঠিক)
+```
 
-**Tour Steps:**
-1. Welcome message with user's name
-2. Browse Products section
-3. Wallet - Add money and track balance
-4. Orders - View purchase history
-5. Profile - Manage settings and referrals
+### সমাধান:
+`ProductDetailPage.tsx` এ purchase transaction amount নেগেটিভ হওয়া উচিত:
+```typescript
+// Before (ভুল)
+amount: finalTotal
 
-### 1.2 Personalized Product Recommendations
-
-**What it does:**
-- Analyzes user's order history to suggest similar products
-- Shows "Products you might like" section on homepage
-- Falls back to popular products for new users
-
-**Database considerations:**
-- Uses existing `orders` table to find user's purchase categories
-- Uses existing `products` table to find similar products
-
-**Components to create:**
-- `src/components/PersonalizedRecommendations.tsx` - Smart product suggestions
+// After (সঠিক)
+amount: -finalTotal
+```
 
 ---
 
-## Part 2: Advanced Search and Filtering
+## সমস্যা #2: Admin Order Modal এ Refund Logic এ Discount Check নেই (Critical Bug)
 
-### 2.1 User-Facing Product Search (Enhanced)
+### সমস্যা:
+`OrderModal.tsx` এ admin যখন order cancel করে, তখন discount check করা হচ্ছে না। কিন্তু `useOrderActions.ts` এ সঠিকভাবে check আছে।
 
-**Current state:** Basic text search + category filter exists in ProductsPage
+**OrderModal.tsx (Line 95-118):**
+```typescript
+// If cancelled/rejected, refund
+if (status === 'cancelled' || status === 'refunded') {
+  // ❌ hasDiscount check নেই - সবাইকে refund দিচ্ছে!
+  const { data: userProfile } = await supabase...
+  await supabase.from('profiles').update({
+    wallet_balance: userProfile.wallet_balance + currentOrder.total_price
+  })...
+}
+```
 
-**Enhancements:**
-- Add price range slider
-- Add stock availability filter (In Stock, Instant Delivery)
-- Add sort options (Newest, Popular, Price Low-High, Price High-Low)
-- Show helpful search prompt when results are empty
+**useOrderActions.ts (Line 72-96) - সঠিক:**
+```typescript
+if (status === 'cancelled' || status === 'refunded') {
+  const hasDiscount = (order.discount_applied || 0) > 0;
+  if (!hasDiscount) {  // ✓ সঠিক check আছে
+    // refund করা হচ্ছে
+  }
+}
+```
 
-**Note:** `ProductSearchFilters.tsx` already exists with these features - needs integration
-
-### 2.2 Admin Orders Advanced Search
-
-**Current state:** Only status filter exists
-
-**Enhancements:**
-- Text search by order ID, product name, user name/email
-- Date range filter
-- Price range filter
-- Sort by date, amount
-
-**File to update:** `src/components/admin/AdminOrdersTab.tsx`
-
-### 2.3 Admin Products Advanced Search
-
-**Current state:** Only category filter exists
-
-**Enhancements:**
-- Text search by product name
-- Filter by stock level (Low Stock, Out of Stock, In Stock)
-- Filter by price range
-- Sort by price, date, sales count
-
-**File to update:** `src/components/admin/AdminProductsTab.tsx`
+### সমাধান:
+`OrderModal.tsx` এ `hasDiscount` check যোগ করতে হবে এবং discount applied থাকলে notification message পরিবর্তন করতে হবে।
 
 ---
 
-## Technical Details
+## সমস্যা #3: Admin Cancel করলে Notification এ ভুল Message
 
-### New Files to Create
+### সমস্যা:
+Admin panel থেকে order cancel করলে notification সবসময় বলছে "Refund added to wallet" - এমনকি যখন discount ব্যবহার করা হয়েছে এবং refund দেওয়া হয়নি।
 
-| File | Purpose |
-|------|---------|
-| `src/components/OnboardingTour.tsx` | Guided tour modal for new users |
-| `src/components/PersonalizedRecommendations.tsx` | AI-powered product suggestions |
-| `src/components/admin/AdminAdvancedFilters.tsx` | Reusable filter component for admin |
+**OrderModal.tsx (Line 75-77):**
+```typescript
+case 'cancelled':
+  notificationTitle = 'Order Cancelled ❌';
+  notificationMessage = `...has been cancelled. Refund added to wallet.`;
+  // ❌ সবসময় "Refund added" বলছে
+```
 
-### Files to Modify
+### সমাধান:
+Notification message এ condition যোগ করতে হবে - discount থাকলে ভিন্ন message দেখাবে।
+
+---
+
+## সমস্যা #4: Purchase Transaction এ Discount Record হচ্ছে না
+
+### সমস্যা:
+যখন user coupon ব্যবহার করে purchase করে, transaction description এ discount amount দেখা যাচ্ছে না।
+
+**ProductDetailPage.tsx (Line 242-248):**
+```typescript
+await supabase.from('transactions').insert({
+  user_id: user.id,
+  type: 'purchase',
+  amount: finalTotal,
+  description: `Purchase: ${productName}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
+  // ❌ discount info নেই
+});
+```
+
+### সমাধান:
+Description এ discount amount যোগ করতে হবে।
+
+---
+
+## সমস্যা #5: Duplicate Refund সম্ভব
+
+### সমস্যা:
+`OrdersPage.tsx` এবং `OrderModal.tsx`/`useOrderActions.ts` দুটোই independently refund করতে পারে। যদি admin এবং user একই সময়ে cancel করে, duplicate refund হতে পারে।
+
+### সমাধান:
+Order status check করার আগে fresh data fetch করা উচিত এবং optimistic concurrency control যোগ করা উচিত।
+
+---
+
+## সমস্যা #6: Transaction Amount Display Logic অসঙ্গত
+
+### সমস্যা:
+`WalletPage.tsx` এ purchase amount positive রাখা হচ্ছে কিন্তু `ProductsPage.tsx` এ negative। Display logic শুধু sign check করছে:
+
+```typescript
+// Line 704
+<p className={`font-bold ${txn.amount >= 0 ? 'text-success' : 'text-destructive'}`}>
+  {txn.amount >= 0 ? '+' : ''}₹{Math.abs(txn.amount)}
+</p>
+```
+
+এর মানে purchase দেখাচ্ছে green (+) sign এ যখন টাকা কাটা হয়েছে!
+
+---
+
+## Implementation Plan
+
+### ধাপ ১: ProductDetailPage.tsx ঠিক করা
+- Purchase transaction amount negative করা
+- Description এ discount info যোগ করা
+
+### ধাপ ২: OrderModal.tsx ঠিক করা
+- `hasDiscount` check যোগ করা
+- Notification message সঠিক করা
+- Order status re-check করা before refund
+
+### ধাপ ৩: Transaction Display উন্নত করা
+- Type-based display logic যোগ করা
+- Purchase সবসময় red (টাকা কাটা)
+- Deposit/Refund সবসময় green (টাকা যোগ)
+
+### ধাপ ৪: Race Condition Prevention
+- Optimistic lock যোগ করা order update এ
+
+---
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/Index.tsx` | Add onboarding trigger + recommendations section |
-| `src/pages/ProductsPage.tsx` | Integrate advanced filters |
-| `src/components/admin/AdminOrdersTab.tsx` | Add search, date filter, sort |
-| `src/components/admin/AdminProductsTab.tsx` | Add stock filter, search, sort |
-| `src/components/admin/AdminUsersTab.tsx` | Add filter by deposit, orders count |
-
-### Onboarding Tour Implementation
-
-```text
-+----------------------------------+
-|     Welcome to RKR Premium!      |
-|                                  |
-|  [Step indicator: 1 of 5]        |
-|                                  |
-|  "Hey [Name], let me show you    |
-|   around our premium store!"     |
-|                                  |
-|  [Skip]              [Next ->]   |
-+----------------------------------+
-```
-
-### Personalized Recommendations Logic
-
-```text
-1. Fetch user's recent orders
-2. Extract categories from orders
-3. Find products in same categories (not already purchased)
-4. If no orders, show top-selling products
-5. Display as horizontal scroll section
-```
-
-### Admin Search Filter Layout
-
-```text
-+--------------------------------------------+
-| Search: [________________] [Filter Icon]   |
-+--------------------------------------------+
-| Status: All | Pending | Processing | Done  |
-| Date:   [Start Date] - [End Date]          |
-| Price:  ₹[Min] - ₹[Max]                    |
-| Sort:   Newest | Amount ↑ | Amount ↓       |
-+--------------------------------------------+
-```
+| `src/pages/ProductDetailPage.tsx` | Fix transaction amount sign, add discount to description |
+| `src/components/admin/modals/OrderModal.tsx` | Add hasDiscount check, fix notification messages |
+| `src/pages/WalletPage.tsx` | Fix transaction display based on type |
+| `src/components/wallet/TransactionList.tsx` | Fix transaction display based on type |
+| `src/pages/OrdersPage.tsx` | Add order status re-check before cancel |
 
 ---
 
-## Implementation Sequence
+## Technical Implementation Details
 
-1. Create OnboardingTour component
-2. Create PersonalizedRecommendations component
-3. Integrate both in Index.tsx
-4. Enhance AdminOrdersTab with advanced filters
-5. Enhance AdminProductsTab with stock/price filters
-6. Enhance AdminUsersTab with additional filters
-7. Test all features
+### Fix 1: ProductDetailPage.tsx Transaction Amount
 
----
+```typescript
+// Line 242-248 - Change from:
+await supabase.from('transactions').insert({
+  user_id: user.id,
+  type: 'purchase',
+  amount: finalTotal,  // ❌ positive
+  status: 'completed',
+  description: `Purchase: ${productName}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
+});
 
-## User Experience Flow
+// Change to:
+await supabase.from('transactions').insert({
+  user_id: user.id,
+  type: 'purchase',
+  amount: -finalTotal,  // ✓ negative (money deducted)
+  status: 'completed',
+  description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
+});
+```
 
-**New User Journey:**
-1. User signs up/logs in for first time
-2. Onboarding tour modal appears
-3. User can skip or go through 5 steps
-4. Tour completion saved to localStorage
-5. Homepage shows personalized welcome
+### Fix 2: OrderModal.tsx Discount Check
 
-**Returning User Journey:**
-1. User logs in
-2. "Based on your purchases" section appears
-3. Shows products similar to what they've bought
-4. Easy access to advanced filters on Products page
+```typescript
+// Before refund (around line 95):
+if (status === 'cancelled' || status === 'refunded') {
+  if (currentOrder) {
+    const hasDiscount = (currentOrder.discount_applied || 0) > 0;
+    
+    if (!hasDiscount) {
+      // Process refund
+      const { data: userProfile } = await supabase...
+      // Update balance and create transaction
+    }
+    
+    // Update notification message based on hasDiscount
+  }
+}
+```
 
-**Admin Journey:**
-1. Admin opens Orders tab
-2. Sees search bar + filter pills
-3. Can filter by date range, search by user
-4. Quick access to specific order types
+### Fix 3: Transaction Display Logic
 
+```typescript
+// Instead of checking amount sign, check transaction type
+const getAmountDisplay = (txn: Transaction) => {
+  const isDebit = ['purchase', 'withdraw', 'transfer_out'].includes(txn.type);
+  const displayAmount = Math.abs(txn.amount);
+  return {
+    color: isDebit ? 'text-destructive' : 'text-success',
+    prefix: isDebit ? '-' : '+',
+    amount: displayAmount
+  };
+};
+```
+
+### Fix 4: Race Condition Prevention
+
+```typescript
+// Before cancelling, re-fetch order status
+const handleCancelOrder = async (orderId: string) => {
+  // Fetch fresh order data
+  const { data: freshOrder } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .single();
+  
+  if (!freshOrder || freshOrder.status !== 'pending') {
+    toast.error('Order status has changed. Please refresh.');
+    loadOrders();
+    return;
+  }
+  
+  // Proceed with cancellation
+  ...
+};
+```
