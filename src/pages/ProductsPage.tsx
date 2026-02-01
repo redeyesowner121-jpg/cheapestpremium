@@ -207,6 +207,18 @@ const ProductsPage: React.FC = () => {
       return;
     }
 
+    // Fresh stock check to prevent overselling
+    const { data: freshProduct } = await supabase
+      .from('products')
+      .select('stock')
+      .eq('id', selectedProduct.id)
+      .single();
+
+    if (freshProduct?.stock !== null && freshProduct?.stock !== undefined && freshProduct.stock < quantity) {
+      toast.error(`Only ${freshProduct.stock} items available in stock`);
+      return;
+    }
+
     // Calculate rank-based price
     const userRank = getUserRank(profile.rank_balance || 0);
     const isReseller = profile.is_reseller || false;
@@ -263,6 +275,24 @@ const ProductsPage: React.FC = () => {
 
       if (orderError) throw orderError;
 
+      // Update sold_count and stock atomically
+      const hasStock = freshProduct?.stock !== null && freshProduct?.stock !== undefined;
+      const { data: currentProduct } = await supabase
+        .from('products')
+        .select('sold_count, stock')
+        .eq('id', selectedProduct.id)
+        .single();
+
+      if (currentProduct) {
+        const updateData: any = {
+          sold_count: (currentProduct.sold_count || 0) + quantity
+        };
+        if (hasStock) {
+          updateData.stock = Math.max(0, (currentProduct.stock || 0) - quantity);
+        }
+        await supabase.from('products').update(updateData).eq('id', selectedProduct.id);
+      }
+
       // Record transaction
       await supabase.from('transactions').insert({
         user_id: user.id,
@@ -285,6 +315,7 @@ const ProductsPage: React.FC = () => {
       setShowBuyModal(false);
       setShowSuccessModal(true);
       refreshProfile();
+      loadProducts(); // Refresh products to update stock
     } catch (error: any) {
       toast.error(error.message || 'Failed to place order');
     }

@@ -168,28 +168,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         referred_by: referralCode
       }).eq('id', data.user.id);
 
-      // Handle referral bonus
-      if (referralCode) {
-        const { data: referrer } = await supabase
-          .from('profiles')
-          .select('id, wallet_balance')
-          .eq('referral_code', referralCode)
-          .maybeSingle();
-        
-        if (referrer) {
-          await supabase.from('profiles').update({
-            wallet_balance: (referrer.wallet_balance || 0) + 10
-          }).eq('id', referrer.id);
-
-          await supabase.from('transactions').insert({
-            user_id: referrer.id,
-            type: 'referral',
-            amount: 10,
-            status: 'completed',
-            description: 'Referral bonus'
-          });
-        }
-      }
+      // Note: Referral bonus is now handled on first deposit in razorpay-verify
+      // This prevents double bonus - users must deposit to trigger referral reward
     }
     
     toast.success('Account created successfully!');

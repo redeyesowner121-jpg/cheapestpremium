@@ -40,6 +40,7 @@ interface Order {
   status: string;
   created_at: string;
   user_id?: string;
+  discount_applied?: number;
 }
 
 interface Product {
@@ -49,6 +50,7 @@ interface Product {
   sold_count: number;
   category: string;
   stock?: number | null;
+  original_price?: number;
 }
 
 interface User {
@@ -348,6 +350,10 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products, users
     // Unique customers
     const uniqueCustomers = new Set(orders.map(o => o.user_id)).size;
     
+    // Calculate total savings/discounts given to users
+    const totalDiscountsGiven = orders.reduce((sum, o) => sum + (o.discount_applied || 0), 0);
+    const ordersWithDiscount = orders.filter(o => (o.discount_applied || 0) > 0).length;
+
     return { 
       totalRevenue, 
       monthlyRevenue, 
@@ -355,6 +361,8 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products, users
       growthPercent,
       todayRevenue,
       todayOrders: todayOrders.length,
+      totalDiscountsGiven,
+      ordersWithDiscount,
       avgOrderValue,
       conversionRate,
       uniqueCustomers,
@@ -543,6 +551,25 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products, users
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">
             {revenueStats.uniqueCustomers} customers
+          </p>
+        </motion.div>
+
+        {/* Total Savings/Discounts Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gradient-to-br from-pink-500/20 to-pink-500/5 rounded-2xl p-4 relative overflow-hidden col-span-2 md:col-span-1"
+        >
+          <div className="absolute top-2 right-2 p-1.5 rounded-full bg-pink-500/10">
+            <Award className="w-4 h-4 text-pink-500" />
+          </div>
+          <p className="text-xs text-muted-foreground mb-1">Total Savings Given</p>
+          <p className="text-xl font-bold text-foreground">
+            ₹{revenueStats.totalDiscountsGiven?.toLocaleString() || 0}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {revenueStats.ordersWithDiscount || 0} orders with discounts
           </p>
         </motion.div>
       </div>
