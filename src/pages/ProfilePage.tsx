@@ -50,7 +50,12 @@ const ProfilePage: React.FC = () => {
   const handleClaimDailyBonus = async () => {
     if (!user || !profile) return;
     
-    const today = new Date().toISOString().split('T')[0];
+    // Use IST timezone for Indian users (UTC+5:30)
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+    const istDate = new Date(now.getTime() + istOffset);
+    const today = istDate.toISOString().split('T')[0];
+    
     if (profile.last_daily_bonus === today) {
       toast.error('You have already claimed your daily bonus today!');
       return;
@@ -87,7 +92,11 @@ const ProfilePage: React.FC = () => {
 
   const canClaimDailyBonus = () => {
     if (!profile?.last_daily_bonus) return true;
-    const today = new Date().toISOString().split('T')[0];
+    // Use IST timezone for Indian users
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffset);
+    const today = istDate.toISOString().split('T')[0];
     return profile.last_daily_bonus !== today;
   };
 
