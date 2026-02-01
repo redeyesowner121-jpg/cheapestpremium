@@ -38,7 +38,24 @@ const OrderModal: React.FC<OrderModalProps> = ({
   }, [order]);
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const currentOrder = orders.find(o => o.id === orderId);
+    // Re-fetch fresh order data to prevent race conditions
+    const { data: freshOrder } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+    
+    if (!freshOrder) {
+      toast.error('Order not found');
+      return;
+    }
+    
+    // Check if order status has already changed
+    if ((status === 'cancelled' || status === 'refunded') && freshOrder.status !== 'pending' && freshOrder.status !== 'processing') {
+      toast.error('Order status has already been updated. Please refresh.');
+      onRefresh();
+      return;
+    }
     
     const updateData: any = { 
       status, 
@@ -57,61 +74,66 @@ const OrderModal: React.FC<OrderModalProps> = ({
       return;
     }
 
-    // Send notification to user
-    if (currentOrder) {
-      let notificationTitle = '';
-      let notificationMessage = '';
-      
-      switch (status) {
-        case 'completed':
-          notificationTitle = 'Order Completed! ✅';
-          notificationMessage = `Your order for ${currentOrder.product_name} has been completed.`;
-          break;
-        case 'processing':
-          notificationTitle = 'Order Processing 🔄';
-          notificationMessage = `Your order for ${currentOrder.product_name} is being processed.`;
-          break;
-        case 'cancelled':
-          notificationTitle = 'Order Cancelled ❌';
-          notificationMessage = `Your order for ${currentOrder.product_name} has been cancelled. Refund added to wallet.`;
-          break;
-        case 'refunded':
-          notificationTitle = 'Order Refunded 💰';
-          notificationMessage = `Your order for ${currentOrder.product_name} has been refunded.`;
-          break;
-        default:
-          notificationTitle = 'Order Update';
-          notificationMessage = `Your order for ${currentOrder.product_name} status: ${status}`;
-      }
+    // Check if discount/coupon was used
+    const hasDiscount = (freshOrder.discount_applied || 0) > 0;
 
-      await supabase.from('notifications').insert({
-        user_id: currentOrder.user_id,
-        title: notificationTitle,
-        message: notificationMessage,
-        type: 'order'
-      });
+    // Send notification to user
+    let notificationTitle = '';
+    let notificationMessage = '';
+    
+    switch (status) {
+      case 'completed':
+        notificationTitle = 'Order Completed! ✅';
+        notificationMessage = `Your order for ${freshOrder.product_name} has been completed.`;
+        break;
+      case 'processing':
+        notificationTitle = 'Order Processing 🔄';
+        notificationMessage = `Your order for ${freshOrder.product_name} is being processed.`;
+        break;
+      case 'cancelled':
+        notificationTitle = 'Order Cancelled ❌';
+        notificationMessage = hasDiscount 
+          ? `Your order for ${freshOrder.product_name} has been cancelled. No refund (coupon/discount was used).`
+          : `Your order for ${freshOrder.product_name} has been cancelled. Refund added to wallet.`;
+        break;
+      case 'refunded':
+        notificationTitle = 'Order Refunded 💰';
+        notificationMessage = hasDiscount
+          ? `Your order for ${freshOrder.product_name} has been cancelled. No refund (coupon/discount was used).`
+          : `Your order for ${freshOrder.product_name} has been refunded.`;
+        break;
+      default:
+        notificationTitle = 'Order Update';
+        notificationMessage = `Your order for ${freshOrder.product_name} status: ${status}`;
     }
 
-    // If cancelled/rejected, refund
+    await supabase.from('notifications').insert({
+      user_id: freshOrder.user_id,
+      title: notificationTitle,
+      message: notificationMessage,
+      type: 'order'
+    });
+
+    // If cancelled/refunded, refund ONLY if no discount/coupon was used
     if (status === 'cancelled' || status === 'refunded') {
-      if (currentOrder) {
+      if (!hasDiscount) {
         const { data: userProfile } = await supabase
           .from('profiles')
           .select('wallet_balance')
-          .eq('id', currentOrder.user_id)
+          .eq('id', freshOrder.user_id)
           .single();
         
         if (userProfile) {
           await supabase.from('profiles').update({
-            wallet_balance: (userProfile.wallet_balance || 0) + currentOrder.total_price
-          }).eq('id', currentOrder.user_id);
+            wallet_balance: (userProfile.wallet_balance || 0) + freshOrder.total_price
+          }).eq('id', freshOrder.user_id);
 
           await supabase.from('transactions').insert({
-            user_id: currentOrder.user_id,
+            user_id: freshOrder.user_id,
             type: 'refund',
-            amount: currentOrder.total_price,
+            amount: freshOrder.total_price,
             status: 'completed',
-            description: `Order refund - ${currentOrder.product_name}`
+            description: `Order refund - ${freshOrder.product_name}`
           });
         }
       }

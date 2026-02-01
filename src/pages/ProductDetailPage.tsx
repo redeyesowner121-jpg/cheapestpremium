@@ -242,9 +242,9 @@ const ProductDetailPage: React.FC = () => {
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'purchase',
-        amount: finalTotal,
+        amount: -finalTotal,
         status: 'completed',
-        description: `Purchase: ${productName}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
+        description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
       });
 
       await supabase.from('notifications').insert({
