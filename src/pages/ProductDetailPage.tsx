@@ -178,7 +178,7 @@ const ProductDetailPage: React.FC = () => {
     setShowPurchaseModal(true);
   };
 
-  const handleBuy = async (donationAmount: number = 0, discount: number = 0) => {
+  const handleBuy = async (donationAmount: number = 0, discount: number = 0, appliedCouponId?: string) => {
     if (!user || !profile) {
       setShowLoginModal(true);
       return;
@@ -246,6 +246,26 @@ const ProductDetailPage: React.FC = () => {
         status: 'completed',
         description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
       });
+
+      // Increment coupon used_count if coupon was applied
+      if (appliedCouponId) {
+        await supabase.from('coupons')
+          .update({ used_count: supabase.rpc ? undefined : undefined })
+          .eq('id', appliedCouponId);
+        
+        // Use raw SQL increment through update
+        const { data: couponData } = await supabase
+          .from('coupons')
+          .select('used_count')
+          .eq('id', appliedCouponId)
+          .single();
+        
+        if (couponData) {
+          await supabase.from('coupons')
+            .update({ used_count: (couponData.used_count || 0) + 1 })
+            .eq('id', appliedCouponId);
+        }
+      }
 
       await supabase.from('notifications').insert({
         user_id: user.id,

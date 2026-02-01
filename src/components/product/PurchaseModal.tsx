@@ -32,7 +32,7 @@ interface PurchaseModalProps {
   walletBalance: number;
   totalPrice: number;
   loading: boolean;
-  onBuy: (donationAmount: number, discount?: number) => void;
+  onBuy: (donationAmount: number, discount?: number, appliedCouponId?: string) => void;
   flashSaleId?: string;
 }
 
@@ -180,7 +180,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   const handleBuy = () => {
-    onBuy(donation, discountAmount);
+    onBuy(donation, discountAmount, appliedCoupon?.id);
   };
 
   return (

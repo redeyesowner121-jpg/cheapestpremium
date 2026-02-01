@@ -999,6 +999,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_coupon_used_count: {
+        Args: { coupon_id: string }
+        Returns: undefined
+      }
+      increment_product_sold_count: {
+        Args: { has_stock?: boolean; product_id: string; qty: number }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {

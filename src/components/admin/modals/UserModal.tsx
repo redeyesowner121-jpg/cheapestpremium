@@ -96,6 +96,9 @@ const UserModal: React.FC<UserModalProps> = ({
       return;
     }
 
+    const oldBalance = user.wallet_balance || 0;
+    const difference = newBalance - oldBalance;
+
     const { error } = await supabase
       .from('profiles')
       .update({ wallet_balance: newBalance })
@@ -104,6 +107,17 @@ const UserModal: React.FC<UserModalProps> = ({
     if (error) {
       toast.error('Failed to update wallet balance');
       return;
+    }
+
+    // Log the balance change as a transaction for audit trail
+    if (difference !== 0) {
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: difference > 0 ? 'admin_credit' : 'admin_debit',
+        amount: difference,
+        status: 'completed',
+        description: `Admin balance adjustment: ₹${oldBalance} → ₹${newBalance}`
+      });
     }
 
     toast.success(`Wallet balance updated to ₹${newBalance}`);
