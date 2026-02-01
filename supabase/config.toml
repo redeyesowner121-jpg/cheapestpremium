@@ -1,7 +1,1 @@
-project_id = "aeiqhaqwudhhdfsvnnja"
-
-[functions.razorpay-order]
-verify_jwt = false
-
-[functions.razorpay-verify]
-verify_jwt = false
+project_id = "flzrrcroyockcrcqzele"
