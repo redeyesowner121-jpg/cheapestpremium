@@ -50,12 +50,18 @@ const UserModal: React.FC<UserModalProps> = ({
   const handleGiftMoney = async () => {
     if (!user || !giftAmount) return;
     const amount = parseFloat(giftAmount);
-    if (isNaN(amount) || amount <= 0) {
+    if (isNaN(amount) || amount === 0) {
       toast.error('Invalid amount');
       return;
     }
 
     const newBalance = (user.wallet_balance || 0) + amount;
+    
+    // Prevent balance from going negative
+    if (newBalance < 0) {
+      toast.error(`Cannot deduct more than current balance (₹${user.wallet_balance || 0})`);
+      return;
+    }
     
     const { error: updateError } = await supabase
       .from('profiles')
@@ -63,19 +69,26 @@ const UserModal: React.FC<UserModalProps> = ({
       .eq('id', user.id);
     
     if (updateError) {
-      toast.error('Failed to gift money');
+      toast.error('Failed to update balance');
       return;
     }
 
+    // For transaction record, store positive amount with appropriate type
+    const isDeduction = amount < 0;
     await supabase.from('transactions').insert({
       user_id: user.id,
-      type: 'gift',
-      amount,
+      type: isDeduction ? 'gift_deduct' : 'gift',
+      amount: Math.abs(amount),
       status: 'completed',
-      description: `Admin gift - Rs${amount}`
+      description: isDeduction 
+        ? `Admin deducted - ₹${Math.abs(amount)}` 
+        : `Admin gift - ₹${amount}`
     });
 
-    toast.success(`Rs${amount} gifted to ${user.name}`);
+    toast.success(isDeduction 
+      ? `₹${Math.abs(amount)} deducted from ${user.name}` 
+      : `₹${amount} gifted to ${user.name}`
+    );
     setGiftAmount('');
     onOpenChange(false);
     onRefresh();
