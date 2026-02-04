@@ -7,12 +7,14 @@ import {
   AlertCircle,
   Download,
   Flag,
-  ThumbsUp
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface Order {
   id: string;
+  product_id?: string;
   product_name: string;
   product_image: string;
   unit_price: number;
@@ -76,8 +78,15 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onCancelOrder,
   onReport,
 }) => {
+  const navigate = useNavigate();
   const isSellerOrder = !!order.seller_id;
   const needsConfirmation = isSellerOrder && order.status === 'completed' && order.access_link && !order.buyer_confirmed;
+  
+  const handleReorder = () => {
+    if (order.product_id) {
+      navigate(`/product/${order.product_id}`);
+    }
+  };
 
   return (
     <motion.div
@@ -119,7 +128,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4 flex-wrap">
           {order.access_link && (
             <Button
               size="sm"
@@ -163,6 +172,19 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 Cancel
               </Button>
             </>
+          )}
+          
+          {/* Reorder Button - Always visible for completed orders */}
+          {order.product_id && (order.status === 'completed' || order.status === 'cancelled' || order.status === 'refunded') && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 rounded-xl border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+              onClick={handleReorder}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reorder
+            </Button>
           )}
         </div>
       </div>
