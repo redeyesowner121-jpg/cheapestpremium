@@ -19,12 +19,18 @@ export async function handleGiftMoney(
   amount: number, 
   onComplete: () => void
 ) {
-  if (isNaN(amount) || amount <= 0) {
+  if (isNaN(amount) || amount === 0) {
     toast.error('Invalid amount');
     return false;
   }
 
   const newBalance = currentBalance + amount;
+  
+  // Prevent balance from going negative
+  if (newBalance < 0) {
+    toast.error(`Cannot deduct more than current balance (₹${currentBalance})`);
+    return false;
+  }
   
   const { error: updateError } = await supabase
     .from('profiles')
@@ -32,19 +38,26 @@ export async function handleGiftMoney(
     .eq('id', userId);
   
   if (updateError) {
-    toast.error('Failed to gift money');
+    toast.error('Failed to update balance');
     return false;
   }
 
+  // For transaction record, store positive amount with appropriate type
+  const isDeduction = amount < 0;
   await supabase.from('transactions').insert({
     user_id: userId,
-    type: 'gift',
-    amount,
+    type: isDeduction ? 'gift_deduct' : 'gift',
+    amount: Math.abs(amount),
     status: 'completed',
-    description: `Admin gift - Rs${amount}`
+    description: isDeduction 
+      ? `Admin deducted - ₹${Math.abs(amount)}` 
+      : `Admin gift - ₹${amount}`
   });
 
-  toast.success(`Rs${amount} gifted to ${userName}`);
+  toast.success(isDeduction 
+    ? `₹${Math.abs(amount)} deducted from ${userName}` 
+    : `₹${amount} gifted to ${userName}`
+  );
   onComplete();
   return true;
 }
