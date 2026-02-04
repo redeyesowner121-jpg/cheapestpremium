@@ -247,24 +247,9 @@ const ProductDetailPage: React.FC = () => {
         description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
       });
 
-      // Increment coupon used_count if coupon was applied
+      // Increment coupon used_count atomically if coupon was applied
       if (appliedCouponId) {
-        await supabase.from('coupons')
-          .update({ used_count: supabase.rpc ? undefined : undefined })
-          .eq('id', appliedCouponId);
-        
-        // Use raw SQL increment through update
-        const { data: couponData } = await supabase
-          .from('coupons')
-          .select('used_count')
-          .eq('id', appliedCouponId)
-          .single();
-        
-        if (couponData) {
-          await supabase.from('coupons')
-            .update({ used_count: (couponData.used_count || 0) + 1 })
-            .eq('id', appliedCouponId);
-        }
+        await supabase.rpc('increment_coupon_used_count', { coupon_id: appliedCouponId });
       }
 
       await supabase.from('notifications').insert({
@@ -274,18 +259,13 @@ const ProductDetailPage: React.FC = () => {
         type: 'order'
       });
 
-      const updateData: { sold_count: number; stock?: number } = {
-        sold_count: (displayProduct.sold_count || 0) + quantity
-      };
-      
-      if (currentStock !== null) {
-        updateData.stock = currentStock - quantity;
-      }
-
-      await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', displayProduct.id);
+      // Use atomic increment for sold_count and stock update
+      const hasStock = currentStock !== null;
+      await supabase.rpc('increment_product_sold_count', { 
+        product_id: displayProduct.id, 
+        qty: quantity,
+        has_stock: hasStock
+      });
 
       if (currentStock !== null) {
         setCurrentStock(currentStock - quantity);
