@@ -275,23 +275,13 @@ const ProductsPage: React.FC = () => {
 
       if (orderError) throw orderError;
 
-      // Update sold_count and stock atomically
+      // Use atomic increment for sold_count and stock update
       const hasStock = freshProduct?.stock !== null && freshProduct?.stock !== undefined;
-      const { data: currentProduct } = await supabase
-        .from('products')
-        .select('sold_count, stock')
-        .eq('id', selectedProduct.id)
-        .single();
-
-      if (currentProduct) {
-        const updateData: any = {
-          sold_count: (currentProduct.sold_count || 0) + quantity
-        };
-        if (hasStock) {
-          updateData.stock = Math.max(0, (currentProduct.stock || 0) - quantity);
-        }
-        await supabase.from('products').update(updateData).eq('id', selectedProduct.id);
-      }
+      await supabase.rpc('increment_product_sold_count', { 
+        product_id: selectedProduct.id, 
+        qty: quantity,
+        has_stock: hasStock
+      });
 
       // Record transaction
       await supabase.from('transactions').insert({

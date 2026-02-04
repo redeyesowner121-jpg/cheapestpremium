@@ -31,13 +31,20 @@
 | 10 | Double Referral Bonus | ✅ Fixed | AuthContext.tsx (removed registration bonus) |
 | 11 | Google Login Duplicate | ✅ Handled by Supabase |
 
-### 🟢 Low Priority - Pending
+### 🟢 Low Priority - FIXED
 
 | # | Bug | স্ট্যাটাস |
 |---|-----|----------|
-| 12 | Old Data cleanup (0.00 amounts) | ⏳ Manual cleanup needed |
-| 13 | See All Button | ⏳ Pending |
-| 14 | Withdraw Button | ⏳ Pending |
+| 12 | Old Data cleanup (0.00 amounts) | ⏳ Historical data - no action needed |
+| 13 | See All Button | ✅ Fixed (navigates to /wallet/transactions) |
+| 14 | Withdraw Button | ✅ Fixed (shows coming soon toast) |
+
+### ✅ Additional Fixes
+| # | Bug | স্ট্যাটাস |
+|---|-----|----------|
+| 15 | Transfer race condition | ✅ Fixed (fresh balance fetch) |
+| 16 | ProductsPage atomic stock | ✅ Fixed (using RPC) |
+| 17 | Coupon increment duplicate | ✅ Fixed (single atomic RPC call) |
 
 ---
 

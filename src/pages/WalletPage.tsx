@@ -370,25 +370,38 @@ const WalletPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Deduct from sender
-      const newSenderBalance = (profile.wallet_balance || 0) - amount;
-      await supabase
-        .from('profiles')
-        .update({ wallet_balance: newSenderBalance })
-        .eq('id', user.id);
+    // Fetch fresh balances to prevent race conditions
+    const { data: senderData } = await supabase
+      .from('profiles')
+      .select('wallet_balance')
+      .eq('id', user.id)
+      .single();
 
-      // Add to receiver
-      const { data: recipientData } = await supabase
-        .from('profiles')
-        .select('wallet_balance')
-        .eq('id', selectedRecipient.id)
-        .single();
+    const { data: recipientData } = await supabase
+      .from('profiles')
+      .select('wallet_balance')
+      .eq('id', selectedRecipient.id)
+      .single();
 
-      const newRecipientBalance = (recipientData?.wallet_balance || 0) + amount;
-      await supabase
-        .from('profiles')
-        .update({ wallet_balance: newRecipientBalance })
-        .eq('id', selectedRecipient.id);
+    if (!senderData || (senderData.wallet_balance || 0) < amount) {
+      toast.error('Insufficient balance');
+      setLoading(false);
+      return;
+    }
+
+    // Deduct from sender
+    const newSenderBalance = (senderData.wallet_balance || 0) - amount;
+    await supabase
+      .from('profiles')
+      .update({ wallet_balance: newSenderBalance })
+      .eq('id', user.id);
+
+    // Add to receiver
+    const newRecipientBalance = (recipientData?.wallet_balance || 0) + amount;
+    await supabase
+      .from('profiles')
+      .update({ wallet_balance: newRecipientBalance })
+      .eq('id', selectedRecipient.id);
 
       // Create transactions for both
       await supabase.from('transactions').insert([
@@ -613,6 +626,7 @@ const WalletPage: React.FC = () => {
             <Button
               variant="outline"
               className="flex-1 h-12 border-white/30 text-primary-foreground hover:bg-white/10 rounded-xl"
+              onClick={() => toast.info('Withdrawal feature coming soon! Contact admin for withdrawals.')}
             >
               <Minus className="w-5 h-5 mr-2" />
               Withdraw
@@ -682,7 +696,12 @@ const WalletPage: React.FC = () => {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-foreground">Recent Transactions</h2>
-            <button className="text-sm text-primary font-medium">See All</button>
+            <button 
+              className="text-sm text-primary font-medium"
+              onClick={() => navigate('/wallet/transactions')}
+            >
+              See All
+            </button>
           </div>
 
           <div className="space-y-3">

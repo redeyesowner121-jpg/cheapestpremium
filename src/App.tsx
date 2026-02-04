@@ -17,6 +17,7 @@ import ProductDetailPage from "./pages/ProductDetailPage";
 import ChatPage from "./pages/ChatPage";
 import UsersPage from "./pages/UsersPage";
 import NotificationHistoryPage from "./pages/NotificationHistoryPage";
+import TransactionsPage from "./pages/TransactionsPage";
 import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 
@@ -55,6 +56,7 @@ const App = () => {
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/wallet/transactions" element={<TransactionsPage />} />
               <Route path="/orders" element={<OrdersPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/profile/edit" element={<ProfileEditPage />} />
