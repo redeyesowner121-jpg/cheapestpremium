@@ -12,6 +12,7 @@ export interface AdminData {
   categories: { id: string; name: string }[];
   settings: Record<string, string>;
   transactions: any[];
+  depositRequests: any[];
 }
 
 export interface AdminStats {
@@ -19,6 +20,7 @@ export interface AdminStats {
   totalDeposits: number;
   totalOrders: number;
   pendingOrders: number;
+  pendingDeposits: number;
   blueTickUsers: number;
   todayOrders: number;
   lowStockProducts: any[];
@@ -36,7 +38,8 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
     tempAdmins: [],
     categories: [],
     settings: {},
-    transactions: []
+    transactions: [],
+    depositRequests: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -137,6 +140,26 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
       .select('*')
       .order('created_at', { ascending: false });
 
+    // Load deposit requests
+    const { data: depositRequestsData } = await supabase
+      .from('manual_deposit_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    let depositRequestsWithProfiles: any[] = [];
+    if (depositRequestsData && depositRequestsData.length > 0) {
+      const userIds = [...new Set(depositRequestsData.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', userIds);
+      
+      depositRequestsWithProfiles = depositRequestsData.map(req => ({
+        ...req,
+        profiles: profiles?.find(p => p.id === req.user_id)
+      }));
+    }
+
     setData({
       users: usersData || [],
       orders: ordersWithProfiles,
@@ -147,7 +170,8 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
       tempAdmins: tempAdminsWithProfiles,
       categories: categoriesData || [],
       settings: settingsObj,
-      transactions: transactionsData || []
+      transactions: transactionsData || [],
+      depositRequests: depositRequestsWithProfiles
     });
 
     setLoading(false);
@@ -165,6 +189,7 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
     totalDeposits: data.users.reduce((sum, u) => sum + (u.total_deposit || 0), 0),
     totalOrders: data.orders.length,
     pendingOrders: data.orders.filter(o => o.status === 'pending').length,
+    pendingDeposits: data.depositRequests.filter(r => r.status === 'pending').length,
     blueTickUsers: data.users.filter(u => u.has_blue_check).length,
     todayOrders: data.orders.filter(o => {
       const orderDate = new Date(o.created_at);
