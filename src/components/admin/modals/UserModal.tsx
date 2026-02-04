@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, MessageCircle, Gift, Shield, Wallet, Minus } from 'lucide-react';
+import { Award, MessageCircle, Gift, Shield, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -33,7 +33,6 @@ const UserModal: React.FC<UserModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [giftAmount, setGiftAmount] = React.useState('');
-  const [deductAmount, setDeductAmount] = React.useState('');
   const [rankBalanceInput, setRankBalanceInput] = React.useState('');
   const [walletBalanceInput, setWalletBalanceInput] = React.useState('');
 
@@ -51,12 +50,18 @@ const UserModal: React.FC<UserModalProps> = ({
   const handleGiftMoney = async () => {
     if (!user || !giftAmount) return;
     const amount = parseFloat(giftAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Invalid amount - must be positive');
+    if (isNaN(amount) || amount === 0) {
+      toast.error('Invalid amount');
       return;
     }
 
     const newBalance = (user.wallet_balance || 0) + amount;
+    
+    // Prevent balance from going negative
+    if (newBalance < 0) {
+      toast.error(`Cannot deduct more than current balance (₹${user.wallet_balance || 0})`);
+      return;
+    }
     
     const { error: updateError } = await supabase
       .from('profiles')
@@ -68,56 +73,22 @@ const UserModal: React.FC<UserModalProps> = ({
       return;
     }
 
+    const isDeduction = amount < 0;
     await supabase.from('transactions').insert({
       user_id: user.id,
-      type: 'gift',
-      amount: amount,
+      type: isDeduction ? 'gift_deduct' : 'gift',
+      amount: Math.abs(amount),
       status: 'completed',
-      description: `Admin gift - ₹${amount}`
+      description: isDeduction 
+        ? `Admin deducted - ₹${Math.abs(amount)}` 
+        : `Admin gift - ₹${amount}`
     });
 
-    toast.success(`₹${amount} gifted to ${user.name}`);
+    toast.success(isDeduction 
+      ? `₹${Math.abs(amount)} deducted from ${user.name}` 
+      : `₹${amount} gifted to ${user.name}`
+    );
     setGiftAmount('');
-    onOpenChange(false);
-    onRefresh();
-  };
-
-  const handleDeductMoney = async () => {
-    if (!user || !deductAmount) return;
-    const amount = parseFloat(deductAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Invalid amount - must be positive');
-      return;
-    }
-
-    const currentBalance = user.wallet_balance || 0;
-    if (amount > currentBalance) {
-      toast.error(`Cannot deduct more than current balance (₹${currentBalance})`);
-      return;
-    }
-
-    const newBalance = currentBalance - amount;
-    
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ wallet_balance: newBalance })
-      .eq('id', user.id);
-    
-    if (updateError) {
-      toast.error('Failed to deduct balance');
-      return;
-    }
-
-    await supabase.from('transactions').insert({
-      user_id: user.id,
-      type: 'gift_deduct',
-      amount: amount,
-      status: 'completed',
-      description: `Admin deducted - ₹${amount}`
-    });
-
-    toast.success(`₹${amount} deducted from ${user.name}`);
-    setDeductAmount('');
     onOpenChange(false);
     onRefresh();
   };
@@ -288,45 +259,26 @@ const UserModal: React.FC<UserModalProps> = ({
             </div>
           </div>
 
-          {/* Gift & Deduct Money - Side by Side */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Gift Money */}
-            <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 rounded-xl p-3 space-y-2">
-              <p className="text-xs font-medium flex items-center gap-1">
-                <Gift className="w-3 h-3 text-emerald-600" />
-                Gift Money
-              </p>
+          {/* Gift/Deduct Money */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 rounded-xl p-3 space-y-2">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <Gift className="w-4 h-4 text-amber-600" />
+              Gift / Deduct Money
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Positive = Add | Negative = Deduct (e.g. -50)
+            </p>
+            <div className="flex gap-2">
               <Input
                 type="number"
-                placeholder="Amount"
+                placeholder="e.g. 100 or -50"
                 value={giftAmount}
                 onChange={(e) => setGiftAmount(e.target.value)}
-                className="text-sm h-8"
-                min="1"
+                className="flex-1"
               />
-              <Button onClick={handleGiftMoney} size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 h-8 text-xs">
-                <Gift className="w-3 h-3 mr-1" />
-                Gift
-              </Button>
-            </div>
-
-            {/* Deduct Money */}
-            <div className="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50 rounded-xl p-3 space-y-2">
-              <p className="text-xs font-medium flex items-center gap-1">
-                <Minus className="w-3 h-3 text-red-600" />
-                Deduct Balance
-              </p>
-              <Input
-                type="number"
-                placeholder="Amount"
-                value={deductAmount}
-                onChange={(e) => setDeductAmount(e.target.value)}
-                className="text-sm h-8"
-                min="1"
-              />
-              <Button onClick={handleDeductMoney} size="sm" variant="destructive" className="w-full h-8 text-xs">
-                <Minus className="w-3 h-3 mr-1" />
-                Deduct
+              <Button onClick={handleGiftMoney} size="sm" className="bg-amber-600 hover:bg-amber-700">
+                <Gift className="w-4 h-4 mr-1" />
+                Apply
               </Button>
             </div>
           </div>
