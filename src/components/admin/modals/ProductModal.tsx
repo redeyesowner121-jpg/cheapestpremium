@@ -339,13 +339,18 @@ const ProductModal: React.FC<ProductModalProps> = ({
             </SelectContent>
           </Select>
           
-          {/* Multi Image Upload */}
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Product Images (up to 5)</label>
+          {/* Multi Image Upload with prominent button */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-foreground">Product Images</label>
+              <span className="text-[10px] text-muted-foreground">{productForm.images.length}/5</span>
+            </div>
             <MultiImageUpload
               values={productForm.images}
               onChange={(urls) => setProductForm({...productForm, images: urls})}
               maxImages={5}
+              bucket="product-images"
+              folder="products"
             />
           </div>
           
