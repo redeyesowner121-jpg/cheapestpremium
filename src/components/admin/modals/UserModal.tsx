@@ -288,6 +288,49 @@ const UserModal: React.FC<UserModalProps> = ({
             </div>
           </div>
 
+          {/* Gift & Deduct Money - Side by Side */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Gift Money */}
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-medium flex items-center gap-1">
+                <Gift className="w-3 h-3 text-emerald-600" />
+                Gift Money
+              </p>
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={giftAmount}
+                onChange={(e) => setGiftAmount(e.target.value)}
+                className="text-sm h-8"
+                min="1"
+              />
+              <Button onClick={handleGiftMoney} size="sm" className="w-full bg-emerald-600 hover:bg-emerald-700 h-8 text-xs">
+                <Gift className="w-3 h-3 mr-1" />
+                Gift
+              </Button>
+            </div>
+
+            {/* Deduct Money */}
+            <div className="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50 rounded-xl p-3 space-y-2">
+              <p className="text-xs font-medium flex items-center gap-1">
+                <Minus className="w-3 h-3 text-red-600" />
+                Deduct Balance
+              </p>
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={deductAmount}
+                onChange={(e) => setDeductAmount(e.target.value)}
+                className="text-sm h-8"
+                min="1"
+              />
+              <Button onClick={handleDeductMoney} size="sm" variant="destructive" className="w-full h-8 text-xs">
+                <Minus className="w-3 h-3 mr-1" />
+                Deduct
+              </Button>
+            </div>
+          </div>
+
           {/* Admin Rank Balance Update */}
           <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/50 rounded-xl p-3 space-y-2">
             <p className="text-sm font-medium flex items-center gap-2">
@@ -332,50 +375,6 @@ const UserModal: React.FC<UserModalProps> = ({
               checked={user.is_reseller || false}
               onCheckedChange={handleToggleReseller}
             />
-          </div>
-
-          {/* Gift Money Section */}
-          <div className="bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/50 dark:to-green-950/50 rounded-xl p-3 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Gift className="w-4 h-4 text-emerald-600" />
-              Gift Money (Add Balance)
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="Enter amount to gift"
-                value={giftAmount}
-                onChange={(e) => setGiftAmount(e.target.value)}
-                className="flex-1"
-                min="1"
-              />
-              <Button onClick={handleGiftMoney} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                <Gift className="w-4 h-4 mr-1" />
-                Gift
-              </Button>
-            </div>
-          </div>
-
-          {/* Deduct Money Section */}
-          <div className="bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-950/50 dark:to-rose-950/50 rounded-xl p-3 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Minus className="w-4 h-4 text-red-600" />
-              Deduct Balance
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="Enter amount to deduct"
-                value={deductAmount}
-                onChange={(e) => setDeductAmount(e.target.value)}
-                className="flex-1"
-                min="1"
-              />
-              <Button onClick={handleDeductMoney} size="sm" variant="destructive">
-                <Minus className="w-4 h-4 mr-1" />
-                Deduct
-              </Button>
-            </div>
           </div>
 
           <Button variant="outline" className="w-full" onClick={handleToggleSeller}>
