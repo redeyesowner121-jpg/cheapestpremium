@@ -4,7 +4,7 @@ import {
   Bell, UserPlus, ShoppingBag, MessageCircle, Settings, 
   Image, CreditCard, Users, Package, Shield, ChevronRight,
   ChevronDown, Search, Plus, Edit, Trash2, Eye, Award,
-  Clock, CheckCircle, XCircle, Zap
+  Clock, CheckCircle, XCircle, Zap, Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminPaymentSettings from '@/components/AdminPaymentSettings';
 import AdminSettingsTab from './AdminSettingsTab';
+import DepositRequestsSection from './DepositRequestsSection';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -37,7 +38,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'users' | 'products' | 'content' | 'payments' | 'chat' | 'settings' | null;
+type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'content' | 'payments' | 'chat' | 'settings' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = ({
   data,
@@ -67,6 +68,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
   const [productSearch, setProductSearch] = useState('');
 
   const pendingOrders = data.orders.filter(o => o.status === 'pending').length;
+  const pendingDeposits = data.depositRequests?.filter(r => r.status === 'pending').length || 0;
 
   const controlSections = [
     { 
@@ -76,6 +78,14 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
       description: `${pendingOrders} pending`,
       color: 'bg-gradient-to-br from-orange-500 to-amber-500',
       badge: pendingOrders > 0 ? pendingOrders : null
+    },
+    { 
+      id: 'deposits' as ControlSection, 
+      icon: Wallet, 
+      label: 'Deposit Requests', 
+      description: `${pendingDeposits} pending`,
+      color: 'bg-gradient-to-br from-emerald-500 to-green-500',
+      badge: pendingDeposits > 0 ? pendingDeposits : null
     },
     { 
       id: 'users' as ControlSection, 
@@ -274,6 +284,14 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                           )}
                         </div>
                       </div>
+                    )}
+
+                    {/* Deposits Section */}
+                    {section.id === 'deposits' && (
+                      <DepositRequestsSection 
+                        depositRequests={data.depositRequests || []}
+                        onDataChange={onDataChange}
+                      />
                     )}
 
                     {/* Users Section */}
