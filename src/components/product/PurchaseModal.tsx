@@ -71,13 +71,20 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   
   const donation = donationEnabled ? Math.max(1, parseFloat(donationAmount) || 0) : 0;
   
-  // Calculate discount
-  const calculateDiscount = () => {
+  // Bulk order discount: 5+ items = 8% off
+  const BULK_THRESHOLD = 5;
+  const BULK_DISCOUNT_PERCENT = 8;
+  const isBulkOrder = quantity >= BULK_THRESHOLD;
+  const bulkDiscountAmount = isBulkOrder ? (totalPrice * BULK_DISCOUNT_PERCENT) / 100 : 0;
+  
+  // Calculate coupon discount (applied after bulk discount)
+  const calculateCouponDiscount = () => {
     if (!appliedCoupon) return 0;
     
+    const priceAfterBulk = totalPrice - bulkDiscountAmount;
     let discount = 0;
     if (appliedCoupon.discount_type === 'percentage') {
-      discount = (totalPrice * appliedCoupon.discount_value) / 100;
+      discount = (priceAfterBulk * appliedCoupon.discount_value) / 100;
       if (appliedCoupon.max_discount && discount > appliedCoupon.max_discount) {
         discount = appliedCoupon.max_discount;
       }
@@ -85,11 +92,12 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
       discount = appliedCoupon.discount_value;
     }
     
-    return Math.min(discount, totalPrice);
+    return Math.min(discount, priceAfterBulk);
   };
   
-  const discountAmount = calculateDiscount();
-  const finalTotal = totalPrice - discountAmount + donation;
+  const couponDiscountAmount = calculateCouponDiscount();
+  const totalDiscountAmount = bulkDiscountAmount + couponDiscountAmount;
+  const finalTotal = totalPrice - totalDiscountAmount + donation;
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) {
@@ -180,7 +188,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   const handleBuy = () => {
-    onBuy(donation, discountAmount, appliedCoupon?.id);
+    onBuy(donation, totalDiscountAmount, appliedCoupon?.id);
   };
 
   return (
@@ -233,6 +241,16 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
             {exceedsStock && (
               <p className="text-xs text-destructive mt-1">
                 Maximum {currentStock} items available
+              </p>
+            )}
+            {isBulkOrder && (
+              <p className="text-xs text-green-600 mt-1 font-medium">
+                🎉 Bulk discount applied: 8% OFF!
+              </p>
+            )}
+            {!isBulkOrder && quantity >= 3 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                💡 Order {BULK_THRESHOLD - quantity} more for 8% bulk discount!
               </p>
             )}
           </div>
@@ -344,10 +362,16 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <span className="text-muted-foreground">Subtotal</span>
               <span>₹{totalPrice}</span>
             </div>
-            {appliedCoupon && discountAmount > 0 && (
+            {isBulkOrder && bulkDiscountAmount > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-green-600">Discount</span>
-                <span className="text-green-600">-₹{discountAmount.toFixed(2)}</span>
+                <span className="text-green-600">Bulk Discount (8%)</span>
+                <span className="text-green-600">-₹{bulkDiscountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            {appliedCoupon && couponDiscountAmount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-green-600">Coupon Discount</span>
+                <span className="text-green-600">-₹{couponDiscountAmount.toFixed(2)}</span>
               </div>
             )}
             {donationEnabled && donation > 0 && (
