@@ -89,7 +89,7 @@ const UserModal: React.FC<UserModalProps> = ({
   };
 
   const handleUpdateWalletBalance = async () => {
-    if (!user || !walletBalanceInput) return;
+    if (!user || walletBalanceInput === '') return;
     const newBalance = parseFloat(walletBalanceInput);
     if (isNaN(newBalance) || newBalance < 0) {
       toast.error('Invalid balance amount');
@@ -110,11 +110,12 @@ const UserModal: React.FC<UserModalProps> = ({
     }
 
     // Log the balance change as a transaction for audit trail
+    // Amount should always be positive, type indicates credit/debit
     if (difference !== 0) {
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: difference > 0 ? 'admin_credit' : 'admin_debit',
-        amount: difference,
+        amount: Math.abs(difference), // Always store positive amount
         status: 'completed',
         description: `Admin balance adjustment: ₹${oldBalance} → ₹${newBalance}`
       });
