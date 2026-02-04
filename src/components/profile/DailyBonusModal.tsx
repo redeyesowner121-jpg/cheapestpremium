@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface DailyBonusModalProps {
   open: boolean;
@@ -23,6 +24,8 @@ const DailyBonusModal: React.FC<DailyBonusModalProps> = ({
   claiming,
   onClaim,
 }) => {
+  const { settings } = useAppSettings();
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl">
@@ -39,7 +42,9 @@ const DailyBonusModal: React.FC<DailyBonusModalProps> = ({
             <>
               <p className="text-muted-foreground">
                 Claim your daily bonus! You can earn between{' '}
-                <span className="font-bold text-success">₹0.10 to ₹0.60</span>
+                <span className="font-bold text-success">
+                  {settings.currency_symbol}{settings.daily_bonus_min.toFixed(2)} to {settings.currency_symbol}{settings.daily_bonus_max.toFixed(2)}
+                </span>
               </p>
               <Button
                 className="w-full btn-gradient rounded-xl h-12"

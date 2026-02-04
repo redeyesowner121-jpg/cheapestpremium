@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface WalletBalanceCardProps {
   walletBalance: number;
@@ -16,6 +17,8 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
   onAddMoney,
   onWithdraw
 }) => {
+  const { settings } = useAppSettings();
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -24,20 +27,20 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
     >
       <p className="text-primary-foreground/80 text-sm">Available Balance</p>
       <h1 className="text-4xl font-bold text-primary-foreground mt-2">
-        ₹{walletBalance?.toFixed(2) || '0.00'}
+        {settings.currency_symbol}{walletBalance?.toFixed(2) || '0.00'}
       </h1>
       
       <div className="flex items-center justify-center gap-6 mt-6">
         <div className="text-center">
           <p className="text-primary-foreground/60 text-xs">Total Deposit</p>
           <p className="text-primary-foreground font-semibold">
-            ₹{totalDeposit?.toFixed(2) || '0.00'}
+            {settings.currency_symbol}{totalDeposit?.toFixed(2) || '0.00'}
           </p>
         </div>
         <div className="w-px h-10 bg-primary-foreground/20" />
         <div className="text-center">
           <p className="text-primary-foreground/60 text-xs">Total Spent</p>
-          <p className="text-primary-foreground font-semibold">₹0.00</p>
+          <p className="text-primary-foreground font-semibold">{settings.currency_symbol}0.00</p>
         </div>
       </div>
 

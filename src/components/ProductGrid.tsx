@@ -2,6 +2,7 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Star, Share2, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 
 interface Product {
@@ -28,15 +29,17 @@ const ProductCard = memo<{
   product: Product;
   userRank: ReturnType<typeof getUserRank>;
   isReseller: boolean;
+  currencySymbol: string;
+  appName: string;
   onProductClick?: (product: Product) => void;
   onBuyClick?: (product: Product) => void;
-}>(({ product, userRank, isReseller, onProductClick, onBuyClick }) => {
+}>(({ product, userRank, isReseller, currencySymbol, appName, onProductClick, onBuyClick }) => {
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     const productUrl = `${window.location.origin}/product/${product.id}`;
     const shareData = {
       title: product.name,
-      text: `Check out ${product.name} at RKR Premium Store! Only ₹${product.price}`,
+      text: `Check out ${product.name} at ${appName}! Only ${currencySymbol}${product.price}`,
       url: productUrl,
     };
 
@@ -49,7 +52,7 @@ const ProductCard = memo<{
     } catch (error) {
       // Silent fail
     }
-  }, [product]);
+  }, [product, appName, currencySymbol]);
 
   const priceInfo = useMemo(() => {
     const { finalPrice, savings } = calculateFinalPrice(
@@ -100,10 +103,10 @@ const ProductCard = memo<{
         
         <div className="flex items-center justify-between mt-2">
           <div>
-            <span className="text-primary font-bold">₹{Math.round(priceInfo.finalPrice * 100) / 100}</span>
+            <span className="text-primary font-bold">{currencySymbol}{Math.round(priceInfo.finalPrice * 100) / 100}</span>
             {(priceInfo.hasRankDiscount || product.originalPrice) && (
               <span className="text-xs text-muted-foreground line-through ml-1">
-                ₹{priceInfo.hasRankDiscount ? product.price : product.originalPrice}
+                {currencySymbol}{priceInfo.hasRankDiscount ? product.price : product.originalPrice}
               </span>
             )}
             {priceInfo.hasRankDiscount && (
@@ -137,6 +140,7 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
   onBuyClick
 }) => {
   const { profile } = useAuth();
+  const { settings } = useAppSettings();
   
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;
@@ -165,6 +169,8 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
             product={product}
             userRank={userRank}
             isReseller={isReseller}
+            currencySymbol={settings.currency_symbol}
+            appName={settings.app_name}
             onProductClick={onProductClick}
             onBuyClick={onBuyClick}
           />
