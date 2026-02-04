@@ -1,300 +1,368 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { ChevronDown, ChevronRight, Settings, Ticket, Gift } from 'lucide-react';
-import AdminCouponManager from './AdminCouponManager';
-import AdminRedeemCodeManager from './AdminRedeemCodeManager';
+import { Button } from '@/components/ui/button';
+import { 
+  ChevronDown, ChevronRight, Settings, Globe, Phone, 
+  CreditCard, Gift, Award, Package, ToggleLeft, Save, Check
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AdminSettingsTabProps {
   settings: Record<string, string>;
   onUpdateSetting: (key: string, value: string) => void;
 }
 
+interface SettingsSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}
+
+const SettingsSection: React.FC<SettingsSectionProps> = ({ 
+  title, 
+  icon, 
+  children,
+  defaultOpen = false 
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/10 rounded-xl text-primary">
+            {icon}
+          </div>
+          <h3 className="font-semibold text-foreground">{title}</h3>
+        </div>
+        <motion.div
+          animate={{ rotate: isOpen ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <ChevronDown className="w-5 h-5 text-muted-foreground" />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="border-t border-border"
+          >
+            <div className="p-4 space-y-4">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+interface SettingItemProps {
+  label: string;
+  description?: string;
+  children: React.ReactNode;
+}
+
+const SettingItem: React.FC<SettingItemProps> = ({ label, description, children }) => (
+  <div className="flex items-center justify-between gap-4 py-2">
+    <div className="flex-1">
+      <p className="text-sm font-medium text-foreground">{label}</p>
+      {description && (
+        <p className="text-xs text-muted-foreground">{description}</p>
+      )}
+    </div>
+    <div className="shrink-0">
+      {children}
+    </div>
+  </div>
+);
+
 const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateSetting }) => {
-  const [showCoupons, setShowCoupons] = useState(false);
-  const [showRedeemCodes, setShowRedeemCodes] = useState(false);
+  const [localSettings, setLocalSettings] = useState<Record<string, string>>(settings);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const updateLocal = (key: string, value: string) => {
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+  };
+
+  const handleSave = (key: string, value: string) => {
+    onUpdateSetting(key, value);
+    toast.success('Setting saved');
+  };
+
+  const handleSaveAll = () => {
+    Object.entries(localSettings).forEach(([key, value]) => {
+      if (settings[key] !== value) {
+        onUpdateSetting(key, value);
+      }
+    });
+    setHasChanges(false);
+    toast.success('All settings saved');
+  };
 
   return (
     <div className="space-y-4">
-      {/* Coupon Section */}
-      <div className="bg-card rounded-2xl shadow-card overflow-hidden">
-        <button
-          onClick={() => setShowCoupons(!showCoupons)}
-          className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+      {/* Save All Button */}
+      {hasChanges && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky top-0 z-10 bg-primary text-primary-foreground rounded-xl p-3 flex items-center justify-between shadow-lg"
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-accent/10 rounded-xl">
-              <Ticket className="w-5 h-5 text-accent" />
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-foreground">Coupon Management</h3>
-              <p className="text-xs text-muted-foreground">Create flat, percentage & product-specific coupons</p>
-            </div>
-          </div>
-          {showCoupons ? (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          )}
-        </button>
-        {showCoupons && (
-          <div className="p-4 border-t border-border">
-            <AdminCouponManager />
-          </div>
-        )}
-      </div>
+          <p className="text-sm font-medium">You have unsaved changes</p>
+          <Button size="sm" variant="secondary" onClick={handleSaveAll} className="rounded-lg">
+            <Save className="w-4 h-4 mr-2" />
+            Save All
+          </Button>
+        </motion.div>
+      )}
 
-      {/* Redeem Codes Section */}
-      <div className="bg-card rounded-2xl shadow-card overflow-hidden">
-        <button
-          onClick={() => setShowRedeemCodes(!showRedeemCodes)}
-          className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-success/10 rounded-xl">
-              <Gift className="w-5 h-5 text-success" />
-            </div>
-            <div className="text-left">
-              <h3 className="font-semibold text-foreground">Redeem Codes</h3>
-              <p className="text-xs text-muted-foreground">Gift codes that add money to user wallet</p>
-            </div>
-          </div>
-          {showRedeemCodes ? (
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="w-5 h-5 text-muted-foreground" />
-          )}
-        </button>
-        {showRedeemCodes && (
-          <div className="p-4 border-t border-border">
-            <AdminRedeemCodeManager />
-          </div>
-        )}
-      </div>
+      {/* App Information */}
+      <SettingsSection title="App Information" icon={<Globe className="w-5 h-5" />} defaultOpen={true}>
+        <SettingItem label="App Name" description="Display name of your application">
+          <Input
+            value={localSettings.app_name || 'RKR Premium Store'}
+            onChange={(e) => updateLocal('app_name', e.target.value)}
+            onBlur={(e) => handleSave('app_name', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+          />
+        </SettingItem>
+        <SettingItem label="Language" description="Default app language">
+          <Input
+            value={localSettings.app_language || 'English'}
+            onChange={(e) => updateLocal('app_language', e.target.value)}
+            onBlur={(e) => handleSave('app_language', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+          />
+        </SettingItem>
+        <SettingItem label="Currency Symbol" description="Symbol used for prices">
+          <Input
+            value={localSettings.currency_symbol || '₹'}
+            onChange={(e) => updateLocal('currency_symbol', e.target.value)}
+            onBlur={(e) => handleSave('currency_symbol', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+          />
+        </SettingItem>
+      </SettingsSection>
 
-      {/* General Settings */}
-      <div className="bg-card rounded-2xl p-4 shadow-card">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-primary/10 rounded-xl">
-            <Settings className="w-5 h-5 text-primary" />
+      {/* Contact Info */}
+      <SettingsSection title="Contact Info" icon={<Phone className="w-5 h-5" />}>
+        <SettingItem label="WhatsApp Number" description="Customer support WhatsApp">
+          <Input
+            value={localSettings.contact_whatsapp || '+918900684167'}
+            onChange={(e) => updateLocal('contact_whatsapp', e.target.value)}
+            onBlur={(e) => handleSave('contact_whatsapp', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+          />
+        </SettingItem>
+        <SettingItem label="Email Address" description="Support email">
+          <Input
+            value={localSettings.contact_email || ''}
+            onChange={(e) => updateLocal('contact_email', e.target.value)}
+            onBlur={(e) => handleSave('contact_email', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+            placeholder="support@example.com"
+          />
+        </SettingItem>
+      </SettingsSection>
+
+      {/* Payment Settings */}
+      <SettingsSection title="Payment Settings" icon={<CreditCard className="w-5 h-5" />}>
+        <SettingItem label="Minimum Deposit" description="Minimum amount users can deposit">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.min_deposit || '10'}
+              onChange={(e) => updateLocal('min_deposit', e.target.value)}
+              onBlur={(e) => handleSave('min_deposit', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
           </div>
-          <h3 className="font-semibold text-foreground">App Settings</h3>
-        </div>
-        
-        <div className="space-y-4">
-          {/* App Info */}
-          <div className="border-b border-border pb-4">
-            <h4 className="text-sm font-medium text-primary mb-2">App Information</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">App Name</span>
-                <Input
-                  value={settings.app_name || 'RKR Premium Store'}
-                  onChange={(e) => onUpdateSetting('app_name', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Language</span>
-                <Input
-                  value={settings.app_language || 'English'}
-                  onChange={(e) => onUpdateSetting('app_language', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Currency Symbol</span>
-                <Input
-                  value={settings.currency_symbol || '₹'}
-                  onChange={(e) => onUpdateSetting('currency_symbol', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-            </div>
+        </SettingItem>
+        <SettingItem label="Payment QR Code" description="QR code image URL">
+          <Input
+            value={localSettings.payment_qr_code || ''}
+            onChange={(e) => updateLocal('payment_qr_code', e.target.value)}
+            onBlur={(e) => handleSave('payment_qr_code', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+            placeholder="https://..."
+          />
+        </SettingItem>
+      </SettingsSection>
+
+      {/* Bonus Settings */}
+      <SettingsSection title="Bonus Settings" icon={<Gift className="w-5 h-5" />}>
+        <SettingItem label="Login Bonus" description="Amount given on first login">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.login_bonus || '0'}
+              onChange={(e) => updateLocal('login_bonus', e.target.value)}
+              onBlur={(e) => handleSave('login_bonus', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
           </div>
-          
-          {/* Contact */}
-          <div className="border-b border-border pb-4">
-            <h4 className="text-sm font-medium text-primary mb-2">Contact Info</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">WhatsApp</span>
-                <Input
-                  value={settings.contact_whatsapp || '+918900684167'}
-                  onChange={(e) => onUpdateSetting('contact_whatsapp', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Email</span>
-                <Input
-                  value={settings.contact_email || ''}
-                  onChange={(e) => onUpdateSetting('contact_email', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-            </div>
+        </SettingItem>
+        <SettingItem label="Daily Bonus Range" description="Random bonus amount range">
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              step="0.01"
+              value={localSettings.daily_bonus_min || '0.10'}
+              onChange={(e) => updateLocal('daily_bonus_min', e.target.value)}
+              onBlur={(e) => handleSave('daily_bonus_min', e.target.value)}
+              className="w-20 h-9 text-sm rounded-lg"
+              placeholder="Min"
+            />
+            <span className="text-muted-foreground">to</span>
+            <Input
+              type="number"
+              step="0.01"
+              value={localSettings.daily_bonus_max || '1.00'}
+              onChange={(e) => updateLocal('daily_bonus_max', e.target.value)}
+              onBlur={(e) => handleSave('daily_bonus_max', e.target.value)}
+              className="w-20 h-9 text-sm rounded-lg"
+              placeholder="Max"
+            />
           </div>
-          
-          {/* Payments */}
-          <div className="border-b border-border pb-4">
-            <h4 className="text-sm font-medium text-primary mb-2">Payment Settings</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Min Deposit (Rs)</span>
-                <Input
-                  value={settings.min_deposit || '10'}
-                  onChange={(e) => onUpdateSetting('min_deposit', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Payment QR Code URL</span>
-                <Input
-                  value={settings.payment_qr_code || ''}
-                  onChange={(e) => onUpdateSetting('payment_qr_code', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                  placeholder="QR code URL"
-                />
-              </div>
-            </div>
+        </SettingItem>
+        <SettingItem label="Referral Bonus" description="Amount given when referred user joins">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.referral_bonus || '10'}
+              onChange={(e) => updateLocal('referral_bonus', e.target.value)}
+              onBlur={(e) => handleSave('referral_bonus', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
           </div>
-          
-          {/* Bonuses */}
-          <div className="border-b border-border pb-4">
-            <h4 className="text-sm font-medium text-primary mb-2">Bonus Settings</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Login Bonus (Rs)</span>
-                <Input
-                  value={settings.login_bonus || '0'}
-                  onChange={(e) => onUpdateSetting('login_bonus', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Daily Bonus Min (Rs)</span>
-                <Input
-                  value={settings.daily_bonus_min || '0.10'}
-                  onChange={(e) => onUpdateSetting('daily_bonus_min', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Daily Bonus Max (Rs)</span>
-                <Input
-                  value={settings.daily_bonus_max || '1.00'}
-                  onChange={(e) => onUpdateSetting('daily_bonus_max', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Referral Bonus (Rs)</span>
-                <Input
-                  value={settings.referral_bonus || '10'}
-                  onChange={(e) => onUpdateSetting('referral_bonus', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-            </div>
+        </SettingItem>
+      </SettingsSection>
+
+      {/* Blue Tick Settings */}
+      <SettingsSection title="Blue Tick Settings" icon={<Award className="w-5 h-5" />}>
+        <SettingItem label="Total Deposit Threshold" description="Amount needed for automatic blue tick">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.blue_tick_threshold || '1000'}
+              onChange={(e) => updateLocal('blue_tick_threshold', e.target.value)}
+              onBlur={(e) => handleSave('blue_tick_threshold', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
           </div>
-          
-          {/* Blue Tick Settings */}
-          <div className="border-b border-border pb-4">
-            <h4 className="text-sm font-medium text-primary mb-2">Blue Tick Settings</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Deposit Threshold (Rs)</span>
-                <Input
-                  value={settings.blue_tick_threshold || '1000'}
-                  onChange={(e) => onUpdateSetting('blue_tick_threshold', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Single Deposit Threshold (Rs)</span>
-                <Input
-                  value={settings.single_deposit_bonus_threshold || '1000'}
-                  onChange={(e) => onUpdateSetting('single_deposit_bonus_threshold', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Single Deposit Bonus (Rs)</span>
-                <Input
-                  value={settings.single_deposit_bonus_amount || '100'}
-                  onChange={(e) => onUpdateSetting('single_deposit_bonus_amount', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-            </div>
+        </SettingItem>
+        <SettingItem label="Single Deposit Threshold" description="Single deposit amount for bonus">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.single_deposit_bonus_threshold || '1000'}
+              onChange={(e) => updateLocal('single_deposit_bonus_threshold', e.target.value)}
+              onBlur={(e) => handleSave('single_deposit_bonus_threshold', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
           </div>
-          
-          {/* Inventory */}
-          <div className="border-b border-border pb-4">
-            <h4 className="text-sm font-medium text-primary mb-2">Inventory Settings</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Low Stock Threshold</span>
-                <Input
-                  value={settings.low_stock_threshold || '5'}
-                  onChange={(e) => onUpdateSetting('low_stock_threshold', e.target.value)}
-                  className="w-40 h-8 text-sm"
-                />
-              </div>
-            </div>
+        </SettingItem>
+        <SettingItem label="Single Deposit Bonus" description="Bonus amount for single deposit threshold">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.single_deposit_bonus_amount || '100'}
+              onChange={(e) => updateLocal('single_deposit_bonus_amount', e.target.value)}
+              onBlur={(e) => handleSave('single_deposit_bonus_amount', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
           </div>
-          
-          {/* Toggles */}
-          <div>
-            <h4 className="text-sm font-medium text-primary mb-2">Feature Toggles</h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Maintenance Mode</span>
-                <Switch
-                  checked={settings.maintenance_mode === 'true'}
-                  onCheckedChange={(v) => onUpdateSetting('maintenance_mode', v.toString())}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Allow Registration</span>
-                <Switch
-                  checked={settings.allow_registration !== 'false'}
-                  onCheckedChange={(v) => onUpdateSetting('allow_registration', v.toString())}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Auto Approve Orders</span>
-                <Switch
-                  checked={settings.auto_approve_orders === 'true'}
-                  onCheckedChange={(v) => onUpdateSetting('auto_approve_orders', v.toString())}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Notifications Enabled</span>
-                <Switch
-                  checked={settings.notification_enabled !== 'false'}
-                  onCheckedChange={(v) => onUpdateSetting('notification_enabled', v.toString())}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Razorpay Enabled</span>
-                <Switch
-                  checked={settings.razorpay_enabled !== 'false'}
-                  onCheckedChange={(v) => onUpdateSetting('razorpay_enabled', v.toString())}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Google Login</span>
-                <Switch
-                  checked={settings.google_login_enabled === 'true'}
-                  onCheckedChange={(v) => onUpdateSetting('google_login_enabled', v.toString())}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        </SettingItem>
+      </SettingsSection>
+
+      {/* Inventory Settings */}
+      <SettingsSection title="Inventory Settings" icon={<Package className="w-5 h-5" />}>
+        <SettingItem label="Low Stock Threshold" description="Alert when stock falls below this">
+          <Input
+            type="number"
+            value={localSettings.low_stock_threshold || '5'}
+            onChange={(e) => updateLocal('low_stock_threshold', e.target.value)}
+            onBlur={(e) => handleSave('low_stock_threshold', e.target.value)}
+            className="w-24 h-9 text-sm rounded-lg"
+          />
+        </SettingItem>
+      </SettingsSection>
+
+      {/* Feature Toggles */}
+      <SettingsSection title="Feature Toggles" icon={<ToggleLeft className="w-5 h-5" />}>
+        <SettingItem label="Maintenance Mode" description="Disable app for users during maintenance">
+          <Switch
+            checked={localSettings.maintenance_mode === 'true'}
+            onCheckedChange={(v) => {
+              updateLocal('maintenance_mode', v.toString());
+              handleSave('maintenance_mode', v.toString());
+            }}
+          />
+        </SettingItem>
+        <SettingItem label="Allow Registration" description="Allow new users to sign up">
+          <Switch
+            checked={localSettings.allow_registration !== 'false'}
+            onCheckedChange={(v) => {
+              updateLocal('allow_registration', v.toString());
+              handleSave('allow_registration', v.toString());
+            }}
+          />
+        </SettingItem>
+        <SettingItem label="Auto Approve Orders" description="Automatically approve new orders">
+          <Switch
+            checked={localSettings.auto_approve_orders === 'true'}
+            onCheckedChange={(v) => {
+              updateLocal('auto_approve_orders', v.toString());
+              handleSave('auto_approve_orders', v.toString());
+            }}
+          />
+        </SettingItem>
+        <SettingItem label="Notifications" description="Enable push notifications">
+          <Switch
+            checked={localSettings.notification_enabled !== 'false'}
+            onCheckedChange={(v) => {
+              updateLocal('notification_enabled', v.toString());
+              handleSave('notification_enabled', v.toString());
+            }}
+          />
+        </SettingItem>
+        <SettingItem label="Razorpay Payments" description="Enable Razorpay payment gateway">
+          <Switch
+            checked={localSettings.razorpay_enabled !== 'false'}
+            onCheckedChange={(v) => {
+              updateLocal('razorpay_enabled', v.toString());
+              handleSave('razorpay_enabled', v.toString());
+            }}
+          />
+        </SettingItem>
+        <SettingItem label="Google Login" description="Allow Google sign-in">
+          <Switch
+            checked={localSettings.google_login_enabled === 'true'}
+            onCheckedChange={(v) => {
+              updateLocal('google_login_enabled', v.toString());
+              handleSave('google_login_enabled', v.toString());
+            }}
+          />
+        </SettingItem>
+      </SettingsSection>
     </div>
   );
 };

@@ -4,7 +4,7 @@ import {
   Bell, UserPlus, ShoppingBag, MessageCircle, Settings, 
   Image, CreditCard, Users, Package, Shield, ChevronRight,
   ChevronDown, Search, Plus, Edit, Trash2, Eye, Award,
-  Clock, CheckCircle, XCircle, Zap, Wallet
+  Clock, CheckCircle, XCircle, Zap, Wallet, Ticket, Gift
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminPaymentSettings from '@/components/AdminPaymentSettings';
 import AdminSettingsTab from './AdminSettingsTab';
 import DepositRequestsSection from './DepositRequestsSection';
+import AdminCouponManager from './AdminCouponManager';
+import AdminRedeemCodeManager from './AdminRedeemCodeManager';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -38,7 +40,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'content' | 'payments' | 'chat' | 'settings' | null;
+type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'settings' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = ({
   data,
@@ -109,6 +111,22 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
       label: 'Content', 
       description: 'Banners & Sales',
       color: 'bg-gradient-to-br from-green-500 to-emerald-500',
+      badge: null
+    },
+    { 
+      id: 'coupons' as ControlSection, 
+      icon: Ticket, 
+      label: 'Coupons', 
+      description: 'Discount coupons',
+      color: 'bg-gradient-to-br from-pink-500 to-rose-500',
+      badge: null
+    },
+    { 
+      id: 'redeem' as ControlSection, 
+      icon: Gift, 
+      label: 'Redeem Codes', 
+      description: 'Gift codes for wallet',
+      color: 'bg-gradient-to-br from-amber-500 to-yellow-500',
       badge: null
     },
     { 
@@ -438,6 +456,16 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                           </div>
                         </div>
                       </div>
+                    )}
+
+                    {/* Coupons Section */}
+                    {section.id === 'coupons' && (
+                      <AdminCouponManager />
+                    )}
+
+                    {/* Redeem Codes Section */}
+                    {section.id === 'redeem' && (
+                      <AdminRedeemCodeManager />
                     )}
 
                     {/* Payments Section */}
