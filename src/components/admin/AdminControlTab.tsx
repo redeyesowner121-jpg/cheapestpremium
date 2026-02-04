@@ -65,6 +65,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
 }) => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<ControlSection>(null);
+  const [activeGroup, setActiveGroup] = useState<number>(0);
   const [userSearch, setUserSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState('all');
   const [productSearch, setProductSearch] = useState('');
@@ -227,22 +228,57 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
         </div>
       </div>
 
-      {/* Grouped Control Sections */}
-      <div className="space-y-6">
-        {sectionGroups.map((group, groupIndex) => (
-          <div key={group.title} className="space-y-3">
-            {/* Group Header */}
-            <div className="flex items-center gap-2 px-1">
-              <group.icon className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+      {/* Horizontal Group Selector - Category Style */}
+      <div className="overflow-x-auto pb-2 -mx-4 px-4">
+        <div className="flex gap-3 min-w-max">
+          {sectionGroups.map((group, index) => (
+            <motion.button
+              key={group.title}
+              onClick={() => {
+                setActiveGroup(index);
+                setActiveSection(null);
+              }}
+              whileTap={{ scale: 0.95 }}
+              className={`flex flex-col items-center gap-2 p-3 rounded-2xl min-w-[80px] transition-all ${
+                activeGroup === index
+                  ? 'bg-primary text-primary-foreground shadow-lg scale-105'
+                  : 'bg-card border border-border text-foreground hover:bg-muted/50'
+              }`}
+            >
+              <div className={`p-3 rounded-xl ${
+                activeGroup === index 
+                  ? 'bg-primary-foreground/20' 
+                  : 'bg-muted'
+              }`}>
+                <group.icon className={`w-6 h-6 ${
+                  activeGroup === index ? 'text-primary-foreground' : 'text-primary'
+                }`} />
+              </div>
+              <span className="text-xs font-medium text-center leading-tight max-w-[70px]">
                 {group.title}
+              </span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Selected Group Sections */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 px-1">
+          {sectionGroups[activeGroup] && (
+            <>
+              {React.createElement(sectionGroups[activeGroup].icon, { className: "w-4 h-4 text-primary" })}
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                {sectionGroups[activeGroup].title}
               </h3>
               <div className="flex-1 h-px bg-border ml-2" />
-            </div>
+            </>
+          )}
+        </div>
 
-            {/* Group Sections */}
-            <div className="space-y-2">
-              {group.sections.map((section) => (
+        {/* Group Sections */}
+        <div className="space-y-2">
+          {sectionGroups[activeGroup]?.sections.map((section) => (
                 <motion.div
                   key={section.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -528,8 +564,6 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
               ))}
             </div>
           </div>
-        ))}
-      </div>
 
       {/* Temp Admins Section */}
       {isAdmin && data.tempAdmins.length > 0 && (
