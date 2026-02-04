@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import appLogo from '@/assets/app-logo.jpg';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -7,8 +8,24 @@ interface SplashScreenProps {
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [isExiting, setIsExiting] = useState(false);
+  const [appName, setAppName] = useState('RKR Premium Store');
 
   useEffect(() => {
+    // Load app name from settings
+    const loadAppName = async () => {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'app_name')
+        .maybeSingle();
+      
+      if (data?.value) {
+        setAppName(data.value);
+      }
+    };
+    
+    loadAppName();
+    
     const exitTimer = setTimeout(() => {
       setIsExiting(true);
       setTimeout(onComplete, 300);
@@ -34,7 +51,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
       {/* App Name */}
       <h1 className="mt-6 text-2xl font-bold text-foreground">
-        RKR Premium Store
+        {appName}
       </h1>
 
       {/* Tagline */}

@@ -3,12 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Bell, MessageCircle, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import BlueTick from './BlueTick';
 import appLogo from '@/assets/app-logo.jpg';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
   const { profile, isAdmin, isTempAdmin } = useAuth();
+  const { settings } = useAppSettings();
 
   const showAdminButton = isAdmin || isTempAdmin;
 
@@ -18,19 +20,19 @@ const Header: React.FC = () => {
         <div className="flex items-center gap-3">
           <motion.img
             src={appLogo}
-            alt="RKR Premium"
+            alt={settings.app_name}
             className="w-10 h-10 rounded-xl object-cover shadow-card"
             whileTap={{ scale: 0.95 }}
             onClick={() => navigate('/')}
           />
           <div>
             <h1 className="text-lg font-bold text-foreground flex items-center gap-1">
-              RKR Premium
+              {settings.app_name}
               {profile?.has_blue_check && <BlueTick size="sm" />}
             </h1>
             {profile && (
               <p className="text-xs text-muted-foreground">
-                Balance: ₹{profile.wallet_balance?.toFixed(2) || '0.00'}
+                Balance: {settings.currency_symbol}{profile.wallet_balance?.toFixed(2) || '0.00'}
               </p>
             )}
           </div>
