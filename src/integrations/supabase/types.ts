@@ -394,6 +394,9 @@ export type Database = {
           buyer_confirmed: boolean | null
           created_at: string | null
           discount_applied: number | null
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
           id: string
           is_withdrawable: boolean | null
           product_id: string | null
@@ -405,7 +408,7 @@ export type Database = {
           total_price: number
           unit_price: number
           updated_at: string | null
-          user_id: string
+          user_id: string | null
           user_note: string | null
         }
         Insert: {
@@ -414,6 +417,9 @@ export type Database = {
           buyer_confirmed?: boolean | null
           created_at?: string | null
           discount_applied?: number | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           is_withdrawable?: boolean | null
           product_id?: string | null
@@ -425,7 +431,7 @@ export type Database = {
           total_price: number
           unit_price: number
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
           user_note?: string | null
         }
         Update: {
@@ -434,6 +440,9 @@ export type Database = {
           buyer_confirmed?: boolean | null
           created_at?: string | null
           discount_applied?: number | null
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           is_withdrawable?: boolean | null
           product_id?: string | null
@@ -445,7 +454,7 @@ export type Database = {
           total_price?: number
           unit_price?: number
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
           user_note?: string | null
         }
         Relationships: [
