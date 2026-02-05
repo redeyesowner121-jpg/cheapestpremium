@@ -60,7 +60,7 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
     
     let ordersWithProfiles: any[] = [];
     if (ordersData) {
-      const userIds = [...new Set(ordersData.map(o => o.user_id))];
+      const userIds = [...new Set(ordersData.map(o => o.user_id).filter(Boolean))];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, name, email, phone')
@@ -68,7 +68,7 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
       
       ordersWithProfiles = ordersData.map(order => ({
         ...order,
-        profiles: profiles?.find(p => p.id === order.user_id)
+        profiles: order.user_id ? profiles?.find(p => p.id === order.user_id) : null
       }));
     }
 
