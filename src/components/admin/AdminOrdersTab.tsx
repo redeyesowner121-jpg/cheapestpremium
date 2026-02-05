@@ -37,7 +37,10 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({ orders, onSelectOrder }
         o.id?.toLowerCase().includes(query) ||
         o.product_name?.toLowerCase().includes(query) ||
         o.profiles?.name?.toLowerCase().includes(query) ||
-        o.profiles?.email?.toLowerCase().includes(query)
+        o.profiles?.email?.toLowerCase().includes(query) ||
+        o.guest_name?.toLowerCase().includes(query) ||
+        o.guest_email?.toLowerCase().includes(query) ||
+        o.guest_phone?.includes(query)
       );
     }
 
