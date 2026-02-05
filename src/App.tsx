@@ -51,7 +51,7 @@ const MaintenanceScreen = () => {
 const AppContent = () => {
   const { settings, loading: settingsLoading } = useAppSettings();
   const { user, isAdmin, isTempAdmin } = useAuth();
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
   const [hasShownSplash, setHasShownSplash] = useState(false);
 
   useEffect(() => {
