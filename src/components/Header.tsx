@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bell, MessageCircle, Shield } from 'lucide-react';
+import { Bell, MessageCircle, Shield, User, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettings } from '@/hooks/useAppSettings';
@@ -9,7 +9,7 @@ import appLogo from '@/assets/app-logo.jpg';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { profile, isAdmin, isTempAdmin } = useAuth();
+  const { user, profile, isAdmin, isTempAdmin } = useAuth();
   const { settings } = useAppSettings();
 
   const showAdminButton = isAdmin || isTempAdmin;
@@ -39,6 +39,26 @@ const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Login/Profile Button */}
+          {user ? (
+            <motion.button
+              onClick={() => navigate('/profile')}
+              className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+              whileTap={{ scale: 0.9 }}
+            >
+              <User className="w-5 h-5 text-primary" />
+            </motion.button>
+          ) : (
+            <motion.button
+              onClick={() => navigate('/auth')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium"
+              whileTap={{ scale: 0.95 }}
+            >
+              <LogIn className="w-4 h-4" />
+              Login
+            </motion.button>
+          )}
+
           {showAdminButton && (
             <motion.button
               onClick={() => navigate('/admin')}
