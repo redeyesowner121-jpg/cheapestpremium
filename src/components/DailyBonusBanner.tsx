@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, X, Sparkles } from 'lucide-react';
+import { Gift, X, Sparkles, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface DailyBonusBannerProps {
   onBonusClaimed?: () => void;
 }
 
 const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) => {
-  const { user, profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const { user, profile, refreshProfile, loading } = useAuth();
   const [canClaimBonus, setCanClaimBonus] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -107,10 +109,96 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) =
     }
   };
 
-  if (!user || !profile || !canClaimBonus || dismissed) {
+  // Show loading state
+  if (loading) {
     return null;
   }
 
+  // Guest Login Banner
+  if (!user) {
+    if (dismissed) return null;
+    
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, y: -20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.95 }}
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-secondary to-accent p-4 shadow-lg"
+        >
+          {/* Sparkle effects */}
+          <div className="absolute inset-0 overflow-hidden">
+            {[...Array(6)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute"
+                initial={{ opacity: 0 }}
+                animate={{ 
+                  opacity: [0, 1, 0],
+                  scale: [0.5, 1, 0.5],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.3,
+                }}
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                }}
+              >
+                <Sparkles className="w-3 h-3 text-white/60" />
+              </motion.div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setDismissed(true)}
+            className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          >
+            <X className="w-4 h-4 text-white" />
+          </button>
+
+          <div className="relative flex items-center gap-4">
+            <motion.div
+              animate={{ 
+                rotate: [0, -10, 10, -10, 0],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                repeatDelay: 1,
+              }}
+              className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center"
+            >
+              <UserPlus className="w-8 h-8 text-white" />
+            </motion.div>
+
+            <div className="flex-1">
+              <h3 className="text-white font-bold text-lg">Join Us! 🎉</h3>
+              <p className="text-white/80 text-sm">Login for exclusive deals & daily bonus</p>
+            </div>
+
+            <Button
+              onClick={() => navigate('/auth')}
+              className="bg-white text-primary hover:bg-white/90 font-bold px-5 rounded-xl shadow-lg"
+            >
+              <LogIn className="w-4 h-4 mr-1.5" />
+              Login
+            </Button>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  // Don't show daily bonus banner if already claimed or dismissed
+  if (!profile || !canClaimBonus || dismissed) {
+    return null;
+  }
+
+  // Daily Bonus Banner for logged in users
   return (
     <AnimatePresence>
       <motion.div
