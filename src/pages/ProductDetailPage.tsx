@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/dialog';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
-import LoginRequiredModal from '@/components/LoginRequiredModal';
 import PriceHistoryChart from '@/components/PriceHistoryChart';
 import ShareButtons from '@/components/ShareButtons';
 import { ProductVariationSelector, ProductFeatures, PurchaseModal } from '@/components/product';
@@ -60,7 +59,6 @@ const ProductDetailPage: React.FC = () => {
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentStock, setCurrentStock] = useState<number | null>(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const [showPriceHistory, setShowPriceHistory] = useState(false);
   const [priceHistoryVariationId, setPriceHistoryVariationId] = useState<string | undefined>();
 
@@ -171,23 +169,24 @@ const ProductDetailPage: React.FC = () => {
   };
 
   const handleBuyClick = () => {
-    if (!user) {
-      setShowLoginModal(true);
-      return;
-    }
     setShowPurchaseModal(true);
   };
 
-  const handleBuy = async (donationAmount: number = 0, discount: number = 0, appliedCouponId?: string) => {
-    if (!user || !profile) {
-      setShowLoginModal(true);
-      return;
-    }
-
-    if (!profile.phone) {
-      toast.error('Please add your phone number to place an order');
-      navigate('/profile/edit');
-      return;
+  const handleBuy = async (
+    donationAmount: number = 0, 
+    discount: number = 0, 
+    appliedCouponId?: string,
+    guestDetails?: { name: string; email: string; phone: string }
+  ) => {
+    const isGuestCheckout = !user && guestDetails;
+    
+    // For logged in users, validate profile
+    if (user && profile) {
+      if (!profile.phone) {
+        toast.error('Please add your phone number to place an order');
+        navigate('/profile/edit');
+        return;
+      }
     }
 
     if (isOutOfStock) {
@@ -202,30 +201,36 @@ const ProductDetailPage: React.FC = () => {
 
     const finalTotal = totalPrice - discount + donationAmount;
     
-    if ((profile.wallet_balance || 0) < finalTotal) {
-      toast.error('Insufficient wallet balance');
-      navigate('/wallet');
-      return;
+    // Only check wallet balance for logged in users
+    if (user && profile) {
+      if ((profile.wallet_balance || 0) < finalTotal) {
+        toast.error('Insufficient wallet balance');
+        navigate('/wallet');
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      const newBalance = (profile.wallet_balance || 0) - finalTotal;
-      await supabase
-        .from('profiles')
-        .update({ 
-          wallet_balance: newBalance,
-          total_orders: (profile.total_orders || 0) + 1
-        })
-        .eq('id', user.id);
+      // Deduct from wallet only for logged in users
+      if (user && profile) {
+        const newBalance = (profile.wallet_balance || 0) - finalTotal;
+        await supabase
+          .from('profiles')
+          .update({ 
+            wallet_balance: newBalance,
+            total_orders: (profile.total_orders || 0) + 1
+          })
+          .eq('id', user.id);
+      }
 
       const productName = selectedVariation 
         ? `${displayProduct.name} - ${selectedVariation.name}` 
         : displayProduct.name;
 
-      const { error: orderError } = await supabase.from('orders').insert({
-        user_id: user.id,
+      // Create order - different for guest vs logged in
+      const orderData: any = {
         product_id: displayProduct.id,
         product_name: productName,
         product_image: displayProduct.image_url || displayProduct.image,
@@ -233,31 +238,47 @@ const ProductDetailPage: React.FC = () => {
         total_price: totalPrice,
         quantity: quantity,
         user_note: userNote + (donationAmount > 0 ? ` [Donation: ₹${donationAmount}]` : ''),
-        status: 'pending',
+        status: isGuestCheckout ? 'pending' : 'pending',
         discount_applied: discount
-      });
+      };
+      
+      if (isGuestCheckout) {
+        orderData.guest_name = guestDetails.name;
+        orderData.guest_email = guestDetails.email;
+        orderData.guest_phone = guestDetails.phone;
+      } else if (user) {
+        orderData.user_id = user.id;
+      }
+
+      const { error: orderError } = await supabase.from('orders').insert(orderData);
 
       if (orderError) throw orderError;
 
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'purchase',
-        amount: -finalTotal,
-        status: 'completed',
-        description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
-      });
+      // Only create transaction for logged in users
+      if (user) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'purchase',
+          amount: -finalTotal,
+          status: 'completed',
+          description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
+        });
+      }
 
       // Increment coupon used_count atomically if coupon was applied
       if (appliedCouponId) {
         await supabase.rpc('increment_coupon_used_count', { coupon_id: appliedCouponId });
       }
 
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: 'Order Placed',
-        message: `Your order for ${productName} has been placed successfully!`,
-        type: 'order'
-      });
+      // Only create notification for logged in users
+      if (user) {
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Order Placed',
+          message: `Your order for ${productName} has been placed successfully!`,
+          type: 'order'
+        });
+      }
 
       // Use atomic increment for sold_count and stock update
       const hasStock = currentStock !== null;
@@ -274,7 +295,9 @@ const ProductDetailPage: React.FC = () => {
       setSuccessOrderData({ productName, totalPrice: finalTotal });
       setShowPurchaseModal(false);
       setShowSuccessModal(true);
-      await refreshProfile();
+      if (user) {
+        await refreshProfile();
+      }
     } catch (error) {
       console.error('Order error:', error);
       toast.error('Failed to place order');
@@ -466,13 +489,9 @@ const ProductDetailPage: React.FC = () => {
         loading={loading}
         onBuy={handleBuy}
         flashSaleId={flashSale?.id}
+        isLoggedIn={!!user}
       />
 
-      {/* Login Required Modal */}
-      <LoginRequiredModal
-        open={showLoginModal}
-        onOpenChange={setShowLoginModal}
-      />
 
       {/* Price History Dialog */}
       <Dialog open={showPriceHistory} onOpenChange={setShowPriceHistory}>

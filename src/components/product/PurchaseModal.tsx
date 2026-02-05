@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Ticket, Check, X, Loader2 } from 'lucide-react';
+import { Heart, Ticket, Check, X, Loader2, User, Mail, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -32,8 +32,9 @@ interface PurchaseModalProps {
   walletBalance: number;
   totalPrice: number;
   loading: boolean;
-  onBuy: (donationAmount: number, discount?: number, appliedCouponId?: string) => void;
+  onBuy: (donationAmount: number, discount?: number, appliedCouponId?: string, guestDetails?: GuestDetails) => void;
   flashSaleId?: string;
+  isLoggedIn?: boolean;
 }
 
 interface AppliedCoupon {
@@ -42,6 +43,12 @@ interface AppliedCoupon {
   discount_type: string;
   discount_value: number;
   max_discount: number | null;
+}
+
+interface GuestDetails {
+  name: string;
+  email: string;
+  phone: string;
 }
 
 const PurchaseModal: React.FC<PurchaseModalProps> = ({
@@ -61,6 +68,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   loading,
   onBuy,
   flashSaleId,
+  isLoggedIn = true,
 }) => {
   const [donationEnabled, setDonationEnabled] = useState(false);
   const [donationAmount, setDonationAmount] = useState('1');
@@ -68,6 +76,12 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState('');
+  
+  // Guest checkout fields
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestErrors, setGuestErrors] = useState<{name?: string; email?: string; phone?: string}>({});
   
   const donation = donationEnabled ? Math.max(1, parseFloat(donationAmount) || 0) : 0;
   
@@ -98,6 +112,31 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const couponDiscountAmount = calculateCouponDiscount();
   const totalDiscountAmount = bulkDiscountAmount + couponDiscountAmount;
   const finalTotal = totalPrice - totalDiscountAmount + donation;
+
+  const validateGuestDetails = () => {
+    const errors: {name?: string; email?: string; phone?: string} = {};
+    
+    if (!guestName.trim()) {
+      errors.name = 'Name is required';
+    } else if (guestName.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    }
+    
+    if (!guestEmail.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+      errors.email = 'Invalid email address';
+    }
+    
+    if (!guestPhone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^[0-9]{10}$/.test(guestPhone.trim())) {
+      errors.phone = 'Enter a valid 10-digit phone number';
+    }
+    
+    setGuestErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) {
@@ -188,14 +227,27 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   const handleBuy = () => {
-    onBuy(donation, totalDiscountAmount, appliedCoupon?.id);
+    if (!isLoggedIn) {
+      if (!validateGuestDetails()) {
+        return;
+      }
+      onBuy(donation, totalDiscountAmount, appliedCoupon?.id, {
+        name: guestName.trim(),
+        email: guestEmail.trim(),
+        phone: guestPhone.trim(),
+      });
+    } else {
+      onBuy(donation, totalDiscountAmount, appliedCoupon?.id);
+    }
   };
+
+  const canProceed = isLoggedIn ? finalTotal <= walletBalance : true;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl">
         <DialogHeader>
-          <DialogTitle>Confirm Purchase</DialogTitle>
+          <DialogTitle>{isLoggedIn ? 'Confirm Purchase' : 'Guest Checkout'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-4">
           <div className="flex items-center gap-4">
@@ -212,6 +264,76 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
               <p className="text-primary font-bold">₹{currentPrice}</p>
             </div>
           </div>
+
+          {/* Guest Details Form */}
+          {!isLoggedIn && (
+            <div className="space-y-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
+              <h4 className="font-medium text-sm flex items-center gap-2">
+                <User className="w-4 h-4 text-blue-500" />
+                Your Details
+              </h4>
+              
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <User className="w-3 h-3 text-muted-foreground" />
+                  <label className="text-xs text-muted-foreground">Name *</label>
+                </div>
+                <Input
+                  placeholder="Enter your name"
+                  value={guestName}
+                  onChange={(e) => {
+                    setGuestName(e.target.value);
+                    setGuestErrors(prev => ({ ...prev, name: undefined }));
+                  }}
+                  className="h-9 rounded-lg"
+                />
+                {guestErrors.name && (
+                  <p className="text-xs text-destructive mt-1">{guestErrors.name}</p>
+                )}
+              </div>
+              
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Mail className="w-3 h-3 text-muted-foreground" />
+                  <label className="text-xs text-muted-foreground">Email *</label>
+                </div>
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={guestEmail}
+                  onChange={(e) => {
+                    setGuestEmail(e.target.value);
+                    setGuestErrors(prev => ({ ...prev, email: undefined }));
+                  }}
+                  className="h-9 rounded-lg"
+                />
+                {guestErrors.email && (
+                  <p className="text-xs text-destructive mt-1">{guestErrors.email}</p>
+                )}
+              </div>
+              
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Phone className="w-3 h-3 text-muted-foreground" />
+                  <label className="text-xs text-muted-foreground">Phone *</label>
+                </div>
+                <Input
+                  type="tel"
+                  placeholder="10-digit phone number"
+                  value={guestPhone}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setGuestPhone(value);
+                    setGuestErrors(prev => ({ ...prev, phone: undefined }));
+                  }}
+                  className="h-9 rounded-lg"
+                />
+                {guestErrors.phone && (
+                  <p className="text-xs text-destructive mt-1">{guestErrors.phone}</p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between">
@@ -388,16 +510,26 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
             </div>
           </div>
 
-          <div className="text-sm text-muted-foreground text-center">
-            Wallet Balance: ₹{walletBalance?.toFixed(2) || '0.00'}
-          </div>
+          {isLoggedIn && (
+            <div className="text-sm text-muted-foreground text-center">
+              Wallet Balance: ₹{walletBalance?.toFixed(2) || '0.00'}
+            </div>
+          )}
+
+          {!isLoggedIn && (
+            <div className="text-sm text-center p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-amber-700 dark:text-amber-400 text-xs">
+                💳 Payment details will be sent to your email after order placement
+              </p>
+            </div>
+          )}
 
           <Button 
             className="w-full btn-gradient rounded-xl h-12" 
             onClick={handleBuy}
-            disabled={loading || finalTotal > walletBalance}
+            disabled={loading || (isLoggedIn && !canProceed)}
           >
-            {loading ? 'Processing...' : `Pay ₹${finalTotal.toFixed(2)}`}
+            {loading ? 'Processing...' : isLoggedIn ? `Pay ₹${finalTotal.toFixed(2)}` : `Place Order ₹${finalTotal.toFixed(2)}`}
           </Button>
         </div>
       </DialogContent>
