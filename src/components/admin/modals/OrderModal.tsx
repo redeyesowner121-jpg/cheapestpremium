@@ -177,9 +177,12 @@ const OrderModal: React.FC<OrderModalProps> = ({
           </div>
 
           <div className="bg-muted rounded-xl p-3 text-sm space-y-1">
-            <p><strong>Customer:</strong> {order.profiles?.name || 'Unknown'}</p>
-            <p><strong>Email:</strong> {order.profiles?.email || 'N/A'}</p>
-            <p><strong>Phone:</strong> {order.profiles?.phone || 'N/A'}</p>
+            <p><strong>Customer:</strong> {order.profiles?.name || order.guest_name || 'Guest'}</p>
+            <p><strong>Email:</strong> {order.profiles?.email || order.guest_email || 'N/A'}</p>
+            <p><strong>Phone:</strong> {order.profiles?.phone || order.guest_phone || 'N/A'}</p>
+            {!order.user_id && order.guest_email && (
+              <p className="text-accent font-medium">🏷️ Guest Order</p>
+            )}
             <p><strong>Ordered:</strong> {new Date(order.created_at).toLocaleString()}</p>
             {order.user_note && (
               <p className="mt-2 p-2 bg-background rounded-lg">

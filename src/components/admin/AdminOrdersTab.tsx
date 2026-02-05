@@ -143,11 +143,16 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({ orders, onSelectOrder }
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{order.product_name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {order.profiles?.name} • {order.profiles?.email}
+                    {order.profiles?.name || order.guest_name || 'Guest'} • {order.profiles?.email || order.guest_email || 'N/A'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Phone: {order.profiles?.phone || 'N/A'}
+                    Phone: {order.profiles?.phone || order.guest_phone || 'N/A'}
                   </p>
+                  {!order.user_id && order.guest_email && (
+                    <span className="inline-block text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded mt-1">
+                      Guest Order
+                    </span>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Qty: {order.quantity} | Total: ₹{order.total_price}
                   </p>
