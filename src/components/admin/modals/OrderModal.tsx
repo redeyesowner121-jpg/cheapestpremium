@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -177,12 +177,32 @@ const OrderModal: React.FC<OrderModalProps> = ({
           </div>
 
           <div className="bg-muted rounded-xl p-3 text-sm space-y-1">
-            <p><strong>Customer:</strong> {order.profiles?.name || order.guest_name || 'Guest'}</p>
-            <p><strong>Email:</strong> {order.profiles?.email || order.guest_email || 'N/A'}</p>
-            <p><strong>Phone:</strong> {order.profiles?.phone || order.guest_phone || 'N/A'}</p>
+            <p><strong>Customer:</strong> {order.user_id ? (order.profiles?.name || 'User') : (order.guest_name || 'Guest')}</p>
+            <p><strong>Email:</strong> {order.user_id ? (order.profiles?.email || 'N/A') : (order.guest_email || 'N/A')}</p>
+            <p><strong>Phone:</strong> {order.user_id ? (order.profiles?.phone || 'N/A') : (order.guest_phone || 'N/A')}</p>
             {!order.user_id && order.guest_email && (
               <p className="text-accent font-medium">🏷️ Guest Order</p>
             )}
+            {/* WhatsApp Button */}
+            {(() => {
+              const phoneNumber = order.user_id ? order.profiles?.phone : order.guest_phone;
+              if (phoneNumber) {
+                const cleanPhone = phoneNumber.replace(/\D/g, '');
+                const whatsappNumber = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+                return (
+                  <a
+                    href={`https://wa.me/${whatsappNumber}?text=Hi ${order.user_id ? (order.profiles?.name || 'Customer') : (order.guest_name || 'Customer')}, regarding your order for ${order.product_name}.`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-2 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    WhatsApp
+                  </a>
+                );
+              }
+              return null;
+            })()}
             <p><strong>Ordered:</strong> {new Date(order.created_at).toLocaleString()}</p>
             {order.user_note && (
               <p className="mt-2 p-2 bg-background rounded-lg">
