@@ -6,6 +6,9 @@ import { OrderCard, OrderTabs, ReportOrderModal } from '@/components/orders';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { ShoppingBag, LogIn } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -26,6 +29,7 @@ interface Order {
 }
 
 const OrdersPage: React.FC = () => {
+  const navigate = useNavigate();
   const { profile, user, refreshProfile } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +38,13 @@ const OrdersPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'completed'>('all');
   const [confirmingOrder, setConfirmingOrder] = useState<string | null>(null);
 
-  useEffect(() => { if (user) loadOrders(); }, [user]);
+  useEffect(() => { 
+    if (user) {
+      loadOrders();
+    } else {
+      setLoading(false);
+    }
+  }, [user]);
 
   const loadOrders = async () => {
     if (!user) return;
@@ -114,6 +124,48 @@ const OrdersPage: React.FC = () => {
   };
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+
+  // Guest view - show login prompt
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background pb-24">
+        <Header />
+        <main className="pt-20 px-4 max-w-lg mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-12"
+          >
+            <motion.div 
+              className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200 }}
+            >
+              <ShoppingBag className="w-10 h-10 text-primary" />
+            </motion.div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">My Orders</h2>
+            <p className="text-muted-foreground mb-8">
+              Login to view your order history and track deliveries
+            </p>
+            
+            <Button 
+              className="w-full h-12 btn-gradient rounded-xl"
+              onClick={() => navigate('/auth')}
+            >
+              <LogIn className="w-5 h-5 mr-2" />
+              Login to Continue
+            </Button>
+
+            <p className="text-sm text-muted-foreground mt-6">
+              Guest orders can be tracked via email confirmation
+            </p>
+          </motion.div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-24">
