@@ -7,7 +7,8 @@ import {
   Award,
   Wallet,
   ShoppingBag,
-  Crown
+  Crown,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import BlueTick from './BlueTick';
@@ -15,21 +16,38 @@ import { RankBadgeInline } from './RankBadge';
 import { getUserRank, getNextRank, getProgressToNextRank } from '@/lib/ranks';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
+import SavingsHistoryModal from './SavingsHistoryModal';
 
 const QuickStats: React.FC = () => {
   const { profile, user } = useAuth();
   const [totalSavings, setTotalSavings] = useState(0);
+  const [showSavingsModal, setShowSavingsModal] = useState(false);
   const rankBalance = profile?.rank_balance || 0;
 
   useEffect(() => {
     if (!user) return;
     const fetchSavings = async () => {
-      const { data } = await supabase
+      const { data: orders } = await supabase
         .from('orders')
-        .select('discount_applied')
+        .select('total_price, product_id, quantity')
         .eq('user_id', user.id);
-      if (data) {
-        const sum = data.reduce((acc, o) => acc + (Number(o.discount_applied) || 0), 0);
+
+      if (orders) {
+        const productIds = [...new Set(orders.map(o => o.product_id).filter(Boolean))];
+        const { data: products } = await supabase
+          .from('products')
+          .select('id, original_price, price')
+          .in('id', productIds.length > 0 ? productIds : ['none']);
+
+        const productMap = new Map(products?.map(p => [p.id, p]) || []);
+
+        const sum = orders.reduce((acc, o) => {
+          const product = o.product_id ? productMap.get(o.product_id) : null;
+          const originalPrice = product?.original_price || product?.price || o.total_price;
+          const qty = o.quantity || 1;
+          const saving = (originalPrice * qty) - o.total_price;
+          return acc + (saving > 0 ? saving : 0);
+        }, 0);
         setTotalSavings(sum);
       }
     };
@@ -143,27 +161,37 @@ const QuickStats: React.FC = () => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="mt-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-2xl p-4"
+          className="mt-4 bg-gradient-to-r from-success/10 to-success/5 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
+          onClick={() => setShowSavingsModal(true)}
         >
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/20 rounded-xl">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
+            <div className="p-2 bg-success/20 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-success" />
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground text-sm">Total Savings 🎉</p>
               <p className="text-xs text-muted-foreground">
-                You saved money on your purchases!
+                You saved on your purchases!
               </p>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-emerald-500">
-                ₹{totalSavings.toFixed(0)}
-              </p>
-              <p className="text-[10px] text-muted-foreground">saved</p>
+            <div className="text-right flex items-center gap-1">
+              <div>
+                <p className="text-2xl font-bold text-success">
+                  ₹{totalSavings.toFixed(0)}
+                </p>
+                <p className="text-[10px] text-muted-foreground">saved</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </div>
           </div>
         </motion.div>
       )}
+
+      <SavingsHistoryModal
+        open={showSavingsModal}
+        onOpenChange={setShowSavingsModal}
+        totalSavings={totalSavings}
+      />
 
       {!profile?.has_blue_check && (
         <motion.div
