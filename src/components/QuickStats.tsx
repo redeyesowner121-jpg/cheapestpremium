@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Gift, 
@@ -14,10 +14,27 @@ import BlueTick from './BlueTick';
 import { RankBadgeInline } from './RankBadge';
 import { getUserRank, getNextRank, getProgressToNextRank } from '@/lib/ranks';
 import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
 
 const QuickStats: React.FC = () => {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const [totalSavings, setTotalSavings] = useState(0);
   const rankBalance = profile?.rank_balance || 0;
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchSavings = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('discount_applied')
+        .eq('user_id', user.id);
+      if (data) {
+        const sum = data.reduce((acc, o) => acc + (Number(o.discount_applied) || 0), 0);
+        setTotalSavings(sum);
+      }
+    };
+    fetchSavings();
+  }, [user]);
   const rank = getUserRank(rankBalance);
   const nextRank = getNextRank(rankBalance);
   const { progress, remaining } = getProgressToNextRank(rankBalance);
@@ -120,7 +137,34 @@ const QuickStats: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Blue Tick Progress */}
+      {/* Total Savings */}
+      {totalSavings > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mt-4 bg-gradient-to-r from-emerald-500/10 to-green-500/10 rounded-2xl p-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/20 rounded-xl">
+              <TrendingUp className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground text-sm">Total Savings 🎉</p>
+              <p className="text-xs text-muted-foreground">
+                You saved money on your purchases!
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-emerald-500">
+                ₹{totalSavings.toFixed(0)}
+              </p>
+              <p className="text-[10px] text-muted-foreground">saved</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {!profile?.has_blue_check && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
