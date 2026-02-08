@@ -4,11 +4,13 @@ import {
   Bell, UserPlus, ShoppingBag, MessageCircle, Settings, 
   Image, CreditCard, Users, Package, Shield, ChevronRight,
   ChevronDown, Search, Plus, Edit, Trash2, Eye, Award,
-  Clock, CheckCircle, XCircle, Zap, Wallet, Ticket, Gift
+  Clock, CheckCircle, XCircle, Zap, Wallet, Ticket, Gift, Check, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
 import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
@@ -69,6 +71,43 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
   const [userSearch, setUserSearch] = useState('');
   const [orderFilter, setOrderFilter] = useState('all');
   const [productSearch, setProductSearch] = useState('');
+  const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
+  const [editBalanceValue, setEditBalanceValue] = useState('');
+
+  const handleInlineBalanceSave = async (user: any) => {
+    const newBalance = parseFloat(editBalanceValue);
+    if (isNaN(newBalance) || newBalance < 0) {
+      toast.error('Invalid balance');
+      return;
+    }
+    const oldBalance = user.wallet_balance || 0;
+    const diff = newBalance - oldBalance;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ wallet_balance: newBalance })
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Failed to update balance');
+      return;
+    }
+
+    if (diff !== 0) {
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: diff > 0 ? 'admin_credit' : 'admin_debit',
+        amount: Math.abs(diff),
+        status: 'completed',
+        description: `Admin balance adjustment: ₹${oldBalance} → ₹${newBalance}`
+      });
+    }
+
+    toast.success(`Balance updated to ₹${newBalance}`);
+    setEditingBalanceId(null);
+    setEditBalanceValue('');
+    onDataChange();
+  };
 
   const pendingOrders = data.orders.filter(o => o.status === 'pending').length;
   const pendingDeposits = data.depositRequests?.filter(r => r.status === 'pending').length || 0;
@@ -417,8 +456,32 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                                       </div>
                                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                     </div>
-                                    <div className="text-right">
-                                      <p className="font-bold text-foreground text-sm">₹{user.wallet_balance || 0}</p>
+                                    <div className="text-right" onClick={(e) => e.stopPropagation()}>
+                                      {editingBalanceId === user.id ? (
+                                        <div className="flex items-center gap-1">
+                                          <Input
+                                            type="number"
+                                            value={editBalanceValue}
+                                            onChange={(e) => setEditBalanceValue(e.target.value)}
+                                            className="h-6 w-16 text-xs px-1"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter') handleInlineBalanceSave(user);
+                                              if (e.key === 'Escape') setEditingBalanceId(null);
+                                            }}
+                                          />
+                                          <button onClick={() => handleInlineBalanceSave(user)} className="text-green-600"><Check className="w-3.5 h-3.5" /></button>
+                                          <button onClick={() => setEditingBalanceId(null)} className="text-red-500"><X className="w-3.5 h-3.5" /></button>
+                                        </div>
+                                      ) : (
+                                        <p
+                                          className="font-bold text-foreground text-sm cursor-pointer hover:text-primary hover:underline transition-colors"
+                                          onClick={() => { setEditingBalanceId(user.id); setEditBalanceValue(String(user.wallet_balance || 0)); }}
+                                          title="Click to edit balance"
+                                        >
+                                          ₹{user.wallet_balance || 0}
+                                        </p>
+                                      )}
                                       <p className="text-xs text-muted-foreground">{user.total_orders || 0} orders</p>
                                     </div>
                                   </div>
