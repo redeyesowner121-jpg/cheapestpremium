@@ -53,19 +53,10 @@ interface ProductVariation {
   price: number;
 }
 
-const categories = [
-  { id: 'all', name: 'All' },
-  { id: 'ott', name: 'OTT' },
-  { id: 'music', name: 'Music' },
-  { id: 'gaming', name: 'Gaming' },
-  { id: 'tools', name: 'Tools' },
-  { id: 'education', name: 'Education' },
-  { id: 'cloud', name: 'Cloud' },
-  { id: 'free', name: 'Free' },
-  { id: 'earning', name: 'Earning' },
-  { id: 'methods', name: 'Methods' },
-  { id: 'courses', name: 'Courses' },
-];
+interface CategoryItem {
+  id: string;
+  name: string;
+}
 
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
@@ -83,6 +74,7 @@ const ProductsPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const [orderNote, setOrderNote] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([{ id: 'all', name: 'All' }]);
   const [loading, setLoading] = useState(true);
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
   const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
@@ -91,6 +83,7 @@ const ProductsPage: React.FC = () => {
 
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
   
   // Handle category from navigation state
@@ -158,6 +151,21 @@ const ProductsPage: React.FC = () => {
       setProducts(data);
     }
     setLoading(false);
+  };
+
+  const loadCategories = async () => {
+    const { data } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    
+    if (data) {
+      setCategories([
+        { id: 'all', name: 'All' },
+        ...data.map(c => ({ id: c.name.toLowerCase(), name: c.name }))
+      ]);
+    }
   };
 
   const filteredProducts = useMemo(() => products.filter((product) => {
