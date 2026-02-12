@@ -19,6 +19,7 @@ import AdminSettingsTab from './AdminSettingsTab';
 import DepositRequestsSection from './DepositRequestsSection';
 import AdminCouponManager from './AdminCouponManager';
 import AdminRedeemCodeManager from './AdminRedeemCodeManager';
+import AdminCategoryManager from '@/components/AdminCategoryManager';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -508,6 +509,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                                   Add
                                 </Button>
                               </div>
+                              <AdminCategoryManager products={data.products} onCategoryChange={onDataChange} />
                               <div className="space-y-2 max-h-80 overflow-y-auto">
                                 {filteredProducts.map((product: any) => (
                                   <div
