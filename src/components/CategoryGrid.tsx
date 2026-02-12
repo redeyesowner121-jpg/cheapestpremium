@@ -20,6 +20,7 @@ interface Category {
   name: string;
   sort_order: number;
   is_active: boolean;
+  icon_url: string | null;
 }
 
 // Icon mapping for categories
@@ -72,6 +73,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryClick }) => {
       return {
         id: cat.id,
         name: cat.name,
+        icon_url: cat.icon_url,
         icon: <IconComponent className="w-6 h-6" />,
         color: iconData.color,
         bgColor: iconData.bgColor,
@@ -106,8 +108,12 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryClick }) => {
             onClick={() => onCategoryClick?.(category.name)}
             className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-card shadow-card hover:shadow-lg transition-shadow active:scale-95"
           >
-            <div className={`p-3 rounded-xl ${category.bgColor}`}>
-              <div className={category.color}>{category.icon}</div>
+            <div className={`p-3 rounded-xl ${category.icon_url ? '' : category.bgColor}`}>
+              {category.icon_url ? (
+                <img src={category.icon_url} alt={category.name} className="w-6 h-6 object-contain rounded" />
+              ) : (
+                <div className={category.color}>{category.icon}</div>
+              )}
             </div>
             <span className="text-xs font-medium text-foreground">{category.name}</span>
           </button>
