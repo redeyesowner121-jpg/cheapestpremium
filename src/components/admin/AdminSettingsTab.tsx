@@ -8,6 +8,7 @@ import {
   CreditCard, Gift, Award, Package, ToggleLeft, Save, Check
 } from 'lucide-react';
 import { toast } from 'sonner';
+import AdminRankManager from './AdminRankManager';
 
 interface AdminSettingsTabProps {
   settings: Record<string, string>;
@@ -362,6 +363,11 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             }}
           />
         </SettingItem>
+      </SettingsSection>
+
+      {/* Rank System */}
+      <SettingsSection title="Rank System" icon={<Award className="w-5 h-5" />}>
+        <AdminRankManager />
       </SettingsSection>
     </div>
   );
