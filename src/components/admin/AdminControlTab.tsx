@@ -4,7 +4,7 @@ import {
   Bell, UserPlus, ShoppingBag, MessageCircle, Settings, 
   Image, CreditCard, Users, Package, Shield, ChevronRight,
   ChevronDown, Search, Plus, Edit, Trash2, Eye, Award,
-  Clock, CheckCircle, XCircle, Zap, Wallet, Ticket, Gift, Check, X
+  Clock, CheckCircle, XCircle, Zap, Wallet, Ticket, Gift, Check, X, FolderOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +43,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'settings' | null;
+type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'settings' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = ({
   data,
@@ -157,6 +157,14 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
       label: 'Products', 
       description: `${data.products.length} items`,
       color: 'bg-gradient-to-br from-purple-500 to-pink-500',
+      badge: null
+    },
+    { 
+      id: 'categories' as ControlSection, 
+      icon: FolderOpen, 
+      label: 'Categories', 
+      description: 'Manage categories',
+      color: 'bg-gradient-to-br from-amber-500 to-orange-500',
       badge: null
     },
     { 
@@ -509,7 +517,6 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                                   Add
                                 </Button>
                               </div>
-                              <AdminCategoryManager products={data.products} onCategoryChange={onDataChange} />
                               <div className="space-y-2 max-h-80 overflow-y-auto">
                                 {filteredProducts.map((product: any) => (
                                   <div
@@ -540,6 +547,11 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                                 ))}
                               </div>
                             </div>
+                          )}
+
+                          {/* Categories Section */}
+                          {section.id === 'categories' && (
+                            <AdminCategoryManager products={data.products} onCategoryChange={onDataChange} />
                           )}
 
                           {/* Content Section */}
