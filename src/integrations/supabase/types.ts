@@ -595,6 +595,7 @@ export type Database = {
           price: number
           rating: number | null
           reseller_price: number | null
+          seo_tags: string | null
           sold_count: number | null
           stock: number | null
           updated_at: string | null
@@ -612,6 +613,7 @@ export type Database = {
           price: number
           rating?: number | null
           reseller_price?: number | null
+          seo_tags?: string | null
           sold_count?: number | null
           stock?: number | null
           updated_at?: string | null
@@ -629,6 +631,7 @@ export type Database = {
           price?: number
           rating?: number | null
           reseller_price?: number | null
+          seo_tags?: string | null
           sold_count?: number | null
           stock?: number | null
           updated_at?: string | null

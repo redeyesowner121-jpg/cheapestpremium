@@ -44,6 +44,7 @@ interface Product {
   category: string;
   access_link?: string;
   reseller_price?: number;
+  seo_tags?: string;
 }
 
 interface ProductVariation {
@@ -160,7 +161,11 @@ const ProductsPage: React.FC = () => {
   };
 
   const filteredProducts = useMemo(() => products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !query || 
+      product.name.toLowerCase().includes(query) ||
+      (product.description && product.description.toLowerCase().includes(query)) ||
+      (product.seo_tags && product.seo_tags.toLowerCase().includes(query));
     const matchesCategory = selectedCategory === 'all' || 
       product.category?.toLowerCase() === selectedCategory.toLowerCase();
     return matchesSearch && matchesCategory;
