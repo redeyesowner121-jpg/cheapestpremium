@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Package } from 'lucide-react';
+import { Plus, Trash2, Package, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,6 +40,7 @@ interface ProductForm {
   access_link: string;
   stock: string;
   is_active: boolean;
+  seo_tags: string;
 }
 
 interface Variation {
@@ -72,7 +73,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
     images: [],
     access_link: '',
     stock: '',
-    is_active: true
+    is_active: true,
+    seo_tags: ''
   });
   const [pendingVariations, setPendingVariations] = React.useState<Variation[]>([]);
   const [existingVariations, setExistingVariations] = React.useState<any[]>([]);
@@ -106,7 +108,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
         images: existingImages,
         access_link: editingProduct.access_link || '',
         stock: editingProduct.stock?.toString() || '',
-        is_active: editingProduct.is_active !== false
+        is_active: editingProduct.is_active !== false,
+        seo_tags: editingProduct.seo_tags || ''
       });
       
       // Load existing variations
@@ -136,7 +139,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       images: [],
       access_link: '',
       stock: '',
-      is_active: true
+      is_active: true,
+      seo_tags: ''
     });
     setPendingVariations([]);
     setExistingVariations([]);
@@ -163,7 +167,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       image_url: imageUrl,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
-      is_active: productForm.is_active
+      is_active: productForm.is_active,
+      seo_tags: productForm.seo_tags || ''
     }).select().single();
     
     if (error || !newProduct) {
@@ -208,7 +213,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       image_url: imageUrl,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
-      is_active: productForm.is_active
+      is_active: productForm.is_active,
+      seo_tags: productForm.seo_tags || ''
     }).eq('id', editingProduct.id);
     
     if (error) {
@@ -368,6 +374,24 @@ const ProductModal: React.FC<ProductModalProps> = ({
           <div className="flex items-center justify-between">
             <span className="text-sm">Active</span>
             <Switch checked={productForm.is_active} onCheckedChange={(v) => setProductForm({...productForm, is_active: v})} />
+          </div>
+          
+          {/* SEO Tags Section */}
+          <div className="border-t border-border pt-4">
+            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <Search className="w-4 h-4 text-primary" />
+              SEO Tags
+            </h4>
+            <Textarea
+              placeholder="SEO keywords comma-separated (e.g. netflix premium, ott subscription, streaming, cheap netflix)"
+              value={productForm.seo_tags}
+              onChange={(e) => setProductForm({...productForm, seo_tags: e.target.value})}
+              rows={2}
+              className="text-xs"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              এই keywords দিয়ে ইউজাররা সার্চ করলে এই প্রোডাক্ট দেখাবে
+            </p>
           </div>
           
           {/* Variations Section */}
