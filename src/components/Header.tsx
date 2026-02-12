@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bell, MessageCircle, Shield, User, LogIn } from 'lucide-react';
+import { Bell, MessageCircle, Shield, Search, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettings } from '@/hooks/useAppSettings';
@@ -40,15 +40,15 @@ const Header: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {/* Login/Profile Button */}
-          {user ? (
-            <motion.button
-              onClick={() => navigate('/profile')}
-              className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
-              whileTap={{ scale: 0.9 }}
-            >
-              <User className="w-5 h-5 text-primary" />
-            </motion.button>
-          ) : (
+          <motion.button
+            onClick={() => navigate('/products')}
+            className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+            whileTap={{ scale: 0.9 }}
+          >
+            <Search className="w-5 h-5 text-primary" />
+          </motion.button>
+
+          {!user && (
             <motion.button
               onClick={() => navigate('/auth')}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium"
