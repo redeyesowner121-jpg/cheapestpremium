@@ -646,7 +646,7 @@ const AdminPage: React.FC = () => {
 
   // Settings update
   const handleUpdateSetting = async (key: string, value: string) => {
-    await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() });
+    await supabase.from('app_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     setData({ ...data, settings: { ...data.settings, [key]: value } });
     toast.success('Setting updated!');
   };
