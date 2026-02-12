@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, UserPlus, ShoppingBag, MessageCircle, Settings, 
   Image, CreditCard, Users, Package, Shield, ChevronRight,
-  ChevronDown, Search, Plus, Edit, Trash2, Eye, Award,
+  ChevronDown, Search, Plus, Edit, Trash2, Tags, Award,
   Clock, CheckCircle, XCircle, Zap, Wallet, Ticket, Gift, Check, X, FolderOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import BlueTick from '@/components/BlueTick';
 import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminPaymentSettings from '@/components/AdminPaymentSettings';
@@ -74,6 +76,26 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
   const [productSearch, setProductSearch] = useState('');
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [editBalanceValue, setEditBalanceValue] = useState('');
+  const [seoProduct, setSeoProduct] = useState<any>(null);
+  const [seoTags, setSeoTags] = useState('');
+  const [savingSeo, setSavingSeo] = useState(false);
+
+  const handleSaveSeo = async () => {
+    if (!seoProduct) return;
+    setSavingSeo(true);
+    const { error } = await supabase
+      .from('products')
+      .update({ seo_tags: seoTags.trim() || null })
+      .eq('id', seoProduct.id);
+    setSavingSeo(false);
+    if (error) {
+      toast.error('Failed to save SEO tags');
+      return;
+    }
+    toast.success('SEO tags updated!');
+    setSeoProduct(null);
+    onDataChange();
+  };
 
   const handleInlineBalanceSave = async (user: any) => {
     const newBalance = parseFloat(editBalanceValue);
@@ -536,8 +558,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                                       <Button size="icon" variant="ghost" onClick={() => onEditProduct(product)} className="h-8 w-8">
                                         <Edit className="w-4 h-4" />
                                       </Button>
-                                      <Button size="icon" variant="ghost" onClick={() => onOpenVariations(product)} className="h-8 w-8">
-                                        <Eye className="w-4 h-4" />
+                                      <Button size="icon" variant="ghost" onClick={() => { setSeoProduct(product); setSeoTags(product.seo_tags || ''); }} className="h-8 w-8" title="SEO Tags">
+                                        <Tags className="w-4 h-4" />
                                       </Button>
                                       <Button size="icon" variant="ghost" onClick={() => onDeleteProduct(product.id)} className="h-8 w-8 text-destructive">
                                         <Trash2 className="w-4 h-4" />
@@ -675,6 +697,26 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
           </div>
         </motion.div>
       )}
+      {/* SEO Tags Modal */}
+      <Dialog open={!!seoProduct} onOpenChange={(open) => !open && setSeoProduct(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>SEO Tags - {seoProduct?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">কমা দিয়ে আলাদা করে ট্যাগ লিখুন (e.g. netflix, premium, ott)</p>
+            <Textarea
+              value={seoTags}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setSeoTags(e.target.value)}
+              placeholder="tag1, tag2, tag3..."
+              rows={3}
+            />
+            <Button className="w-full" onClick={handleSaveSeo} disabled={savingSeo}>
+              {savingSeo ? 'Saving...' : 'Save SEO Tags'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
