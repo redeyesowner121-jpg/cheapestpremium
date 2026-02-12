@@ -1,8 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit, Trash2, Download, Package, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Package, AlertTriangle, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import AdminCategoryManager from '@/components/AdminCategoryManager';
 import AdminAdvancedFilters from './AdminAdvancedFilters';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AdminProductsTabProps {
   products: any[];
@@ -41,6 +45,31 @@ const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
   const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
   const [sortBy, setSortBy] = useState('newest');
   const [stockFilter, setStockFilter] = useState('all');
+  const [seoProduct, setSeoProduct] = useState<any>(null);
+  const [seoTags, setSeoTags] = useState('');
+  const [savingSeo, setSavingSeo] = useState(false);
+
+  const handleOpenSeo = (product: any) => {
+    setSeoProduct(product);
+    setSeoTags(product.seo_tags || '');
+  };
+
+  const handleSaveSeo = async () => {
+    if (!seoProduct) return;
+    setSavingSeo(true);
+    const { error } = await supabase
+      .from('products')
+      .update({ seo_tags: seoTags.trim() || null })
+      .eq('id', seoProduct.id);
+    setSavingSeo(false);
+    if (error) {
+      toast.error('Failed to save SEO tags');
+      return;
+    }
+    toast.success('SEO tags updated!');
+    setSeoProduct(null);
+    onDataChange();
+  };
 
   const categories = [...new Set(products.map(p => p.category))].sort();
 
@@ -249,8 +278,8 @@ const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="icon" variant="outline" onClick={() => onOpenVariations(product)} title="Variations">
-                  <Package className="w-4 h-4" />
+                <Button size="icon" variant="outline" onClick={() => handleOpenSeo(product)} title="SEO Tags">
+                  <Tags className="w-4 h-4" />
                 </Button>
                 <Button size="icon" variant="outline" onClick={() => onEditProduct(product)}>
                   <Edit className="w-4 h-4" />
@@ -263,6 +292,26 @@ const AdminProductsTab: React.FC<AdminProductsTabProps> = ({
           ))
         )}
       </div>
+      {/* SEO Tags Modal */}
+      <Dialog open={!!seoProduct} onOpenChange={(open) => !open && setSeoProduct(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>SEO Tags - {seoProduct?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">কমা দিয়ে আলাদা করে ট্যাগ লিখুন (e.g. netflix, premium, ott)</p>
+            <Textarea
+              value={seoTags}
+              onChange={(e) => setSeoTags(e.target.value)}
+              placeholder="tag1, tag2, tag3..."
+              rows={3}
+            />
+            <Button className="w-full" onClick={handleSaveSeo} disabled={savingSeo}>
+              {savingSeo ? 'Saving...' : 'Save SEO Tags'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
