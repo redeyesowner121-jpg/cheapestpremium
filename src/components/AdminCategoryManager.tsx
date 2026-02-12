@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, FolderOpen, Check, X, GripVertical, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Edit, FolderOpen, Check, X, GripVertical, Loader2, ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -11,6 +11,7 @@ interface Category {
   name: string;
   sort_order: number | null;
   is_active: boolean | null;
+  icon_url: string | null;
   created_at: string;
   productCount?: number;
 }
@@ -27,6 +28,8 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
   const [editedName, setEditedName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingIconId, setUploadingIconId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadCategories();
@@ -190,6 +193,41 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
     setEditedName(category.name);
   };
 
+  const handleIconUpload = async (categoryId: string, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    setUploadingIconId(categoryId);
+    const fileExt = file.name.split('.').pop();
+    const filePath = `category-icons/${categoryId}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast.error('Failed to upload icon');
+      setUploadingIconId(null);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(filePath);
+
+    await supabase
+      .from('categories')
+      .update({ icon_url: urlData.publicUrl })
+      .eq('id', categoryId);
+
+    toast.success('Category icon updated');
+    setUploadingIconId(null);
+    loadCategories();
+    onCategoryChange();
+  };
+
   if (loading) {
     return (
       <div className="bg-card rounded-2xl p-4 shadow-card mb-4">
@@ -273,6 +311,23 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
               ) : (
                 <>
                   <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab" />
+                  {/* Category Icon */}
+                  <button
+                    onClick={() => {
+                      setUploadingIconId(category.id);
+                      fileInputRef.current?.click();
+                    }}
+                    className="relative w-10 h-10 rounded-lg bg-muted/50 border border-dashed border-border flex items-center justify-center overflow-hidden hover:border-primary transition-colors flex-shrink-0"
+                    title="Click to change icon"
+                  >
+                    {uploadingIconId === category.id && saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    ) : category.icon_url ? (
+                      <img src={category.icon_url} alt="" className="w-full h-full object-cover rounded-lg" />
+                    ) : (
+                      <ImagePlus className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </button>
                   <div className="flex-1">
                     <p className="font-medium text-sm text-foreground">{category.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -307,6 +362,20 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
           ))
         )}
       </div>
+      {/* Hidden file input for icon upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file && uploadingIconId) {
+            handleIconUpload(uploadingIconId, file);
+          }
+          e.target.value = '';
+        }}
+      />
     </div>
   );
 };
