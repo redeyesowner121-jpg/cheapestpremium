@@ -8,7 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import AdminAnalytics from '@/components/AdminAnalytics';
-import AdminSearchAnalytics from '@/components/AdminSearchAnalytics';
+
 import { AdminStats, AdminData } from '@/hooks/useAdminData';
 
 interface AdminOverviewTabProps {
@@ -188,11 +188,8 @@ const AdminOverviewTab: React.FC<AdminOverviewTabProps> = ({ stats, data }) => {
         </motion.div>
       )}
 
-      {/* Analytics Charts */}
-      <div className="space-y-6">
-        <AdminAnalytics orders={data.orders} products={data.products} users={data.users} transactions={data.transactions} />
-        <AdminSearchAnalytics />
-      </div>
+      {/* Analytics Dashboard */}
+      <AdminAnalytics orders={data.orders} products={data.products} users={data.users} transactions={data.transactions} />
     </div>
   );
 };
