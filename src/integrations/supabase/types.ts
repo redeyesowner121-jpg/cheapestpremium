@@ -565,6 +565,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          original_price: number | null
           price: number
           product_id: string
           reseller_price: number | null
@@ -574,6 +575,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          original_price?: number | null
           price: number
           product_id: string
           reseller_price?: number | null
@@ -583,6 +585,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          original_price?: number | null
           price?: number
           product_id?: string
           reseller_price?: number | null

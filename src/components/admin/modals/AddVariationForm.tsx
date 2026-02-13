@@ -1,11 +1,11 @@
 import React from 'react';
-import { Plus, IndianRupee, Tag, Users } from 'lucide-react';
+import { Plus, IndianRupee, Tag, Users, BadgePercent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface AddVariationFormProps {
-  value: { name: string; price: string; reseller_price: string };
-  onChange: (v: { name: string; price: string; reseller_price: string }) => void;
+  value: { name: string; price: string; original_price: string; reseller_price: string };
+  onChange: (v: { name: string; price: string; original_price: string; reseller_price: string }) => void;
   onAdd: () => void;
 }
 
@@ -25,7 +25,7 @@ const AddVariationForm: React.FC<AddVariationFormProps> = ({ value, onChange, on
           className="pl-8 h-9 rounded-xl text-sm"
         />
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <div className="relative">
           <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -33,6 +33,16 @@ const AddVariationForm: React.FC<AddVariationFormProps> = ({ value, onChange, on
             placeholder="Price"
             value={value.price}
             onChange={(e) => onChange({ ...value, price: e.target.value })}
+            className="pl-8 h-9 rounded-xl text-sm"
+          />
+        </div>
+        <div className="relative">
+          <BadgePercent className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            type="number"
+            placeholder="Original"
+            value={value.original_price}
+            onChange={(e) => onChange({ ...value, original_price: e.target.value })}
             className="pl-8 h-9 rounded-xl text-sm"
           />
         </div>
