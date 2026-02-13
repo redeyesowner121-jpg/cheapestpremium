@@ -22,6 +22,7 @@ const UsersPage = lazy(() => import("./pages/UsersPage"));
 const NotificationHistoryPage = lazy(() => import("./pages/NotificationHistoryPage"));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
+const CartPage = lazy(() => import("./pages/CartPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -83,6 +84,7 @@ const AppContent = () => {
             <Route path="/users" element={<UsersPage />} />
             <Route path="/notifications" element={<NotificationHistoryPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/cart" element={<CartPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

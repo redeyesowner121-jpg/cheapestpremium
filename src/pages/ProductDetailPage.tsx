@@ -28,6 +28,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
+import { useCart } from '@/hooks/useCart';
+import AddToCartButton from '@/components/AddToCartButton';
 
 interface ProductVariation {
   id: string;
@@ -460,13 +462,18 @@ const ProductDetailPage: React.FC = () => {
             url={`https://cheapestpremium.lovable.app/product/${displayProduct?.id}`}
             size="sm"
           />
+          <AddToCartButton 
+            productId={displayProduct.id}
+            variationId={selectedVariation?.id}
+            disabled={isOutOfStock}
+          />
           <Button
             className={`flex-1 rounded-xl h-12 ${isOutOfStock ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'btn-gradient'}`}
             onClick={handleBuyClick}
             disabled={isOutOfStock}
           >
             <ShoppingCart className="w-5 h-5 mr-2" />
-            {isOutOfStock ? 'Out of Stock' : `Buy Now - ₹${currentPrice}`}
+            {isOutOfStock ? 'Out of Stock' : `Buy Now`}
           </Button>
         </div>
       </div>
