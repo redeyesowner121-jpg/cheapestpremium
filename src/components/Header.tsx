@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageCircle, Shield, Search, LogIn } from 'lucide-react';
+import { Bell, MessageCircle, Shield, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,12 +66,6 @@ const Header: React.FC = React.memo(() => {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/products')}
-            className="p-2 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors active:scale-90"
-          >
-            <Search className="w-5 h-5 text-primary" />
-          </button>
 
           {!user && (
             <button
