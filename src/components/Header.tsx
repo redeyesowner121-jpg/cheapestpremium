@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Bell, MessageCircle, Shield, Search, LogIn } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { supabase } from '@/integrations/supabase/client';
 import BlueTick from './BlueTick';
 import appLogo from '@/assets/app-logo.jpg';
 
@@ -11,6 +12,35 @@ const Header: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, isAdmin, isTempAdmin } = useAuth();
   const { settings } = useAppSettings();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+      setUnreadCount(count || 0);
+    };
+
+    fetchCount();
+
+    // Realtime subscription for new notifications
+    const channel = supabase
+      .channel('header-notif-count')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, () => fetchCount())
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const showAdminButton = isAdmin || isTempAdmin;
 
@@ -75,9 +105,11 @@ const Header: React.FC = () => {
             whileTap={{ scale: 0.9 }}
           >
             <Bell className="w-5 h-5 text-muted-foreground" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 gradient-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground font-bold">
-              3
-            </span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 gradient-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </motion.button>
 
           <motion.button
