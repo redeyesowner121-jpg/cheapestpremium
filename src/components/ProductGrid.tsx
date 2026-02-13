@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
+import AddToCartButton from '@/components/AddToCartButton';
 
 interface Product {
   id: string;
@@ -126,6 +127,7 @@ const ProductCard = memo<{
           >
             Buy
           </Button>
+          <AddToCartButton productId={product.id} size="sm" />
         </div>
       </div>
     </div>
