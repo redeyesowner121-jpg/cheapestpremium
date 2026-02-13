@@ -13,10 +13,10 @@ import VariationItem from './VariationItem';
 import AddVariationForm from './AddVariationForm';
 
 const QUICK_VARIATION_TEMPLATES = [
-  { name: '1 Month', price: '49', reseller_price: '' },
-  { name: '3 Months', price: '129', reseller_price: '' },
-  { name: '6 Months', price: '249', reseller_price: '' },
-  { name: '1 Year', price: '449', reseller_price: '' },
+  { name: '1 Month', price: '49', original_price: '', reseller_price: '' },
+  { name: '3 Months', price: '129', original_price: '', reseller_price: '' },
+  { name: '6 Months', price: '249', original_price: '', reseller_price: '' },
+  { name: '1 Year', price: '449', original_price: '', reseller_price: '' },
 ];
 
 interface AdminProductModalProps {
@@ -53,6 +53,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
         product_id: editingProduct.id,
         name: newModalVariation.name,
         price: parseFloat(newModalVariation.price),
+        original_price: newModalVariation.original_price ? parseFloat(newModalVariation.original_price) : null,
         reseller_price: newModalVariation.reseller_price ? parseFloat(newModalVariation.reseller_price) : null,
       }).then(({ error }) => {
         if (error) { toast.error('Failed to add variation'); return; }
@@ -60,15 +61,15 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
           .order('created_at', { ascending: true })
           .then(({ data }) => setExistingVariations(data || []));
         toast.success('Variation added!');
-        setNewModalVariation({ name: '', price: '', reseller_price: '' });
+        setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
       });
     } else {
       setPendingVariations([...pendingVariations, { ...newModalVariation }]);
-      setNewModalVariation({ name: '', price: '', reseller_price: '' });
+      setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
     }
   };
 
-  const handleEditVariation = async (id: string, data: { name: string; price: string; reseller_price: string }) => {
+  const handleEditVariation = async (id: string, data: { name: string; price: string; original_price: string; reseller_price: string }) => {
     if (!data.name || !data.price) {
       toast.error('Name and price are required');
       return;
@@ -76,6 +77,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     const { error } = await supabase.from('product_variations').update({
       name: data.name,
       price: parseFloat(data.price),
+      original_price: data.original_price ? parseFloat(data.original_price) : null,
       reseller_price: data.reseller_price ? parseFloat(data.reseller_price) : null,
     }).eq('id', id);
     if (error) { toast.error('Failed to update variation'); return; }
@@ -107,11 +109,6 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
         <div className="space-y-4">
           <Input placeholder="Product Name *" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
           <Textarea placeholder="Description" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} rows={2} />
-          <div className="grid grid-cols-3 gap-2">
-            <Input type="number" placeholder="Price *" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} />
-            <Input type="number" placeholder="Original" value={productForm.original_price} onChange={(e) => setProductForm({ ...productForm, original_price: e.target.value })} />
-            <Input type="number" placeholder="Reseller" value={productForm.reseller_price} onChange={(e) => setProductForm({ ...productForm, reseller_price: e.target.value })} />
-          </div>
           <Select value={productForm.category} onValueChange={(value) => setProductForm({ ...productForm, category: value })}>
             <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select category" /></SelectTrigger>
             <SelectContent>
@@ -130,7 +127,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
           <div className="border-t border-border pt-4">
             <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <Package className="w-4 h-4 text-primary" />
-              Variations (Optional)
+              Variations & Pricing
             </h4>
 
             <div className="flex flex-wrap gap-1 mb-3">
@@ -172,7 +169,13 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                 {pendingVariations.map((v, idx) => (
                   <VariationItem
                     key={`pending-${idx}`}
-                    variation={{ id: idx.toString(), name: v.name, price: parseFloat(v.price) || 0, reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null }}
+                    variation={{
+                      id: idx.toString(),
+                      name: v.name,
+                      price: parseFloat(v.price) || 0,
+                      original_price: v.original_price ? parseFloat(v.original_price) : null,
+                      reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null,
+                    }}
                     onEdit={async () => {}}
                     onDelete={handleDeletePending}
                     isPending

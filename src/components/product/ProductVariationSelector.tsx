@@ -6,6 +6,7 @@ interface ProductVariation {
   id: string;
   name: string;
   price: number;
+  original_price?: number | null;
   reseller_price?: number | null;
   is_active: boolean;
 }
@@ -45,6 +46,7 @@ const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
             isReseller
           );
           const hasDiscount = varFinalPrice < variation.price;
+          const hasOriginalDiscount = variation.original_price && variation.original_price > variation.price;
           const isSelected = selectedVariation?.id === variation.id;
           
           return (
@@ -65,7 +67,10 @@ const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
               <span className="block text-sm font-semibold text-foreground">{variation.name}</span>
               <div className="mt-0.5">
                 <span className="block text-lg font-bold text-primary">₹{Math.round(varFinalPrice)}</span>
-                {hasDiscount && (
+                {hasOriginalDiscount && (
+                  <span className="text-xs text-muted-foreground line-through">₹{variation.original_price}</span>
+                )}
+                {hasDiscount && !hasOriginalDiscount && (
                   <span className="text-xs text-muted-foreground line-through">₹{variation.price}</span>
                 )}
               </div>

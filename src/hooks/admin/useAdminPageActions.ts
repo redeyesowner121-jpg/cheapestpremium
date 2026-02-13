@@ -145,6 +145,7 @@ export const useAdminPageActions = (loadData: () => void) => {
         pendingVariations.map(v => ({
           product_id: newProduct.id, name: v.name,
           price: parseFloat(v.price),
+          original_price: v.original_price ? parseFloat(v.original_price) : null,
           reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
         }))
       );
@@ -179,6 +180,7 @@ export const useAdminPageActions = (loadData: () => void) => {
         pendingVariations.map(v => ({
           product_id: editingProduct.id, name: v.name,
           price: parseFloat(v.price),
+          original_price: v.original_price ? parseFloat(v.original_price) : null,
           reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
         }))
       );

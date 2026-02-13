@@ -21,7 +21,7 @@ interface VariationsModalProps {
 
 const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, product }) => {
   const [variations, setVariations] = React.useState<any[]>([]);
-  const [newVariation, setNewVariation] = React.useState({ name: '', price: '', reseller_price: '' });
+  const [newVariation, setNewVariation] = React.useState({ name: '', price: '', original_price: '', reseller_price: '' });
 
   React.useEffect(() => {
     if (product && open) loadVariations();
@@ -45,14 +45,15 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
       product_id: product.id,
       name: newVariation.name,
       price: parseFloat(newVariation.price),
+      original_price: newVariation.original_price ? parseFloat(newVariation.original_price) : null,
       reseller_price: newVariation.reseller_price ? parseFloat(newVariation.reseller_price) : null,
     });
     toast.success('Variation added!');
-    setNewVariation({ name: '', price: '', reseller_price: '' });
+    setNewVariation({ name: '', price: '', original_price: '', reseller_price: '' });
     loadVariations();
   };
 
-  const handleEdit = async (id: string, data: { name: string; price: string; reseller_price: string }) => {
+  const handleEdit = async (id: string, data: { name: string; price: string; original_price: string; reseller_price: string }) => {
     if (!data.name || !data.price) {
       toast.error('Name and price are required');
       return;
@@ -60,6 +61,7 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
     const { error } = await supabase.from('product_variations').update({
       name: data.name,
       price: parseFloat(data.price),
+      original_price: data.original_price ? parseFloat(data.original_price) : null,
       reseller_price: data.reseller_price ? parseFloat(data.reseller_price) : null,
     }).eq('id', id);
     if (error) { toast.error('Failed to update variation'); return; }

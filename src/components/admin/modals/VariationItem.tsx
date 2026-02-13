@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pencil, Trash2, Check, X, IndianRupee, Tag, Users } from 'lucide-react';
+import { Pencil, Trash2, Check, X, IndianRupee, Tag, Users, BadgePercent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,22 +9,24 @@ interface VariationItemProps {
     id: string;
     name: string;
     price: number;
+    original_price?: number | null;
     reseller_price?: number | null;
   };
-  onEdit: (id: string, data: { name: string; price: string; reseller_price: string }) => Promise<void>;
+  onEdit: (id: string, data: { name: string; price: string; original_price: string; reseller_price: string }) => Promise<void>;
   onDelete: (id: string) => void;
   isPending?: boolean;
 }
 
 const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDelete, isPending }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', price: '', reseller_price: '' });
+  const [form, setForm] = useState({ name: '', price: '', original_price: '', reseller_price: '' });
   const [saving, setSaving] = useState(false);
 
   const startEdit = () => {
     setForm({
       name: variation.name,
       price: String(variation.price),
+      original_price: variation.original_price ? String(variation.original_price) : '',
       reseller_price: variation.reseller_price ? String(variation.reseller_price) : '',
     });
     setIsEditing(true);
@@ -36,6 +38,10 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
     setSaving(false);
     setIsEditing(false);
   };
+
+  const discount = variation.original_price && variation.original_price > variation.price
+    ? Math.round(((variation.original_price - variation.price) / variation.original_price) * 100)
+    : null;
 
   return (
     <motion.div
@@ -77,7 +83,7 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <div className="relative">
                 <IndianRupee className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
@@ -85,6 +91,16 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
                   placeholder="Price"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  className="pl-8 h-9 rounded-xl text-sm border-primary/20 focus:border-primary"
+                />
+              </div>
+              <div className="relative">
+                <BadgePercent className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  type="number"
+                  placeholder="Original"
+                  value={form.original_price}
+                  onChange={(e) => setForm({ ...form, original_price: e.target.value })}
                   className="pl-8 h-9 rounded-xl text-sm border-primary/20 focus:border-primary"
                 />
               </div>
@@ -101,20 +117,10 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
             </div>
 
             <div className="flex gap-2 justify-end pt-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 rounded-xl text-xs gap-1"
-                onClick={() => setIsEditing(false)}
-              >
+              <Button size="sm" variant="ghost" className="h-8 rounded-xl text-xs gap-1" onClick={() => setIsEditing(false)}>
                 <X className="w-3 h-3" /> Cancel
               </Button>
-              <Button
-                size="sm"
-                className="h-8 rounded-xl text-xs gap-1 bg-primary hover:bg-primary/90"
-                onClick={handleSave}
-                disabled={saving || !form.name || !form.price}
-              >
+              <Button size="sm" className="h-8 rounded-xl text-xs gap-1 bg-primary hover:bg-primary/90" onClick={handleSave} disabled={saving || !form.name || !form.price}>
                 <Check className="w-3 h-3" /> {saving ? 'Saving...' : 'Save'}
               </Button>
             </div>
@@ -132,13 +138,17 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
                 <div className={`h-2 w-2 rounded-full ${isPending ? 'bg-accent' : 'bg-primary'}`} />
                 <p className="text-sm font-semibold text-foreground truncate">{variation.name}</p>
                 {isPending && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent font-medium">
-                    New
-                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent font-medium">New</span>
+                )}
+                {discount && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-600 font-bold">{discount}% OFF</span>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-0.5 ml-4">
                 <span className="text-sm font-bold text-primary">₹{variation.price}</span>
+                {variation.original_price && (
+                  <span className="text-[11px] text-muted-foreground line-through">₹{variation.original_price}</span>
+                )}
                 {variation.reseller_price && (
                   <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
                     Reseller: ₹{variation.reseller_price}
@@ -149,21 +159,11 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
 
             <div className="flex gap-1 shrink-0">
               {!isPending && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 rounded-xl hover:bg-primary/10 hover:text-primary transition-colors"
-                  onClick={startEdit}
-                >
+                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl hover:bg-primary/10 hover:text-primary transition-colors" onClick={startEdit}>
                   <Pencil className="w-3.5 h-3.5" />
                 </Button>
               )}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors"
-                onClick={() => onDelete(variation.id)}
-              >
+              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl hover:bg-destructive/10 hover:text-destructive transition-colors" onClick={() => onDelete(variation.id)}>
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
             </div>

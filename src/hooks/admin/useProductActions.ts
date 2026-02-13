@@ -16,7 +16,7 @@ interface ProductForm {
 
 export async function handleAddProduct(
   productForm: ProductForm,
-  pendingVariations: { name: string; price: string; reseller_price: string }[],
+  pendingVariations: { name: string; price: string; original_price: string; reseller_price: string }[],
   onComplete: () => void
 ) {
   if (!productForm.name || !productForm.price || !productForm.category) {
@@ -47,6 +47,7 @@ export async function handleAddProduct(
       product_id: newProduct.id,
       name: v.name,
       price: parseFloat(v.price),
+      original_price: v.original_price ? parseFloat(v.original_price) : null,
       reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
     }));
     
@@ -61,7 +62,7 @@ export async function handleAddProduct(
 export async function handleUpdateProduct(
   productId: string,
   productForm: ProductForm,
-  pendingVariations: { name: string; price: string; reseller_price: string }[],
+  pendingVariations: { name: string; price: string; original_price: string; reseller_price: string }[],
   onComplete: () => void
 ) {
   if (!productForm.name || !productForm.price || !productForm.category) {
@@ -92,6 +93,7 @@ export async function handleUpdateProduct(
       product_id: productId,
       name: v.name,
       price: parseFloat(v.price),
+      original_price: v.original_price ? parseFloat(v.original_price) : null,
       reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
     }));
     
