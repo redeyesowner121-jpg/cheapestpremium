@@ -23,6 +23,7 @@ export interface AppSettings {
   notification_enabled: boolean;
   razorpay_enabled: boolean;
   google_login_enabled: boolean;
+  blue_tick_price: number;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -47,6 +48,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   notification_enabled: true,
   razorpay_enabled: true,
   google_login_enabled: false,
+  blue_tick_price: 0,
 };
 
 // Parse value based on expected type
@@ -61,7 +63,7 @@ const parseSettingValue = (key: keyof AppSettings, value: string | null): any =>
   const numberKeys = [
     'min_deposit', 'login_bonus', 'daily_bonus_min', 'daily_bonus_max',
     'referral_bonus', 'blue_tick_threshold', 'single_deposit_bonus_threshold',
-    'single_deposit_bonus_amount', 'low_stock_threshold'
+    'single_deposit_bonus_amount', 'low_stock_threshold', 'blue_tick_price'
   ];
   
   if (booleanKeys.includes(key)) {
