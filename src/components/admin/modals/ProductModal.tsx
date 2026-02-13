@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, Package, Search } from 'lucide-react';
+import { Plus, Trash2, Package, Search, Pencil, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -79,6 +79,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
   const [pendingVariations, setPendingVariations] = React.useState<Variation[]>([]);
   const [existingVariations, setExistingVariations] = React.useState<any[]>([]);
   const [newModalVariation, setNewModalVariation] = React.useState<Variation>({ name: '', price: '', reseller_price: '' });
+  const [editingVarId, setEditingVarId] = React.useState<string | null>(null);
+  const [editVarForm, setEditVarForm] = React.useState<Variation>({ name: '', price: '', reseller_price: '' });
 
   React.useEffect(() => {
     if (editingProduct) {
@@ -293,6 +295,37 @@ const ProductModal: React.FC<ProductModalProps> = ({
     }
   };
 
+  const startEditVariation = (v: any) => {
+    setEditingVarId(v.id);
+    setEditVarForm({
+      name: v.name,
+      price: String(v.price),
+      reseller_price: v.reseller_price ? String(v.reseller_price) : '',
+    });
+  };
+
+  const handleUpdateVariation = async () => {
+    if (!editingVarId || !editVarForm.name || !editVarForm.price) {
+      toast.error('Name and price are required');
+      return;
+    }
+    const { error } = await supabase
+      .from('product_variations')
+      .update({
+        name: editVarForm.name,
+        price: parseFloat(editVarForm.price),
+        reseller_price: editVarForm.reseller_price ? parseFloat(editVarForm.reseller_price) : null,
+      })
+      .eq('id', editingVarId);
+    if (error) {
+      toast.error('Failed to update variation');
+      return;
+    }
+    toast.success('Variation updated!');
+    setEditingVarId(null);
+    if (editingProduct) loadVariations(editingProduct.id);
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) resetForm();
@@ -417,11 +450,32 @@ const ProductModal: React.FC<ProductModalProps> = ({
             {existingVariations.length > 0 && (
               <div className="space-y-2 mb-3">
                 {existingVariations.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between p-2 bg-muted rounded-xl">
-                    <span className="text-sm">{v.name} - ₹{v.price} {v.reseller_price && `(R: ₹${v.reseller_price})`}</span>
-                    <Button size="icon" variant="destructive" className="h-7 w-7" onClick={() => handleDeleteVariation(v.id, true)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                  <div key={v.id} className="p-2 bg-muted rounded-xl">
+                    {editingVarId === v.id ? (
+                      <div className="space-y-2">
+                        <Input placeholder="Name" value={editVarForm.name} onChange={(e) => setEditVarForm({ ...editVarForm, name: e.target.value })} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input type="number" placeholder="Price" value={editVarForm.price} onChange={(e) => setEditVarForm({ ...editVarForm, price: e.target.value })} />
+                          <Input type="number" placeholder="Reseller" value={editVarForm.reseller_price} onChange={(e) => setEditVarForm({ ...editVarForm, reseller_price: e.target.value })} />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingVarId(null)}><X className="w-3 h-3 mr-1" />Cancel</Button>
+                          <Button size="sm" onClick={handleUpdateVariation}><Check className="w-3 h-3 mr-1" />Save</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">{v.name} - ₹{v.price} {v.reseller_price && `(R: ₹${v.reseller_price})`}</span>
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => startEditVariation(v)}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button size="icon" variant="destructive" className="h-7 w-7" onClick={() => handleDeleteVariation(v.id, true)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
