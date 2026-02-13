@@ -66,7 +66,7 @@ import {
   AdminOverviewTab,
   AdminControlTab
 } from '@/components/admin';
-import { FlashSaleModal } from '@/components/admin/modals';
+import { FlashSaleModal, VariationsModal } from '@/components/admin/modals';
 import { toast } from 'sonner';
 
 const AdminPage: React.FC = () => {
