@@ -31,12 +31,12 @@ import { motion } from 'framer-motion';
 import appLogo from '@/assets/app-logo.jpg';
 import BlueTick from '@/components/BlueTick';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useAppSettings } from '@/hooks/useAppSettings';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, logout, refreshProfile, user } = useAuth();
-  const { settings } = useAppSettings();
+  const { settings } = useAppSettingsContext();
   
   const [showEditReferral, setShowEditReferral] = useState(false);
   const [showDailyBonus, setShowDailyBonus] = useState(false);

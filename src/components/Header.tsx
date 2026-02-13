@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, MessageCircle, Shield, Search, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppSettings } from '@/hooks/useAppSettings';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import BlueTick from './BlueTick';
 import appLogo from '@/assets/app-logo.jpg';
@@ -10,7 +10,7 @@ import appLogo from '@/assets/app-logo.jpg';
 const Header: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const { user, profile, isAdmin, isTempAdmin } = useAuth();
-  const { settings } = useAppSettings();
+  const { settings } = useAppSettingsContext();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
