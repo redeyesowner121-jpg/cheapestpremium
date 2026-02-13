@@ -1196,44 +1196,11 @@ const AdminPage: React.FC = () => {
       />
       
       {/* Variations Modal */}
-      <Dialog open={showVariationsModal} onOpenChange={setShowVariationsModal}>
-        <DialogContent className="max-w-sm rounded-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Product Variations</DialogTitle>
-            <DialogDescription>{selectedProductForVariations?.name}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              {productVariations.map((v: any) => (
-                <div key={v.id} className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                  <div>
-                    <p className="font-medium text-sm">{v.name}</p>
-                    <p className="text-primary font-bold text-sm">₹{v.price}</p>
-                  </div>
-                  <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => handleDeleteVariation(v.id)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-              {productVariations.length === 0 && (
-                <p className="text-center text-muted-foreground text-sm py-4">No variations yet</p>
-              )}
-            </div>
-            
-            <div className="border-t border-border pt-4">
-              <h4 className="text-sm font-medium mb-2">Add New Variation</h4>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <Input placeholder="Variation Name" value={newVariation.name} onChange={(e) => setNewVariation({...newVariation, name: e.target.value})} />
-                <Input type="number" placeholder="Price" value={newVariation.price} onChange={(e) => setNewVariation({...newVariation, price: e.target.value})} />
-              </div>
-              <Button className="w-full" onClick={handleAddVariation}>
-                <Plus className="w-4 h-4 mr-1" />
-                Add Variation
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <VariationsModal
+        open={showVariationsModal}
+        onOpenChange={setShowVariationsModal}
+        product={selectedProductForVariations}
+      />
     </div>
   );
 };
