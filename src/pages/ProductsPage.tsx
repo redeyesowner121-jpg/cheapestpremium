@@ -28,6 +28,7 @@ import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
 import { RankBadgeInline } from '@/components/RankBadge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
@@ -60,6 +61,7 @@ interface CategoryItem {
 
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
+  const { settings } = useAppSettingsContext();
   const location = useLocation();
   const navigate = useNavigate();
   const flashSale = location.state?.flashSale;
@@ -325,9 +327,9 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleShare = (product: Product) => {
-    const appDomain = 'https://cheapestpremium.lovable.app';
+    const appDomain = settings.app_url;
     const shareUrl = `${appDomain}/product/${product.id}`;
-    const shareText = `Check out ${product.name} at RKR Premium Store for just ₹${product.price}!`;
+    const shareText = `Check out ${product.name} at ${settings.app_name} for just ${settings.currency_symbol}${product.price}!`;
     
     if (navigator.share) {
       navigator.share({

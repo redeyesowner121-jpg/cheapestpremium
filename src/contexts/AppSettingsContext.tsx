@@ -24,6 +24,7 @@ export interface AppSettings {
   razorpay_enabled: boolean;
   google_login_enabled: boolean;
   blue_tick_price: number;
+  app_url: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -49,6 +50,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   razorpay_enabled: true,
   google_login_enabled: false,
   blue_tick_price: 0,
+  app_url: 'https://cheapest-premiums.lovable.app',
 };
 
 interface AppSettingsContextValue {

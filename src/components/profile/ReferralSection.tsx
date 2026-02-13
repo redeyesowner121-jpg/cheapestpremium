@@ -4,6 +4,7 @@ import { Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ShareButtons from '@/components/ShareButtons';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 interface ReferralSectionProps {
   referralCode: string;
@@ -11,9 +12,9 @@ interface ReferralSectionProps {
 }
 
 const ReferralSection: React.FC<ReferralSectionProps> = ({ referralCode, onCustomize }) => {
-  const appDomain = 'https://cheapestpremium.lovable.app';
-  const shareUrl = `${appDomain}/auth?ref=${referralCode}`;
-  const shareText = `Join RKR Premium Store with my referral code ${referralCode} and get bonus!`;
+  const { settings } = useAppSettingsContext();
+  const shareUrl = `${settings.app_url}/auth?ref=${referralCode}`;
+  const shareText = `Join ${settings.app_name} with my referral code ${referralCode} and get bonus!`;
 
   const handleCopyReferralCode = () => {
     navigator.clipboard.writeText(referralCode || '');
