@@ -67,10 +67,18 @@ export const useNotifications = () => {
       setPermission(result);
 
       if (result === 'granted') {
-        // Also request FCM token for push notifications
+        // Request FCM token for push notifications
         const token = await requestPushNotificationPermission();
         if (token) {
           setFcmToken(token);
+          
+          // Save FCM token to user profile
+          if (user) {
+            await supabase
+              .from('profiles')
+              .update({ fcm_token: token, notifications_enabled: true })
+              .eq('id', user.id);
+          }
           console.log('Push notifications enabled with token');
         }
         

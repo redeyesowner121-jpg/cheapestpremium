@@ -64,10 +64,13 @@ export const usePushNotifications = () => {
       if (token && user) {
         setFcmToken(token);
         
-        // Save token to user profile for sending push notifications
-        // You could store this in a separate table or in the profiles table
-        console.log('FCM Token saved for user:', user.id);
+        // Save token to user profile
+        await supabase
+          .from('profiles')
+          .update({ fcm_token: token, notifications_enabled: true })
+          .eq('id', user.id);
         
+        console.log('FCM Token saved for user:', user.id);
         toast.success('Push notifications enabled!');
         return token;
       }
