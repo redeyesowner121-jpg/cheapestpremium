@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, Trash2, Package } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, Trash2, Package, Pencil, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,6 +63,37 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     } else {
       setPendingVariations([...pendingVariations, { ...newModalVariation }]);
       setNewModalVariation({ name: '', price: '', reseller_price: '' });
+    }
+  };
+
+  const [editingVariationId, setEditingVariationId] = useState<string | null>(null);
+  const [editVariationForm, setEditVariationForm] = useState({ name: '', price: '', reseller_price: '' });
+
+  const startEditVariation = (v: any) => {
+    setEditingVariationId(v.id);
+    setEditVariationForm({
+      name: v.name,
+      price: String(v.price),
+      reseller_price: v.reseller_price ? String(v.reseller_price) : '',
+    });
+  };
+
+  const handleSaveVariation = async () => {
+    if (!editingVariationId || !editVariationForm.name || !editVariationForm.price) {
+      toast.error('Name and price are required');
+      return;
+    }
+    const { error } = await supabase.from('product_variations').update({
+      name: editVariationForm.name,
+      price: parseFloat(editVariationForm.price),
+      reseller_price: editVariationForm.reseller_price ? parseFloat(editVariationForm.reseller_price) : null,
+    }).eq('id', editingVariationId);
+    if (error) { toast.error('Failed to update variation'); return; }
+    toast.success('Variation updated!');
+    setEditingVariationId(null);
+    if (editingProduct) {
+      const { data } = await supabase.from('product_variations').select('*').eq('product_id', editingProduct.id).order('created_at', { ascending: true });
+      setExistingVariations(data || []);
     }
   };
 
@@ -141,11 +172,40 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
             {existingVariations.length > 0 && (
               <div className="space-y-2 mb-3">
                 {existingVariations.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between p-2 bg-muted rounded-xl">
-                    <span className="text-sm">{v.name} - ₹{v.price}</span>
-                    <Button size="icon" variant="destructive" className="h-7 w-7" onClick={() => handleDeleteVariation(v.id, true)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                  <div key={v.id} className="p-2 bg-muted rounded-xl">
+                    {editingVariationId === v.id ? (
+                      <div className="space-y-2">
+                        <Input placeholder="Name" value={editVariationForm.name} onChange={(e) => setEditVariationForm({ ...editVariationForm, name: e.target.value })} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input type="number" placeholder="Price" value={editVariationForm.price} onChange={(e) => setEditVariationForm({ ...editVariationForm, price: e.target.value })} />
+                          <Input type="number" placeholder="Reseller Price" value={editVariationForm.reseller_price} onChange={(e) => setEditVariationForm({ ...editVariationForm, reseller_price: e.target.value })} />
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingVariationId(null)}>
+                            <X className="w-3 h-3 mr-1" /> Cancel
+                          </Button>
+                          <Button size="sm" onClick={handleSaveVariation}>
+                            <Check className="w-3 h-3 mr-1" /> Save
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-medium">{v.name}</span>
+                          <span className="text-sm text-primary font-bold ml-2">₹{v.price}</span>
+                          {v.reseller_price && <span className="text-xs text-muted-foreground ml-1">(R: ₹{v.reseller_price})</span>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => startEditVariation(v)}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button size="icon" variant="destructive" className="h-7 w-7" onClick={() => handleDeleteVariation(v.id, true)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
