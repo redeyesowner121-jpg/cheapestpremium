@@ -1,69 +1,69 @@
 
 
-# App Performance Optimization Plan
+# Performance Fix - Eliminate Duplicate API Calls
 
-## Problem Analysis
+## Root Cause
 
-The app is slow because of several issues working together:
+Looking at network requests, `app_settings` is fetched **5 times** on page load because `useAppSettings()` is called independently in multiple components (`AppContent`, `Header`, `DailyBonusBanner` claim handler). Each call creates its own fetch + realtime subscription.
 
-1. **Too many API calls on homepage** - The Index page alone triggers 5+ database queries, plus each child component (QuickStats, PersonalizedRecommendations, CategoryGrid, FlashSaleSlider, DailyBonusBanner, Header) makes its own separate API calls. That is 10+ network requests on page load.
+Additionally, `CategoryGrid` and `PersonalizedRecommendations` each make separate API calls that could be consolidated.
 
-2. **Heavy animations everywhere** - `framer-motion` animations with `initial/animate` on every stat card, banner, and section cause layout thrashing and slow rendering.
+## Changes
 
-3. **Duplicate API calls** - Flash sales data is fetched multiple times (once in Index, again in FlashSaleSlider). App settings are fetched by multiple hooks independently. Profile and user_roles are fetched twice on auth state change.
+### 1. Create AppSettings Context (single fetch, shared across app)
 
-4. **No lazy loading for pages** - All pages are imported eagerly in App.tsx, increasing the initial bundle size.
+**New file: `src/contexts/AppSettingsContext.tsx`**
 
-5. **DailyBonusBanner sparkle animations** - 6 infinitely repeating framer-motion sparkle animations running continuously.
+Move the `useAppSettings` logic into a React Context provider so the settings are fetched once and shared everywhere. The `AppSettingsProvider` wraps the app in `App.tsx`, and all components use `useAppSettingsContext()` instead of the hook.
 
-6. **No memoization** - QuickStats, PersonalizedRecommendations, DailyBonusBanner are not memoized, causing unnecessary re-renders.
+### 2. Update all consumers to use the shared context
 
----
+**Files to update:**
+- `src/App.tsx` -- Wrap with `AppSettingsProvider`, update `AppContent` to use context
+- `src/components/Header.tsx` -- Switch from `useAppSettings()` to `useAppSettingsContext()`
+- `src/components/DailyBonusBanner.tsx` -- Remove separate settings fetch in `handleClaimBonus`, use context instead
+- Any other component using `useAppSettings`
 
-## Implementation Steps
+### 3. Consolidate Index page data loading
 
-### Step 1: Lazy load all pages in App.tsx
-Use `React.lazy()` and `Suspense` for all page imports except Index. This reduces the initial JavaScript bundle significantly.
+**File: `src/pages/Index.tsx`**
 
-### Step 2: Remove heavy framer-motion animations
-- **QuickStats**: Remove `motion.div` wrappers with `initial/animate` on every stat card. Use plain `div` elements instead.
-- **DailyBonusBanner**: Remove the 6 sparkle `motion.div` elements with infinite animations. Keep simple fade-in only.
-- **OnboardingTour**: Keep animations (modal, rarely shown).
-- **Header**: Remove `motion.button` and `motion.img` -- use plain elements with CSS hover/active states.
+Pass already-fetched categories data to `CategoryGrid` as a prop to eliminate its separate fetch. Add a `categories` prop to `CategoryGrid`.
 
-### Step 3: Consolidate API calls on Index page
-- Pass the already-fetched flash sales data directly to `FlashSaleSlider` (already done, but FlashSaleSlider still fetches coupons separately -- keep that but it is minor).
-- Move `CategoryGrid` data fetching into the Index `loadData` function so categories load in the same `Promise.all`.
-- Make `PersonalizedRecommendations` accept products as a prop from Index instead of fetching independently, or lazy-render it (only fetch when user scrolls to it).
+### 4. Defer PersonalizedRecommendations
 
-### Step 4: Reduce QuickStats API calls
-QuickStats independently fetches all orders to calculate savings. Instead, calculate savings lazily -- only when the user clicks the savings section, not on every page load. Remove the `useEffect` that auto-fetches savings.
+**File: `src/pages/Index.tsx`**
 
-### Step 5: Memoize components
-Wrap `QuickStats`, `CategoryGrid`, `DailyBonusBanner`, `PersonalizedRecommendations` with `React.memo()`.
+Wrap `PersonalizedRecommendations` in a deferred render (show after 500ms delay) so it does not block initial paint.
 
-### Step 6: Deduplicate auth-related calls
-In `AuthContext`, the `onAuthStateChange` and `getSession` both call `fetchProfile` and `checkAdminRole`, causing duplicate calls on initial load. Add a guard to prevent the double-fetch.
+### 5. Add Vite dedupe config
 
-### Step 7: Defer non-critical components
-Use `requestIdleCallback` or a simple delayed render for `OnboardingTour` and `PersonalizedRecommendations` so they don't block the initial paint.
+**File: `vite.config.ts`**
 
----
+Add `resolve.dedupe` for `react`, `react-dom` to prevent duplicate instances.
+
+## Expected Result
+
+- Network requests on homepage: reduced from ~12 to ~6
+- `app_settings` fetched only **once** instead of 5 times
+- Only **one** realtime subscription for settings instead of multiple
+- Faster initial render with deferred non-critical components
 
 ## Technical Details
 
-### Files to modify:
-- `src/App.tsx` -- Add React.lazy imports
-- `src/pages/Index.tsx` -- Consolidate data fetching, defer components
-- `src/components/QuickStats.tsx` -- Remove animations, lazy-load savings
-- `src/components/DailyBonusBanner.tsx` -- Remove sparkle animations
-- `src/components/Header.tsx` -- Remove motion wrappers
-- `src/components/PersonalizedRecommendations.tsx` -- Add React.memo
-- `src/components/CategoryGrid.tsx` -- Accept data as prop option
-- `src/contexts/AuthContext.tsx` -- Fix double fetch
+```text
+Before:
+  AppContent -> useAppSettings() -> fetch + subscribe
+  Header -> useAppSettings() -> fetch + subscribe  
+  DailyBonusBanner -> inline fetch in claim handler
+  CategoryGrid -> fetch categories
+  PersonalizedRecommendations -> fetch orders + products
+  = 10+ API calls, 3+ realtime channels
 
-### Expected improvement:
-- Initial load: ~40-50% faster (fewer API calls + smaller bundle)
-- Runtime performance: Smoother scrolling and interactions (no continuous animations)
-- Network requests on homepage: Reduced from ~12 to ~6
-
+After:
+  AppSettingsProvider -> fetch once + 1 subscribe
+  All components -> useAppSettingsContext() (no fetch)
+  CategoryGrid -> receives data as prop from Index
+  PersonalizedRecommendations -> deferred render
+  = ~6 API calls, 1 realtime channel
+```
