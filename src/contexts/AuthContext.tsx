@@ -99,9 +99,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Set up auth state listener
+    let initialSessionHandled = false;
+
+    // Check for existing session first
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      initialSessionHandled = true;
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id);
+        checkAdminRole(session.user.id);
+      }
+      
+      setLoading(false);
+    });
+
+    // Set up auth state listener - skip if initial session already handled same user
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Skip the INITIAL_SESSION event since getSession already handles it
+        if (event === 'INITIAL_SESSION' && initialSessionHandled) return;
+
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -117,19 +136,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id);
-        checkAdminRole(session.user.id);
-      }
-      
-      setLoading(false);
-    });
 
     return () => subscription.unsubscribe();
   }, []);

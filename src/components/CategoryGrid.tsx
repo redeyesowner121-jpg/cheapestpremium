@@ -123,4 +123,4 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryClick }) => {
   );
 };
 
-export default CategoryGrid;
+export default React.memo(CategoryGrid);

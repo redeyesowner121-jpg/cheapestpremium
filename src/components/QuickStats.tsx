@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
 import { 
   Gift, 
-  Users, 
   TrendingUp, 
   Award,
   Wallet,
@@ -18,15 +16,17 @@ import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import SavingsHistoryModal from './SavingsHistoryModal';
 
-const QuickStats: React.FC = () => {
+const QuickStats: React.FC = React.memo(() => {
   const { profile, user } = useAuth();
-  const [totalSavings, setTotalSavings] = useState(0);
+  const [totalSavings, setTotalSavings] = useState<number | null>(null);
+  const [savingsLoading, setSavingsLoading] = useState(false);
   const [showSavingsModal, setShowSavingsModal] = useState(false);
   const rankBalance = profile?.rank_balance || 0;
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchSavings = async () => {
+  const fetchSavings = async () => {
+    if (!user || savingsLoading || totalSavings !== null) return;
+    setSavingsLoading(true);
+    try {
       const { data: orders } = await supabase
         .from('orders')
         .select('total_price, product_id, quantity')
@@ -50,9 +50,20 @@ const QuickStats: React.FC = () => {
         }, 0);
         setTotalSavings(sum);
       }
-    };
-    fetchSavings();
-  }, [user]);
+    } catch (error) {
+      console.error('Error fetching savings:', error);
+    } finally {
+      setSavingsLoading(false);
+    }
+  };
+
+  const handleSavingsClick = () => {
+    if (totalSavings === null) {
+      fetchSavings();
+    }
+    setShowSavingsModal(true);
+  };
+
   const rank = getUserRank(rankBalance);
   const nextRank = getNextRank(rankBalance);
   const { progress, remaining } = getProgressToNextRank(rankBalance);
@@ -89,11 +100,7 @@ const QuickStats: React.FC = () => {
   ];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full"
-    >
+    <div className="w-full animate-fade-in">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-foreground">Your Stats</h2>
         {profile?.has_blue_check && (
@@ -105,31 +112,23 @@ const QuickStats: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {stats.map((stat, index) => (
-          <motion.div
+        {stats.map((stat) => (
+          <div
             key={stat.label}
             className="bg-card rounded-2xl p-4 shadow-card"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
           >
             <div className={`inline-flex p-2 rounded-xl ${stat.bgColor} mb-2`}>
               <div className={stat.color}>{stat.icon}</div>
             </div>
             <p className="text-xs text-muted-foreground">{stat.label}</p>
             <p className="text-lg font-bold text-foreground">{stat.value}</p>
-          </motion.div>
+          </div>
         ))}
       </div>
 
       {/* Rank Progress */}
       {nextRank && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mt-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4"
-        >
+        <div className="mt-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 gradient-primary rounded-xl">
               <Crown className="w-5 h-5 text-primary-foreground" />
@@ -152,54 +151,44 @@ const QuickStats: React.FC = () => {
           <div className="mt-3">
             <Progress value={progress} className="h-2" />
           </div>
-        </motion.div>
+        </div>
       )}
 
-      {/* Total Savings */}
-      {totalSavings > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="mt-4 bg-gradient-to-r from-success/10 to-success/5 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
-          onClick={() => setShowSavingsModal(true)}
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-success/20 rounded-xl">
-              <TrendingUp className="w-5 h-5 text-success" />
-            </div>
-            <div className="flex-1">
-              <p className="font-semibold text-foreground text-sm">Total Savings 🎉</p>
-              <p className="text-xs text-muted-foreground">
-                You saved on your purchases!
-              </p>
-            </div>
-            <div className="text-right flex items-center gap-1">
-              <div>
-                <p className="text-2xl font-bold text-success">
-                  ₹{totalSavings.toFixed(0)}
-                </p>
-                <p className="text-[10px] text-muted-foreground">saved</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </div>
+      {/* Total Savings - lazy loaded on click */}
+      <div
+        className="mt-4 bg-gradient-to-r from-success/10 to-success/5 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-transform"
+        onClick={handleSavingsClick}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-success/20 rounded-xl">
+            <TrendingUp className="w-5 h-5 text-success" />
           </div>
-        </motion.div>
-      )}
+          <div className="flex-1">
+            <p className="font-semibold text-foreground text-sm">Total Savings 🎉</p>
+            <p className="text-xs text-muted-foreground">
+              {savingsLoading ? 'Calculating...' : 'Tap to see your savings!'}
+            </p>
+          </div>
+          <div className="text-right flex items-center gap-1">
+            <div>
+              <p className="text-2xl font-bold text-success">
+                {totalSavings !== null ? `₹${totalSavings.toFixed(0)}` : '—'}
+              </p>
+              <p className="text-[10px] text-muted-foreground">saved</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </div>
+        </div>
+      </div>
 
       <SavingsHistoryModal
         open={showSavingsModal}
         onOpenChange={setShowSavingsModal}
-        totalSavings={totalSavings}
+        totalSavings={totalSavings || 0}
       />
 
       {!profile?.has_blue_check && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="mt-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-2xl p-4"
-        >
+        <div className="mt-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-2xl p-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/20 rounded-xl">
               <Award className="w-5 h-5 text-blue-500" />
@@ -218,25 +207,16 @@ const QuickStats: React.FC = () => {
             </div>
           </div>
           <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-blue-500 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ 
-                width: `${Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100)}%` 
-              }}
-              transition={{ delay: 0.5, duration: 0.8 }}
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-700"
+              style={{ width: `${Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100)}%` }}
             />
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Special Offer */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="mt-4 gradient-accent rounded-2xl p-4"
-      >
+      <div className="mt-4 gradient-accent rounded-2xl p-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-white/20 rounded-xl">
             <Gift className="w-5 h-5 text-accent-foreground" />
@@ -248,9 +228,11 @@ const QuickStats: React.FC = () => {
             </p>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
-};
+});
+
+QuickStats.displayName = 'QuickStats';
 
 export default QuickStats;

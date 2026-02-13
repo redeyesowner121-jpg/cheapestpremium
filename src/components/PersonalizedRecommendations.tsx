@@ -16,7 +16,7 @@ interface Product {
   reseller_price?: number;
 }
 
-const PersonalizedRecommendations: React.FC = () => {
+const PersonalizedRecommendations: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [recommendations, setRecommendations] = useState<Product[]>([]);
@@ -193,6 +193,8 @@ const PersonalizedRecommendations: React.FC = () => {
       </div>
     </div>
   );
-};
+});
+
+PersonalizedRecommendations.displayName = 'PersonalizedRecommendations';
 
 export default PersonalizedRecommendations;
