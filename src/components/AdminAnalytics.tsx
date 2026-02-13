@@ -1,8 +1,6 @@
 import React, { useMemo, useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   LineChart,
@@ -273,33 +271,7 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products, users
     return productSales;
   }, [orders]);
 
-  // Calculate sales by day based on selected period
-  const salesByDay = useMemo(() => {
-    const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90;
-    const periodDays = Array.from({ length: days }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (days - 1 - i));
-      return date.toISOString().split('T')[0];
-    });
-
-    return periodDays.map(date => {
-      const dayOrders = orders.filter(o => 
-        o.created_at?.split('T')[0] === date && o.status !== 'cancelled'
-      );
-      const revenue = dayOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
-      const count = dayOrders.length;
-      
-      return {
-        date: new Date(date).toLocaleDateString('en-US', { 
-          weekday: days <= 7 ? 'short' : undefined,
-          day: 'numeric',
-          month: days > 7 ? 'short' : undefined
-        }),
-        revenue,
-        orders: count,
-      };
-    });
-  }, [orders, selectedPeriod]);
+  // salesByDay removed - Sales Trend chart no longer needed
 
   // Calculate revenue stats with comparison
   const revenueStats = useMemo(() => {
@@ -590,87 +562,33 @@ const AdminAnalytics: React.FC<AdminAnalyticsProps> = ({ orders, products, users
         </div>
       </div>
 
-      {/* Side by Side Charts - Sales & Deposits */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Sales Trend Chart */}
-        <div className="bg-card rounded-2xl p-4 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Sales Trend
-            </h3>
-          </div>
-          <div className="h-40">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesByDay}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  interval="preserveStartEnd"
-                />
-                <YAxis 
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
-                  axisLine={{ stroke: 'hsl(var(--border))' }}
-                  width={40}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'hsl(var(--foreground))',
-                  }}
-                  formatter={(value: number) => [`₹${value}`, 'Revenue']}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorRevenue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Deposits Card */}
+      <div className="bg-card rounded-2xl p-4 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground flex items-center gap-2">
+            <IndianRupee className="w-5 h-5 text-success" />
+            Total Deposits
+          </h3>
         </div>
-
-        {/* Deposits Card */}
-        <div className="bg-card rounded-2xl p-4 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <IndianRupee className="w-5 h-5 text-success" />
-              Total Deposits
-            </h3>
-          </div>
-          <div className="h-40 flex flex-col items-center justify-center">
-            <p className="text-4xl font-bold text-success">
-              ₹{totalDeposits.toLocaleString()}
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              From {users.length} users
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-4 w-full">
-              <div className="bg-muted/50 rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-foreground">
-                  ₹{users.length > 0 ? Math.round(totalDeposits / users.length) : 0}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Avg per user</p>
-              </div>
-              <div className="bg-muted/50 rounded-xl p-3 text-center">
-                <p className="text-lg font-bold text-foreground">
-                  {users.filter(u => (u.total_deposit || 0) > 0).length}
-                </p>
-                <p className="text-[10px] text-muted-foreground">Active depositors</p>
-              </div>
+        <div className="h-40 flex flex-col items-center justify-center">
+          <p className="text-4xl font-bold text-success">
+            ₹{totalDeposits.toLocaleString()}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            From {users.length} users
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-4 w-full">
+            <div className="bg-muted/50 rounded-xl p-3 text-center">
+              <p className="text-lg font-bold text-foreground">
+                ₹{users.length > 0 ? Math.round(totalDeposits / users.length) : 0}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Avg per user</p>
+            </div>
+            <div className="bg-muted/50 rounded-xl p-3 text-center">
+              <p className="text-lg font-bold text-foreground">
+                {users.filter(u => (u.total_deposit || 0) > 0).length}
+              </p>
+              <p className="text-[10px] text-muted-foreground">Active depositors</p>
             </div>
           </div>
         </div>
