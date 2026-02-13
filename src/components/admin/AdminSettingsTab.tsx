@@ -139,6 +139,15 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             className="w-44 h-9 text-sm rounded-lg"
           />
         </SettingItem>
+        <SettingItem label="App URL" description="Share link URL for products & referrals">
+          <Input
+            value={localSettings.app_url || 'https://cheapest-premiums.lovable.app'}
+            onChange={(e) => updateLocal('app_url', e.target.value)}
+            onBlur={(e) => handleSave('app_url', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+            placeholder="https://yourdomain.com"
+          />
+        </SettingItem>
         <SettingItem label="Language" description="Default app language">
           <Input
             value={localSettings.app_language || 'English'}

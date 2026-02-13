@@ -25,6 +25,7 @@ import PriceHistoryChart from '@/components/PriceHistoryChart';
 import ShareButtons from '@/components/ShareButtons';
 import { ProductVariationSelector, ProductFeatures, PurchaseModal } from '@/components/product';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
@@ -44,7 +45,7 @@ const ProductDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: productId } = useParams();
   const { user, profile, refreshProfile, isAdmin, isTempAdmin } = useAuth();
-  
+  const { settings } = useAppSettingsContext();
   const stateProduct = location.state?.product;
   const flashSalePrice = location.state?.flashSalePrice;
   const flashSale = location.state?.flashSale;
@@ -142,9 +143,8 @@ const ProductDetailPage: React.FC = () => {
   };
 
   const handleShare = async () => {
-    const appDomain = 'https://cheapestpremium.lovable.app';
-    const productUrl = `${appDomain}/product/${displayProduct?.id}`;
-    const shareText = `Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`;
+    const productUrl = `${settings.app_url}/product/${displayProduct?.id}`;
+    const shareText = `Check out ${displayProduct?.name} at ${settings.app_name}! Only ${settings.currency_symbol}${currentPrice}`;
 
     // Try native share first (works on mobile)
     if (navigator.share) {
@@ -458,8 +458,8 @@ const ProductDetailPage: React.FC = () => {
       <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <ShareButtons 
-            text={`Check out ${displayProduct?.name} at RKR Premium Store! Only ₹${currentPrice}`}
-            url={`https://cheapestpremium.lovable.app/product/${displayProduct?.id}`}
+            text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${settings.currency_symbol}${currentPrice}`}
+            url={`${settings.app_url}/product/${displayProduct?.id}`}
             size="sm"
           />
           <AddToCartButton 
