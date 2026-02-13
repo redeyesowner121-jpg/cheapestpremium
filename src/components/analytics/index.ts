@@ -2,3 +2,8 @@ export { default as MetricsGrid } from './MetricsGrid';
 export { default as SalesChart } from './SalesChart';
 export { default as DepositsCard } from './DepositsCard';
 export { default as CompoundChart } from './CompoundChart';
+export { default as OverviewTab } from './OverviewTab';
+export { default as WalletTab } from './WalletTab';
+export { default as AnalysisTab } from './AnalysisTab';
+export { default as SearchTab } from './SearchTab';
+export { default as AnalyticsTabs } from './AnalyticsTabs';
