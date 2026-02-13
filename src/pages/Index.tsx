@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lightbulb, GraduationCap } from 'lucide-react';
+import { Lightbulb, GraduationCap, Search } from 'lucide-react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
@@ -194,6 +194,17 @@ const Index: React.FC = () => {
         {showRecommendations && <PersonalizedRecommendations />}
         
         <CategoryGrid categories={categories} onCategoryClick={() => navigate('/products')} />
+
+        {/* Search Bar - sticky on scroll */}
+        <div className="sticky top-16 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm">
+          <button
+            onClick={() => navigate('/products')}
+            className="w-full flex items-center gap-3 px-4 py-3.5 bg-muted rounded-2xl border border-border hover:border-primary/30 transition-colors active:scale-[0.98]"
+          >
+            <Search className="w-5 h-5 text-muted-foreground" />
+            <span className="text-muted-foreground text-sm">Search products...</span>
+          </button>
+        </div>
         
         {/* Methods Section */}
         <CategorySection

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BottomNav from '@/components/BottomNav';
 import { useCart } from '@/hooks/useCart';
@@ -167,6 +167,22 @@ const CartPage: React.FC = () => {
       </header>
 
       <main className="pt-20 px-4 max-w-lg mx-auto">
+        {/* Wallet Balance Card */}
+        <button
+          onClick={() => navigate('/wallet')}
+          className="w-full mb-4 flex items-center justify-between px-4 py-3 bg-primary/10 rounded-2xl border border-primary/20 hover:bg-primary/15 transition-colors active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/20 rounded-xl">
+              <Wallet className="w-5 h-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-muted-foreground">Wallet Balance</p>
+              <p className="text-lg font-bold text-primary">{settings.currency_symbol}{(profile?.wallet_balance || 0).toFixed(2)}</p>
+            </div>
+          </div>
+          <span className="text-xs text-primary font-medium">Add Money →</span>
+        </button>
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />

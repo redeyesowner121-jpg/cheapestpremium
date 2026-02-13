@@ -466,15 +466,8 @@ const ProductDetailPage: React.FC = () => {
             productId={displayProduct.id}
             variationId={selectedVariation?.id}
             disabled={isOutOfStock}
+            className="flex-1 h-12"
           />
-          <Button
-            className={`flex-1 rounded-xl h-12 ${isOutOfStock ? 'bg-muted text-muted-foreground cursor-not-allowed' : 'btn-gradient'}`}
-            onClick={handleBuyClick}
-            disabled={isOutOfStock}
-          >
-            <ShoppingCart className="w-5 h-5 mr-2" />
-            {isOutOfStock ? 'Out of Stock' : `Buy Now`}
-          </Button>
         </div>
       </div>
 

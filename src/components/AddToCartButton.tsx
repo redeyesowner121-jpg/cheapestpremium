@@ -78,15 +78,20 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
 
   return (
     <Button
-      variant="outline"
       onClick={handleClick}
       disabled={disabled || adding}
-      className={`rounded-xl h-12 ${className}`}
+      className={`rounded-xl h-12 btn-gradient ${className}`}
     >
       {added ? (
-        <Check className="w-5 h-5 text-green-600" />
+        <>
+          <Check className="w-5 h-5 mr-2 text-green-300" />
+          Added!
+        </>
       ) : (
-        <ShoppingCart className="w-5 h-5" />
+        <>
+          <ShoppingCart className="w-5 h-5 mr-2" />
+          {disabled ? 'Out of Stock' : 'Add to Cart'}
+        </>
       )}
     </Button>
   );
