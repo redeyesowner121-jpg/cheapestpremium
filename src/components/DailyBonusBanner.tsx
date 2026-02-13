@@ -22,6 +22,13 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) =
     checkBonusEligibility();
   }, [profile]);
 
+  const getISTDate = () => {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffset);
+    return istDate.toISOString().split('T')[0];
+  };
+
   const checkBonusEligibility = () => {
     if (!profile) {
       setCanClaimBonus(false);
@@ -34,16 +41,8 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) =
       return;
     }
 
-    const lastBonusDate = new Date(lastBonus);
-    const today = new Date();
-    
-    // Check if it's a new day
-    const isNewDay = 
-      lastBonusDate.getDate() !== today.getDate() ||
-      lastBonusDate.getMonth() !== today.getMonth() ||
-      lastBonusDate.getFullYear() !== today.getFullYear();
-    
-    setCanClaimBonus(isNewDay);
+    const today = getISTDate();
+    setCanClaimBonus(lastBonus !== today);
   };
 
   const handleClaimBonus = async () => {
@@ -67,8 +66,8 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = ({ onBonusClaimed }) =
       const bonusAmount = Math.round((Math.random() * (maxBonus - minBonus) + minBonus) * 100) / 100;
       const newBalance = (profile.wallet_balance || 0) + bonusAmount;
 
-      // Format date as YYYY-MM-DD for date field
-      const todayDate = new Date().toISOString().split('T')[0];
+      // Format date as YYYY-MM-DD in IST for date field
+      const todayDate = getISTDate();
       
       const { error: updateError } = await supabase
         .from('profiles')
