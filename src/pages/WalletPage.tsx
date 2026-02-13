@@ -1,46 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Minus, 
-  CreditCard, 
-  Smartphone, 
-  QrCode,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Gift,
-  TrendingUp,
-  Send,
-  User,
-  Search,
-  ExternalLink,
-  AlertCircle,
-  Copy,
-  Loader2,
-  Wallet,
-  LogIn
+import {
+  Plus, Minus, CreditCard, Smartphone, QrCode,
+  ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, XCircle,
+  Gift, TrendingUp, Send, Wallet, LogIn, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import SuccessModal from '@/components/SuccessModal';
+import DepositModal from '@/components/wallet/DepositModal';
+import TransferModal from '@/components/wallet/TransferModal';
+import RedeemModal from '@/components/wallet/RedeemModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -48,25 +19,11 @@ import { motion } from 'framer-motion';
 import appLogo from '@/assets/app-logo.jpg';
 
 declare global {
-  interface Window {
-    Razorpay: any;
-  }
+  interface Window { Razorpay: any; }
 }
 
 interface Transaction {
-  id: string;
-  type: string;
-  amount: number;
-  status: string;
-  description: string;
-  created_at: string;
-}
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  referral_code: string;
+  id: string; type: string; amount: number; status: string; description: string; created_at: string;
 }
 
 interface PaymentSettings {
@@ -81,82 +38,43 @@ interface PaymentSettings {
 const WalletPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user, refreshProfile } = useAuth();
-  
+
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successData, setSuccessData] = useState<{type: 'deposit' | 'bonus'; title: string; message: string; details: {label: string; value: string}[]}>({
-    type: 'deposit',
-    title: '',
-    message: '',
-    details: []
-  });
+  const [successData, setSuccessData] = useState<any>({ type: 'deposit', title: '', message: '', details: [] });
   const [depositAmount, setDepositAmount] = useState('');
-  const [transferAmount, setTransferAmount] = useState('');
-  const [transferNote, setTransferNote] = useState('');
-  const [searchUser, setSearchUser] = useState('');
-  const [foundUsers, setFoundUsers] = useState<UserProfile[]>([]);
-  const [selectedRecipient, setSelectedRecipient] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchingUsers, setSearchingUsers] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  
-  // Manual deposit states
-  const [depositTab, setDepositTab] = useState<'auto' | 'manual'>('auto');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [transactionId, setTransactionId] = useState('');
   const [senderName, setSenderName] = useState('');
   const [submittingManual, setSubmittingManual] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
-  
-  // Redeem code states
   const [redeemCode, setRedeemCode] = useState('');
   const [redeemingCode, setRedeemingCode] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      loadTransactions();
-      loadPaymentSettings();
-      checkPendingRequests();
-    }
+    if (user) { loadTransactions(); loadPaymentSettings(); checkPendingRequests(); }
   }, [user]);
 
-  // Guest view - show login prompt
   if (!user) {
     return (
       <div className="min-h-screen bg-background pb-24">
         <Header />
         <main className="pt-20 px-4 max-w-lg mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-12"
-          >
-            <motion.div 
-              className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200 }}
-            >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-12">
+            <motion.div className="w-20 h-20 mx-auto mb-6 bg-primary/10 rounded-full flex items-center justify-center"
+              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
               <Wallet className="w-10 h-10 text-primary" />
             </motion.div>
             <h2 className="text-2xl font-bold text-foreground mb-2">Wallet</h2>
-            <p className="text-muted-foreground mb-8">
-              Login to access your wallet, deposit money, and manage transfers
-            </p>
-            
-            <Button 
-              className="w-full h-12 btn-gradient rounded-xl"
-              onClick={() => navigate('/auth')}
-            >
-              <LogIn className="w-5 h-5 mr-2" />
-              Login to Continue
+            <p className="text-muted-foreground mb-8">Login to access your wallet, deposit money, and manage transfers</p>
+            <Button className="w-full h-12 btn-gradient rounded-xl" onClick={() => navigate('/auth')}>
+              <LogIn className="w-5 h-5 mr-2" />Login to Continue
             </Button>
-
-            <p className="text-sm text-muted-foreground mt-6">
-              Guest checkout available on product pages
-            </p>
+            <p className="text-sm text-muted-foreground mt-6">Guest checkout available on product pages</p>
           </motion.div>
         </main>
         <BottomNav />
@@ -166,516 +84,179 @@ const WalletPage: React.FC = () => {
 
   const checkPendingRequests = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('manual_deposit_requests')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .limit(1);
+    const { data } = await supabase.from('manual_deposit_requests').select('id').eq('user_id', user.id).eq('status', 'pending').limit(1);
     setHasPendingRequest((data?.length || 0) > 0);
   };
 
   const loadTransactions = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-    
-    if (data) {
-      setTransactions(data);
-    }
+    const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
+    if (data) setTransactions(data);
   };
 
   const loadPaymentSettings = async () => {
-    const { data } = await supabase
-      .from('payment_settings')
-      .select('*');
-    
+    const { data } = await supabase.from('payment_settings').select('*');
     if (data) {
       const settings: any = {};
-      data.forEach(s => {
-        settings[s.setting_key] = {
-          setting_value: s.setting_value,
-          is_enabled: s.is_enabled
-        };
-      });
+      data.forEach(s => { settings[s.setting_key] = { setting_value: s.setting_value, is_enabled: s.is_enabled }; });
       setPaymentSettings(settings);
-      
-      // Set default tab based on what's available
-      if (!settings.automatic_payment?.is_enabled) {
-        setDepositTab('manual');
-      }
     }
   };
 
-  const quickAmounts = [100, 200, 500, 1000, 2000];
-
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if (window.Razorpay) {
-        resolve(true);
-        return;
-      }
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
+  const loadRazorpayScript = () => new Promise((resolve) => {
+    if (window.Razorpay) { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
   const handleDeposit = async () => {
     if (!user || !profile) return;
-    
     const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount < 10) {
-      toast.error('Minimum deposit is Rs 10');
-      return;
-    }
-
+    if (isNaN(amount) || amount < 10) { toast.error('Minimum deposit is Rs 10'); return; }
     setLoading(true);
-
     try {
-      // Load Razorpay script
       const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        toast.error('Failed to load payment gateway');
-        setLoading(false);
-        return;
-      }
+      if (!scriptLoaded) { toast.error('Failed to load payment gateway'); setLoading(false); return; }
+      const { data: orderData, error: orderError } = await supabase.functions.invoke('razorpay-order', { body: { amount, userId: user.id } });
+      if (orderError || !orderData) { toast.error('Failed to create payment order'); setLoading(false); return; }
 
-      // Create Razorpay order via edge function
-      const { data: orderData, error: orderError } = await supabase.functions.invoke('razorpay-order', {
-        body: { amount, userId: user.id }
-      });
-
-      if (orderError || !orderData) {
-        toast.error('Failed to create payment order');
-        setLoading(false);
-        return;
-      }
-
-      // Open Razorpay checkout
       const options = {
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'RKR Premium Store',
-        description: `Wallet Deposit - Rs ${amount}`,
-        order_id: orderData.orderId,
+        key: orderData.keyId, amount: orderData.amount, currency: orderData.currency,
+        name: 'RKR Premium Store', description: `Wallet Deposit - Rs ${amount}`, order_id: orderData.orderId,
         handler: async (response: any) => {
-          // Verify payment
           const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-verify', {
-            body: {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              userId: user.id,
-              amount
-            }
+            body: { razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature, userId: user.id, amount }
           });
-
-          if (verifyError || !verifyData?.success) {
-            toast.error('Payment verification failed');
-            return;
-          }
-
-          const details: {label: string; value: string}[] = [
-            { label: 'Amount Added', value: `₹${amount}` }
-          ];
-          
-          if (verifyData.bonusAmount > 0) {
-            details.push({ label: 'Bonus Earned', value: `₹${verifyData.bonusAmount}` });
-          }
-          if (verifyData.gotBlueTick) {
-            details.push({ label: 'Special Reward', value: '✓ Blue Tick Unlocked!' });
-          }
-
-          setSuccessData({
-            type: verifyData.bonusAmount > 0 ? 'bonus' : 'deposit',
-            title: verifyData.bonusAmount > 0 ? 'Bonus Claimed! 🎉' : 'Deposit Successful!',
-            message: verifyData.bonusAmount > 0 
-              ? 'Congratulations! You earned bonus money!' 
-              : 'Your wallet has been credited successfully',
-            details
-          });
-          
-          refreshProfile();
-          loadTransactions();
-          setShowDepositModal(false);
-          setDepositAmount('');
-          setShowSuccessModal(true);
+          if (verifyError || !verifyData?.success) { toast.error('Payment verification failed'); return; }
+          const details: any[] = [{ label: 'Amount Added', value: `₹${amount}` }];
+          if (verifyData.bonusAmount > 0) details.push({ label: 'Bonus Earned', value: `₹${verifyData.bonusAmount}` });
+          if (verifyData.gotBlueTick) details.push({ label: 'Special Reward', value: '✓ Blue Tick Unlocked!' });
+          setSuccessData({ type: verifyData.bonusAmount > 0 ? 'bonus' : 'deposit', title: verifyData.bonusAmount > 0 ? 'Bonus Claimed! 🎉' : 'Deposit Successful!', message: verifyData.bonusAmount > 0 ? 'Congratulations! You earned bonus money!' : 'Your wallet has been credited successfully', details });
+          refreshProfile(); loadTransactions(); setShowDepositModal(false); setDepositAmount(''); setShowSuccessModal(true);
         },
-        prefill: {
-          email: profile.email,
-          contact: profile.phone || ''
-        },
-        theme: {
-          color: '#4f46e5'
-        }
+        prefill: { email: profile.email, contact: profile.phone || '' },
+        theme: { color: '#4f46e5' }
       };
-
       const razorpay = new window.Razorpay(options);
       razorpay.open();
-
-    } catch (error: any) {
-      toast.error(error.message || 'Deposit failed');
-    } finally {
-      setLoading(false);
-    }
+    } catch (error: any) { toast.error(error.message || 'Deposit failed'); }
+    finally { setLoading(false); }
   };
 
-  // Handle manual deposit request
   const handleManualDeposit = async () => {
     if (!user || !profile) return;
-    
     const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount < 10) {
-      toast.error('Minimum deposit is Rs 10');
-      return;
-    }
-
-    if (!transactionId.trim()) {
-      toast.error('Please enter Transaction ID');
-      return;
-    }
-
-    if (!senderName.trim()) {
-      toast.error('Please enter your name');
-      return;
-    }
-
+    if (isNaN(amount) || amount < 10) { toast.error('Minimum deposit is Rs 10'); return; }
+    if (!transactionId.trim()) { toast.error('Please enter Transaction ID'); return; }
+    if (!senderName.trim()) { toast.error('Please enter your name'); return; }
     setSubmittingManual(true);
     try {
-      const { error } = await supabase.from('manual_deposit_requests').insert({
-        user_id: user.id,
-        amount,
-        transaction_id: transactionId.trim(),
-        sender_name: senderName.trim(),
-        payment_method: 'qr',
-        status: 'pending'
-      });
-
+      const { error } = await supabase.from('manual_deposit_requests').insert({ user_id: user.id, amount, transaction_id: transactionId.trim(), sender_name: senderName.trim(), payment_method: 'qr', status: 'pending' });
       if (error) throw error;
-
       toast.success('Deposit request submitted! Waiting for admin approval.');
-      setHasPendingRequest(true);
-      setShowDepositModal(false);
-      setDepositAmount('');
-      setTransactionId('');
-      setSenderName('');
-    } catch (error: any) {
-      toast.error('Failed to submit request');
-    } finally {
-      setSubmittingManual(false);
-    }
+      setHasPendingRequest(true); setShowDepositModal(false); setDepositAmount(''); setTransactionId(''); setSenderName('');
+    } catch { toast.error('Failed to submit request'); }
+    finally { setSubmittingManual(false); }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
-  };
-
-  // Search for users to transfer money
-  const handleSearchUsers = async (query: string) => {
-    setSearchUser(query);
-    if (query.length < 2) {
-      setFoundUsers([]);
-      return;
-    }
-    
-    setSearchingUsers(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, name, email, referral_code')
-      .neq('id', user?.id)
-      .or(`name.ilike.%${query}%,email.ilike.%${query}%,referral_code.ilike.%${query}%`)
-      .limit(5);
-    
-    setFoundUsers(data || []);
-    setSearchingUsers(false);
-  };
-
-  // Handle money transfer
-  const handleTransfer = async () => {
-    if (!user || !profile || !selectedRecipient) return;
-    
-    const amount = parseFloat(transferAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    if (amount > (profile.wallet_balance || 0)) {
-      toast.error('Insufficient balance');
-      return;
-    }
-
+  const handleTransfer = async (recipient: any, amount: string, note: string) => {
+    if (!user || !profile) return;
+    const amt = parseFloat(amount);
+    if (isNaN(amt) || amt <= 0) { toast.error('Please enter a valid amount'); return; }
+    if (amt > (profile.wallet_balance || 0)) { toast.error('Insufficient balance'); return; }
     setLoading(true);
     try {
-    // Fetch fresh balances to prevent race conditions
-    const { data: senderData } = await supabase
-      .from('profiles')
-      .select('wallet_balance')
-      .eq('id', user.id)
-      .single();
-
-    const { data: recipientData } = await supabase
-      .from('profiles')
-      .select('wallet_balance')
-      .eq('id', selectedRecipient.id)
-      .single();
-
-    if (!senderData || (senderData.wallet_balance || 0) < amount) {
-      toast.error('Insufficient balance');
-      setLoading(false);
-      return;
-    }
-
-    // Deduct from sender
-    const newSenderBalance = (senderData.wallet_balance || 0) - amount;
-    await supabase
-      .from('profiles')
-      .update({ wallet_balance: newSenderBalance })
-      .eq('id', user.id);
-
-    // Add to receiver
-    const newRecipientBalance = (recipientData?.wallet_balance || 0) + amount;
-    await supabase
-      .from('profiles')
-      .update({ wallet_balance: newRecipientBalance })
-      .eq('id', selectedRecipient.id);
-
-      // Create transactions for both
+      const { data: senderData } = await supabase.from('profiles').select('wallet_balance').eq('id', user.id).single();
+      const { data: recipientData } = await supabase.from('profiles').select('wallet_balance').eq('id', recipient.id).single();
+      if (!senderData || (senderData.wallet_balance || 0) < amt) { toast.error('Insufficient balance'); setLoading(false); return; }
+      await supabase.from('profiles').update({ wallet_balance: (senderData.wallet_balance || 0) - amt }).eq('id', user.id);
+      await supabase.from('profiles').update({ wallet_balance: (recipientData?.wallet_balance || 0) + amt }).eq('id', recipient.id);
       await supabase.from('transactions').insert([
-        {
-          user_id: user.id,
-          type: 'transfer_out',
-          amount: -amount,
-          status: 'completed',
-          description: `Transfer to ${selectedRecipient.name}`
-        },
-        {
-          user_id: selectedRecipient.id,
-          type: 'transfer_in',
-          amount: amount,
-          status: 'completed',
-          description: `Transfer from ${profile.name}`
-        }
+        { user_id: user.id, type: 'transfer_out', amount: -amt, status: 'completed', description: `Transfer to ${recipient.name}` },
+        { user_id: recipient.id, type: 'transfer_in', amount: amt, status: 'completed', description: `Transfer from ${profile.name}` }
       ]);
-
-      // Send notification to recipient
-      await supabase.from('notifications').insert({
-        user_id: selectedRecipient.id,
-        title: 'Money Received! 💰',
-        message: `You received ₹${amount} from ${profile.name}${transferNote ? ` - "${transferNote}"` : ''}`,
-        type: 'wallet'
-      });
-
-      toast.success(`₹${amount} sent to ${selectedRecipient.name}`);
-      setShowTransferModal(false);
-      setTransferAmount('');
-      setTransferNote('');
-      setSelectedRecipient(null);
-      setSearchUser('');
-      setFoundUsers([]);
-      refreshProfile();
-      loadTransactions();
-    } catch (error) {
-      toast.error('Transfer failed');
-    } finally {
-      setLoading(false);
-    }
+      await supabase.from('notifications').insert({ user_id: recipient.id, title: 'Money Received! 💰', message: `You received ₹${amt} from ${profile.name}${note ? ` - "${note}"` : ''}`, type: 'wallet' });
+      toast.success(`₹${amt} sent to ${recipient.name}`);
+      setShowTransferModal(false); refreshProfile(); loadTransactions();
+    } catch { toast.error('Transfer failed'); }
+    finally { setLoading(false); }
   };
 
-  // Handle redeem code
   const handleRedeemCode = async () => {
     if (!user || !profile) return;
-    
     const code = redeemCode.trim().toUpperCase();
-    if (!code) {
-      toast.error('Please enter a code');
-      return;
-    }
-
+    if (!code) { toast.error('Please enter a code'); return; }
     setRedeemingCode(true);
     try {
-      // Find the redeem code
-      const { data: codeData, error: codeError } = await supabase
-        .from('redeem_codes')
-        .select('*')
-        .eq('code', code)
-        .eq('is_active', true)
-        .single();
-
-      if (codeError || !codeData) {
-        toast.error('Invalid or inactive code');
-        setRedeemingCode(false);
-        return;
-      }
-
-      // Check expiry
-      if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) {
-        toast.error('This code has expired');
-        setRedeemingCode(false);
-        return;
-      }
-
-      // Check usage limit
-      if (codeData.used_count >= codeData.usage_limit) {
-        toast.error('This code has reached its usage limit');
-        setRedeemingCode(false);
-        return;
-      }
-
-      // Check if user already used this code
-      const { data: usageData } = await supabase
-        .from('redeem_code_usage')
-        .select('id')
-        .eq('code_id', codeData.id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (usageData) {
-        toast.error('You have already used this code');
-        setRedeemingCode(false);
-        return;
-      }
-
-      // Add to wallet
+      const { data: codeData, error: codeError } = await supabase.from('redeem_codes').select('*').eq('code', code).eq('is_active', true).single();
+      if (codeError || !codeData) { toast.error('Invalid or inactive code'); return; }
+      if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) { toast.error('This code has expired'); return; }
+      if (codeData.used_count >= codeData.usage_limit) { toast.error('This code has reached its usage limit'); return; }
+      const { data: usageData } = await supabase.from('redeem_code_usage').select('id').eq('code_id', codeData.id).eq('user_id', user.id).single();
+      if (usageData) { toast.error('You have already used this code'); return; }
       const newBalance = (profile.wallet_balance || 0) + codeData.amount;
-      await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance })
-        .eq('id', user.id);
-
-      // Record usage
-      await supabase.from('redeem_code_usage').insert({
-        code_id: codeData.id,
-        user_id: user.id
-      });
-
-      // Increment used_count
-      await supabase
-        .from('redeem_codes')
-        .update({ used_count: codeData.used_count + 1 })
-        .eq('id', codeData.id);
-
-      // Create transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'gift',
-        amount: codeData.amount,
-        status: 'completed',
-        description: `Redeemed code: ${code}`
-      });
-
-      setSuccessData({
-        type: 'bonus',
-        title: 'Code Redeemed! 🎉',
-        message: codeData.description || 'Gift code successfully redeemed!',
-        details: [
-          { label: 'Amount Added', value: `₹${codeData.amount}` },
-          { label: 'New Balance', value: `₹${newBalance.toFixed(2)}` }
-        ]
-      });
-
-      refreshProfile();
-      loadTransactions();
-      setShowRedeemModal(false);
-      setRedeemCode('');
-      setShowSuccessModal(true);
-    } catch (error) {
-      toast.error('Failed to redeem code');
-    } finally {
-      setRedeemingCode(false);
-    }
+      await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user.id);
+      await supabase.from('redeem_code_usage').insert({ code_id: codeData.id, user_id: user.id });
+      await supabase.from('redeem_codes').update({ used_count: codeData.used_count + 1 }).eq('id', codeData.id);
+      await supabase.from('transactions').insert({ user_id: user.id, type: 'gift', amount: codeData.amount, status: 'completed', description: `Redeemed code: ${code}` });
+      setSuccessData({ type: 'bonus', title: 'Code Redeemed! 🎉', message: codeData.description || 'Gift code successfully redeemed!', details: [{ label: 'Amount Added', value: `₹${codeData.amount}` }, { label: 'New Balance', value: `₹${newBalance.toFixed(2)}` }] });
+      refreshProfile(); loadTransactions(); setShowRedeemModal(false); setRedeemCode(''); setShowSuccessModal(true);
+    } catch { toast.error('Failed to redeem code'); }
+    finally { setRedeemingCode(false); }
   };
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case 'deposit':
-        return <ArrowDownLeft className="w-5 h-5 text-success" />;
-      case 'withdraw':
-      case 'transfer_out':
-        return <ArrowUpRight className="w-5 h-5 text-destructive" />;
-      case 'purchase':
-        return <CreditCard className="w-5 h-5 text-primary" />;
-      case 'refund':
-      case 'transfer_in':
-        return <ArrowDownLeft className="w-5 h-5 text-success" />;
-      case 'bonus':
-      case 'gift':
-        return <Gift className="w-5 h-5 text-accent" />;
-      case 'referral':
-        return <TrendingUp className="w-5 h-5 text-secondary" />;
-      default:
-        return <Clock className="w-5 h-5 text-muted-foreground" />;
+      case 'deposit': return <ArrowDownLeft className="w-5 h-5 text-success" />;
+      case 'withdraw': case 'transfer_out': return <ArrowUpRight className="w-5 h-5 text-destructive" />;
+      case 'purchase': return <CreditCard className="w-5 h-5 text-primary" />;
+      case 'refund': case 'transfer_in': return <ArrowDownLeft className="w-5 h-5 text-success" />;
+      case 'bonus': case 'gift': return <Gift className="w-5 h-5 text-accent" />;
+      case 'referral': return <TrendingUp className="w-5 h-5 text-secondary" />;
+      default: return <Clock className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-success" />;
-      case 'pending':
-        return <Clock className="w-4 h-4 text-accent" />;
-      case 'failed':
-        return <XCircle className="w-4 h-4 text-destructive" />;
-      default:
-        return null;
+      case 'completed': return <CheckCircle className="w-4 h-4 text-success" />;
+      case 'pending': return <Clock className="w-4 h-4 text-accent" />;
+      case 'failed': return <XCircle className="w-4 h-4 text-destructive" />;
+      default: return null;
     }
   };
 
   return (
     <div className="min-h-screen bg-background pb-24">
       <Header />
-
       <main className="pt-20 px-4 max-w-lg mx-auto">
         {/* Balance Card */}
         <div className="gradient-primary rounded-3xl p-6 text-center shadow-glow">
           <p className="text-primary-foreground/80 text-sm">Available Balance</p>
-          <h1 className="text-4xl font-bold text-primary-foreground mt-2">
-            ₹{profile?.wallet_balance?.toFixed(2) || '0.00'}
-          </h1>
-          
+          <h1 className="text-4xl font-bold text-primary-foreground mt-2">₹{profile?.wallet_balance?.toFixed(2) || '0.00'}</h1>
           <div className="flex items-center justify-center gap-6 mt-6">
             <div className="text-center">
               <p className="text-primary-foreground/60 text-xs">Total Deposit</p>
-              <p className="text-primary-foreground font-semibold">
-                ₹{profile?.total_deposit?.toFixed(2) || '0.00'}
-              </p>
+              <p className="text-primary-foreground font-semibold">₹{profile?.total_deposit?.toFixed(2) || '0.00'}</p>
             </div>
             <div className="w-px h-10 bg-primary-foreground/20" />
             <div className="text-center">
               <p className="text-primary-foreground/60 text-xs">Total Spent</p>
               <p className="text-primary-foreground font-semibold">
-                ₹{transactions
-                  .filter(t => t.type === 'purchase' && t.status === 'completed')
-                  .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-                  .toFixed(2)}
+                ₹{transactions.filter(t => t.type === 'purchase' && t.status === 'completed').reduce((sum, t) => sum + Math.abs(t.amount), 0).toFixed(2)}
               </p>
             </div>
           </div>
-
           <div className="flex gap-4 mt-6">
-            <Button
-              onClick={() => setShowDepositModal(true)}
-              className="flex-1 h-12 bg-white/20 hover:bg-white/30 text-primary-foreground rounded-xl"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Add Money
+            <Button onClick={() => setShowDepositModal(true)} className="flex-1 h-12 bg-white/20 hover:bg-white/30 text-primary-foreground rounded-xl">
+              <Plus className="w-5 h-5 mr-2" />Add Money
             </Button>
-            <Button
-              variant="outline"
-              className="flex-1 h-12 border-white/30 text-primary-foreground hover:bg-white/10 rounded-xl"
-              onClick={() => toast.info('Withdrawal feature coming soon! Contact admin for withdrawals.')}
-            >
-              <Minus className="w-5 h-5 mr-2" />
-              Withdraw
+            <Button variant="outline" className="flex-1 h-12 border-white/30 text-primary-foreground hover:bg-white/10 rounded-xl"
+              onClick={() => toast.info('Withdrawal feature coming soon! Contact admin for withdrawals.')}>
+              <Minus className="w-5 h-5 mr-2" />Withdraw
             </Button>
           </div>
         </div>
@@ -684,57 +265,28 @@ const WalletPage: React.FC = () => {
         <div className="mt-6">
           <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
           <div className="grid grid-cols-4 gap-3">
-            <button
-              className={`bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
-              onClick={() => setShowDepositModal(true)}
-            >
-              {hasPendingRequest && (
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
-              )}
-              <div className="w-12 h-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-                <Smartphone className="w-6 h-6 text-primary" />
-              </div>
+            <button className={`bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
+              onClick={() => setShowDepositModal(true)}>
+              {hasPendingRequest && <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />}
+              <div className="w-12 h-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-2"><Smartphone className="w-6 h-6 text-primary" /></div>
               <span className="text-xs font-medium text-foreground">UPI</span>
             </button>
-            
-            <button
-              className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform"
-              onClick={() => setShowDepositModal(true)}
-            >
-              <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
-                <QrCode className="w-6 h-6 text-secondary" />
-              </div>
+            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => setShowDepositModal(true)}>
+              <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2"><QrCode className="w-6 h-6 text-secondary" /></div>
               <span className="text-xs font-medium text-foreground">QR Pay</span>
             </button>
-            
-            <button
-              className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform"
-              onClick={() => setShowDepositModal(true)}
-            >
-              <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2">
-                <CreditCard className="w-6 h-6 text-accent" />
-              </div>
+            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => setShowDepositModal(true)}>
+              <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2"><CreditCard className="w-6 h-6 text-accent" /></div>
               <span className="text-xs font-medium text-foreground">Card</span>
             </button>
-
-            <button
-              className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform"
-              onClick={() => setShowTransferModal(true)}
-            >
-              <div className="w-12 h-12 mx-auto rounded-xl bg-success/10 flex items-center justify-center mb-2">
-                <Send className="w-6 h-6 text-success" />
-              </div>
+            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => setShowTransferModal(true)}>
+              <div className="w-12 h-12 mx-auto rounded-xl bg-success/10 flex items-center justify-center mb-2"><Send className="w-6 h-6 text-success" /></div>
               <span className="text-xs font-medium text-foreground">Transfer</span>
             </button>
           </div>
-
-          {/* Redeem Code Button */}
-          <button
-            onClick={() => setShowRedeemModal(true)}
-            className="w-full mt-4 bg-accent/10 border border-accent/30 rounded-2xl p-4 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform"
-          >
-            <Gift className="w-6 h-6 text-accent" />
-            <span className="font-semibold text-accent">Redeem Gift Code</span>
+          <button onClick={() => setShowRedeemModal(true)}
+            className="w-full mt-4 bg-accent/10 border border-accent/30 rounded-2xl p-4 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform">
+            <Gift className="w-6 h-6 text-accent" /><span className="font-semibold text-accent">Redeem Gift Code</span>
           </button>
         </div>
 
@@ -742,422 +294,55 @@ const WalletPage: React.FC = () => {
         <div className="mt-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-foreground">Recent Transactions</h2>
-            <button 
-              className="text-sm text-primary font-medium"
-              onClick={() => navigate('/wallet/transactions')}
-            >
-              See All
-            </button>
+            <button className="text-sm text-primary font-medium" onClick={() => navigate('/wallet/transactions')}>See All</button>
           </div>
-
           <div className="space-y-3">
             {transactions.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No transactions yet
-              </div>
-            ) : (
-              transactions.map((txn) => (
-                <div
-                  key={txn.id}
-                  className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4"
-                >
-                  <div className="p-2 rounded-xl bg-muted">
-                    {getTransactionIcon(txn.type)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{txn.description}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(txn.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-bold ${['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? 'text-destructive' : 'text-success'}`}>
-                      {['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount)}
-                    </p>
-                    <div className="flex items-center justify-end gap-1">
-                      {getStatusIcon(txn.status)}
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {txn.status}
-                      </span>
-                    </div>
+              <div className="text-center py-8 text-muted-foreground">No transactions yet</div>
+            ) : transactions.map((txn) => (
+              <div key={txn.id} className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4">
+                <div className="p-2 rounded-xl bg-muted">{getTransactionIcon(txn.type)}</div>
+                <div className="flex-1">
+                  <p className="font-medium text-foreground">{txn.description}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(txn.created_at).toLocaleDateString()}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-bold ${['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? 'text-destructive' : 'text-success'}`}>
+                    {['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount)}
+                  </p>
+                  <div className="flex items-center justify-end gap-1">
+                    {getStatusIcon(txn.status)}
+                    <span className="text-xs text-muted-foreground capitalize">{txn.status}</span>
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
         </div>
       </main>
 
-      {/* Redeem Code Modal */}
-      <Dialog open={showRedeemModal} onOpenChange={setShowRedeemModal}>
-        <DialogContent className="max-w-sm mx-auto rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Gift className="w-5 h-5 text-accent" />
-              Redeem Gift Code
-            </DialogTitle>
-            <DialogDescription>
-              Enter your gift code to add money to your wallet
-            </DialogDescription>
-          </DialogHeader>
+      <DepositModal open={showDepositModal} onOpenChange={setShowDepositModal}
+        depositAmount={depositAmount} onDepositAmountChange={setDepositAmount}
+        paymentSettings={paymentSettings} loading={loading}
+        onAutoDeposit={handleDeposit} onManualDeposit={handleManualDeposit}
+        submittingManual={submittingManual}
+        transactionId={transactionId} onTransactionIdChange={setTransactionId}
+        senderName={senderName} onSenderNameChange={setSenderName}
+      />
 
-          <div className="space-y-4 mt-4">
-            <div>
-              <Input
-                value={redeemCode}
-                onChange={(e) => setRedeemCode(e.target.value.toUpperCase())}
-                placeholder="Enter code (e.g. GIFT100)"
-                className="font-mono text-center text-lg h-12"
-              />
-            </div>
+      <TransferModal open={showTransferModal} onOpenChange={setShowTransferModal}
+        userId={user.id} walletBalance={profile?.wallet_balance || 0}
+        loading={loading} onTransfer={handleTransfer}
+      />
 
-            <Button
-              onClick={handleRedeemCode}
-              disabled={redeemingCode || !redeemCode.trim()}
-              className="w-full h-12 btn-gradient rounded-xl"
-            >
-              {redeemingCode ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Redeeming...
-                </>
-              ) : (
-                <>
-                  <Gift className="w-5 h-5 mr-2" />
-                  Redeem Code
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <RedeemModal open={showRedeemModal} onOpenChange={setShowRedeemModal}
+        redeemCode={redeemCode} onRedeemCodeChange={setRedeemCode}
+        redeeming={redeemingCode} onRedeem={handleRedeemCode}
+      />
 
-      {/* Deposit Modal */}
-      <Dialog open={showDepositModal} onOpenChange={setShowDepositModal}>
-        <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add Money</DialogTitle>
-            <DialogDescription>
-              Deposit Rs1000+ at once to get Rs100 bonus + Blue Tick!
-            </DialogDescription>
-          </DialogHeader>
-
-          <Tabs value={depositTab} onValueChange={(v) => setDepositTab(v as 'auto' | 'manual')} className="mt-4">
-            <TabsList className="grid w-full grid-cols-2 rounded-xl">
-              <TabsTrigger 
-                value="auto" 
-                className="rounded-lg"
-                disabled={!paymentSettings?.automatic_payment?.is_enabled}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Automatic
-              </TabsTrigger>
-              <TabsTrigger value="manual" className="rounded-lg">
-                <QrCode className="w-4 h-4 mr-2" />
-                Manual
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Automatic Payment Tab */}
-            <TabsContent value="auto" className="mt-4 space-y-4">
-              {!paymentSettings?.automatic_payment?.is_enabled ? (
-                <div className="p-4 bg-warning/10 rounded-xl flex items-center gap-3 text-warning">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  <p className="text-sm">Automatic payment is currently unavailable. Please use manual deposit.</p>
-                </div>
-              ) : (
-                <>
-                  <Input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    className="h-14 text-2xl text-center font-bold rounded-xl"
-                  />
-
-                  <div className="flex flex-wrap gap-2">
-                    {quickAmounts.map((amount) => (
-                      <button
-                        key={amount}
-                        onClick={() => setDepositAmount(amount.toString())}
-                        className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                          depositAmount === amount.toString()
-                            ? 'gradient-primary text-primary-foreground'
-                            : 'bg-muted text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        ₹{amount}
-                      </button>
-                    ))}
-                  </div>
-
-                  <Button
-                    onClick={handleDeposit}
-                    className="w-full h-12 btn-gradient rounded-xl"
-                    disabled={loading || !depositAmount}
-                  >
-                    {loading ? 'Processing...' : `Pay ₹${depositAmount || '0'}`}
-                  </Button>
-                </>
-              )}
-            </TabsContent>
-
-            {/* Manual Payment Tab */}
-            <TabsContent value="manual" className="mt-4 space-y-4">
-              {/* Amount Input First - for dynamic QR */}
-              <div className="space-y-3">
-                <Input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="h-14 text-2xl text-center font-bold rounded-xl"
-                />
-
-                <div className="flex flex-wrap gap-2">
-                  {quickAmounts.map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setDepositAmount(amount.toString())}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                        depositAmount === amount.toString()
-                          ? 'gradient-primary text-primary-foreground'
-                          : 'bg-muted text-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      ₹{amount}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dynamic UPI QR Code */}
-              {paymentSettings?.upi_id?.setting_value && depositAmount && parseFloat(depositAmount) >= 10 && (
-                <div className="flex flex-col items-center p-4 bg-muted/50 rounded-xl">
-                  <p className="text-sm font-medium text-foreground mb-1">Scan to Pay ₹{depositAmount}</p>
-                  <p className="text-xs text-primary font-medium mb-3">
-                    Pay to: {paymentSettings?.upi_name?.setting_value || 'Merchant'}
-                  </p>
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                      `upi://pay?pa=${paymentSettings.upi_id.setting_value}&pn=${encodeURIComponent(paymentSettings?.upi_name?.setting_value || 'Merchant')}&am=${depositAmount}&cu=INR`
-                    )}`}
-                    alt="Payment QR"
-                    className="w-48 h-48 object-contain rounded-xl border bg-white p-2"
-                    loading="lazy"
-                  />
-                  
-                  {/* Pay Now Button - Opens UPI App on Mobile */}
-                  <Button
-                    className="w-full mt-3 btn-gradient rounded-xl"
-                    onClick={() => {
-                      const upiUrl = `upi://pay?pa=${paymentSettings.upi_id.setting_value}&pn=${encodeURIComponent(paymentSettings?.upi_name?.setting_value || 'Merchant')}&am=${depositAmount}&cu=INR`;
-                      window.location.href = upiUrl;
-                    }}
-                  >
-                    <Smartphone className="w-4 h-4 mr-2" />
-                    Pay Now ₹{depositAmount}
-                  </Button>
-                </div>
-              )}
-
-              {/* Fallback Static QR if no UPI ID set */}
-              {!paymentSettings?.upi_id?.setting_value && paymentSettings?.manual_payment_qr?.setting_value && (
-                <div className="flex flex-col items-center">
-                  <img 
-                    src={paymentSettings.manual_payment_qr.setting_value} 
-                    alt="Payment QR" 
-                    className="w-48 h-48 object-contain rounded-xl border"
-                  />
-                  <p className="text-sm text-muted-foreground mt-2">Scan QR to pay</p>
-                </div>
-              )}
-
-              {/* Payment Link */}
-              {paymentSettings?.manual_payment_link?.setting_value && (
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-xl">
-                  <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <a 
-                    href={paymentSettings.manual_payment_link.setting_value}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary truncate flex-1"
-                  >
-                    {paymentSettings.manual_payment_link.setting_value}
-                  </a>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => copyToClipboard(paymentSettings.manual_payment_link.setting_value!)}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-
-              {/* Instructions */}
-              {paymentSettings?.manual_payment_instructions?.setting_value && (
-                <div className="p-3 bg-primary/5 rounded-xl text-sm text-foreground">
-                  {paymentSettings.manual_payment_instructions.setting_value}
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <Input
-                  placeholder="Your Name (Sender Name)"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  className="rounded-xl"
-                />
-                
-                <Input
-                  placeholder="Enter Transaction ID / UTR Number"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  className="rounded-xl"
-                />
-
-                <Button
-                  onClick={handleManualDeposit}
-                  className="w-full h-12 btn-gradient rounded-xl"
-                  disabled={submittingManual || !depositAmount || !transactionId || !senderName}
-                >
-                  {submittingManual ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    `Submit Request ₹${depositAmount || '0'}`
-                  )}
-                </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  Your deposit will be credited after admin verification
-                </p>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-
-      {/* Transfer Modal */}
-      <Dialog open={showTransferModal} onOpenChange={setShowTransferModal}>
-        <DialogContent className="max-w-sm mx-auto rounded-3xl">
-          <DialogHeader>
-            <DialogTitle>Send Money</DialogTitle>
-            <DialogDescription>
-              Transfer money to another user instantly
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mt-4 space-y-4">
-            {!selectedRecipient ? (
-              <>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search by name, email, or referral code"
-                    value={searchUser}
-                    onChange={(e) => handleSearchUsers(e.target.value)}
-                    className="pl-10 rounded-xl"
-                  />
-                </div>
-
-                {searchingUsers ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    Searching...
-                  </div>
-                ) : foundUsers.length > 0 ? (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {foundUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => setSelectedRecipient(u)}
-                        className="w-full flex items-center gap-3 p-3 bg-muted rounded-xl hover:bg-muted/80 transition-colors"
-                      >
-                        <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                          {u.name?.charAt(0) || 'U'}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <p className="font-medium text-foreground">{u.name}</p>
-                          <p className="text-xs text-muted-foreground">{u.email}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{u.referral_code}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : searchUser.length >= 2 ? (
-                  <div className="text-center py-4 text-muted-foreground">
-                    No users found
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground text-sm">
-                    Enter at least 2 characters to search
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-3 p-3 bg-muted rounded-xl">
-                  <div className="w-12 h-12 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
-                    {selectedRecipient.name?.charAt(0) || 'U'}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{selectedRecipient.name}</p>
-                    <p className="text-sm text-muted-foreground">{selectedRecipient.email}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelectedRecipient(null)}
-                  >
-                    Change
-                  </Button>
-                </div>
-
-                <Input
-                  type="number"
-                  placeholder="Enter amount"
-                  value={transferAmount}
-                  onChange={(e) => setTransferAmount(e.target.value)}
-                  className="h-14 text-2xl text-center font-bold rounded-xl"
-                />
-
-                <Input
-                  placeholder="Add a note (optional)"
-                  value={transferNote}
-                  onChange={(e) => setTransferNote(e.target.value)}
-                  className="rounded-xl"
-                />
-
-                <div className="text-center text-sm text-muted-foreground">
-                  Your balance: ₹{profile?.wallet_balance?.toFixed(2) || '0.00'}
-                </div>
-
-                <Button
-                  onClick={handleTransfer}
-                  className="w-full h-12 btn-gradient rounded-xl"
-                  disabled={loading || !transferAmount || parseFloat(transferAmount) <= 0}
-                >
-                  {loading ? 'Sending...' : `Send ₹${transferAmount || '0'}`}
-                </Button>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Success Modal */}
-      <SuccessModal
-        isOpen={showSuccessModal}
-        onClose={() => setShowSuccessModal(false)}
-        type={successData.type}
-        title={successData.title}
-        message={successData.message}
-        details={successData.details}
-        actionLabel="View Wallet"
-        autoCloseDelay={4000}
+      <SuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)}
+        type={successData.type} title={successData.title} message={successData.message}
+        details={successData.details} actionLabel="View Wallet" autoCloseDelay={4000}
       />
 
       <BottomNav />
