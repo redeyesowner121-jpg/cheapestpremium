@@ -2,7 +2,7 @@ import React, { memo, useCallback, useMemo } from 'react';
 import { Star, Share2, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppSettings } from '@/hooks/useAppSettings';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 
 interface Product {
@@ -140,7 +140,7 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
   onBuyClick
 }) => {
   const { profile } = useAuth();
-  const { settings } = useAppSettings();
+  const { settings } = useAppSettingsContext();
   
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;

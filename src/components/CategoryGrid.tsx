@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { 
   Tv, 
   Music, 
@@ -13,7 +13,6 @@ import {
   Wrench,
   LucideIcon
 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Category {
   id: string;
@@ -42,27 +41,13 @@ const categoryIcons: Record<string, { icon: LucideIcon; color: string; bgColor: 
 const defaultIcon = { icon: Briefcase, color: 'text-gray-500', bgColor: 'bg-gray-100' };
 
 interface CategoryGridProps {
+  categories?: Category[];
   onCategoryClick?: (categoryId: string) => void;
 }
 
-const CategoryGrid: React.FC<CategoryGridProps> = ({ onCategoryClick }) => {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    
-    if (data) setCategories(data);
-    setLoading(false);
-  };
+const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories, onCategoryClick }) => {
+  const categories = propCategories || [];
+  const loading = categories.length === 0;
 
   const categoryItems = useMemo(() => {
     return categories.map(cat => {

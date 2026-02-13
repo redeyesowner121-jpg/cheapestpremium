@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 interface DailyBonusBannerProps {
   onBonusClaimed?: () => void;
@@ -13,6 +14,7 @@ interface DailyBonusBannerProps {
 const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusClaimed }) => {
   const navigate = useNavigate();
   const { user, profile, refreshProfile, loading } = useAuth();
+  const { settings } = useAppSettingsContext();
   const [canClaimBonus, setCanClaimBonus] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -46,16 +48,8 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
     if (!user || !profile || claiming) return;
     setClaiming(true);
     try {
-      const { data: settings } = await supabase
-        .from('app_settings')
-        .select('key, value')
-        .in('key', ['daily_bonus_min', 'daily_bonus_max']);
-      
-      const settingsMap: Record<string, string> = {};
-      settings?.forEach(s => { settingsMap[s.key] = s.value || ''; });
-      
-      const minBonus = parseFloat(settingsMap.daily_bonus_min) || 0.10;
-      const maxBonus = parseFloat(settingsMap.daily_bonus_max) || 1.00;
+      const minBonus = settings.daily_bonus_min || 0.10;
+      const maxBonus = settings.daily_bonus_max || 1.00;
       const bonusAmount = Math.round((Math.random() * (maxBonus - minBonus) + minBonus) * 100) / 100;
       const newBalance = (profile.wallet_balance || 0) + bonusAmount;
       const todayDate = getISTDate();

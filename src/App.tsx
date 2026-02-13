@@ -5,7 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { useAppSettings } from "@/hooks/useAppSettings";
+import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettingsContext";
 import Index from "./pages/Index";
 import { Construction, Settings } from "lucide-react";
 
@@ -50,7 +50,7 @@ const MaintenanceScreen = () => {
 
 // App Content with Settings Applied
 const AppContent = () => {
-  const { settings, loading: settingsLoading } = useAppSettings();
+  const { settings, loading: settingsLoading } = useAppSettingsContext();
   const { isAdmin, isTempAdmin } = useAuth();
 
   useEffect(() => {
@@ -95,11 +95,13 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <AppContent />
-        </TooltipProvider>
+        <AppSettingsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <AppContent />
+          </TooltipProvider>
+        </AppSettingsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

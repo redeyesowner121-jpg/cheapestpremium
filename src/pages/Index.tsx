@@ -26,8 +26,10 @@ const Index: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [methodsProducts, setMethodsProducts] = useState<any[]>([]);
   const [coursesProducts, setCoursesProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [selectedFlashSale, setSelectedFlashSale] = useState<any>(null);
   const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -38,11 +40,14 @@ const Index: React.FC = () => {
         await requestPermission();
       }, 1500);
     }
+    // Defer recommendations render
+    const timer = setTimeout(() => setShowRecommendations(true), 500);
+    return () => clearTimeout(timer);
   }, [user, permission]);
 
   const loadData = async () => {
     // Load all data in parallel
-    const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes] = await Promise.all([
+    const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes, categoriesRes] = await Promise.all([
       supabase
         .from('banners')
         .select('*')
@@ -69,8 +74,15 @@ const Index: React.FC = () => {
         .select('*')
         .eq('is_active', true)
         .ilike('category', '%courses%')
-        .limit(6)
+        .limit(6),
+      supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
     ]);
+
+    if (categoriesRes.data) setCategories(categoriesRes.data);
 
     if (bannersRes.data && bannersRes.data.length > 0) {
       setBanners(bannersRes.data.map(b => ({
@@ -178,10 +190,10 @@ const Index: React.FC = () => {
           }} 
         />
         
-        {/* Personalized Recommendations */}
-        <PersonalizedRecommendations />
+        {/* Personalized Recommendations - deferred */}
+        {showRecommendations && <PersonalizedRecommendations />}
         
-        <CategoryGrid onCategoryClick={() => navigate('/products')} />
+        <CategoryGrid categories={categories} onCategoryClick={() => navigate('/products')} />
         
         {/* Methods Section */}
         <CategorySection

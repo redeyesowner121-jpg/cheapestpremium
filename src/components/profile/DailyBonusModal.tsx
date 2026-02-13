@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useAppSettings } from '@/hooks/useAppSettings';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 interface DailyBonusModalProps {
   open: boolean;
@@ -24,7 +24,7 @@ const DailyBonusModal: React.FC<DailyBonusModalProps> = ({
   claiming,
   onClaim,
 }) => {
-  const { settings } = useAppSettings();
+  const { settings } = useAppSettingsContext();
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

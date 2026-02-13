@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAppSettings } from '@/hooks/useAppSettings';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 interface WalletBalanceCardProps {
   walletBalance: number;
@@ -17,7 +17,7 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
   onAddMoney,
   onWithdraw
 }) => {
-  const { settings } = useAppSettings();
+  const { settings } = useAppSettingsContext();
   
   return (
     <motion.div
