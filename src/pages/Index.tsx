@@ -90,7 +90,8 @@ const Index: React.FC = () => {
         salePrice: fs.sale_price,
         image: fs.products?.image_url || 'https://via.placeholder.com/200',
         endTime: new Date(fs.end_time).getTime(),
-        productData: fs.products
+        productData: fs.products,
+        variationName: (fs as any).variation_name || null,
       })));
     }
 
