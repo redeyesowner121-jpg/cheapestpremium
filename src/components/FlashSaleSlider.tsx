@@ -15,6 +15,7 @@ interface FlashSaleItem {
   image: string;
   endTime: number;
   productData?: any;
+  variationName?: string | null;
 }
 
 interface FlashSaleCoupon {
@@ -140,6 +141,11 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
                 </div>
                 <div className="p-3">
                   <h3 className="font-semibold text-sm text-foreground truncate">{item.name}</h3>
+                  {item.variationName && (
+                    <span className="inline-block mt-0.5 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">
+                      {item.variationName}
+                    </span>
+                  )}
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-primary font-bold">₹{item.salePrice}</span>
                     <span className="text-xs text-muted-foreground line-through">

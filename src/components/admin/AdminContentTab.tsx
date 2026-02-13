@@ -81,6 +81,11 @@ const AdminContentTab: React.FC<AdminContentTabProps> = ({
               <img src={sale.products?.image_url || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 rounded object-cover" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{sale.products?.name}</p>
+                {sale.variation_name && (
+                  <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">
+                    {sale.variation_name}
+                  </span>
+                )}
                 <p className="text-xs text-success font-bold">₹{sale.sale_price}</p>
                 <p className="text-[10px] text-muted-foreground">
                   Ends: {new Date(sale.end_time).toLocaleString()}

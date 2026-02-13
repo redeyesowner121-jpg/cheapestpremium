@@ -257,6 +257,8 @@ export type Database = {
           product_id: string | null
           sale_price: number
           start_time: string
+          variation_id: string | null
+          variation_name: string | null
         }
         Insert: {
           created_at?: string | null
@@ -266,6 +268,8 @@ export type Database = {
           product_id?: string | null
           sale_price: number
           start_time: string
+          variation_id?: string | null
+          variation_name?: string | null
         }
         Update: {
           created_at?: string | null
@@ -275,6 +279,8 @@ export type Database = {
           product_id?: string | null
           sale_price?: number
           start_time?: string
+          variation_id?: string | null
+          variation_name?: string | null
         }
         Relationships: [
           {
@@ -282,6 +288,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "flash_sales_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
             referencedColumns: ["id"]
           },
         ]

@@ -66,6 +66,7 @@ import {
   AdminOverviewTab,
   AdminControlTab
 } from '@/components/admin';
+import { FlashSaleModal } from '@/components/admin/modals';
 import { toast } from 'sonner';
 
 const AdminPage: React.FC = () => {
@@ -1187,35 +1188,12 @@ const AdminPage: React.FC = () => {
       </Dialog>
       
       {/* Flash Sale Modal */}
-      <Dialog open={showFlashSaleModal} onOpenChange={setShowFlashSaleModal}>
-        <DialogContent className="max-w-sm rounded-3xl">
-          <DialogHeader>
-            <DialogTitle>Add Flash Sale</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <select
-              className="w-full h-10 px-3 rounded-xl border border-input bg-background"
-              value={flashSaleForm.product_id}
-              onChange={(e) => setFlashSaleForm({...flashSaleForm, product_id: e.target.value})}
-            >
-              <option value="">Select Product *</option>
-              {data.products.map(p => (
-                <option key={p.id} value={p.id}>{p.name} (₹{p.price})</option>
-              ))}
-            </select>
-            <Input type="number" placeholder="Sale Price *" value={flashSaleForm.sale_price} onChange={(e) => setFlashSaleForm({...flashSaleForm, sale_price: e.target.value})} />
-            <div>
-              <label className="text-xs text-muted-foreground">End Time *</label>
-              <Input type="datetime-local" value={flashSaleForm.end_time} onChange={(e) => setFlashSaleForm({...flashSaleForm, end_time: e.target.value})} />
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Active</span>
-              <Switch checked={flashSaleForm.is_active} onCheckedChange={(v) => setFlashSaleForm({...flashSaleForm, is_active: v})} />
-            </div>
-            <Button className="w-full btn-gradient" onClick={handleAddFlashSale}>Add Flash Sale</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FlashSaleModal
+        open={showFlashSaleModal}
+        onOpenChange={setShowFlashSaleModal}
+        products={data.products}
+        onRefresh={loadData}
+      />
       
       {/* Variations Modal */}
       <Dialog open={showVariationsModal} onOpenChange={setShowVariationsModal}>

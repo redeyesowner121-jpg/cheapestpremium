@@ -18,6 +18,7 @@ interface FlashSaleItem {
   image: string;
   endTime: number;
   productData?: any;
+  variationName?: string | null;
 }
 
 interface FlashSaleDetailModalProps {
@@ -108,6 +109,11 @@ const FlashSaleDetailModal: React.FC<FlashSaleDetailModalProps> = ({
               <DialogTitle className="text-xl font-bold text-foreground">
                 {item.name}
               </DialogTitle>
+              {item.variationName && (
+                <span className="inline-block w-fit mt-1 text-xs font-semibold bg-primary/15 text-primary px-2.5 py-1 rounded-lg">
+                  📦 {item.variationName}
+                </span>
+              )}
             </DialogHeader>
 
             {/* Price Section */}
