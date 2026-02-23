@@ -29,6 +29,9 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
       <h1 className="text-4xl font-bold text-primary-foreground mt-2">
         {settings.currency_symbol}{walletBalance?.toFixed(2) || '0.00'}
       </h1>
+      <p className="text-primary-foreground/60 text-sm mt-1">
+        ≈ ${(walletBalance / 95).toFixed(2)} USD
+      </p>
       
       <div className="flex items-center justify-center gap-6 mt-6">
         <div className="text-center">
