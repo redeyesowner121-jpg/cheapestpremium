@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import AddToCartButton from '@/components/AddToCartButton';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 interface Product {
   id: string;
@@ -32,15 +33,16 @@ const ProductCard = memo<{
   isReseller: boolean;
   currencySymbol: string;
   appName: string;
+  formatPrice: (inrAmount: number, decimals?: number) => string;
   onProductClick?: (product: Product) => void;
   onBuyClick?: (product: Product) => void;
-}>(({ product, userRank, isReseller, currencySymbol, appName, onProductClick, onBuyClick }) => {
+}>(({ product, userRank, isReseller, currencySymbol, appName, formatPrice, onProductClick, onBuyClick }) => {
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     const productUrl = `${window.location.origin}/product/${(product as any).slug || product.id}`;
     const shareData = {
       title: product.name,
-      text: `Check out ${product.name} at ${appName}! Only ${currencySymbol}${product.price}`,
+      text: `Check out ${product.name} at ${appName}! Only ${formatPrice(product.price)}`,
       url: productUrl,
     };
 
@@ -53,7 +55,7 @@ const ProductCard = memo<{
     } catch (error) {
       // Silent fail
     }
-  }, [product, appName, currencySymbol]);
+  }, [product, appName, formatPrice]);
 
   const priceInfo = useMemo(() => {
     const { finalPrice, savings } = calculateFinalPrice(
@@ -104,10 +106,10 @@ const ProductCard = memo<{
         
         <div className="flex items-center justify-between mt-2">
           <div>
-            <span className="text-primary font-bold">{currencySymbol}{Math.round(priceInfo.finalPrice * 100) / 100}</span>
+            <span className="text-primary font-bold">{formatPrice(priceInfo.finalPrice)}</span>
             {(priceInfo.hasRankDiscount || product.originalPrice) && (
               <span className="text-xs text-muted-foreground line-through ml-1">
-                {currencySymbol}{priceInfo.hasRankDiscount ? product.price : product.originalPrice}
+                {formatPrice(priceInfo.hasRankDiscount ? product.price : (product.originalPrice || 0))}
               </span>
             )}
             {priceInfo.hasRankDiscount && (
@@ -143,6 +145,7 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
 }) => {
   const { profile } = useAuth();
   const { settings } = useAppSettingsContext();
+  const { formatPrice } = useCurrencyFormat();
   
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;
@@ -173,6 +176,7 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
             isReseller={isReseller}
             currencySymbol={settings.currency_symbol}
             appName={settings.app_name}
+            formatPrice={formatPrice}
             onProductClick={onProductClick}
             onBuyClick={onBuyClick}
           />

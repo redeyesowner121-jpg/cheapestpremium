@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 interface PurchaseModalProps {
   open: boolean;
@@ -70,6 +71,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   flashSaleId,
   isLoggedIn = true,
 }) => {
+  const { formatPrice } = useCurrencyFormat();
   const [donationEnabled, setDonationEnabled] = useState(false);
   const [donationAmount, setDonationAmount] = useState('1');
   const [couponCode, setCouponCode] = useState('');
@@ -186,7 +188,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
 
       // Check minimum purchase
       if (coupon.min_purchase && totalPrice < coupon.min_purchase) {
-        setCouponError(`Minimum purchase of ₹${coupon.min_purchase} required`);
+        setCouponError(`Minimum purchase of ${formatPrice(coupon.min_purchase)} required`);
         setCouponLoading(false);
         return;
       }
@@ -261,7 +263,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
               {selectedVariation && (
                 <p className="text-sm text-muted-foreground">{selectedVariation.name}</p>
               )}
-              <p className="text-primary font-bold">₹{currentPrice}</p>
+              <p className="text-primary font-bold">{formatPrice(currentPrice)}</p>
             </div>
           </div>
 
@@ -394,7 +396,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
                   <span className="text-xs text-green-600 dark:text-green-500">
                     ({appliedCoupon.discount_type === 'percentage' 
                       ? `${appliedCoupon.discount_value}% OFF` 
-                      : `₹${appliedCoupon.discount_value} OFF`})
+                      : `${formatPrice(appliedCoupon.discount_value)} OFF`})
                   </span>
                 </div>
                 <button
@@ -482,37 +484,37 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
           <div className="space-y-2 p-3 bg-muted rounded-xl">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>₹{totalPrice}</span>
+              <span>{formatPrice(totalPrice)}</span>
             </div>
             {isBulkOrder && bulkDiscountAmount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-green-600">Bulk Discount (8%)</span>
-                <span className="text-green-600">-₹{bulkDiscountAmount.toFixed(2)}</span>
+                <span className="text-green-600">-{formatPrice(bulkDiscountAmount)}</span>
               </div>
             )}
             {appliedCoupon && couponDiscountAmount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-green-600">Coupon Discount</span>
-                <span className="text-green-600">-₹{couponDiscountAmount.toFixed(2)}</span>
+                <span className="text-green-600">-{formatPrice(couponDiscountAmount)}</span>
               </div>
             )}
             {donationEnabled && donation > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-pink-500">Donation</span>
-                <span className="text-pink-500">₹{donation}</span>
+                <span className="text-pink-500">{formatPrice(donation)}</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-2 border-t border-border">
               <span className="font-medium">Total</span>
               <span className="text-xl font-bold text-primary">
-                ₹{finalTotal.toFixed(2)}
+                {formatPrice(finalTotal)}
               </span>
             </div>
           </div>
 
           {isLoggedIn && (
             <div className="text-sm text-muted-foreground text-center">
-              Wallet Balance: ₹{walletBalance?.toFixed(2) || '0.00'}
+              Wallet Balance: {formatPrice(walletBalance || 0)}
             </div>
           )}
 
@@ -529,7 +531,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
             onClick={handleBuy}
             disabled={loading || (isLoggedIn && !canProceed)}
           >
-            {loading ? 'Processing...' : isLoggedIn ? `Pay ₹${finalTotal.toFixed(2)}` : `Place Order ₹${finalTotal.toFixed(2)}`}
+            {loading ? 'Processing...' : isLoggedIn ? `Pay ${formatPrice(finalTotal)}` : `Place Order ${formatPrice(finalTotal)}`}
           </Button>
         </div>
       </DialogContent>

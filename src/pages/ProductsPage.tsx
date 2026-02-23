@@ -32,6 +32,7 @@ import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 interface Product {
   id: string;
@@ -62,6 +63,7 @@ interface CategoryItem {
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
   const { settings } = useAppSettingsContext();
+  const { formatPrice } = useCurrencyFormat();
   const location = useLocation();
   const navigate = useNavigate();
   const flashSale = location.state?.flashSale;
@@ -341,7 +343,7 @@ const ProductsPage: React.FC = () => {
   const handleShare = (product: Product) => {
     const appDomain = settings.app_url;
     const shareUrl = `${appDomain}/product/${(product as any).slug || product.id}`;
-    const shareText = `Check out ${product.name} at ${settings.app_name} for just ${settings.currency_symbol}${product.price}!`;
+    const shareText = `Check out ${product.name} at ${settings.app_name} for just ${formatPrice(product.price)}!`;
     
     if (navigator.share) {
       navigator.share({
@@ -440,7 +442,7 @@ const ProductsPage: React.FC = () => {
                         <Star className="w-2.5 h-2.5 text-accent fill-accent" />
                         <span className="text-[10px] text-muted-foreground">{product.rating}</span>
                       </div>
-                      <span className="text-primary font-bold text-sm">₹{product.price}</span>
+                      <span className="text-primary font-bold text-sm">{formatPrice(product.price)}</span>
                     </div>
                   </div>
                 );
@@ -488,7 +490,7 @@ const ProductsPage: React.FC = () => {
                         <Star className="w-2.5 h-2.5 text-accent fill-accent" />
                         <span className="text-[10px] text-muted-foreground">{product.rating}</span>
                       </div>
-                      <span className="text-primary font-bold text-sm">₹{product.price}</span>
+                      <span className="text-primary font-bold text-sm">{formatPrice(product.price)}</span>
                     </div>
                   </div>
                 );
@@ -586,10 +588,10 @@ const ProductsPage: React.FC = () => {
                           const hasRankDiscount = savings > 0;
                           return (
                             <>
-                              <span className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100}</span>
+                              <span className="text-primary font-bold">{formatPrice(finalPrice)}</span>
                               {(hasRankDiscount || (product.original_price && product.original_price > product.price)) && (
                                 <span className="text-xs text-muted-foreground line-through ml-1">
-                                  ₹{hasRankDiscount ? product.price : product.original_price}
+                                  {formatPrice(hasRankDiscount ? product.price : (product.original_price || 0))}
                                 </span>
                               )}
                               {hasRankDiscount && (
@@ -645,8 +647,8 @@ const ProductsPage: React.FC = () => {
                   <div className="mt-1">
                     {flashSalePrice ? (
                       <div className="flex items-center gap-2">
-                        <p className="text-primary font-bold">₹{flashSalePrice} each</p>
-                        <span className="text-xs text-muted-foreground line-through">₹{selectedProduct.original_price || selectedProduct.price}</span>
+                        <p className="text-primary font-bold">{formatPrice(flashSalePrice)} each</p>
+                        <span className="text-xs text-muted-foreground line-through">{formatPrice(selectedProduct.original_price || selectedProduct.price)}</span>
                         <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded">FLASH SALE</span>
                       </div>
                     ) : (
@@ -662,9 +664,9 @@ const ProductsPage: React.FC = () => {
                         return (
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-primary font-bold">₹{Math.round(finalPrice * 100) / 100} each</p>
+                              <p className="text-primary font-bold">{formatPrice(finalPrice)} each</p>
                               {savings > 0 && (
-                                <span className="text-xs text-muted-foreground line-through">₹{selectedProduct.price}</span>
+                                <span className="text-xs text-muted-foreground line-through">{formatPrice(selectedProduct.price)}</span>
                               )}
                             </div>
                             {savings > 0 && (
@@ -702,7 +704,7 @@ const ProductsPage: React.FC = () => {
                           : 'bg-muted text-foreground hover:bg-muted/80'
                       }`}
                     >
-                      Default - ₹{flashSalePrice || selectedProduct.price}
+                      Default - {formatPrice(flashSalePrice || selectedProduct.price)}
                     </button>
                     {productVariations.map((variation) => (
                       <button
@@ -714,7 +716,7 @@ const ProductsPage: React.FC = () => {
                             : 'bg-muted text-foreground hover:bg-muted/80'
                         }`}
                       >
-                        {variation.name} - ₹{variation.price}
+                        {variation.name} - {formatPrice(variation.price)}
                       </button>
                     ))}
                   </div>
@@ -758,14 +760,14 @@ const ProductsPage: React.FC = () => {
               {/* Wallet Balance */}
               <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
                 <span className="text-sm text-muted-foreground">Your Balance</span>
-                <span className="font-bold text-foreground">₹{profile?.wallet_balance?.toFixed(2) || '0.00'}</span>
+                <span className="font-bold text-foreground">{formatPrice(profile?.wallet_balance || 0)}</span>
               </div>
 
               {/* Total */}
               <div className="flex items-center justify-between p-4 gradient-primary rounded-xl">
                 <span className="font-medium text-primary-foreground">Total</span>
                 <span className="text-2xl font-bold text-primary-foreground">
-                  ₹{(selectedVariation?.price || flashSalePrice || selectedProduct.price) * quantity}
+                  {formatPrice((selectedVariation?.price || flashSalePrice || selectedProduct.price) * quantity)}
                 </span>
               </div>
 

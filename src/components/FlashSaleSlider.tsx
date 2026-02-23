@@ -4,6 +4,7 @@ import { Autoplay } from 'swiper/modules';
 import { Clock, Zap, ShoppingBag, Ticket, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import 'swiper/css';
 
 interface FlashSaleItem {
@@ -37,6 +38,7 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
 }) => {
   const [coupons, setCoupons] = useState<Record<string, FlashSaleCoupon>>({});
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const { formatPrice } = useCurrencyFormat();
 
   useEffect(() => {
     if (items && items.length > 0) {
@@ -147,9 +149,9 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
                     </span>
                   )}
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-primary font-bold">₹{item.salePrice}</span>
+                    <span className="text-primary font-bold">{formatPrice(item.salePrice)}</span>
                     <span className="text-xs text-muted-foreground line-through">
-                      ₹{item.originalPrice}
+                      {formatPrice(item.originalPrice)}
                     </span>
                   </div>
                   
@@ -168,7 +170,7 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
                         <span className="text-[9px] text-amber-600/80 dark:text-amber-400/80">
                           {coupon.discount_type === 'percentage' 
                             ? `${coupon.discount_value}% OFF` 
-                            : `₹${coupon.discount_value} OFF`}
+                            : `${formatPrice(coupon.discount_value)} OFF`}
                         </span>
                         {copiedCode === coupon.code ? (
                           <Check className="w-3 h-3 text-green-500" />
