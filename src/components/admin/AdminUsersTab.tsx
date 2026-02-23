@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, Users, TrendingUp, Check, X } from 'lucide-react';
+import { Eye, Users, TrendingUp, Check, X, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BlueTick from '@/components/BlueTick';
 import AdminAdvancedFilters from './AdminAdvancedFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface AdminUsersTabProps {
   users: any[];
@@ -39,6 +40,9 @@ const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, onSelectUser, onRe
   const [depositRange, setDepositRange] = useState<{ min: string; max: string }>({ min: '', max: '' });
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editBalance, setEditBalance] = useState('');
+  const [resetPasswordUser, setResetPasswordUser] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const handleSaveBalance = async (user: any) => {
     const newBalance = parseFloat(editBalance);
@@ -73,6 +77,27 @@ const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, onSelectUser, onRe
     setEditingUserId(null);
     setEditBalance('');
     onRefresh?.();
+  };
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser || !newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-reset-password', {
+        body: { user_id: resetPasswordUser.id, new_password: newPassword },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Password reset for ${resetPasswordUser.name}`);
+      setResetPasswordUser(null);
+      setNewPassword('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset password');
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -301,18 +326,60 @@ const AdminUsersTab: React.FC<AdminUsersTabProps> = ({ users, onSelectUser, onRe
                     Joined: {new Date(user.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onSelectUser(user)}
-                >
-                  <Eye className="w-4 h-4" />
-                </Button>
+                <div className="flex flex-col gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onSelectUser(user)}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => { e.stopPropagation(); setResetPasswordUser(user); }}
+                    title="Reset Password"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </motion.div>
           ))
         )}
       </div>
+
+      {/* Reset Password Modal */}
+      <Dialog open={!!resetPasswordUser} onOpenChange={(o) => { if (!o) { setResetPasswordUser(null); setNewPassword(''); } }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              Reset Password
+            </DialogTitle>
+            <DialogDescription>
+              Set a new password for <strong>{resetPasswordUser?.name}</strong> ({resetPasswordUser?.email})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <Input
+              type="text"
+              placeholder="Enter new password (min 6 chars)"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="rounded-xl"
+              minLength={6}
+            />
+            <Button
+              onClick={handleResetPassword}
+              className="w-full btn-gradient rounded-xl"
+              disabled={resettingPassword || newPassword.length < 6}
+            >
+              {resettingPassword ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
