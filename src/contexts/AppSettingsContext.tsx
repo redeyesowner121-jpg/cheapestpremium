@@ -25,6 +25,8 @@ export interface AppSettings {
   google_login_enabled: boolean;
   blue_tick_price: number;
   app_url: string;
+  binance_id: string;
+  binance_contact_message: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -51,6 +53,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   google_login_enabled: false,
   blue_tick_price: 0,
   app_url: 'https://cheapest-premiums.lovable.app',
+  binance_id: '1178303416',
+  binance_contact_message: "You don't have Binance? Contact seller on WhatsApp for alternative payment.",
 };
 
 interface AppSettingsContextValue {
