@@ -128,6 +128,9 @@ export const useAdminPageActions = (loadData: () => void) => {
       toast.error('Please fill required fields'); return;
     }
 
+    const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
+    const slugNum = (count || 0) + 1;
+
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name, description: productForm.description,
       price: parseFloat(productForm.price),
@@ -135,7 +138,8 @@ export const useAdminPageActions = (loadData: () => void) => {
       category: productForm.category, image_url: productForm.image_url,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
-      is_active: productForm.is_active
+      is_active: productForm.is_active,
+      slug: `product-${slugNum}`
     }).select().single();
 
     if (error || !newProduct) { toast.error('Failed to add product'); return; }

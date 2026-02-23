@@ -37,7 +37,7 @@ const ProductCard = memo<{
 }>(({ product, userRank, isReseller, currencySymbol, appName, onProductClick, onBuyClick }) => {
   const handleShare = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const productUrl = `${window.location.origin}/product/${product.id}`;
+    const productUrl = `${window.location.origin}/product/${(product as any).slug || product.id}`;
     const shareData = {
       title: product.name,
       text: `Check out ${product.name} at ${appName}! Only ${currencySymbol}${product.price}`,
