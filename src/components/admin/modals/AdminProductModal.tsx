@@ -48,10 +48,11 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const handleSave = () => {
     const newErrors: Record<string, boolean> = {};
     if (!productForm.name.trim()) newErrors.name = true;
+    if (!productForm.image_url.trim()) newErrors.image_url = true;
     if (!productForm.category.trim()) newErrors.category = true;
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
-      toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
+      toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
       return;
     }
     onSave();
@@ -128,7 +129,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               {categories.map((cat) => (<SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Input placeholder="Image URL" value={productForm.image_url} onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })} />
+          <Input placeholder="Image URL *" value={productForm.image_url} onChange={(e) => { setProductForm({ ...productForm, image_url: e.target.value }); if (e.target.value.trim()) setErrors(prev => ({ ...prev, image_url: false })); }} className={errors.image_url ? 'border-destructive ring-destructive/30 ring-2' : ''} />
           <Input placeholder="Access Link (Optional)" value={productForm.access_link} onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })} />
           <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
           <div className="flex items-center justify-between">
