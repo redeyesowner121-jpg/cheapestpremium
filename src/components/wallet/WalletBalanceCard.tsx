@@ -30,7 +30,7 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
         {settings.currency_symbol}{walletBalance?.toFixed(2) || '0.00'}
       </h1>
       <p className="text-primary-foreground/60 text-sm mt-1">
-        ≈ ${(walletBalance / 95).toFixed(2)} USD
+        ≈ ${(walletBalance / (settings.usd_conversion_rate || 95)).toFixed(2)} USD
       </p>
       
       <div className="flex items-center justify-center gap-6 mt-6">
@@ -39,11 +39,15 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
           <p className="text-primary-foreground font-semibold">
             {settings.currency_symbol}{totalDeposit?.toFixed(2) || '0.00'}
           </p>
+          <p className="text-primary-foreground/50 text-[10px]">
+            ≈ ${(totalDeposit / (settings.usd_conversion_rate || 95)).toFixed(2)}
+          </p>
         </div>
-        <div className="w-px h-10 bg-primary-foreground/20" />
+        <div className="w-px h-12 bg-primary-foreground/20" />
         <div className="text-center">
           <p className="text-primary-foreground/60 text-xs">Total Spent</p>
           <p className="text-primary-foreground font-semibold">{settings.currency_symbol}0.00</p>
+          <p className="text-primary-foreground/50 text-[10px]">≈ $0.00</p>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { motion } from 'framer-motion';
 import { 
   ArrowUpRight, 
@@ -25,6 +26,7 @@ interface TransactionListProps {
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
+  const { settings } = useAppSettingsContext();
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit':
@@ -97,7 +99,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
               </div>
               <div className="text-right">
                 <p className={`font-bold ${['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? 'text-destructive' : 'text-success'}`}>
-                  {['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? '-' : '+'}₹{Math.abs(txn.amount)}
+                  {['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? '-' : '+'}{settings.currency_symbol}{Math.abs(txn.amount)}
                 </p>
                 <div className="flex items-center justify-end gap-1">
                   {getStatusIcon(txn.status)}

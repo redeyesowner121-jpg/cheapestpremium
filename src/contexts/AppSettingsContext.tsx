@@ -28,6 +28,8 @@ export interface AppSettings {
   binance_id: string;
   binance_contact_message: string;
   app_tagline: string;
+  usd_conversion_rate: number;
+  foreign_deposit_fee_percent: number;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -57,6 +59,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   binance_id: '1178303416',
   binance_contact_message: "You don't have Binance? Contact seller on WhatsApp for alternative payment.",
   app_tagline: 'Premium Digital Products',
+  usd_conversion_rate: 95,
+  foreign_deposit_fee_percent: 10,
 };
 
 interface AppSettingsContextValue {
@@ -81,7 +85,8 @@ const parseSettingValue = (key: keyof AppSettings, value: string | null): any =>
   const numberKeys = [
     'min_deposit', 'login_bonus', 'daily_bonus_min', 'daily_bonus_max',
     'referral_bonus', 'blue_tick_threshold', 'single_deposit_bonus_threshold',
-    'single_deposit_bonus_amount', 'low_stock_threshold', 'blue_tick_price'
+    'single_deposit_bonus_amount', 'low_stock_threshold', 'blue_tick_price',
+    'usd_conversion_rate', 'foreign_deposit_fee_percent'
   ];
   
   if (booleanKeys.includes(key)) return value === 'true';

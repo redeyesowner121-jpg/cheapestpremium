@@ -236,6 +236,30 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             placeholder="Contact message..."
           />
         </SettingItem>
+        <SettingItem label="USD Conversion Rate" description="1 USD = ? INR">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.usd_conversion_rate || '95'}
+              onChange={(e) => updateLocal('usd_conversion_rate', e.target.value)}
+              onBlur={(e) => handleSave('usd_conversion_rate', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
+          </div>
+        </SettingItem>
+        <SettingItem label="Foreign Deposit Fee %" description="Extra fee for foreign deposits">
+          <div className="flex items-center gap-1">
+            <Input
+              type="number"
+              value={localSettings.foreign_deposit_fee_percent || '10'}
+              onChange={(e) => updateLocal('foreign_deposit_fee_percent', e.target.value)}
+              onBlur={(e) => handleSave('foreign_deposit_fee_percent', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
+            <span className="text-sm text-muted-foreground">%</span>
+          </div>
+        </SettingItem>
       </SettingsSection>
 
       {/* Bonus Settings */}
