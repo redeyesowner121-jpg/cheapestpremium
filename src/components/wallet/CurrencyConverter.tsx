@@ -115,6 +115,7 @@ const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChang
           <div className="space-y-1 overflow-y-auto flex-1 min-h-0 mb-3">
             {filteredCurrencies.map(c => {
               const converted = (walletBalance / c.rate_to_inr).toFixed(2);
+              const isAAX = c.code === 'AAX';
               return (
                 <button
                   key={c.id}
@@ -122,12 +123,21 @@ const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChang
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
                     selectedCurrency?.id === c.id
                       ? 'bg-primary/10 border border-primary/30'
-                      : 'hover:bg-muted'
+                      : isAAX
+                        ? 'bg-success/5 border border-success/20 hover:bg-success/10'
+                        : 'hover:bg-muted'
                   }`}
                 >
                   <span className="text-xl">{c.flag}</span>
                   <div className="text-left flex-1">
-                    <p className="font-semibold text-sm text-foreground">{c.code}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-sm text-foreground">{c.code}</p>
+                      {isAAX && (
+                        <span className="text-[10px] font-bold bg-success/20 text-success px-1.5 py-0.5 rounded-full">
+                          UP TO 5% OFF
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{c.name}</p>
                   </div>
                   <span className="text-sm font-medium text-foreground">{c.symbol}{converted}</span>
