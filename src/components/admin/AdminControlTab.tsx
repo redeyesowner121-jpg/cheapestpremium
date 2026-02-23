@@ -238,23 +238,14 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
     },
   ];
 
-  // Group 4: Settings, Temp Admins (admin only)
-  const adminGroup = isAdmin ? [
-    { 
-      id: 'settings' as ControlSection, 
-      icon: Settings, 
-      label: 'Settings', 
-      description: 'App configuration',
-      color: 'bg-gradient-to-br from-slate-500 to-gray-600',
-      badge: null
-    },
-  ] : [];
+  // Group 4: Administration - settings shown directly (no sub-sections)
+  const adminGroup = isAdmin ? [] : [];
 
   const sectionGroups = [
     { title: 'Transactions', icon: CreditCard, sections: transactionGroup },
     { title: 'Management', icon: Users, sections: managementGroup },
     { title: 'Marketing & Support', icon: Ticket, sections: marketingGroup },
-    ...(isAdmin ? [{ title: 'Administration', icon: Shield, sections: adminGroup }] : []),
+    ...(isAdmin ? [{ title: 'Administration', icon: Shield, sections: [] as typeof transactionGroup }] : []),
   ];
 
   const allSections = [...transactionGroup, ...managementGroup, ...marketingGroup, ...adminGroup];
@@ -823,13 +814,6 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                             <AdminChatPanel />
                           )}
 
-                          {/* Settings Section */}
-                          {section.id === 'settings' && isAdmin && (
-                            <AdminSettingsTab 
-                              settings={data.settings}
-                              onUpdateSetting={onUpdateSetting}
-                            />
-                          )}
                         </div>
                       </motion.div>
                     )}
@@ -837,6 +821,14 @@ const AdminControlTab: React.FC<AdminControlTabProps> = ({
                 </motion.div>
               ))}
             </div>
+
+          {/* Administration - Settings rendered directly */}
+          {isAdmin && sectionGroups[activeGroup]?.title === 'Administration' && (
+            <AdminSettingsTab 
+              settings={data.settings}
+              onUpdateSetting={onUpdateSetting}
+            />
+          )}
           </div>
 
       {/* Temp Admins Section */}
