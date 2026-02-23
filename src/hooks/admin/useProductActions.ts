@@ -19,8 +19,8 @@ export async function handleAddProduct(
   pendingVariations: { name: string; price: string; original_price: string; reseller_price: string }[],
   onComplete: () => void
 ) {
-  if (!productForm.name || !productForm.price || !productForm.category) {
-    toast.error('Please fill required fields');
+  if (!productForm.name || !productForm.category) {
+    toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
     return false;
   }
   
@@ -31,7 +31,7 @@ export async function handleAddProduct(
   const { data: newProduct, error } = await supabase.from('products').insert({
     name: productForm.name,
     description: productForm.description,
-    price: parseFloat(productForm.price),
+    price: productForm.price ? parseFloat(productForm.price) : 0,
     original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
     reseller_price: productForm.reseller_price ? parseFloat(productForm.reseller_price) : null,
     category: productForm.category,
@@ -70,15 +70,15 @@ export async function handleUpdateProduct(
   pendingVariations: { name: string; price: string; original_price: string; reseller_price: string }[],
   onComplete: () => void
 ) {
-  if (!productForm.name || !productForm.price || !productForm.category) {
-    toast.error('Please fill required fields');
+  if (!productForm.name || !productForm.category) {
+    toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
     return false;
   }
   
   const { error } = await supabase.from('products').update({
     name: productForm.name,
     description: productForm.description,
-    price: parseFloat(productForm.price),
+    price: productForm.price ? parseFloat(productForm.price) : 0,
     original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
     reseller_price: productForm.reseller_price ? parseFloat(productForm.reseller_price) : null,
     category: productForm.category,
