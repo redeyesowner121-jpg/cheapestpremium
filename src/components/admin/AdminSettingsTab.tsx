@@ -139,6 +139,14 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             className="w-44 h-9 text-sm rounded-lg"
           />
         </SettingItem>
+        <SettingItem label="App Tagline" description="Tagline shown on splash screen">
+          <Input
+            value={localSettings.app_tagline || 'Premium Digital Products'}
+            onChange={(e) => updateLocal('app_tagline', e.target.value)}
+            onBlur={(e) => handleSave('app_tagline', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+          />
+        </SettingItem>
         <SettingItem label="App URL" description="Share link URL for products & referrals">
           <Input
             value={localSettings.app_url || 'https://cheapest-premiums.lovable.app'}

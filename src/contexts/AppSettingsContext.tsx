@@ -27,6 +27,7 @@ export interface AppSettings {
   app_url: string;
   binance_id: string;
   binance_contact_message: string;
+  app_tagline: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -55,6 +56,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   app_url: 'https://cheapest-premiums.lovable.app',
   binance_id: '1178303416',
   binance_contact_message: "You don't have Binance? Contact seller on WhatsApp for alternative payment.",
+  app_tagline: 'Premium Digital Products',
 };
 
 interface AppSettingsContextValue {
