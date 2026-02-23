@@ -406,9 +406,20 @@ const DepositModal: React.FC<DepositModalProps> = ({
                     >₹{amount}</button>
                   ))}
                 </div>
-                <Button onClick={onAutoDeposit} className="w-full h-12 btn-gradient rounded-xl" disabled={loading || !depositAmount}>
-                  {loading ? 'Processing...' : `Pay ₹${depositAmount || '0'}`}
+                <Button
+                  onClick={() => {
+                    const link = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
+                    window.open(link, '_blank');
+                  }}
+                  className="w-full h-12 btn-gradient rounded-xl"
+                  disabled={!depositAmount}
+                >
+                  <CreditCard className="w-5 h-5 mr-2" />
+                  Pay ₹{depositAmount || '0'} via Card
                 </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  After payment, submit a manual deposit request with your transaction details
+                </p>
               </>
             )}
           </TabsContent>
