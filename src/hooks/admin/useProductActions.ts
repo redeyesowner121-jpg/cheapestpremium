@@ -28,10 +28,15 @@ export async function handleAddProduct(
   const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
   const slugNum = (count || 0) + 1;
 
+  // Use first variation price as main product price
+  const mainPrice = pendingVariations.length > 0 && pendingVariations[0].price
+    ? parseFloat(pendingVariations[0].price)
+    : (productForm.price ? parseFloat(productForm.price) : 0);
+
   const { data: newProduct, error } = await supabase.from('products').insert({
     name: productForm.name,
     description: productForm.description,
-    price: productForm.price ? parseFloat(productForm.price) : 0,
+    price: mainPrice,
     original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
     reseller_price: productForm.reseller_price ? parseFloat(productForm.reseller_price) : null,
     category: productForm.category,
@@ -75,10 +80,17 @@ export async function handleUpdateProduct(
     return false;
   }
   
+  // Fetch existing variations to use first one's price as main price
+  const { data: existingVars } = await supabase.from('product_variations').select('price')
+    .eq('product_id', productId).order('created_at', { ascending: true }).limit(1);
+  
+  const firstVarPrice = existingVars?.[0]?.price ?? (pendingVariations.length > 0 && pendingVariations[0].price ? parseFloat(pendingVariations[0].price) : null);
+  const mainPrice = firstVarPrice ?? (productForm.price ? parseFloat(productForm.price) : 0);
+
   const { error } = await supabase.from('products').update({
     name: productForm.name,
     description: productForm.description,
-    price: productForm.price ? parseFloat(productForm.price) : 0,
+    price: mainPrice,
     original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
     reseller_price: productForm.reseller_price ? parseFloat(productForm.reseller_price) : null,
     category: productForm.category,
