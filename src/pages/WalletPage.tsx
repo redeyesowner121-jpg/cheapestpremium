@@ -57,10 +57,29 @@ const WalletPage: React.FC = () => {
   const [redeemCode, setRedeemCode] = useState('');
   const [redeemingCode, setRedeemingCode] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState<{ code: string; symbol: string; rate_to_inr: number } | null>(null);
 
   useEffect(() => {
     if (user) { loadTransactions(); loadPaymentSettings(); checkPendingRequests(); }
   }, [user]);
+
+  useEffect(() => {
+    loadDisplayCurrency();
+  }, [profile]);
+
+  const loadDisplayCurrency = async () => {
+    const code = (profile as any)?.display_currency || 'INR';
+    if (code === 'INR') { setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 }); return; }
+    const { data } = await supabase.from('currencies').select('code, symbol, rate_to_inr').eq('code', code).single();
+    if (data) setDisplayCurrency(data);
+    else setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 });
+  };
+
+  const formatBalance = (inrAmount: number) => {
+    if (!displayCurrency) return `₹${inrAmount?.toFixed(2) || '0.00'}`;
+    const converted = inrAmount / displayCurrency.rate_to_inr;
+    return `${displayCurrency.symbol}${converted.toFixed(2)}`;
+  };
 
   if (!user) {
     return (
@@ -239,7 +258,7 @@ const WalletPage: React.FC = () => {
         {/* Balance Card */}
         <div className="gradient-primary rounded-3xl p-6 text-center shadow-glow">
           <div className="flex items-center justify-center gap-2">
-            <p className="text-primary-foreground/80 text-sm">Available Balance</p>
+            <p className="text-primary-foreground/80 text-sm">Available Balance {displayCurrency && displayCurrency.code !== 'INR' ? `(${displayCurrency.code})` : ''}</p>
             <button
               onClick={() => setShowConvertModal(true)}
               className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-primary-foreground text-xs px-2.5 py-1 rounded-full transition-colors"
@@ -248,17 +267,17 @@ const WalletPage: React.FC = () => {
               Convert
             </button>
           </div>
-          <h1 className="text-4xl font-bold text-primary-foreground mt-2">₹{profile?.wallet_balance?.toFixed(2) || '0.00'}</h1>
+          <h1 className="text-4xl font-bold text-primary-foreground mt-2">{formatBalance(profile?.wallet_balance || 0)}</h1>
           <div className="flex items-center justify-center gap-6 mt-6">
             <div className="text-center">
               <p className="text-primary-foreground/60 text-xs">Total Deposit</p>
-              <p className="text-primary-foreground font-semibold">₹{profile?.total_deposit?.toFixed(2) || '0.00'}</p>
+              <p className="text-primary-foreground font-semibold">{formatBalance(profile?.total_deposit || 0)}</p>
             </div>
             <div className="w-px h-10 bg-primary-foreground/20" />
             <div className="text-center">
               <p className="text-primary-foreground/60 text-xs">Total Spent</p>
               <p className="text-primary-foreground font-semibold">
-                ₹{transactions.filter(t => t.type === 'purchase' && t.status === 'completed').reduce((sum, t) => sum + Math.abs(t.amount), 0).toFixed(2)}
+                {formatBalance(transactions.filter(t => t.type === 'purchase' && t.status === 'completed').reduce((sum, t) => sum + Math.abs(t.amount), 0))}
               </p>
             </div>
           </div>
@@ -307,6 +326,7 @@ const WalletPage: React.FC = () => {
           open={showConvertModal}
           onOpenChange={setShowConvertModal}
           walletBalance={profile?.wallet_balance || 0}
+          onConverted={loadDisplayCurrency}
         />
 
         {/* Transactions */}
