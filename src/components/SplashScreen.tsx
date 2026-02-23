@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import appLogo from '@/assets/app-logo.jpg';
 import { supabase } from '@/integrations/supabase/client';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -8,24 +9,9 @@ interface SplashScreenProps {
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [isExiting, setIsExiting] = useState(false);
-  const [appName, setAppName] = useState('RKR Premium Store');
+  const { settings } = useAppSettingsContext();
 
   useEffect(() => {
-    // Load app name from settings
-    const loadAppName = async () => {
-      const { data } = await supabase
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'app_name')
-        .maybeSingle();
-      
-      if (data?.value) {
-        setAppName(data.value);
-      }
-    };
-    
-    loadAppName();
-    
     const exitTimer = setTimeout(() => {
       setIsExiting(true);
       setTimeout(onComplete, 300);
@@ -51,12 +37,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
 
       {/* App Name */}
       <h1 className="mt-6 text-2xl font-bold text-foreground">
-        {appName}
+        {settings.app_name}
       </h1>
 
-      {/* Tagline */}
       <p className="mt-2 text-sm text-muted-foreground">
-        Premium Digital Products
+        {settings.app_tagline}
       </p>
 
       {/* Simple Loading Indicator */}
