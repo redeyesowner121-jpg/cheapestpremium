@@ -99,9 +99,16 @@ const ProductDetailPage: React.FC = () => {
       .from('product_variations')
       .select('*')
       .eq('product_id', id)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .order('created_at', { ascending: true });
     
-    if (data) {
+    if (data && data.length > 0) {
+      setVariations(data);
+      // Auto-select first variation
+      if (!selectedVariation) {
+        setSelectedVariation(data[0]);
+      }
+    } else if (data) {
       setVariations(data);
     }
   };
