@@ -263,6 +263,45 @@ export type Database = {
           },
         ]
       }
+      currencies: {
+        Row: {
+          code: string
+          created_at: string
+          flag: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          rate_to_inr: number
+          sort_order: number | null
+          symbol: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          flag?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          rate_to_inr?: number
+          sort_order?: number | null
+          symbol?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          flag?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          rate_to_inr?: number
+          sort_order?: number | null
+          symbol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           created_at: string
