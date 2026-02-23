@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BottomNav from '@/components/BottomNav';
 import { useCart } from '@/hooks/useCart';
@@ -10,12 +10,29 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 
+const FOREIGN_CONVERT_FEE_PERCENT = 30;
+
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const { settings } = useAppSettingsContext();
   const { items, loading, updateQuantity, removeItem, clearCart } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState<{ code: string; symbol: string; rate_to_inr: number } | null>(null);
+
+  const isForeignCurrency = displayCurrency && displayCurrency.code !== 'INR';
+
+  useEffect(() => {
+    loadDisplayCurrency();
+  }, [profile]);
+
+  const loadDisplayCurrency = async () => {
+    const code = (profile as any)?.display_currency || 'INR';
+    if (code === 'INR') { setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 }); return; }
+    const { data } = await supabase.from('currencies').select('code, symbol, rate_to_inr').eq('code', code).single();
+    if (data) setDisplayCurrency(data);
+    else setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 });
+  };
 
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;
@@ -53,10 +70,22 @@ const CartPage: React.FC = () => {
       return;
     }
 
-    if ((profile.wallet_balance || 0) < cartSummary.subtotal) {
-      toast.error('Insufficient wallet balance');
-      navigate('/wallet');
-      return;
+    const walletBalance = profile.wallet_balance || 0;
+
+    // If foreign currency, check if balance (after 30% fee) covers the subtotal
+    if (isForeignCurrency && displayCurrency) {
+      const conversionFee = walletBalance * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+      const effectiveBalanceInr = walletBalance - conversionFee;
+      if (effectiveBalanceInr < cartSummary.subtotal) {
+        toast.error(`Insufficient balance after ${FOREIGN_CONVERT_FEE_PERCENT}% conversion fee`);
+        return;
+      }
+    } else {
+      if (walletBalance < cartSummary.subtotal) {
+        toast.error('Insufficient wallet balance');
+        navigate('/wallet');
+        return;
+      }
     }
 
     setCheckingOut(true);
@@ -85,15 +114,23 @@ const CartPage: React.FC = () => {
       const { error: orderError } = await supabase.from('orders').insert(orders);
       if (orderError) throw orderError;
 
-      // Deduct wallet balance
-      const newBalance = (profile.wallet_balance || 0) - cartSummary.subtotal;
+      // Deduct wallet balance (with conversion fee if foreign currency)
+      let totalDeduction = cartSummary.subtotal;
+      let conversionFeeAmount = 0;
+
+      if (isForeignCurrency && displayCurrency) {
+        conversionFeeAmount = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+        totalDeduction = cartSummary.subtotal + conversionFeeAmount;
+      }
+
+      const newBalance = (profile.wallet_balance || 0) - totalDeduction;
       const newTotalOrders = (profile.total_orders || 0) + items.length;
       await supabase
         .from('profiles')
-        .update({ wallet_balance: newBalance, total_orders: newTotalOrders })
+        .update({ wallet_balance: newBalance, total_orders: newTotalOrders, display_currency: 'INR' })
         .eq('id', user.id);
 
-      // Create transaction
+      // Create purchase transaction
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'purchase',
@@ -101,6 +138,17 @@ const CartPage: React.FC = () => {
         status: 'completed',
         description: `Cart checkout: ${items.length} item(s)`,
       });
+
+      // Create conversion fee transaction if applicable
+      if (conversionFeeAmount > 0) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'conversion_fee',
+          amount: -conversionFeeAmount,
+          status: 'completed',
+          description: `Auto-convert fee (${FOREIGN_CONVERT_FEE_PERCENT}%): ${displayCurrency!.code} → INR for checkout`,
+        });
+      }
 
       // Increment sold counts
       for (const item of items) {
@@ -266,32 +314,60 @@ const CartPage: React.FC = () => {
       {items.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
           <div className="max-w-lg mx-auto space-y-3">
+            {/* Foreign currency warning */}
+            {isForeignCurrency && displayCurrency && (
+              <div className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-xl">
+                <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                <div className="text-xs text-destructive">
+                  <p className="font-semibold">Auto-convert: {displayCurrency.code} → INR ({FOREIGN_CONVERT_FEE_PERCENT}% fee)</p>
+                  <p>Your balance will be converted to INR with a {FOREIGN_CONVERT_FEE_PERCENT}% conversion fee to complete this purchase.</p>
+                </div>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-              <span className="font-bold">{settings.currency_symbol}{cartSummary.subtotal.toFixed(2)}</span>
+              <span className="font-bold">₹{cartSummary.subtotal.toFixed(2)}</span>
             </div>
             {cartSummary.totalSavings > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-green-600">Rank Savings</span>
-                <span className="text-green-600 font-medium">-{settings.currency_symbol}{cartSummary.totalSavings.toFixed(2)}</span>
+                <span className="text-success">Rank Savings</span>
+                <span className="text-success font-medium">-₹{cartSummary.totalSavings.toFixed(2)}</span>
+              </div>
+            )}
+            {isForeignCurrency && (
+              <div className="flex justify-between text-sm">
+                <span className="text-destructive">Conversion Fee ({FOREIGN_CONVERT_FEE_PERCENT}%)</span>
+                <span className="text-destructive font-medium">₹{(cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold">
               <span>Total</span>
-              <span className="text-primary text-lg">{settings.currency_symbol}{cartSummary.subtotal.toFixed(2)}</span>
+              <span className="text-primary text-lg">
+                ₹{isForeignCurrency
+                  ? (cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)
+                  : cartSummary.subtotal.toFixed(2)}
+              </span>
             </div>
             <Button
               className="w-full h-12 btn-gradient rounded-xl text-base"
               onClick={handleCheckout}
               disabled={checkingOut || items.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
             >
-              {checkingOut ? 'Processing...' : `Checkout - ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`}
+              {checkingOut ? 'Processing...' : isForeignCurrency
+                ? `Convert & Checkout - ₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                : `Checkout - ₹${cartSummary.subtotal.toFixed(2)}`}
             </Button>
-            {(profile?.wallet_balance || 0) < cartSummary.subtotal && (
-              <p className="text-xs text-destructive text-center">
-                Insufficient balance. <button onClick={() => navigate('/wallet')} className="underline font-medium">Add Money</button>
-              </p>
-            )}
+            {(() => {
+              const balance = profile?.wallet_balance || 0;
+              const needed = isForeignCurrency
+                ? cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100
+                : cartSummary.subtotal;
+              return balance < needed ? (
+                <p className="text-xs text-destructive text-center">
+                  Insufficient balance. <button onClick={() => navigate('/wallet')} className="underline font-medium">Add Money</button>
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
       )}
