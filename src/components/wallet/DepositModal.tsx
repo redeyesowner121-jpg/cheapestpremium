@@ -276,6 +276,13 @@ const DepositModal: React.FC<DepositModalProps> = ({
               </Button>
             </div>
 
+            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-center">
+              <p className="font-bold text-destructive">⚠️ {settings.foreign_deposit_fee_percent || 10}% Extra Fee</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                An additional {settings.foreign_deposit_fee_percent || 10}% processing fee applies for foreign deposits
+              </p>
+            </div>
+
             <div className="p-3 bg-primary/5 rounded-xl text-sm text-foreground space-y-2">
               <p className="font-medium">Steps:</p>
               <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
