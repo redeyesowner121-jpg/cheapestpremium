@@ -43,6 +43,20 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   newModalVariation, setNewModalVariation,
   onSave, onReset
 }) => {
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+
+  const handleSave = () => {
+    const newErrors: Record<string, boolean> = {};
+    if (!productForm.name.trim()) newErrors.name = true;
+    if (!productForm.price.trim()) newErrors.price = true;
+    if (!productForm.category.trim()) newErrors.category = true;
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+    onSave();
+  };
   const handleAddModalVariation = () => {
     if (!newModalVariation.name || !newModalVariation.price) {
       toast.error('Please fill variation name and price');
@@ -107,10 +121,10 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
           <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Input placeholder="Product Name *" value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} />
+          <Input placeholder="Product Name *" value={productForm.name} onChange={(e) => { setProductForm({ ...productForm, name: e.target.value }); if (e.target.value.trim()) setErrors(prev => ({ ...prev, name: false })); }} className={errors.name ? 'border-destructive ring-destructive/30 ring-2' : ''} />
           <Textarea placeholder="Description" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} rows={2} />
-          <Select value={productForm.category} onValueChange={(value) => setProductForm({ ...productForm, category: value })}>
-            <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select category" /></SelectTrigger>
+          <Select value={productForm.category} onValueChange={(value) => { setProductForm({ ...productForm, category: value }); setErrors(prev => ({ ...prev, category: false })); }}>
+            <SelectTrigger className={`rounded-xl ${errors.category ? 'border-destructive ring-destructive/30 ring-2' : ''}`}><SelectValue placeholder="Select category *" /></SelectTrigger>
             <SelectContent>
               {categories.map((cat) => (<SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>))}
             </SelectContent>
@@ -191,7 +205,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
             />
           </div>
 
-          <Button className="w-full btn-gradient" onClick={onSave}>
+          <Button className="w-full btn-gradient" onClick={handleSave}>
             {editingProduct ? 'Update Product' : 'Add Product'}
           </Button>
         </div>
