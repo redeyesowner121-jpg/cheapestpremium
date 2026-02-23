@@ -535,7 +535,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
                 <Button
                   onClick={() => {
                     const amount = parseFloat(depositAmount);
-                    if (isNaN(amount) || amount < 10) { toast.error('Minimum deposit is ₹10'); return; }
+                    if (isNaN(amount) || amount < (settings.min_deposit || 10)) { toast.error(`Minimum deposit is ₹${settings.min_deposit || 10}`); return; }
                     setShowCardConfirm(true);
                   }}
                   className="w-full h-12 btn-gradient rounded-xl"
