@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CreditCard, QrCode, Smartphone, AlertCircle,
-  Copy, ExternalLink, Loader2, Globe, MessageCircle
+  Copy, ExternalLink, Loader2, Globe, MessageCircle, Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,16 +38,28 @@ interface DepositModalProps {
 const QUICK_AMOUNTS = [100, 200, 500, 1000, 2000];
 
 const COUNTRIES = [
-  'Afghanistan', 'Albania', 'Algeria', 'Argentina', 'Australia', 'Austria',
-  'Bangladesh', 'Belgium', 'Brazil', 'Canada', 'China', 'Colombia',
-  'Denmark', 'Egypt', 'Ethiopia', 'Finland', 'France', 'Germany',
-  'Ghana', 'Greece', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Italy',
-  'Japan', 'Kenya', 'Malaysia', 'Mexico', 'Morocco', 'Myanmar',
-  'Nepal', 'Netherlands', 'New Zealand', 'Nigeria', 'Norway',
-  'Pakistan', 'Philippines', 'Poland', 'Portugal', 'Qatar',
-  'Russia', 'Saudi Arabia', 'Singapore', 'South Africa', 'South Korea',
-  'Spain', 'Sri Lanka', 'Sweden', 'Switzerland', 'Thailand', 'Turkey',
-  'UAE', 'UK', 'USA', 'Ukraine', 'Vietnam'
+  'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina', 'Armenia',
+  'Australia', 'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh', 'Belarus', 'Belgium',
+  'Benin', 'Bhutan', 'Bolivia', 'Bosnia', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria',
+  'Burkina Faso', 'Cambodia', 'Cameroon', 'Canada', 'Chad', 'Chile', 'China', 'Colombia',
+  'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic', 'Denmark',
+  'Dominican Republic', 'Ecuador', 'Egypt', 'El Salvador', 'Estonia', 'Ethiopia',
+  'Fiji', 'Finland', 'France', 'Gabon', 'Georgia', 'Germany', 'Ghana', 'Greece',
+  'Guatemala', 'Guinea', 'Haiti', 'Honduras', 'Hong Kong', 'Hungary', 'Iceland',
+  'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel', 'Italy', 'Jamaica', 'Japan',
+  'Jordan', 'Kazakhstan', 'Kenya', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia',
+  'Lebanon', 'Libya', 'Lithuania', 'Luxembourg', 'Macau', 'Madagascar', 'Malawi',
+  'Malaysia', 'Maldives', 'Mali', 'Malta', 'Mauritius', 'Mexico', 'Moldova',
+  'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nepal',
+  'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea',
+  'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palestine', 'Panama',
+  'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal',
+  'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saudi Arabia', 'Senegal', 'Serbia',
+  'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia', 'Somalia', 'South Africa',
+  'South Korea', 'Spain', 'Sri Lanka', 'Sudan', 'Sweden', 'Switzerland', 'Syria',
+  'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Togo', 'Trinidad and Tobago',
+  'Tunisia', 'Turkey', 'Turkmenistan', 'UAE', 'Uganda', 'UK', 'Ukraine', 'Uruguay',
+  'USA', 'Uzbekistan', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
 ];
 
 const DepositModal: React.FC<DepositModalProps> = ({
@@ -60,9 +72,15 @@ const DepositModal: React.FC<DepositModalProps> = ({
   const [selectedCountry, setSelectedCountry] = useState<'india' | 'foreign' | null>(null);
   const [foreignCountry, setForeignCountry] = useState('');
   const [hasBinance, setHasBinance] = useState<boolean | null>(null);
+  const [countrySearch, setCountrySearch] = useState('');
   const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(
     paymentSettings?.automatic_payment?.is_enabled ? 'auto' : 'manual'
   );
+
+  const filteredCountries = useMemo(() => {
+    if (!countrySearch.trim()) return COUNTRIES;
+    return COUNTRIES.filter(c => c.toLowerCase().includes(countrySearch.toLowerCase()));
+  }, [countrySearch]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -124,23 +142,37 @@ const DepositModal: React.FC<DepositModalProps> = ({
   if (selectedCountry === 'foreign' && !foreignCountry) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-primary" />
               Select Your Country
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 mt-2">
-            {COUNTRIES.map((country) => (
-              <button
-                key={country}
-                onClick={() => setForeignCountry(country)}
-                className="w-full p-3 bg-muted rounded-xl text-left text-sm font-medium text-foreground hover:bg-primary/10 transition-colors"
-              >
-                {country}
-              </button>
-            ))}
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search country..."
+              value={countrySearch}
+              onChange={(e) => setCountrySearch(e.target.value)}
+              className="pl-10 h-10 rounded-xl bg-muted border-0"
+            />
+          </div>
+          <div className="space-y-1 mt-2 overflow-y-auto max-h-[50vh] pr-1">
+            {filteredCountries.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-4">No country found</p>
+            ) : (
+              filteredCountries.map((country) => (
+                <button
+                  key={country}
+                  onClick={() => { setForeignCountry(country); setCountrySearch(''); }}
+                  className="w-full p-3 bg-muted rounded-xl text-left text-sm font-medium text-foreground hover:bg-primary/10 transition-colors"
+                >
+                  {country}
+                </button>
+              ))
+            )}
           </div>
           <Button variant="ghost" onClick={handleBack} className="w-full mt-2 rounded-xl">
             ← Back
