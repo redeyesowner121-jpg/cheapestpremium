@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface PaymentSettings {
   automatic_payment: { is_enabled: boolean };
@@ -98,6 +99,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
   senderName, onSenderNameChange
 }) => {
   const { settings } = useAppSettingsContext();
+  const { profile } = useAuth();
   const [selectedCountry, setSelectedCountry] = useState<'india' | 'foreign' | null>(null);
   const [foreignCountry, setForeignCountry] = useState('');
   const [foreignFlag, setForeignFlag] = useState('');
@@ -329,7 +331,20 @@ const DepositModal: React.FC<DepositModalProps> = ({
             <p className="text-foreground font-medium">{settings.binance_contact_message}</p>
             {settings.contact_whatsapp && (
               <Button
-                onClick={() => window.open(`https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}?text=Hi, I want to deposit money but I don't have Binance. I'm from ${foreignCountry}. Please help me with alternative payment.`, '_blank')}
+                onClick={() => {
+                  const msg = [
+                    `🔹 *Deposit Request - No Binance*`,
+                    ``,
+                    `👤 *Name:* ${profile?.name || 'N/A'}`,
+                    `📧 *Email:* ${profile?.email || 'N/A'}`,
+                    `📱 *Phone:* ${profile?.phone || 'N/A'}`,
+                    `🌍 *Country:* ${foreignFlag} ${foreignCountry}`,
+                    `💰 *Purpose:* I want to deposit money but I don't have Binance.`,
+                    ``,
+                    `Please help me with an alternative payment method.`
+                  ].join('%0A');
+                  window.open(`https://wa.me/${settings.contact_whatsapp.replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                }}
                 className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl"
               >
                 <MessageCircle className="w-5 h-5 mr-2" />
