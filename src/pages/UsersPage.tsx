@@ -127,8 +127,12 @@ const UsersPage: React.FC = () => {
                   className="flex-shrink-0 w-24 text-center cursor-pointer"
                 >
                   <div className="relative inline-block">
-                    <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center text-xl font-bold text-primary-foreground mx-auto">
-                      {user.name?.charAt(0) || 'U'}
+                    <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center text-xl font-bold text-primary-foreground mx-auto overflow-hidden">
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        user.name?.charAt(0) || 'U'
+                      )}
                     </div>
                     {user.has_blue_check && (
                       <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-card rounded-full flex items-center justify-center shadow-card">
@@ -170,8 +174,12 @@ const UsersPage: React.FC = () => {
                 className="bg-card rounded-2xl p-4 shadow-card flex items-center gap-4 card-hover cursor-pointer"
               >
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
-                    {user.name?.charAt(0) || 'U'}
+                  <div className="w-14 h-14 rounded-full gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground overflow-hidden">
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" />
+                    ) : (
+                      user.name?.charAt(0) || 'U'
+                    )}
                   </div>
                   {user.has_blue_check && (
                     <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-card rounded-full flex items-center justify-center shadow-sm">
@@ -235,8 +243,12 @@ const UsersPage: React.FC = () => {
               {/* Profile Header - Instagram Style */}
               <div className="flex items-center gap-6 mb-6">
                 <div className="relative">
-                  <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center text-2xl font-bold text-primary-foreground">
-                    {selectedUser.name?.charAt(0) || 'U'}
+                  <div className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center text-2xl font-bold text-primary-foreground overflow-hidden">
+                    {selectedUser.avatar_url ? (
+                      <img src={selectedUser.avatar_url} alt={selectedUser.name} className="w-full h-full object-cover" />
+                    ) : (
+                      selectedUser.name?.charAt(0) || 'U'
+                    )}
                   </div>
                   {selectedUser.has_blue_check && (
                     <div className="absolute -bottom-1 -right-1 w-7 h-7 gradient-accent rounded-full flex items-center justify-center">
