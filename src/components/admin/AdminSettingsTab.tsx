@@ -210,6 +210,24 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             placeholder="https://..."
           />
         </SettingItem>
+        <SettingItem label="Binance ID" description="Binance Pay ID for foreign users">
+          <Input
+            value={localSettings.binance_id || '1178303416'}
+            onChange={(e) => updateLocal('binance_id', e.target.value)}
+            onBlur={(e) => handleSave('binance_id', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+            placeholder="Binance ID"
+          />
+        </SettingItem>
+        <SettingItem label="No Binance Message" description="Message for users without Binance">
+          <Input
+            value={localSettings.binance_contact_message || "You don't have Binance? Contact seller on WhatsApp for alternative payment."}
+            onChange={(e) => updateLocal('binance_contact_message', e.target.value)}
+            onBlur={(e) => handleSave('binance_contact_message', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+            placeholder="Contact message..."
+          />
+        </SettingItem>
       </SettingsSection>
 
       {/* Bonus Settings */}
