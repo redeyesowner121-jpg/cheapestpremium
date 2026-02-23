@@ -19,8 +19,12 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile }) => 
       className="gradient-primary rounded-3xl p-6 text-center shadow-glow"
     >
       <div className="relative inline-block">
-        <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold text-primary-foreground mx-auto">
-          {profile?.name?.charAt(0).toUpperCase() || 'U'}
+        <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold text-primary-foreground mx-auto overflow-hidden">
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt={profile.name || 'Avatar'} className="w-full h-full object-cover" />
+          ) : (
+            profile?.name?.charAt(0).toUpperCase() || 'U'
+          )}
         </div>
         {profile?.has_blue_check && (
           <div className="absolute -bottom-1 -right-1 w-8 h-8 gradient-accent rounded-full flex items-center justify-center">
