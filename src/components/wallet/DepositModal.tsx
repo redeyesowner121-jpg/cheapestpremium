@@ -100,6 +100,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
   const { settings } = useAppSettingsContext();
   const [selectedCountry, setSelectedCountry] = useState<'india' | 'foreign' | null>(null);
   const [foreignCountry, setForeignCountry] = useState('');
+  const [foreignFlag, setForeignFlag] = useState('');
   const [hasBinance, setHasBinance] = useState<boolean | null>(null);
   const [countrySearch, setCountrySearch] = useState('');
   const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(
@@ -121,6 +122,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
       setHasBinance(null);
     } else if (selectedCountry === 'foreign' && foreignCountry) {
       setForeignCountry('');
+      setForeignFlag('');
     } else {
       setSelectedCountry(null);
       setForeignCountry('');
@@ -195,7 +197,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
               filteredCountries.map((country) => (
                 <button
                   key={country.name}
-                  onClick={() => { setForeignCountry(country.name); setCountrySearch(''); }}
+                  onClick={() => { setForeignCountry(country.name); setForeignFlag(country.flag); setCountrySearch(''); }}
                   className="w-full p-3 bg-muted rounded-xl text-left text-sm font-medium text-foreground hover:bg-primary/10 transition-colors"
                 >
                   {country.flag} {country.name}
@@ -218,7 +220,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
         <DialogContent className="max-w-sm mx-auto rounded-3xl">
           <DialogHeader>
             <DialogTitle>Do you have Binance?</DialogTitle>
-            <DialogDescription>Select your payment method for {foreignCountry}</DialogDescription>
+            <DialogDescription>Select your payment method for {foreignFlag} {foreignCountry}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-4">
             <button
@@ -477,7 +479,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
           </TabsContent>
         </Tabs>
 
-        <Button variant="ghost" onClick={() => { setSelectedCountry(null); setForeignCountry(''); setHasBinance(null); }} className="w-full mt-2 rounded-xl">
+        <Button variant="ghost" onClick={() => { setSelectedCountry(null); setForeignCountry(''); setForeignFlag(''); setHasBinance(null); }} className="w-full mt-2 rounded-xl">
           ← Change Country
         </Button>
       </DialogContent>
