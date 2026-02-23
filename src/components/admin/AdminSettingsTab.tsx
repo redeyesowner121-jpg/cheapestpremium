@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AdminRankManager from './AdminRankManager';
+import AdminCurrencyManager from './AdminCurrencyManager';
 
 interface AdminSettingsTabProps {
   settings: Record<string, string>;
@@ -436,6 +437,11 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
       {/* Rank System */}
       <SettingsSection title="Rank System" icon={<Award className="w-5 h-5" />}>
         <AdminRankManager />
+      </SettingsSection>
+
+      {/* Currency Management */}
+      <SettingsSection title="Currency Management" icon={<Globe className="w-5 h-5" />}>
+        <AdminCurrencyManager />
       </SettingsSection>
     </div>
   );

@@ -12,6 +12,7 @@ import SuccessModal from '@/components/SuccessModal';
 import DepositModal from '@/components/wallet/DepositModal';
 import TransferModal from '@/components/wallet/TransferModal';
 import RedeemModal from '@/components/wallet/RedeemModal';
+import CurrencyConverter from '@/components/wallet/CurrencyConverter';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -289,6 +290,11 @@ const WalletPage: React.FC = () => {
             className="w-full mt-4 bg-accent/10 border border-accent/30 rounded-2xl p-4 flex items-center justify-center gap-3 active:scale-[0.98] transition-transform">
             <Gift className="w-6 h-6 text-accent" /><span className="font-semibold text-accent">Redeem Gift Code</span>
           </button>
+        </div>
+
+        {/* Currency Converter */}
+        <div className="mt-6">
+          <CurrencyConverter walletBalance={profile?.wallet_balance || 0} />
         </div>
 
         {/* Transactions */}
