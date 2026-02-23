@@ -9,6 +9,7 @@ import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 const FOREIGN_CONVERT_FEE_PERCENT = 30;
 
@@ -18,21 +19,10 @@ const CartPage: React.FC = () => {
   const { settings } = useAppSettingsContext();
   const { items, loading, updateQuantity, removeItem, clearCart } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
-  const [displayCurrency, setDisplayCurrency] = useState<{ code: string; symbol: string; rate_to_inr: number } | null>(null);
+  const { formatPrice, isForeignCurrency, displayCurrency } = useCurrencyFormat();
 
-  const isForeignCurrency = displayCurrency && displayCurrency.code !== 'INR';
 
-  useEffect(() => {
-    loadDisplayCurrency();
-  }, [profile]);
 
-  const loadDisplayCurrency = async () => {
-    const code = (profile as any)?.display_currency || 'INR';
-    if (code === 'INR') { setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 }); return; }
-    const { data } = await supabase.from('currencies').select('code, symbol, rate_to_inr').eq('code', code).single();
-    if (data) setDisplayCurrency(data);
-    else setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 });
-  };
 
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;
@@ -226,7 +216,7 @@ const CartPage: React.FC = () => {
             </div>
             <div className="text-left">
               <p className="text-xs text-muted-foreground">Wallet Balance</p>
-              <p className="text-lg font-bold text-primary">{settings.currency_symbol}{(profile?.wallet_balance || 0).toFixed(2)}</p>
+              <p className="text-lg font-bold text-primary">{formatPrice(profile?.wallet_balance || 0)}</p>
             </div>
           </div>
           <span className="text-xs text-primary font-medium">Add Money →</span>
@@ -276,7 +266,7 @@ const CartPage: React.FC = () => {
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-primary font-bold">
-                          {settings.currency_symbol}{(finalPrice * item.quantity).toFixed(2)}
+                          {formatPrice(finalPrice * item.quantity)}
                         </span>
                         <div className="flex items-center gap-2">
                           <button
@@ -326,12 +316,12 @@ const CartPage: React.FC = () => {
             )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-              <span className="font-bold">₹{cartSummary.subtotal.toFixed(2)}</span>
+              <span className="font-bold">{formatPrice(cartSummary.subtotal)}</span>
             </div>
             {cartSummary.totalSavings > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-success">Rank Savings</span>
-                <span className="text-success font-medium">-₹{cartSummary.totalSavings.toFixed(2)}</span>
+                <span className="text-success font-medium">-{formatPrice(cartSummary.totalSavings)}</span>
               </div>
             )}
             {isForeignCurrency && (
@@ -343,9 +333,9 @@ const CartPage: React.FC = () => {
             <div className="flex justify-between font-bold">
               <span>Total</span>
               <span className="text-primary text-lg">
-                ₹{isForeignCurrency
-                  ? (cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)
-                  : cartSummary.subtotal.toFixed(2)}
+                {isForeignCurrency
+                  ? `₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                  : formatPrice(cartSummary.subtotal)}
               </span>
             </div>
             <Button
@@ -355,7 +345,7 @@ const CartPage: React.FC = () => {
             >
               {checkingOut ? 'Processing...' : isForeignCurrency
                 ? `Convert & Checkout - ₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                : `Checkout - ₹${cartSummary.subtotal.toFixed(2)}`}
+                : `Checkout - ${formatPrice(cartSummary.subtotal)}`}
             </Button>
             {(() => {
               const balance = profile?.wallet_balance || 0;

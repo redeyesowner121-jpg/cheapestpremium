@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCart } from '@/hooks/useCart';
 import AddToCartButton from '@/components/AddToCartButton';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 interface ProductVariation {
   id: string;
@@ -45,6 +46,7 @@ const ProductDetailPage: React.FC = () => {
   const { id: productId } = useParams();
   const { user, profile, refreshProfile, isAdmin, isTempAdmin } = useAuth();
   const { settings } = useAppSettingsContext();
+  const { formatPrice } = useCurrencyFormat();
   const stateProduct = location.state?.product;
   const flashSalePrice = location.state?.flashSalePrice;
   const flashSale = location.state?.flashSale;
@@ -151,7 +153,7 @@ const ProductDetailPage: React.FC = () => {
   const handleShare = async () => {
     const productSlug = (displayProduct as any)?.slug || displayProduct?.id;
     const productUrl = `${settings.app_url}/product/${productSlug}`;
-    const shareText = `Check out ${displayProduct?.name} at ${settings.app_name}! Only ${settings.currency_symbol}${currentPrice}`;
+    const shareText = `Check out ${displayProduct?.name} at ${settings.app_name}! Only ${formatPrice(currentPrice)}`;
 
     // Try native share first (works on mobile)
     if (navigator.share) {
@@ -370,19 +372,19 @@ const ProductDetailPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-3xl font-bold text-primary">₹{Math.round(currentPrice * 100) / 100}</span>
+                    <span className="text-3xl font-bold text-primary">{formatPrice(currentPrice)}</span>
                     {!actualFlashSalePrice && savings > 0 && (
-                      <span className="text-sm text-muted-foreground line-through">₹{basePrice}</span>
+                      <span className="text-sm text-muted-foreground line-through">{formatPrice(basePrice)}</span>
                     )}
                     {actualFlashSalePrice && basePrice > actualFlashSalePrice && (
-                      <span className="text-sm text-muted-foreground line-through">₹{basePrice}</span>
+                      <span className="text-sm text-muted-foreground line-through">{formatPrice(basePrice)}</span>
                     )}
                   </div>
                   {!actualFlashSalePrice && savings > 0 && profile && (
                     <div className="flex items-center gap-1 mt-1">
                       <Tag className="w-3 h-3 text-green-600" />
                       <span className="text-xs text-green-600 font-medium">
-                        {discountType} - ₹{Math.round(savings * 100) / 100} saved
+                        {discountType} - {formatPrice(savings)} saved
                       </span>
                     </div>
                   )}
@@ -390,7 +392,7 @@ const ProductDetailPage: React.FC = () => {
                     <div className="flex items-center gap-1 mt-1">
                       <Tag className="w-3 h-3 text-orange-600" />
                       <span className="text-xs text-orange-600 font-medium">
-                        Flash Sale - ₹{Math.round((basePrice - actualFlashSalePrice) * 100) / 100} saved
+                        Flash Sale - {formatPrice(basePrice - actualFlashSalePrice)} saved
                       </span>
                     </div>
                   )}
@@ -450,7 +452,7 @@ const ProductDetailPage: React.FC = () => {
       <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <ShareButtons 
-            text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${settings.currency_symbol}${currentPrice}`}
+            text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${formatPrice(currentPrice)}`}
             url={`${settings.app_url}/product/${(displayProduct as any)?.slug || displayProduct?.id}`}
             size="sm"
           />

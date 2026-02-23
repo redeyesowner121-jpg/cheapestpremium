@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import appLogo from '@/assets/app-logo.jpg';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 declare global {
   interface Window { Razorpay: any; }
@@ -57,29 +58,8 @@ const WalletPage: React.FC = () => {
   const [redeemCode, setRedeemCode] = useState('');
   const [redeemingCode, setRedeemingCode] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [displayCurrency, setDisplayCurrency] = useState<{ code: string; symbol: string; rate_to_inr: number } | null>(null);
 
-  useEffect(() => {
-    if (user) { loadTransactions(); loadPaymentSettings(); checkPendingRequests(); }
-  }, [user]);
-
-  useEffect(() => {
-    loadDisplayCurrency();
-  }, [profile]);
-
-  const loadDisplayCurrency = async () => {
-    const code = (profile as any)?.display_currency || 'INR';
-    if (code === 'INR') { setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 }); return; }
-    const { data } = await supabase.from('currencies').select('code, symbol, rate_to_inr').eq('code', code).single();
-    if (data) setDisplayCurrency(data);
-    else setDisplayCurrency({ code: 'INR', symbol: '₹', rate_to_inr: 1 });
-  };
-
-  const formatBalance = (inrAmount: number) => {
-    if (!displayCurrency) return `₹${inrAmount?.toFixed(2) || '0.00'}`;
-    const converted = inrAmount / displayCurrency.rate_to_inr;
-    return `${displayCurrency.symbol}${converted.toFixed(2)}`;
-  };
+  const { formatPrice: formatBalance, displayCurrency } = useCurrencyFormat();
 
   if (!user) {
     return (
@@ -326,7 +306,7 @@ const WalletPage: React.FC = () => {
           open={showConvertModal}
           onOpenChange={setShowConvertModal}
           walletBalance={profile?.wallet_balance || 0}
-          onConverted={loadDisplayCurrency}
+          onConverted={() => window.location.reload()}
         />
 
         {/* Transactions */}

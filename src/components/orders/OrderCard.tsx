@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 interface Order {
   id: string;
@@ -79,6 +80,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
   onReport,
 }) => {
   const navigate = useNavigate();
+  const { formatPrice } = useCurrencyFormat();
   const isSellerOrder = !!order.seller_id;
   const needsConfirmation = isSellerOrder && order.status === 'completed' && order.access_link && !order.buyer_confirmed;
   
@@ -105,7 +107,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
           <div className="flex-1">
             <h3 className="font-semibold text-foreground">{order.product_name}</h3>
             <p className="text-sm text-muted-foreground">
-              Qty: {order.quantity} × ₹{order.unit_price}
+              Qty: {order.quantity} × {formatPrice(order.unit_price)}
             </p>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(order.status)}`}>
@@ -122,7 +124,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
             </div>
           </div>
           <div className="text-right">
-            <p className="font-bold text-foreground">₹{order.total_price}</p>
+            <p className="font-bold text-foreground">{formatPrice(order.total_price)}</p>
             {getStatusIcon(order.status)}
           </div>
         </div>

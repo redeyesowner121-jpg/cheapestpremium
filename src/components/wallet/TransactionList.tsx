@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
+import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { motion } from 'framer-motion';
 import { 
   ArrowUpRight, 
@@ -27,6 +28,7 @@ interface TransactionListProps {
 
 const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
   const { settings } = useAppSettingsContext();
+  const { formatPrice } = useCurrencyFormat();
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit':
@@ -98,8 +100,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
                 </p>
               </div>
               <div className="text-right">
-                <p className={`font-bold ${['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? 'text-destructive' : 'text-success'}`}>
-                  {['purchase', 'withdraw', 'transfer_out'].includes(txn.type) ? '-' : '+'}{settings.currency_symbol}{Math.abs(txn.amount)}
+                <p className={`font-bold ${['purchase', 'withdraw', 'transfer_out', 'conversion_fee'].includes(txn.type) ? 'text-destructive' : 'text-success'}`}>
+                  {['purchase', 'withdraw', 'transfer_out', 'conversion_fee'].includes(txn.type) ? '-' : '+'}{formatPrice(Math.abs(txn.amount))}
                 </p>
                 <div className="flex items-center justify-end gap-1">
                   {getStatusIcon(txn.status)}
