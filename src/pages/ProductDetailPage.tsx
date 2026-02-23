@@ -8,8 +8,7 @@ import {
   Heart,
   Package,
   Edit,
-  Tag,
-  TrendingUp
+  Tag
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
-import PriceHistoryChart from '@/components/PriceHistoryChart';
+
 import ShareButtons from '@/components/ShareButtons';
 import { ProductVariationSelector, ProductFeatures, PurchaseModal } from '@/components/product';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,8 +61,6 @@ const ProductDetailPage: React.FC = () => {
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentStock, setCurrentStock] = useState<number | null>(null);
-  const [showPriceHistory, setShowPriceHistory] = useState(false);
-  const [priceHistoryVariationId, setPriceHistoryVariationId] = useState<string | undefined>();
 
   useEffect(() => {
     if (!stateProduct && productId) {
@@ -308,10 +305,6 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
-  const handleViewPriceHistory = (variationId?: string) => {
-    setPriceHistoryVariationId(variationId);
-    setShowPriceHistory(true);
-  };
 
   if (!displayProduct || loadingProduct) {
     return (
@@ -417,16 +410,6 @@ const ProductDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Price History Button */}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleViewPriceHistory()}
-            className="flex items-center gap-2"
-          >
-            <TrendingUp className="w-4 h-4" />
-            View Price History
-          </Button>
 
           {/* Variations */}
           <ProductVariationSelector
@@ -435,7 +418,6 @@ const ProductDetailPage: React.FC = () => {
             onSelect={setSelectedVariation}
             userRank={userRank}
             isReseller={isReseller}
-            onViewPriceHistory={(varId) => handleViewPriceHistory(varId)}
           />
 
           {/* Description */}
@@ -493,21 +475,6 @@ const ProductDetailPage: React.FC = () => {
       />
 
 
-      {/* Price History Dialog */}
-      <Dialog open={showPriceHistory} onOpenChange={setShowPriceHistory}>
-        <DialogContent className="max-w-md rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Price History
-            </DialogTitle>
-          </DialogHeader>
-          <PriceHistoryChart 
-            productId={displayProduct.id} 
-            variationId={priceHistoryVariationId}
-          />
-        </DialogContent>
-      </Dialog>
 
       <OrderSuccessModal
         isOpen={showSuccessModal}
