@@ -82,6 +82,22 @@ export const useCart = () => {
     }
 
     try {
+      // Auto-select first variation if none provided
+      let resolvedVariationId = variationId || null;
+      if (!resolvedVariationId) {
+        const { data: firstVariation } = await supabase
+          .from('product_variations')
+          .select('id')
+          .eq('product_id', productId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (firstVariation) {
+          resolvedVariationId = firstVariation.id;
+        }
+      }
+
       // Upsert - if already in cart, increment quantity
       const existingFilter = supabase
         .from('cart_items')
@@ -89,8 +105,8 @@ export const useCart = () => {
         .eq('user_id', user.id)
         .eq('product_id', productId);
       
-      const { data: existing } = variationId 
-        ? await existingFilter.eq('variation_id', variationId).maybeSingle()
+      const { data: existing } = resolvedVariationId 
+        ? await existingFilter.eq('variation_id', resolvedVariationId).maybeSingle()
         : await existingFilter.is('variation_id', null).maybeSingle();
 
       if (existing) {
@@ -102,7 +118,7 @@ export const useCart = () => {
         await supabase.from('cart_items').insert({
           user_id: user.id,
           product_id: productId,
-          variation_id: variationId || null,
+          variation_id: resolvedVariationId,
           quantity: qty,
         });
       }
