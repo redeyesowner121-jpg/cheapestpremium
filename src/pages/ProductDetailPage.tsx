@@ -74,11 +74,13 @@ const ProductDetailPage: React.FC = () => {
 
   const loadProductById = async (id: string) => {
     setLoadingProduct(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', id)
-      .single();
+    // Try by slug first, then by UUID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const query = isUUID
+      ? supabase.from('products').select('*').eq('id', id).single()
+      : supabase.from('products').select('*').eq('slug', id).single();
+    
+    const { data, error } = await query;
     
     if (error || !data) {
       toast.error('Product not found');
@@ -88,7 +90,7 @@ const ProductDetailPage: React.FC = () => {
     
     setProduct(data);
     setCurrentStock(data.stock ?? null);
-    loadVariations(id);
+    loadVariations(data.id);
     setLoadingProduct(false);
   };
 
@@ -140,7 +142,8 @@ const ProductDetailPage: React.FC = () => {
   };
 
   const handleShare = async () => {
-    const productUrl = `${settings.app_url}/product/${displayProduct?.id}`;
+    const productSlug = (displayProduct as any)?.slug || displayProduct?.id;
+    const productUrl = `${settings.app_url}/product/${productSlug}`;
     const shareText = `Check out ${displayProduct?.name} at ${settings.app_name}! Only ${settings.currency_symbol}${currentPrice}`;
 
     // Try native share first (works on mobile)
@@ -441,7 +444,7 @@ const ProductDetailPage: React.FC = () => {
         <div className="max-w-lg mx-auto flex items-center gap-3">
           <ShareButtons 
             text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${settings.currency_symbol}${currentPrice}`}
-            url={`${settings.app_url}/product/${displayProduct?.id}`}
+            url={`${settings.app_url}/product/${(displayProduct as any)?.slug || displayProduct?.id}`}
             size="sm"
           />
           <AddToCartButton 

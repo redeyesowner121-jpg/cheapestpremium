@@ -160,6 +160,10 @@ const ProductModal: React.FC<ProductModalProps> = ({
       ? JSON.stringify(productForm.images)
       : productForm.images[0] || '';
     
+    // Get next product number for slug
+    const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
+    const slugNum = (count || 0) + 1;
+
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name,
       description: productForm.description,
@@ -170,7 +174,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active,
-      seo_tags: productForm.seo_tags || ''
+      seo_tags: productForm.seo_tags || '',
+      slug: `product-${slugNum}`
     }).select().single();
     
     if (error || !newProduct) {

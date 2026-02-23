@@ -24,6 +24,10 @@ export async function handleAddProduct(
     return false;
   }
   
+  // Get next product number for slug
+  const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
+  const slugNum = (count || 0) + 1;
+
   const { data: newProduct, error } = await supabase.from('products').insert({
     name: productForm.name,
     description: productForm.description,
@@ -34,7 +38,8 @@ export async function handleAddProduct(
     image_url: productForm.image_url,
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
-    is_active: productForm.is_active
+    is_active: productForm.is_active,
+    slug: `product-${slugNum}`
   }).select().single();
   
   if (error || !newProduct) {

@@ -328,7 +328,7 @@ const ProductsPage: React.FC = () => {
 
   const handleShare = (product: Product) => {
     const appDomain = settings.app_url;
-    const shareUrl = `${appDomain}/product/${product.id}`;
+    const shareUrl = `${appDomain}/product/${(product as any).slug || product.id}`;
     const shareText = `Check out ${product.name} at ${settings.app_name} for just ${settings.currency_symbol}${product.price}!`;
     
     if (navigator.share) {
