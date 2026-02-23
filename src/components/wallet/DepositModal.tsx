@@ -110,6 +110,7 @@ const DepositModal: React.FC<DepositModalProps> = ({
   const [depositTab, setDepositTab] = useState<'auto' | 'manual' | 'card'>(initialTab || 'card');
   const [showCardConfirm, setShowCardConfirm] = useState(false);
   const [submittingCard, setSubmittingCard] = useState(false);
+  const [manualAttempted, setManualAttempted] = useState(false);
 
   // Sync initialTab when modal opens
   React.useEffect(() => {
@@ -308,10 +309,10 @@ const DepositModal: React.FC<DepositModalProps> = ({
               <Input type="number" placeholder="Enter amount (USDT)" value={depositAmount}
                 onChange={(e) => onDepositAmountChange(e.target.value)}
                 className="h-14 text-2xl text-center font-bold rounded-xl" />
-              <Input placeholder="Your Name" value={senderName}
-                onChange={(e) => onSenderNameChange(e.target.value)} className="rounded-xl" />
-              <Input placeholder="Binance Transaction ID" value={transactionId}
-                onChange={(e) => onTransactionIdChange(e.target.value)} className="rounded-xl" />
+              <Input placeholder="Your Name *" value={senderName}
+                onChange={(e) => onSenderNameChange(e.target.value)} className={`rounded-xl ${manualAttempted && !senderName.trim() ? 'border-destructive ring-destructive/30 ring-2' : ''}`} />
+              <Input placeholder="Binance Transaction ID *" value={transactionId}
+                onChange={(e) => onTransactionIdChange(e.target.value)} className={`rounded-xl ${manualAttempted && !transactionId.trim() ? 'border-destructive ring-destructive/30 ring-2' : ''}`} />
               <Button onClick={onManualDeposit} className="w-full h-12 btn-gradient rounded-xl"
                 disabled={submittingManual || !depositAmount || !transactionId || !senderName}>
                 {submittingManual ? (
@@ -430,9 +431,9 @@ const DepositModal: React.FC<DepositModalProps> = ({
           {/* Manual Payment Tab */}
           <TabsContent value="manual" className="mt-4 space-y-4">
             <div className="space-y-3">
-              <Input type="number" placeholder="Enter amount" value={depositAmount}
+            <Input type="number" placeholder="Enter amount *" value={depositAmount}
                 onChange={(e) => onDepositAmountChange(e.target.value)}
-                className="h-14 text-2xl text-center font-bold rounded-xl" />
+                className={`h-14 text-2xl text-center font-bold rounded-xl ${manualAttempted && !depositAmount ? 'border-destructive ring-destructive/30 ring-2' : ''}`} />
               <div className="flex flex-wrap gap-2">
                 {QUICK_AMOUNTS.map((amount) => (
                   <button key={amount} onClick={() => onDepositAmountChange(amount.toString())}
@@ -497,12 +498,12 @@ const DepositModal: React.FC<DepositModalProps> = ({
             )}
 
             <div className="space-y-3">
-              <Input placeholder="Your Name (Sender Name)" value={senderName}
-                onChange={(e) => onSenderNameChange(e.target.value)} className="rounded-xl" />
-              <Input placeholder="Enter Transaction ID / UTR Number" value={transactionId}
-                onChange={(e) => onTransactionIdChange(e.target.value)} className="rounded-xl" />
-              <Button onClick={onManualDeposit} className="w-full h-12 btn-gradient rounded-xl"
-                disabled={submittingManual || !depositAmount || !transactionId || !senderName}>
+              <Input placeholder="Your Name (Sender Name) *" value={senderName}
+                onChange={(e) => onSenderNameChange(e.target.value)} className={`rounded-xl ${manualAttempted && !senderName.trim() ? 'border-destructive ring-destructive/30 ring-2' : ''}`} />
+              <Input placeholder="Enter Transaction ID / UTR Number *" value={transactionId}
+                onChange={(e) => onTransactionIdChange(e.target.value)} className={`rounded-xl ${manualAttempted && !transactionId.trim() ? 'border-destructive ring-destructive/30 ring-2' : ''}`} />
+              <Button onClick={() => { setManualAttempted(true); if (depositAmount && transactionId.trim() && senderName.trim()) onManualDeposit(); else toast.error('Please fill all required fields'); }} className="w-full h-12 btn-gradient rounded-xl"
+                disabled={submittingManual}>
                 {submittingManual ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Submitting...</>
                 ) : (
