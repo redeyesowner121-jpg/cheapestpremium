@@ -228,7 +228,7 @@ const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChang
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="flex-1 text-right text-xl font-bold text-foreground bg-transparent outline-none"
+                className="w-0 min-w-0 flex-1 text-right text-xl font-bold text-foreground bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           </div>
