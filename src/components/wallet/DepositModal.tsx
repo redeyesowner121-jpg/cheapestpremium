@@ -105,9 +105,8 @@ const DepositModal: React.FC<DepositModalProps> = ({
   const [foreignFlag, setForeignFlag] = useState('');
   const [hasBinance, setHasBinance] = useState<boolean | null>(null);
   const [countrySearch, setCountrySearch] = useState('');
-  const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(
-    paymentSettings?.automatic_payment?.is_enabled ? 'auto' : 'manual'
-  );
+  const [depositTab, setDepositTab] = useState<'auto' | 'manual' | 'card'>('card');
+  const [showCardConfirm, setShowCardConfirm] = useState(false);
 
   const filteredCountries = useMemo(() => {
     if (!countrySearch.trim()) return COUNTRIES;
