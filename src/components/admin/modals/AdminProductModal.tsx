@@ -48,11 +48,10 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const handleSave = () => {
     const newErrors: Record<string, boolean> = {};
     if (!productForm.name.trim()) newErrors.name = true;
-    if (!productForm.price.trim()) newErrors.price = true;
     if (!productForm.category.trim()) newErrors.category = true;
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
-      toast.error('Please fill all required fields');
+      toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
       return;
     }
     onSave();
