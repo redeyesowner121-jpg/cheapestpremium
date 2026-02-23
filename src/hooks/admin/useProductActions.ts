@@ -19,8 +19,8 @@ export async function handleAddProduct(
   pendingVariations: { name: string; price: string; original_price: string; reseller_price: string }[],
   onComplete: () => void
 ) {
-  if (!productForm.name || !productForm.category) {
-    toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
+  if (!productForm.name || !productForm.image_url || !productForm.category) {
+    toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
     return false;
   }
   
@@ -75,8 +75,8 @@ export async function handleUpdateProduct(
   pendingVariations: { name: string; price: string; original_price: string; reseller_price: string }[],
   onComplete: () => void
 ) {
-  if (!productForm.name || !productForm.category) {
-    toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
+  if (!productForm.name || !productForm.image_url || !productForm.category) {
+    toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
     return false;
   }
   
