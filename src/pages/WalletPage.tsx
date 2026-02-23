@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import appLogo from '@/assets/app-logo.jpg';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
 declare global {
   interface Window { Razorpay: any; }
@@ -60,6 +61,7 @@ const WalletPage: React.FC = () => {
   const [showConvertModal, setShowConvertModal] = useState(false);
 
   const { formatPrice: formatBalance, displayCurrency } = useCurrencyFormat();
+  const { settings } = useAppSettingsContext();
 
   if (!user) {
     return (
@@ -117,7 +119,7 @@ const WalletPage: React.FC = () => {
   const handleDeposit = async () => {
     if (!user || !profile) return;
     const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount < 10) { toast.error('Minimum deposit is Rs 10'); return; }
+    if (isNaN(amount) || amount < (settings.min_deposit || 10)) { toast.error(`Minimum deposit is ₹${settings.min_deposit || 10}`); return; }
     setLoading(true);
     try {
       const scriptLoaded = await loadRazorpayScript();
@@ -151,7 +153,7 @@ const WalletPage: React.FC = () => {
   const handleManualDeposit = async () => {
     if (!user || !profile) return;
     const amount = parseFloat(depositAmount);
-    if (isNaN(amount) || amount < 10) { toast.error('Minimum deposit is Rs 10'); return; }
+    if (isNaN(amount) || amount < (settings.min_deposit || 10)) { toast.error(`Minimum deposit is ₹${settings.min_deposit || 10}`); return; }
     if (!transactionId.trim()) { toast.error('Please enter Transaction ID'); return; }
     if (!senderName.trim()) { toast.error('Please enter your name'); return; }
     setSubmittingManual(true);
