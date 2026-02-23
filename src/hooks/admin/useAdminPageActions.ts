@@ -124,8 +124,8 @@ export const useAdminPageActions = (loadData: () => void) => {
   const handleAddProduct = async (
     productForm: any, pendingVariations: any[], onDone: () => void
   ) => {
-    if (!productForm.name || !productForm.price || !productForm.category) {
-      toast.error('Please fill required fields'); return;
+    if (!productForm.name || !productForm.category) {
+      toast.error('Product Name ও Category অবশ্যই পূরণ করুন'); return;
     }
 
     const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
@@ -133,7 +133,7 @@ export const useAdminPageActions = (loadData: () => void) => {
 
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name, description: productForm.description,
-      price: parseFloat(productForm.price),
+      price: productForm.price ? parseFloat(productForm.price) : 0,
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       category: productForm.category, image_url: productForm.image_url,
       access_link: productForm.access_link || null,
@@ -163,13 +163,13 @@ export const useAdminPageActions = (loadData: () => void) => {
   const handleUpdateProduct = async (
     editingProduct: any, productForm: any, pendingVariations: any[], onDone: () => void
   ) => {
-    if (!editingProduct || !productForm.name || !productForm.price || !productForm.category) {
-      toast.error('Please fill required fields'); return;
+    if (!editingProduct || !productForm.name || !productForm.category) {
+      toast.error('Product Name ও Category অবশ্যই পূরণ করুন'); return;
     }
 
     const { error } = await supabase.from('products').update({
       name: productForm.name, description: productForm.description,
-      price: parseFloat(productForm.price),
+      price: productForm.price ? parseFloat(productForm.price) : 0,
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       category: productForm.category, image_url: productForm.image_url,
       access_link: productForm.access_link || null,

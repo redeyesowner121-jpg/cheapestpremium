@@ -150,8 +150,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
   };
 
   const handleAddProduct = async () => {
-    if (!productForm.name || !productForm.price || !productForm.category) {
-      toast.error('Please fill required fields');
+    if (!productForm.name || !productForm.category) {
+      toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
       return;
     }
     
@@ -167,7 +167,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name,
       description: productForm.description,
-      price: parseFloat(productForm.price),
+      price: productForm.price ? parseFloat(productForm.price) : 0,
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       category: productForm.category,
       image_url: imageUrl,
@@ -201,8 +201,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
   };
 
   const handleUpdateProduct = async () => {
-    if (!editingProduct || !productForm.name || !productForm.price || !productForm.category) {
-      toast.error('Please fill required fields');
+    if (!editingProduct || !productForm.name || !productForm.category) {
+      toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
       return;
     }
     
@@ -214,7 +214,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
     const { error } = await supabase.from('products').update({
       name: productForm.name,
       description: productForm.description,
-      price: parseFloat(productForm.price),
+      price: productForm.price ? parseFloat(productForm.price) : 0,
       original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
       category: productForm.category,
       image_url: imageUrl,
