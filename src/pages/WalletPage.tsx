@@ -56,6 +56,7 @@ const WalletPage: React.FC = () => {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [redeemCode, setRedeemCode] = useState('');
   const [redeemingCode, setRedeemingCode] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
 
   useEffect(() => {
     if (user) { loadTransactions(); loadPaymentSettings(); checkPendingRequests(); }
@@ -237,7 +238,16 @@ const WalletPage: React.FC = () => {
       <main className="pt-20 px-4 max-w-lg mx-auto">
         {/* Balance Card */}
         <div className="gradient-primary rounded-3xl p-6 text-center shadow-glow">
-          <p className="text-primary-foreground/80 text-sm">Available Balance</p>
+          <div className="flex items-center justify-center gap-2">
+            <p className="text-primary-foreground/80 text-sm">Available Balance</p>
+            <button
+              onClick={() => setShowConvertModal(true)}
+              className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-primary-foreground text-xs px-2.5 py-1 rounded-full transition-colors"
+            >
+              <ArrowDownLeft className="w-3 h-3" />
+              Convert
+            </button>
+          </div>
           <h1 className="text-4xl font-bold text-primary-foreground mt-2">₹{profile?.wallet_balance?.toFixed(2) || '0.00'}</h1>
           <div className="flex items-center justify-center gap-6 mt-6">
             <div className="text-center">
@@ -292,10 +302,12 @@ const WalletPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Currency Converter */}
-        <div className="mt-6">
-          <CurrencyConverter walletBalance={profile?.wallet_balance || 0} />
-        </div>
+        {/* Currency Converter Modal */}
+        <CurrencyConverter
+          open={showConvertModal}
+          onOpenChange={setShowConvertModal}
+          walletBalance={profile?.wallet_balance || 0}
+        />
 
         {/* Transactions */}
         <div className="mt-6">
