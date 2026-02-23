@@ -30,6 +30,7 @@ export interface AppSettings {
   app_tagline: string;
   usd_conversion_rate: number;
   foreign_deposit_fee_percent: number;
+  payment_link: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -61,6 +62,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   app_tagline: 'Premium Digital Products',
   usd_conversion_rate: 95,
   foreign_deposit_fee_percent: 10,
+  payment_link: 'https://razorpay.me/@asifikbalrubaiulislam',
 };
 
 // Parse value based on expected type

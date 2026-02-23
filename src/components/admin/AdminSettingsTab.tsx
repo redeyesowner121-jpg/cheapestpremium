@@ -218,6 +218,15 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             placeholder="https://..."
           />
         </SettingItem>
+        <SettingItem label="Payment Link" description="Card payment redirect URL (e.g. Razorpay.me)">
+          <Input
+            value={localSettings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam'}
+            onChange={(e) => updateLocal('payment_link', e.target.value)}
+            onBlur={(e) => handleSave('payment_link', e.target.value)}
+            className="w-44 h-9 text-sm rounded-lg"
+            placeholder="https://razorpay.me/..."
+          />
+        </SettingItem>
         <SettingItem label="Binance ID" description="Binance Pay ID for foreign users">
           <Input
             value={localSettings.binance_id || '1178303416'}
