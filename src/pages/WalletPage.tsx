@@ -40,6 +40,7 @@ const WalletPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
 
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositInitialTab, setDepositInitialTab] = useState<'auto' | 'manual' | 'card'>('card');
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -251,7 +252,7 @@ const WalletPage: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-4 mt-6">
-            <Button onClick={() => setShowDepositModal(true)} className="flex-1 h-12 bg-white/20 hover:bg-white/30 text-primary-foreground rounded-xl">
+            <Button onClick={() => { setDepositInitialTab('card'); setShowDepositModal(true); }} className="flex-1 h-12 bg-white/20 hover:bg-white/30 text-primary-foreground rounded-xl">
               <Plus className="w-5 h-5 mr-2" />Add Money
             </Button>
             <Button variant="outline" className="flex-1 h-12 border-white/30 text-primary-foreground hover:bg-white/10 rounded-xl"
@@ -266,16 +267,16 @@ const WalletPage: React.FC = () => {
           <h2 className="text-lg font-bold text-foreground mb-4">Quick Actions</h2>
           <div className="grid grid-cols-4 gap-3">
             <button className={`bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
-              onClick={() => setShowDepositModal(true)}>
+              onClick={() => { setDepositInitialTab('auto'); setShowDepositModal(true); }}>
               {hasPendingRequest && <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />}
               <div className="w-12 h-12 mx-auto rounded-xl bg-primary/10 flex items-center justify-center mb-2"><Smartphone className="w-6 h-6 text-primary" /></div>
               <span className="text-xs font-medium text-foreground">UPI</span>
             </button>
-            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => setShowDepositModal(true)}>
+            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => { setDepositInitialTab('manual'); setShowDepositModal(true); }}>
               <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2"><QrCode className="w-6 h-6 text-secondary" /></div>
               <span className="text-xs font-medium text-foreground">QR Pay</span>
             </button>
-            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => setShowDepositModal(true)}>
+            <button className="bg-card rounded-2xl p-4 shadow-card text-center active:scale-95 transition-transform" onClick={() => { setDepositInitialTab('card'); setShowDepositModal(true); }}>
               <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2"><CreditCard className="w-6 h-6 text-accent" /></div>
               <span className="text-xs font-medium text-foreground">Card</span>
             </button>
@@ -328,6 +329,7 @@ const WalletPage: React.FC = () => {
         submittingManual={submittingManual}
         transactionId={transactionId} onTransactionIdChange={setTransactionId}
         senderName={senderName} onSenderNameChange={setSenderName}
+        initialTab={depositInitialTab}
       />
 
       <TransferModal open={showTransferModal} onOpenChange={setShowTransferModal}
