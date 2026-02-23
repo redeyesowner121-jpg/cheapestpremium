@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BottomNav from '@/components/BottomNav';
 import { useCart } from '@/hooks/useCart';
@@ -12,6 +12,9 @@ import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
 const FOREIGN_CONVERT_FEE_PERCENT = 30;
+const AAX_CODE = 'AAX';
+const AAX_DISPLAY_DISCOUNT = 5; // Show "up to 5%" to users
+const AAX_ACTUAL_DISCOUNT = 1.5; // Actually apply 1.5%
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -20,6 +23,7 @@ const CartPage: React.FC = () => {
   const { items, loading, updateQuantity, removeItem, clearCart } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
   const { formatPrice, isForeignCurrency, displayCurrency } = useCurrencyFormat();
+  const isAAX = displayCurrency?.code === AAX_CODE;
 
 
 
@@ -62,8 +66,14 @@ const CartPage: React.FC = () => {
 
     const walletBalance = profile.wallet_balance || 0;
 
-    // If foreign currency, check if balance (after 30% fee) covers the subtotal
-    if (isForeignCurrency && displayCurrency) {
+    // AAX gets discount, other foreign currencies get fee
+    if (isAAX) {
+      if (walletBalance < cartSummary.subtotal) {
+        toast.error('Insufficient wallet balance');
+        navigate('/wallet');
+        return;
+      }
+    } else if (isForeignCurrency && displayCurrency) {
       const conversionFee = walletBalance * (FOREIGN_CONVERT_FEE_PERCENT / 100);
       const effectiveBalanceInr = walletBalance - conversionFee;
       if (effectiveBalanceInr < cartSummary.subtotal) {
@@ -104,11 +114,16 @@ const CartPage: React.FC = () => {
       const { error: orderError } = await supabase.from('orders').insert(orders);
       if (orderError) throw orderError;
 
-      // Deduct wallet balance (with conversion fee if foreign currency)
+      // Deduct wallet balance (AAX gets discount, other foreign currencies get fee)
       let totalDeduction = cartSummary.subtotal;
       let conversionFeeAmount = 0;
+      let aaxDiscountAmount = 0;
 
-      if (isForeignCurrency && displayCurrency) {
+      if (isAAX) {
+        // AAX gets actual discount
+        aaxDiscountAmount = cartSummary.subtotal * (AAX_ACTUAL_DISCOUNT / 100);
+        totalDeduction = cartSummary.subtotal - aaxDiscountAmount;
+      } else if (isForeignCurrency && displayCurrency) {
         conversionFeeAmount = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
         totalDeduction = cartSummary.subtotal + conversionFeeAmount;
       }
@@ -128,6 +143,17 @@ const CartPage: React.FC = () => {
         status: 'completed',
         description: `Cart checkout: ${items.length} item(s)`,
       });
+
+      // AAX discount transaction
+      if (aaxDiscountAmount > 0) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'discount',
+          amount: aaxDiscountAmount,
+          status: 'completed',
+          description: `Asifian Apex discount (${AAX_ACTUAL_DISCOUNT}%): Saved ₹${aaxDiscountAmount.toFixed(2)}`,
+        });
+      }
 
       // Create conversion fee transaction if applicable
       if (conversionFeeAmount > 0) {
@@ -304,13 +330,37 @@ const CartPage: React.FC = () => {
       {items.length > 0 && (
         <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
           <div className="max-w-lg mx-auto space-y-3">
-            {/* Foreign currency warning */}
-            {isForeignCurrency && displayCurrency && (
+            {/* AAX discount promo */}
+            {isAAX && (
+              <div className="flex items-start gap-2 p-2.5 bg-success/10 border border-success/20 rounded-xl">
+                <Sparkles className="w-4 h-4 text-success shrink-0 mt-0.5" />
+                <div className="text-xs text-success">
+                  <p className="font-semibold">🔱 Asifian Apex Discount Applied!</p>
+                  <p>You're saving up to {AAX_DISPLAY_DISCOUNT}% on this purchase with Asifian Apex!</p>
+                </div>
+              </div>
+            )}
+            {/* Non-AAX promotion banner */}
+            {!isAAX && !isForeignCurrency && (
+              <button
+                onClick={() => navigate('/wallet')}
+                className="w-full flex items-center gap-2 p-2.5 bg-primary/5 border border-primary/20 rounded-xl hover:bg-primary/10 transition-colors"
+              >
+                <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                <div className="text-xs text-primary text-left flex-1">
+                  <p className="font-semibold">Pay with Asifian Apex & save up to {AAX_DISPLAY_DISCOUNT}%!</p>
+                  <p className="text-primary/70">Switch currency in Wallet → Convert</p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-primary shrink-0" />
+              </button>
+            )}
+            {/* Foreign currency warning (non-AAX) */}
+            {isForeignCurrency && !isAAX && displayCurrency && (
               <div className="flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-xl">
                 <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
                 <div className="text-xs text-destructive">
                   <p className="font-semibold">Auto-convert: {displayCurrency.code} → INR ({FOREIGN_CONVERT_FEE_PERCENT}% fee)</p>
-                  <p>Your balance will be converted to INR with a {FOREIGN_CONVERT_FEE_PERCENT}% conversion fee to complete this purchase.</p>
+                  <p>Switch to <strong>Asifian Apex</strong> to get up to {AAX_DISPLAY_DISCOUNT}% discount instead!</p>
                 </div>
               </div>
             )}
@@ -324,7 +374,13 @@ const CartPage: React.FC = () => {
                 <span className="text-success font-medium">-{formatPrice(cartSummary.totalSavings)}</span>
               </div>
             )}
-            {isForeignCurrency && (
+            {isAAX && (
+              <div className="flex justify-between text-sm">
+                <span className="text-success">🔱 Apex Discount (up to {AAX_DISPLAY_DISCOUNT}%)</span>
+                <span className="text-success font-medium">-₹{(cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}</span>
+              </div>
+            )}
+            {isForeignCurrency && !isAAX && (
               <div className="flex justify-between text-sm">
                 <span className="text-destructive">Conversion Fee ({FOREIGN_CONVERT_FEE_PERCENT}%)</span>
                 <span className="text-destructive font-medium">₹{(cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}</span>
@@ -333,9 +389,11 @@ const CartPage: React.FC = () => {
             <div className="flex justify-between font-bold">
               <span>Total</span>
               <span className="text-primary text-lg">
-                {isForeignCurrency
-                  ? `₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                  : formatPrice(cartSummary.subtotal)}
+                {isAAX
+                  ? `₹${(cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
+                  : isForeignCurrency
+                    ? `₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                    : formatPrice(cartSummary.subtotal)}
               </span>
             </div>
             <Button
@@ -343,15 +401,19 @@ const CartPage: React.FC = () => {
               onClick={handleCheckout}
               disabled={checkingOut || items.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
             >
-              {checkingOut ? 'Processing...' : isForeignCurrency
-                ? `Convert & Checkout - ₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                : `Checkout - ${formatPrice(cartSummary.subtotal)}`}
+              {checkingOut ? 'Processing...' : isAAX
+                ? `🔱 Checkout - ₹${(cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
+                : isForeignCurrency
+                  ? `Convert & Checkout - ₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                  : `Checkout - ${formatPrice(cartSummary.subtotal)}`}
             </Button>
             {(() => {
               const balance = profile?.wallet_balance || 0;
-              const needed = isForeignCurrency
-                ? cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100
-                : cartSummary.subtotal;
+              const needed = isAAX
+                ? cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100
+                : isForeignCurrency
+                  ? cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100
+                  : cartSummary.subtotal;
               return balance < needed ? (
                 <p className="text-xs text-destructive text-center">
                   Insufficient balance. <button onClick={() => navigate('/wallet')} className="underline font-medium">Add Money</button>
