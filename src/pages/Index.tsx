@@ -60,18 +60,18 @@ const Index: React.FC = () => {
         .gt('end_time', new Date().toISOString()),
       supabase
         .from('products')
-        .select('*')
+        .select('*, product_variations(*)')
         .eq('is_active', true)
         .limit(8),
       supabase
         .from('products')
-        .select('*')
+        .select('*, product_variations(*)')
         .eq('is_active', true)
         .ilike('category', '%methods%')
         .limit(6),
       supabase
         .from('products')
-        .select('*')
+        .select('*, product_variations(*)')
         .eq('is_active', true)
         .ilike('category', '%courses%')
         .limit(6),
@@ -108,42 +108,51 @@ const Index: React.FC = () => {
     }
 
     if (productsRes.data) {
-      setProducts(productsRes.data.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        originalPrice: p.original_price,
-        image: p.image_url || 'https://via.placeholder.com/200',
-        rating: p.rating || 4.5,
-        soldCount: p.sold_count || 0,
-        reseller_price: p.reseller_price
-      })));
+      setProducts(productsRes.data.map(p => {
+        const vars = (p.product_variations || [])
+          .filter((v: any) => v.is_active !== false)
+          .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const firstVar = vars[0];
+        const displayPrice = p.price === 0 && firstVar ? firstVar.price : p.price;
+        return {
+          id: p.id,
+          name: p.name,
+          price: displayPrice,
+          originalPrice: p.original_price,
+          image: p.image_url || 'https://via.placeholder.com/200',
+          rating: p.rating || 4.5,
+          soldCount: p.sold_count || 0,
+          reseller_price: p.reseller_price
+        };
+      }));
     }
 
     if (methodsRes.data) {
-      setMethodsProducts(methodsRes.data.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        originalPrice: p.original_price,
-        image: p.image_url || 'https://via.placeholder.com/200',
-        rating: p.rating || 4.5,
-        soldCount: p.sold_count || 0,
-        reseller_price: p.reseller_price
-      })));
+      setMethodsProducts(methodsRes.data.map(p => {
+        const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const firstVar = vars[0];
+        return {
+          id: p.id, name: p.name,
+          price: p.price === 0 && firstVar ? firstVar.price : p.price,
+          originalPrice: p.original_price,
+          image: p.image_url || 'https://via.placeholder.com/200',
+          rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
+        };
+      }));
     }
 
     if (coursesRes.data) {
-      setCoursesProducts(coursesRes.data.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        originalPrice: p.original_price,
-        image: p.image_url || 'https://via.placeholder.com/200',
-        rating: p.rating || 4.5,
-        soldCount: p.sold_count || 0,
-        reseller_price: p.reseller_price
-      })));
+      setCoursesProducts(coursesRes.data.map(p => {
+        const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const firstVar = vars[0];
+        return {
+          id: p.id, name: p.name,
+          price: p.price === 0 && firstVar ? firstVar.price : p.price,
+          originalPrice: p.original_price,
+          image: p.image_url || 'https://via.placeholder.com/200',
+          rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
+        };
+      }));
     }
   };
 
