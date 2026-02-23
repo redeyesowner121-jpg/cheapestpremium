@@ -19,11 +19,12 @@ interface CurrencyConverterProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletBalance: number;
+  onConverted?: () => void;
 }
 
 const CONVERT_FEE_PERCENT = 10;
 
-const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChange, walletBalance }) => {
+const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChange, walletBalance, onConverted }) => {
   const { user, refreshProfile } = useAuth();
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [fromCurrency, setFromCurrency] = useState<Currency | null>(null);
@@ -93,9 +94,12 @@ const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChang
     setConverting(true);
     try {
       const feeInr = inrValue * (CONVERT_FEE_PERCENT / 100);
-      const newBalance = walletBalance - feeInr; // deduct fee, balance stays in INR
+      const newBalance = walletBalance - feeInr;
 
-      await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user.id);
+      await supabase.from('profiles').update({ 
+        wallet_balance: newBalance,
+        display_currency: toCurrency.code 
+      }).eq('id', user.id);
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'conversion_fee',
@@ -104,8 +108,9 @@ const CurrencyConverter: React.FC<CurrencyConverterProps> = ({ open, onOpenChang
         description: `Currency convert fee (${CONVERT_FEE_PERCENT}%): ${fromCurrency.code} → ${toCurrency.code}`
       });
 
-      toast.success(`Converted! ${CONVERT_FEE_PERCENT}% fee (₹${feeInr.toFixed(2)}) deducted.`);
-      refreshProfile();
+      toast.success(`Converted to ${toCurrency.code}! ${CONVERT_FEE_PERCENT}% fee (₹${feeInr.toFixed(2)}) deducted.`);
+      await refreshProfile();
+      onConverted?.();
       setAmount('');
       onOpenChange(false);
     } catch {

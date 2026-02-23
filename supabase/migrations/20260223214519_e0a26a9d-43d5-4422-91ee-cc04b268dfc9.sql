@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN display_currency text NOT NULL DEFAULT 'INR';
