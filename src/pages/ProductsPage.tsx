@@ -145,12 +145,24 @@ const ProductsPage: React.FC = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select('*, product_variations(*)')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (data) {
-      setProducts(data);
+      // Use first variation price as display price if product price is 0
+      const enriched = data.map(p => {
+        const vars = (p.product_variations || [])
+          .filter((v: any) => v.is_active !== false)
+          .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const firstVar = vars[0];
+        return {
+          ...p,
+          price: p.price === 0 && firstVar ? firstVar.price : p.price,
+          product_variations: undefined
+        };
+      });
+      setProducts(enriched);
     }
     setLoading(false);
   };
