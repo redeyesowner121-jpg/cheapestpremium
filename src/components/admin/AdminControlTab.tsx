@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, UserPlus, ShoppingBag, MessageCircle,
   Image, CreditCard, Users, Package, Shield, ChevronDown,
-  Zap, Wallet, Ticket, Gift, FolderOpen, Award
+  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
@@ -21,6 +21,7 @@ import {
   AdminBlueTickSection,
   AdminContentSection,
 } from './sections';
+import AdminTelegramBot from './AdminTelegramBot';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -44,7 +45,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | null;
+type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const {
@@ -82,6 +83,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
     { id: 'coupons' as ControlSection, icon: Ticket, label: 'Coupons', description: 'Discount coupons', color: 'bg-gradient-to-br from-pink-500 to-rose-500', badge: null },
     { id: 'redeem' as ControlSection, icon: Gift, label: 'Redeem Codes', description: 'Gift codes for wallet', color: 'bg-gradient-to-br from-amber-500 to-yellow-500', badge: null },
     { id: 'chat' as ControlSection, icon: MessageCircle, label: 'Messages', description: 'Customer support', color: 'bg-gradient-to-br from-teal-500 to-cyan-500', badge: null },
+    { id: 'telegram_bot' as ControlSection, icon: Bot, label: 'Telegram Bot', description: 'Manage selling bot', color: 'bg-gradient-to-br from-blue-500 to-sky-500', badge: null },
   ];
 
   const sectionGroups = [
@@ -119,6 +121,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminRedeemCodeManager />;
       case 'chat':
         return <AdminChatPanel />;
+      case 'telegram_bot':
+        return <AdminTelegramBot />;
       default:
         return null;
     }
