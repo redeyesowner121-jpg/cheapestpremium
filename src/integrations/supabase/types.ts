@@ -1146,6 +1146,8 @@ export type Database = {
           id: string
           product_id: string | null
           product_name: string | null
+          reseller_profit: number | null
+          reseller_telegram_id: number | null
           screenshot_file_id: string | null
           status: string
           telegram_user_id: number
@@ -1159,6 +1161,8 @@ export type Database = {
           id?: string
           product_id?: string | null
           product_name?: string | null
+          reseller_profit?: number | null
+          reseller_telegram_id?: number | null
           screenshot_file_id?: string | null
           status?: string
           telegram_user_id: number
@@ -1172,6 +1176,8 @@ export type Database = {
           id?: string
           product_id?: string | null
           product_name?: string | null
+          reseller_profit?: number | null
+          reseller_telegram_id?: number | null
           screenshot_file_id?: string | null
           status?: string
           telegram_user_id?: number

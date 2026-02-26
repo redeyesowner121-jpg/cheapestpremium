@@ -420,10 +420,17 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Resale button
+      // Resale button (product level)
       if (data.startsWith("resale_")) {
         const productId = data.replace("resale_", "");
-        await handleResaleStart(BOT_TOKEN, supabase, chatId, userId, productId, lang);
+        await handleResaleStart(BOT_TOKEN, supabase, chatId, userId, productId, null, lang);
+        return jsonOk();
+      }
+
+      // Resale button (variation level)
+      if (data.startsWith("resalevar_")) {
+        const varId = data.replace("resalevar_", "");
+        await handleResaleVariationStart(BOT_TOKEN, supabase, chatId, userId, varId, lang);
         return jsonOk();
       }
 
@@ -757,25 +764,32 @@ async function handleProductDetail(token: string, supabase: any, chatId: number,
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
+  // Check if user is reseller
+  const wallet = await getWallet(supabase, userId);
+  const isReseller = wallet?.is_reseller === true;
+
   const buttons: any[][] = [];
 
   if (variations?.length) {
-    // Show variations directly as buttons (like screenshot 2)
     let text = `📦 <b>${product.name}</b>\n\n`;
     text += `${lang === "bn" ? "একটি ভেরিয়েশন সিলেক্ট করুন:" : "Select a variation:"}\n\n`;
 
     for (const v of variations) {
-      const priceStr = v.original_price && v.original_price > v.price
-        ? `${currency}${v.price} (was ${currency}${v.original_price})`
-        : `${currency}${v.price}`;
-      text += `• ${v.name} — ${priceStr}\n`;
-      buttons.push([{ text: `🛒 ${v.name} — ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
-    }
-
-    // Check if reseller
-    const wallet = await getWallet(supabase, userId);
-    if (wallet?.is_reseller) {
-      buttons.push([{ text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` }]);
+      if (isReseller) {
+        // Resellers see reseller price and get Resell button
+        const resellerPrice = v.reseller_price || v.price;
+        text += `• ${v.name} — ${currency}${resellerPrice} (Reseller)\n`;
+        buttons.push([
+          { text: `🛒 ${v.name} — ${currency}${resellerPrice}`, callback_data: `buyvar_${v.id}` },
+          { text: `🔄 Resell`, callback_data: `resalevar_${v.id}` },
+        ]);
+      } else {
+        const priceStr = v.original_price && v.original_price > v.price
+          ? `${currency}${v.price} (was ${currency}${v.original_price})`
+          : `${currency}${v.price}`;
+        text += `• ${v.name} — ${priceStr}\n`;
+        buttons.push([{ text: `🛒 ${v.name} — ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
+      }
     }
 
     buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
@@ -787,19 +801,23 @@ async function handleProductDetail(token: string, supabase: any, chatId: number,
     }
   } else {
     // No variations - show direct buy
-    const priceText = product.original_price && product.original_price > product.price
-      ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
-      : `${currency}${product.price}`;
-    let text = `📦 <b>${product.name}</b>\n💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceText}`;
+    const displayPrice = isReseller ? (product.reseller_price || product.price) : product.price;
+    const priceLabel = isReseller ? `${currency}${displayPrice} (Reseller)` : (
+      product.original_price && product.original_price > product.price
+        ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
+        : `${currency}${product.price}`
+    );
+    let text = `📦 <b>${product.name}</b>\n💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
 
     if (product.stock === null || product.stock > 0) {
-      buttons.push([{ text: t("buy_now", lang), callback_data: `buy_${productId}` }]);
-    }
-
-    // Check if reseller
-    const wallet = await getWallet(supabase, userId);
-    if (wallet?.is_reseller) {
-      buttons.push([{ text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` }]);
+      if (isReseller) {
+        buttons.push([
+          { text: t("buy_now", lang), callback_data: `buy_${productId}` },
+          { text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` },
+        ]);
+      } else {
+        buttons.push([{ text: t("buy_now", lang), callback_data: `buy_${productId}` }]);
+      }
     }
 
     buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
@@ -829,7 +847,7 @@ async function handleBuyVariation(token: string, supabase: any, chatId: number, 
   
   const { data: variation, error: varError } = await supabase
     .from("product_variations")
-    .select("id, name, price, product_id")
+    .select("id, name, price, reseller_price, product_id")
     .eq("id", variationId)
     .single();
 
@@ -848,7 +866,12 @@ async function handleBuyVariation(token: string, supabase: any, chatId: number, 
   const stock = product?.stock;
   if (stock !== null && stock !== undefined && stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
 
-  await showPaymentInfo(token, supabase, chatId, telegramUser, productName, variation.price, variation.product_id, variation.id, lang);
+  // Check if reseller - use reseller price
+  const wallet = await getWallet(supabase, telegramUser.id);
+  const isReseller = wallet?.is_reseller === true;
+  const price = isReseller ? (variation.reseller_price || variation.price) : variation.price;
+
+  await showPaymentInfo(token, supabase, chatId, telegramUser, productName, price, variation.product_id, variation.id, lang);
 }
 
 // ===== PAYMENT INFO WITH WALLET =====
@@ -1210,9 +1233,35 @@ async function handleAdminAction(token: string, supabase: any, orderId: string, 
   const msgKey: Record<string, string> = { confirmed: "order_confirmed", rejected: "order_rejected", shipped: "order_shipped" };
   await sendMessage(token, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
 
-  // If confirmed, process referral
+  // If confirmed, process referral and reseller profit
   if (newStatus === "confirmed") {
     await processReferralBonus(supabase, order.telegram_user_id, token);
+
+    // Credit reseller profit
+    if (order.reseller_telegram_id && order.reseller_profit > 0) {
+      const resellerWallet = await getWallet(supabase, order.reseller_telegram_id);
+      if (resellerWallet) {
+        await supabase.from("telegram_wallets").update({
+          balance: resellerWallet.balance + order.reseller_profit,
+          total_earned: resellerWallet.total_earned + order.reseller_profit,
+          updated_at: new Date().toISOString(),
+        }).eq("telegram_id", order.reseller_telegram_id);
+
+        await supabase.from("telegram_wallet_transactions").insert({
+          telegram_id: order.reseller_telegram_id,
+          type: "resale_profit",
+          amount: order.reseller_profit,
+          description: `Resale profit: ${order.product_name}`,
+        });
+
+        // Notify reseller
+        try {
+          await sendMessage(token, order.reseller_telegram_id,
+            `💰 <b>Resale Profit!</b>\n\n₹${order.reseller_profit} added to your wallet!\nProduct: ${order.product_name}`
+          );
+        } catch { /* reseller may have blocked bot */ }
+      }
+    }
   }
 
   const emoji: Record<string, string> = { confirmed: "✅", rejected: "❌", shipped: "📦" };
@@ -1311,6 +1360,8 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
       amount: orderData.finalAmount || orderData.price,
       status: "pending",
       screenshot_file_id: msg.photo[msg.photo.length - 1]?.file_id || null,
+      reseller_telegram_id: orderData.reseller_telegram_id || null,
+      reseller_profit: orderData.reseller_profit || null,
     }).select("id").single();
 
     const orderId = order?.id || "unknown";
@@ -1326,12 +1377,17 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
     await forwardMessage(token, SUPER_ADMIN_ID, chatId, msg.message_id);
 
     // Send admin action buttons
-    await sendMessage(token, SUPER_ADMIN_ID,
-      `📩 <b>Payment Screenshot</b>\n\n` +
+    let adminMsg = `📩 <b>Payment Screenshot</b>\n\n` +
       `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
       `📦 Product: <b>${orderData.productName}</b>\n` +
       `💵 Amount: <b>₹${orderData.finalAmount || orderData.price}</b>\n` +
-      `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`,
+      `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`;
+
+    if (orderData.reseller_telegram_id) {
+      adminMsg += `\n🔄 <b>Resale Order</b> — Reseller: <code>${orderData.reseller_telegram_id}</code>, Profit: ₹${orderData.reseller_profit}`;
+    }
+
+    await sendMessage(token, SUPER_ADMIN_ID, adminMsg,
       {
         reply_markup: {
           inline_keyboard: [
@@ -1573,7 +1629,7 @@ async function handleMakeReseller(token: string, supabase: any, chatId: number, 
 
 // ===== RESALE START =====
 
-async function handleResaleStart(token: string, supabase: any, chatId: number, userId: number, productId: string, lang: string) {
+async function handleResaleStart(token: string, supabase: any, chatId: number, userId: number, productId: string, variationId: string | null, lang: string) {
   const wallet = await getWallet(supabase, userId);
   if (!wallet?.is_reseller) {
     await sendMessage(token, chatId, t("resale_not_reseller", lang));
@@ -1587,11 +1643,39 @@ async function handleResaleStart(token: string, supabase: any, chatId: number, u
 
   conversationState.set(userId, {
     step: "resale_price",
-    data: { product_id: productId, reseller_price: resellerPrice, lang },
+    data: { product_id: productId, variation_id: variationId, reseller_price: resellerPrice, lang },
   });
 
   await sendMessage(token, chatId,
     t("resale_enter_price", lang).replace("{price}", String(resellerPrice))
+  );
+}
+
+// ===== RESALE VARIATION START =====
+
+async function handleResaleVariationStart(token: string, supabase: any, chatId: number, userId: number, variationId: string, lang: string) {
+  const wallet = await getWallet(supabase, userId);
+  if (!wallet?.is_reseller) {
+    await sendMessage(token, chatId, t("resale_not_reseller", lang));
+    return;
+  }
+
+  const { data: variation } = await supabase
+    .from("product_variations")
+    .select("id, name, price, reseller_price, product_id")
+    .eq("id", variationId)
+    .single();
+  if (!variation) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
+
+  const resellerPrice = variation.reseller_price || variation.price;
+
+  conversationState.set(userId, {
+    step: "resale_price",
+    data: { product_id: variation.product_id, variation_id: variationId, reseller_price: resellerPrice, lang },
+  });
+
+  await sendMessage(token, chatId,
+    `🔄 <b>${variation.name}</b>\n\n` + t("resale_enter_price", lang).replace("{price}", String(resellerPrice))
   );
 }
 
@@ -1605,18 +1689,27 @@ async function handleResaleBuy(token: string, supabase: any, chatId: number, use
     return;
   }
 
-  // Get product name
+  // Get product name + variation name
   const { data: product } = await supabase.from("products").select("name").eq("id", link.product_id).single();
-  const productName = product?.name || "Product";
+  let productName = product?.name || "Product";
+  if (link.variation_id) {
+    const { data: variation } = await supabase.from("product_variations").select("name").eq("id", link.variation_id).single();
+    if (variation) productName += ` - ${variation.name}`;
+  }
 
-  // Show payment for custom price
+  // Show payment for custom price - this sets conversation state to awaiting_screenshot
   await showPaymentInfo(token, supabase, chatId, telegramUser, productName, link.custom_price, link.product_id, link.variation_id, lang);
+
+  // Patch the conversation state to include resale link info for profit crediting
+  const currentState = conversationState.get(userId);
+  if (currentState) {
+    currentState.data.resale_link_id = link.id;
+    currentState.data.reseller_telegram_id = link.reseller_telegram_id;
+    currentState.data.reseller_profit = link.custom_price - link.reseller_price;
+  }
 
   // Increment uses
   await supabase.from("telegram_resale_links").update({ uses: link.uses + 1 }).eq("id", link.id);
-
-  // Credit reseller profit on payment (handled in admin confirm)
-  // Store resale info in order for later processing
 }
 
 // ===== START WITH REF =====
