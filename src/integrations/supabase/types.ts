@@ -932,6 +932,60 @@ export type Database = {
         }
         Relationships: []
       }
+      resale_links: {
+        Row: {
+          created_at: string
+          custom_price: number
+          id: string
+          is_active: boolean
+          link_code: string
+          product_id: string
+          reseller_id: string
+          reseller_price: number
+          uses: number
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          custom_price: number
+          id?: string
+          is_active?: boolean
+          link_code: string
+          product_id: string
+          reseller_id: string
+          reseller_price: number
+          uses?: number
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          custom_price?: number
+          id?: string
+          is_active?: boolean
+          link_code?: string
+          product_id?: string
+          reseller_id?: string
+          reseller_price?: number
+          uses?: number
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resale_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resale_links_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       search_logs: {
         Row: {
           created_at: string | null
