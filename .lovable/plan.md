@@ -1,69 +1,162 @@
 
 
-# Performance Fix - Eliminate Duplicate API Calls
+# Professional Telegram E-commerce Bot - Super Admin Control System
 
-## Root Cause
+## Overview
+Complete overhaul of the Telegram bot to add Super Admin (ID: `6898461453`) exclusive controls, order forwarding with action buttons, live inventory management, broadcast, user management, and analytics -- all within Telegram itself.
 
-Looking at network requests, `app_settings` is fetched **5 times** on page load because `useAppSettings()` is called independently in multiple components (`AppContent`, `Header`, `DailyBonusBanner` claim handler). Each call creates its own fetch + realtime subscription.
+## Database Changes
 
-Additionally, `CategoryGrid` and `PersonalizedRecommendations` each make separate API calls that could be consolidated.
+### New Table: `telegram_bot_users`
+Stores every user who starts the bot (needed for broadcast and analytics).
+- `id` (uuid, PK)
+- `telegram_id` (bigint, unique, not null)
+- `username` (text)
+- `first_name` (text)
+- `last_name` (text)
+- `is_banned` (boolean, default false)
+- `created_at` (timestamptz)
+- `last_active` (timestamptz)
 
-## Changes
+### New Table: `telegram_orders`
+Tracks orders placed via Telegram with admin action status.
+- `id` (uuid, PK)
+- `telegram_user_id` (bigint)
+- `username` (text)
+- `product_name` (text)
+- `product_id` (uuid, nullable)
+- `amount` (numeric)
+- `status` (text: pending/confirmed/rejected/shipped)
+- `admin_message_id` (bigint, nullable) -- to track which forwarded message
+- `screenshot_file_id` (text, nullable)
+- `created_at` (timestamptz)
+- `updated_at` (timestamptz)
 
-### 1. Create AppSettings Context (single fetch, shared across app)
+RLS: Service role only (edge function uses service role key).
 
-**New file: `src/contexts/AppSettingsContext.tsx`**
+## Edge Function Rewrite: `telegram-bot/index.ts`
 
-Move the `useAppSettings` logic into a React Context provider so the settings are fetched once and shared everywhere. The `AppSettingsProvider` wraps the app in `App.tsx`, and all components use `useAppSettingsContext()` instead of the hook.
+### Core Architecture
 
-### 2. Update all consumers to use the shared context
+**Admin ID Constant:**
+```text
+const SUPER_ADMIN_ID = 6898461453;
+```
 
-**Files to update:**
-- `src/App.tsx` -- Wrap with `AppSettingsProvider`, update `AppContent` to use context
-- `src/components/Header.tsx` -- Switch from `useAppSettings()` to `useAppSettingsContext()`
-- `src/components/DailyBonusBanner.tsx` -- Remove separate settings fetch in `handleClaimBonus`, use context instead
-- Any other component using `useAppSettings`
+**Admin Guard Function:**
+```text
+function isAdmin(userId: number): boolean {
+  return userId === SUPER_ADMIN_ID;
+}
+```
 
-### 3. Consolidate Index page data loading
+### New Features (by section):
 
-**File: `src/pages/Index.tsx`**
+---
 
-Pass already-fetched categories data to `CategoryGrid` as a prop to eliminate its separate fetch. Add a `categories` prop to `CategoryGrid`.
+### 1. Admin Authentication
+- All admin commands (`/admin`, `/broadcast`, `/report`, `/add_product`, `/edit_price`, `/out_stock`) check `isAdmin(userId)`.
+- Non-admins get: "Access Denied. You are not authorized."
+- `/admin` shows admin control panel with inline buttons.
 
-### 4. Defer PersonalizedRecommendations
+### 2. Order Forwarding System
+- When ANY user sends a text message (non-command), photo, or document, the bot:
+  1. Saves the user in `telegram_bot_users` (upsert)
+  2. Forwards the message to Admin ID `6898461453`
+  3. Sends admin a header: "From: @username (ID: 123456)" with action buttons:
+     - [Confirm Order] -> sends customer "Payment verified. Order confirmed!"
+     - [Reject/Fake] -> sends customer "Payment could not be verified."
+     - [Shipped] -> sends customer "Your product has been dispatched!"
+  4. Creates a `telegram_orders` record
 
-**File: `src/pages/Index.tsx`**
+- Callback data format: `admin_confirm_{oderId}`, `admin_reject_{orderId}`, `admin_ship_{orderId}`
 
-Wrap `PersonalizedRecommendations` in a deferred render (show after 500ms delay) so it does not block initial paint.
+### 3. Live Inventory Control (Admin-only commands)
 
-### 5. Add Vite dedupe config
+**`/add_product`** - Multi-step flow using conversation state:
+- Step 1: Bot asks "Send the product photo"
+- Step 2: Bot asks "Enter product name"
+- Step 3: Bot asks "Enter price"
+- Step 4: Bot asks "Enter category"
+- Saves to `products` table via Supabase
 
-**File: `vite.config.ts`**
+**`/edit_price <product_name> <new_price>`** - Updates product price directly.
 
-Add `resolve.dedupe` for `react`, `react-dom` to prevent duplicate instances.
+**`/out_stock <product_name>`** - Sets `stock = 0` and `is_active = false`.
 
-## Expected Result
+(Conversation state stored in a simple in-memory Map, reset on function cold start -- acceptable for single-admin use.)
 
-- Network requests on homepage: reduced from ~12 to ~6
-- `app_settings` fetched only **once** instead of 5 times
-- Only **one** realtime subscription for settings instead of multiple
-- Faster initial render with deferred non-critical components
+### 4. Broadcast Feature
+- `/broadcast` followed by text or image.
+- Queries all `telegram_bot_users` where `is_banned = false`.
+- Sends message to each user with error handling (skip blocked users).
+- Reports back: "Broadcast sent to X users, Y failed."
+
+### 5. User Management
+- `/users` - Shows total user count and recent signups.
+- `/history <telegram_id>` - Shows user's order history from `telegram_orders`.
+- `/ban <telegram_id>` - Sets `is_banned = true`, bot ignores future messages.
+- `/unban <telegram_id>` - Removes ban.
+
+### 6. Sales Reports
+- `/report` generates:
+  - Total registered users
+  - Today's orders (from `telegram_orders`)
+  - Today's confirmed revenue
+  - All-time stats
+
+### 7. Ban System
+- On every incoming message, check if user is banned in `telegram_bot_users`.
+- If banned, silently ignore (no response).
+
+---
+
+## Admin Panel Update: `AdminTelegramBot.tsx`
+
+Update the web admin panel to reflect new bot capabilities:
+- Show new command list (`/admin`, `/broadcast`, `/report`, `/ban`, `/add_product`, etc.)
+- Display `telegram_bot_users` count and `telegram_orders` stats
+- Keep existing webhook management
+
+---
+
+## Message Flow Diagram
+
+```text
+User sends photo/text
+       |
+       v
+  Check banned? --yes--> ignore
+       |no
+       v
+  Save/update telegram_bot_users
+       |
+       v
+  Forward to Admin (6898461453)
+  + Action buttons [Confirm] [Reject] [Shipped]
+  + Create telegram_orders record
+       |
+       v
+  Admin clicks button
+       |
+       v
+  Bot sends status message to original user
+  + Updates telegram_orders status
+```
 
 ## Technical Details
 
-```text
-Before:
-  AppContent -> useAppSettings() -> fetch + subscribe
-  Header -> useAppSettings() -> fetch + subscribe  
-  DailyBonusBanner -> inline fetch in claim handler
-  CategoryGrid -> fetch categories
-  PersonalizedRecommendations -> fetch orders + products
-  = 10+ API calls, 3+ realtime channels
+- **Single file**: All logic stays in `supabase/functions/telegram-bot/index.ts`
+- **Conversation state**: In-memory Map for `/add_product` multi-step flow
+- **Database**: 2 new tables with RLS disabled (service role access only from edge function)
+- **Telegram API methods used**: `sendMessage`, `sendPhoto`, `forwardMessage`, `answerCallbackQuery`
+- **No breaking changes**: Existing product browsing, buy flow, offers all preserved
 
-After:
-  AppSettingsProvider -> fetch once + 1 subscribe
-  All components -> useAppSettingsContext() (no fetch)
-  CategoryGrid -> receives data as prop from Index
-  PersonalizedRecommendations -> deferred render
-  = ~6 API calls, 1 realtime channel
-```
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/telegram-bot/index.ts` | Major rewrite with all new handlers |
+| `src/components/admin/AdminTelegramBot.tsx` | Update to show new features & stats |
+| Database migration | Create `telegram_bot_users` and `telegram_orders` tables |
+
