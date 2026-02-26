@@ -10,8 +10,14 @@ const SUPER_ADMIN_ID = 6898461453;
 const BOT_USERNAME = "Cheapest_Premiums_bot";
 const REQUIRED_CHANNELS = ["@pocket_money27", "@RKRxOTT"];
 
-function isAdmin(userId: number): boolean {
+function isSuperAdmin(userId: number): boolean {
   return userId === SUPER_ADMIN_ID;
+}
+
+async function isAdminBot(supabase: any, userId: number): Promise<boolean> {
+  if (userId === SUPER_ADMIN_ID) return true;
+  const { data } = await supabase.from("telegram_bot_admins").select("id").eq("telegram_id", userId).maybeSingle();
+  return !!data;
 }
 
 const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
@@ -341,7 +347,7 @@ Deno.serve(async (req) => {
 
       // Admin chat reply
       if (data.startsWith("admin_chat_")) {
-        if (!isAdmin(userId)) return jsonOk();
+        if (!await isAdminBot(supabase, userId)) return jsonOk();
         const targetUserId = parseInt(data.replace("admin_chat_", ""));
         await setConversationState(supabase, userId, "admin_reply", { targetUserId });
         await sendMessage(BOT_TOKEN, chatId, `💬 <b>Reply mode</b>\n\nType your message to send to user <code>${targetUserId}</code>.\n\nSend /cancel to cancel.`);
@@ -350,7 +356,7 @@ Deno.serve(async (req) => {
 
       // Admin actions
       if (data.startsWith("admin_confirm_") || data.startsWith("admin_reject_") || data.startsWith("admin_ship_")) {
-        if (!isAdmin(userId)) return jsonOk();
+        if (!await isAdminBot(supabase, userId)) return jsonOk();
         const parts = data.split("_");
         const action = parts[1]; // confirm/reject/ship
         const orderId = data.substring(data.indexOf("_", data.indexOf("_") + 1) + 1);
@@ -460,6 +466,14 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // All users pagination
+      if (data.startsWith("allusers_page_")) {
+        if (!await isAdminBot(supabase, userId)) return jsonOk();
+        const page = parseInt(data.replace("allusers_page_", ""));
+        await handleAllUsers(BOT_TOKEN, supabase, chatId, page);
+        return jsonOk();
+      }
+
       return jsonOk();
     }
 
@@ -536,57 +550,79 @@ Deno.serve(async (req) => {
             break;
           // Admin commands
           case "/admin":
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAdminMenu(BOT_TOKEN, supabase, chatId);
             break;
           case "/broadcast":
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await setConversationState(supabase, userId, "broadcast_message", {});
             await sendMessage(BOT_TOKEN, chatId, "📢 <b>Broadcast Mode</b>\n\nSend the message (text/photo) to broadcast.\nSend /cancel to cancel.");
             break;
           case "/report":
           case "/stats":
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleReport(BOT_TOKEN, supabase, chatId);
             break;
           case "/add_product":
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await setConversationState(supabase, userId, "add_photo", {});
             await sendMessage(BOT_TOKEN, chatId, "📸 <b>Add Product (Step 1/4)</b>\n\nSend the product photo.\n/cancel to cancel.");
             break;
           case "/edit_price": {
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleEditPrice(BOT_TOKEN, supabase, chatId, text.substring("/edit_price".length).trim());
             break;
           }
           case "/out_stock": {
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleOutStock(BOT_TOKEN, supabase, chatId, text.substring("/out_stock".length).trim());
             break;
           }
           case "/users":
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleUsersCommand(BOT_TOKEN, supabase, chatId);
             break;
           case "/history": {
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleHistoryCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0);
             break;
           }
           case "/ban": {
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleBanCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, true);
             break;
           }
           case "/unban": {
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleBanCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, false);
             break;
           }
           case "/make_reseller": {
-            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             const targetId = parseInt(parts[1]) || 0;
             await handleMakeReseller(BOT_TOKEN, supabase, chatId, targetId);
+            break;
+          }
+          case "/add_admin": {
+            if (!isSuperAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            const addId = parseInt(parts[1]) || 0;
+            await handleAddAdmin(BOT_TOKEN, supabase, chatId, addId);
+            break;
+          }
+          case "/remove_admin": {
+            if (!isSuperAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            const removeId = parseInt(parts[1]) || 0;
+            await handleRemoveAdmin(BOT_TOKEN, supabase, chatId, removeId);
+            break;
+          }
+          case "/admins": {
+            if (!isSuperAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleListAdmins(BOT_TOKEN, supabase, chatId);
+            break;
+          }
+          case "/allusers": {
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleAllUsers(BOT_TOKEN, supabase, chatId, 0);
             break;
           }
           default:
@@ -618,7 +654,7 @@ Deno.serve(async (req) => {
       }
 
       // AI auto-reply for all non-admin text messages (only for actual text, not empty)
-      if (!isAdmin(userId) && text && text.trim().length > 0) {
+      if (!await isAdminBot(supabase, userId) && text && text.trim().length > 0) {
         await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
         return jsonOk();
       }
@@ -1401,10 +1437,14 @@ async function handleAdminMenu(token: string, supabase: any, chatId: number) {
     `/add_product - Add product\n` +
     `/edit_price [name] [price]\n` +
     `/out_stock [name]\n` +
-    `/users - User stats\n` +
+    `/users - Recent users\n` +
+    `/allusers - All users list\n` +
     `/history [id] - Order history\n` +
     `/ban [id] / /unban [id]\n` +
-    `/make_reseller [id]`
+    `/make_reseller [id]\n` +
+    `/add_admin [id] - Add admin (Owner only)\n` +
+    `/remove_admin [id] - Remove admin (Owner only)\n` +
+    `/admins - List admins (Owner only)`
   );
 }
 
@@ -1752,6 +1792,108 @@ async function handleMakeReseller(token: string, supabase: any, chatId: number, 
         : "ℹ️ Your reseller status has been removed."
     );
   } catch { /* user may have blocked bot */ }
+}
+
+// ===== ADD ADMIN =====
+
+async function handleAddAdmin(token: string, supabase: any, chatId: number, tgId: number) {
+  if (!tgId) { await sendMessage(token, chatId, "⚠️ Usage: <code>/add_admin 123456</code>"); return; }
+
+  // Check if already admin
+  const { data: existing } = await supabase.from("telegram_bot_admins").select("id").eq("telegram_id", tgId).maybeSingle();
+  if (existing) { await sendMessage(token, chatId, `⚠️ User <code>${tgId}</code> is already an admin.`); return; }
+
+  // Check if user exists in bot
+  const { data: user } = await supabase.from("telegram_bot_users").select("username, first_name").eq("telegram_id", tgId).maybeSingle();
+  if (!user) { await sendMessage(token, chatId, `❌ User <code>${tgId}</code> not found in bot users.`); return; }
+
+  await supabase.from("telegram_bot_admins").insert({ telegram_id: tgId, added_by: SUPER_ADMIN_ID });
+
+  const name = user.username ? `@${user.username}` : user.first_name || String(tgId);
+  await sendMessage(token, chatId, `✅ <b>${name}</b> (<code>${tgId}</code>) is now an <b>Admin</b>!`);
+
+  // Notify the new admin
+  try {
+    await sendMessage(token, tgId, "🎉 You've been granted <b>Admin</b> access on the bot! Use /admin to see commands.");
+  } catch { /* user may have blocked bot */ }
+}
+
+// ===== REMOVE ADMIN =====
+
+async function handleRemoveAdmin(token: string, supabase: any, chatId: number, tgId: number) {
+  if (!tgId) { await sendMessage(token, chatId, "⚠️ Usage: <code>/remove_admin 123456</code>"); return; }
+
+  if (tgId === SUPER_ADMIN_ID) { await sendMessage(token, chatId, "❌ Cannot remove the Super Admin."); return; }
+
+  const { data: existing } = await supabase.from("telegram_bot_admins").select("id").eq("telegram_id", tgId).maybeSingle();
+  if (!existing) { await sendMessage(token, chatId, `⚠️ User <code>${tgId}</code> is not an admin.`); return; }
+
+  await supabase.from("telegram_bot_admins").delete().eq("telegram_id", tgId);
+  await sendMessage(token, chatId, `✅ Admin <code>${tgId}</code> has been <b>removed</b>.`);
+
+  try {
+    await sendMessage(token, tgId, "ℹ️ Your admin access has been revoked.");
+  } catch { /* user may have blocked bot */ }
+}
+
+// ===== LIST ADMINS =====
+
+async function handleListAdmins(token: string, supabase: any, chatId: number) {
+  const { data: admins } = await supabase.from("telegram_bot_admins").select("telegram_id, created_at").order("created_at", { ascending: true });
+
+  let text = `👑 <b>Admin List</b>\n\n`;
+  text += `🔹 <code>${SUPER_ADMIN_ID}</code> — <b>Super Admin (Owner)</b>\n`;
+
+  if (admins?.length) {
+    for (const a of admins) {
+      const { data: user } = await supabase.from("telegram_bot_users").select("username, first_name").eq("telegram_id", a.telegram_id).maybeSingle();
+      const name = user?.username ? `@${user.username}` : user?.first_name || "Unknown";
+      text += `🔹 <code>${a.telegram_id}</code> — ${name}\n`;
+    }
+  }
+
+  text += `\nTotal: <b>${(admins?.length || 0) + 1}</b> admins`;
+  await sendMessage(token, chatId, text);
+}
+
+// ===== ALL USERS (PAGINATED) =====
+
+async function handleAllUsers(token: string, supabase: any, chatId: number, page: number) {
+  const PAGE_SIZE = 20;
+  const offset = page * PAGE_SIZE;
+
+  const { count } = await supabase.from("telegram_bot_users").select("*", { count: "exact", head: true });
+  const totalUsers = count || 0;
+  const totalPages = Math.ceil(totalUsers / PAGE_SIZE);
+
+  const { data: users } = await supabase
+    .from("telegram_bot_users")
+    .select("telegram_id, username, first_name, last_name, is_banned, last_active")
+    .order("last_active", { ascending: false })
+    .range(offset, offset + PAGE_SIZE - 1);
+
+  if (!users?.length) {
+    await sendMessage(token, chatId, "📭 No users found.");
+    return;
+  }
+
+  let text = `👥 <b>All Users</b> (Page ${page + 1}/${totalPages})\n`;
+  text += `Total: <b>${totalUsers}</b>\n\n`;
+
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i];
+    const name = u.username ? `@${u.username}` : `${u.first_name || ""}${u.last_name ? " " + u.last_name : ""}`.trim() || "Unknown";
+    const banned = u.is_banned ? " 🚫" : "";
+    text += `${offset + i + 1}. ${name}${banned}\n   ID: <code>${u.telegram_id}</code>\n`;
+  }
+
+  const buttons: any[][] = [];
+  const navRow: any[] = [];
+  if (page > 0) navRow.push({ text: "⬅️ Previous", callback_data: `allusers_page_${page - 1}` });
+  if (page < totalPages - 1) navRow.push({ text: "Next ➡️", callback_data: `allusers_page_${page + 1}` });
+  if (navRow.length) buttons.push(navRow);
+
+  await sendMessage(token, chatId, text, buttons.length ? { reply_markup: { inline_keyboard: buttons } } : undefined);
 }
 
 // ===== RESALE START =====
