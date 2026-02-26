@@ -699,54 +699,40 @@ async function handleCategoryProducts(token: string, supabase: any, chatId: numb
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
+  // Build a compact product list message
+  let text = `📂 <b>${category}</b>\n\n`;
+  const buttons: any[][] = [];
+
   for (const p of products) {
-    // Get first variation price if product price is 0
     let displayPrice = p.price;
-    let displayOriginal = p.original_price;
     if (p.price === 0) {
       const { data: firstVar } = await supabase
         .from("product_variations")
-        .select("price, original_price")
+        .select("price")
         .eq("product_id", p.id)
         .eq("is_active", true)
         .order("created_at", { ascending: true })
         .limit(1)
         .single();
-      if (firstVar) {
-        displayPrice = firstVar.price;
-        displayOriginal = firstVar.original_price;
-      }
+      if (firstVar) displayPrice = firstVar.price;
     }
 
-    const priceText = displayOriginal && displayOriginal > displayPrice
-      ? `<s>${currency}${displayOriginal}</s> ${currency}${displayPrice}`
-      : `${currency}${displayPrice}`;
-    const stockText = p.stock !== null && p.stock <= 0 ? `\n❌ ${lang === "bn" ? "স্টক নেই" : "Out of Stock"}` : "";
-    const caption = `<b>${p.name}</b>\n💰 ${priceText}${stockText}`;
+    const stockEmoji = p.stock !== null && p.stock <= 0 ? " ❌" : "";
+    text += `• <b>${p.name}</b> — ${currency}${displayPrice}${stockEmoji}\n`;
 
-    const btns: any[][] = [];
     if (p.stock === null || p.stock > 0) {
-      btns.push([
-        { text: t("details", lang), callback_data: `product_${p.id}` },
-        { text: t("buy_now", lang), callback_data: `buy_${p.id}` },
-      ]);
-    } else {
-      btns.push([{ text: t("details", lang), callback_data: `product_${p.id}` }]);
-    }
-
-    if (p.image_url) {
-      await sendPhoto(token, chatId, p.image_url, caption, { inline_keyboard: btns });
-    } else {
-      await sendMessage(token, chatId, caption, { reply_markup: { inline_keyboard: btns } });
+      buttons.push([{ text: `📦 ${p.name} — ${currency}${displayPrice}`, callback_data: `product_${p.id}` }]);
     }
   }
 
-  await sendMessage(token, chatId, "⬇️", {
-    reply_markup: { inline_keyboard: [[{ text: t("back_products", lang), callback_data: "back_products" }]] },
-  });
+  text += `\n${lang === "bn" ? "একটি পণ্যে ক্লিক করুন ভেরিয়েশন দেখতে:" : "Click a product to see variations:"}`;
+
+  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+
+  await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
-// ===== PRODUCT DETAIL =====
+// ===== PRODUCT DETAIL (Show Variations Directly) =====
 
 async function handleProductDetail(token: string, supabase: any, chatId: number, productId: string, lang: string, userId: number) {
   const { data: product } = await supabase.from("products").select("*").eq("id", productId).single();
@@ -762,45 +748,58 @@ async function handleProductDetail(token: string, supabase: any, chatId: number,
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
-  let text = `<b>${product.name}</b>\n\n`;
-  if (product.description) text += `${product.description}\n\n`;
-
   const buttons: any[][] = [];
 
   if (variations?.length) {
-    text += `<b>📋 ${lang === "bn" ? "ভেরিয়েশন:" : "Variations:"}</b>\n`;
+    // Show variations directly as buttons (like screenshot 2)
+    let text = `📦 <b>${product.name}</b>\n\n`;
+    text += `${lang === "bn" ? "একটি ভেরিয়েশন সিলেক্ট করুন:" : "Select a variation:"}\n\n`;
+
     for (const v of variations) {
-      const vPrice = v.original_price && v.original_price > v.price
-        ? `<s>${currency}${v.original_price}</s> ${currency}${v.price}`
+      const priceStr = v.original_price && v.original_price > v.price
+        ? `${currency}${v.price} (was ${currency}${v.original_price})`
         : `${currency}${v.price}`;
-      text += `• ${v.name}: ${vPrice}\n`;
-      buttons.push([{ text: `🛒 ${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
+      text += `• ${v.name} — ${priceStr}\n`;
+      buttons.push([{ text: `🛒 ${v.name} — ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
+    }
+
+    // Check if reseller
+    const wallet = await getWallet(supabase, userId);
+    if (wallet?.is_reseller) {
+      buttons.push([{ text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` }]);
+    }
+
+    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+
+    if (product.image_url) {
+      await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
+    } else {
+      await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
   } else {
+    // No variations - show direct buy
     const priceText = product.original_price && product.original_price > product.price
       ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
       : `${currency}${product.price}`;
-    text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceText}\n`;
+    let text = `📦 <b>${product.name}</b>\n💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceText}`;
+
     if (product.stock === null || product.stock > 0) {
       buttons.push([{ text: t("buy_now", lang), callback_data: `buy_${productId}` }]);
     }
-  }
 
-  text += `\n⭐ ${lang === "bn" ? "রেটিং" : "Rating"}: ${product.rating || "N/A"}\n`;
-  text += `📦 ${lang === "bn" ? "বিক্রি" : "Sold"}: ${product.sold_count || 0}\n`;
+    // Check if reseller
+    const wallet = await getWallet(supabase, userId);
+    if (wallet?.is_reseller) {
+      buttons.push([{ text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` }]);
+    }
 
-  // Check if reseller
-  const wallet = await getWallet(supabase, userId);
-  if (wallet?.is_reseller) {
-    buttons.push([{ text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` }]);
-  }
+    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
-  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
-
-  if (product.image_url) {
-    await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
-  } else {
-    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+    if (product.image_url) {
+      await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
+    } else {
+      await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+    }
   }
 }
 
@@ -833,6 +832,20 @@ async function handleBuyVariation(token: string, supabase: any, chatId: number, 
 
 // ===== PAYMENT INFO WITH WALLET =====
 
+const UPI_ID = "8900684167@axl";
+const UPI_NAME = "RKR Premium Store";
+
+function generateUpiLink(amount: number, productName: string): string {
+  const tn = encodeURIComponent(productName.substring(0, 50));
+  return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${tn}`;
+}
+
+function generateUpiQrUrl(amount: number, productName: string): string {
+  // Use a QR code generation API
+  const upiString = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent(productName.substring(0, 50))}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
+}
+
 async function showPaymentInfo(
   token: string, supabase: any, chatId: number, telegramUser: any,
   productName: string, price: number, productId: string, variationId: string | null, lang: string
@@ -845,9 +858,6 @@ async function showPaymentInfo(
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const paymentLink = settings.payment_link || "";
-  const paymentQr = settings.payment_qr_code || "";
-  const binanceId = settings.binance_id || "";
 
   let text = `🛒 <b>${lang === "bn" ? "অর্ডার" : "Order"}: ${productName}</b>\n\n`;
   text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: <b>${currency}${price}</b>\n`;
@@ -864,26 +874,33 @@ async function showPaymentInfo(
     const payData = `walletpay_${price}_${encodeURIComponent(productName)}`;
     buttons.push([{ text: t("pay_with_wallet", lang), callback_data: payData }]);
   } else {
-    // Show payment methods
-    text += `<b>💳 ${lang === "bn" ? "পেমেন্ট মেথড" : "Payment Methods"}:</b>\n\n`;
-    if (paymentLink) {
-      text += `🔗 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}: ${paymentLink}\n`;
-      buttons.push([{ text: `💳 ${lang === "bn" ? "এখন পে করুন" : "Pay Now"} (UPI)`, url: paymentLink }]);
-    }
-    if (binanceId) {
-      text += `\n🪙 Binance Pay ID: <code>${binanceId}</code>\n`;
-    }
-    text += `\n${t("send_screenshot", lang)}`;
+    // Generate dynamic UPI link with exact amount
+    const upiLink = generateUpiLink(finalAmount, productName);
+    const qrUrl = generateUpiQrUrl(finalAmount, productName);
+
+    text += `<b>💳 ${lang === "bn" ? "পেমেন্ট করুন" : "Make Payment"}:</b>\n\n`;
+    text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
+    text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n\n`;
+    text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন, তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay, then send payment screenshot."}`;
+
+    buttons.push([{ text: `💳 ${lang === "bn" ? "এখন পে করুন" : "Pay Now"} ₹${finalAmount}`, url: upiLink }]);
+
+    // Set conversation state to await screenshot
+    conversationState.set(userId, {
+      step: "awaiting_screenshot",
+      data: { productName, price, finalAmount, productId, variationId, walletDeduction },
+    });
+
+    // Send QR code image
+    await sendPhoto(token, chatId, qrUrl, text, { inline_keyboard: buttons });
+    
+    // Follow up with screenshot request
+    await sendMessage(token, chatId, t("send_screenshot", lang));
+    return;
   }
 
   buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
-
-  // Send QR code if available
-  if (finalAmount > 0 && paymentQr) {
-    await sendPhoto(token, chatId, paymentQr, text, { inline_keyboard: buttons });
-  } else {
-    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
-  }
+  await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
 // ===== WALLET PAY =====
@@ -1219,6 +1236,64 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
   if (text === "/cancel") {
     conversationState.delete(userId);
     await sendMessage(token, chatId, "❌ Cancelled.");
+    return;
+  }
+
+  // Awaiting payment screenshot
+  if (state.step === "awaiting_screenshot") {
+    if (!msg.photo) {
+      const lang = (await getUserLang(supabase, userId)) || "en";
+      await sendMessage(token, chatId, lang === "bn" ? "📸 অনুগ্রহ করে পেমেন্ট স্ক্রিনশট পাঠান (ছবি হিসেবে)।" : "📸 Please send the payment screenshot as a photo.");
+      return;
+    }
+
+    const orderData = state.data;
+    conversationState.delete(userId);
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
+
+    // Create order in DB
+    const { data: order } = await supabase.from("telegram_orders").insert({
+      telegram_user_id: userId,
+      username,
+      product_name: orderData.productName,
+      product_id: orderData.productId || null,
+      amount: orderData.finalAmount || orderData.price,
+      status: "pending",
+      screenshot_file_id: msg.photo[msg.photo.length - 1]?.file_id || null,
+    }).select("id").single();
+
+    const orderId = order?.id || "unknown";
+
+    // Notify user
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? "✅ <b>স্ক্রিনশট পাঠানো হয়েছে!</b>\n\nঅ্যাডমিন যাচাই করছে। শীঘ্রই আপডেট পাবেন। ⏳"
+        : "✅ <b>Screenshot received!</b>\n\nAdmin is verifying your payment. You'll get an update soon. ⏳"
+    );
+
+    // Forward screenshot to admin
+    await forwardMessage(token, SUPER_ADMIN_ID, chatId, msg.message_id);
+
+    // Send admin action buttons
+    await sendMessage(token, SUPER_ADMIN_ID,
+      `📩 <b>Payment Screenshot</b>\n\n` +
+      `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
+      `📦 Product: <b>${orderData.productName}</b>\n` +
+      `💵 Amount: <b>₹${orderData.finalAmount || orderData.price}</b>\n` +
+      `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
+              { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
+            ],
+            [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+          ],
+        },
+      }
+    );
     return;
   }
 
