@@ -1442,7 +1442,7 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
 
     // Generate link
     const linkCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    await supabase.from("telegram_resale_links").insert({
+    const { error: insertError } = await supabase.from("telegram_resale_links").insert({
       reseller_telegram_id: userId,
       product_id: state.data.product_id,
       variation_id: state.data.variation_id || null,
@@ -1451,15 +1451,20 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
       link_code: linkCode,
     });
 
+    if (insertError) {
+      console.error("Resale link insert error:", insertError);
+      await sendMessage(token, chatId, "❌ Failed to create resale link. Please try again.");
+      return;
+    }
+
     const profit = price - resellerPrice;
-    await sendMessage(token, chatId,
-      t("resale_link_created", lang)
-        .replace("{bot}", BOT_USERNAME)
-        .replace("{code}", linkCode)
-        .replace("{custom}", String(price))
-        .replace("{reseller}", String(resellerPrice))
-        .replace("{profit}", String(profit))
-    );
+    const linkMsg = `✅ <b>${lang === "bn" ? "রিসেল লিংক তৈরি হয়েছে!" : "Resale Link Created!"}</b>\n\n` +
+      `🔗 Link: <code>https://t.me/${BOT_USERNAME}?start=buy_${linkCode}</code>\n` +
+      `💰 ${lang === "bn" ? "আপনার মূল্য" : "Your Price"}: ₹${price}\n` +
+      `📦 ${lang === "bn" ? "রিসেলার মূল্য" : "Reseller Price"}: ₹${resellerPrice}\n` +
+      `💵 ${lang === "bn" ? "প্রতি বিক্রয়ে লাভ" : "Profit per sale"}: ₹${profit}`;
+
+    await sendMessage(token, chatId, linkMsg);
     return;
   }
 

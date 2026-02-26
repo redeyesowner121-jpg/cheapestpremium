@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package } from 'lucide-react';
+import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductVariationSelector, ProductFeatures } from '@/components/product';
 import ShareButtons from '@/components/ShareButtons';
@@ -119,13 +119,23 @@ export const ProductInfo: React.FC<Pick<ProductDetailUIProps, 'displayProduct' |
   </div>
 );
 
-export const ProductBottomBar: React.FC<{ displayProduct: any; currentPrice: number; formatPrice: (p: number) => string; settings: any; selectedVariation: any; isOutOfStock: boolean }> = ({
-  displayProduct, currentPrice, formatPrice, settings, selectedVariation, isOutOfStock
+export const ProductBottomBar: React.FC<{ displayProduct: any; currentPrice: number; formatPrice: (p: number) => string; settings: any; selectedVariation: any; isOutOfStock: boolean; isReseller?: boolean; onResell?: () => void }> = ({
+  displayProduct, currentPrice, formatPrice, settings, selectedVariation, isOutOfStock, isReseller, onResell
 }) => (
   <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
     <div className="max-w-lg mx-auto flex items-center gap-3">
       <ShareButtons text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${formatPrice(currentPrice)}`} url={`${settings.app_url}/product/${displayProduct?.slug || displayProduct?.id}`} size="sm" />
-      <AddToCartButton productId={displayProduct.id} variationId={selectedVariation?.id} disabled={isOutOfStock} className="flex-1 h-12" />
+      {isReseller && onResell ? (
+        <button
+          onClick={onResell}
+          className="flex-1 h-12 bg-accent text-accent-foreground rounded-xl font-bold flex items-center justify-center gap-2"
+        >
+          <LinkIcon className="w-5 h-5" />
+          Resell
+        </button>
+      ) : (
+        <AddToCartButton productId={displayProduct.id} variationId={selectedVariation?.id} disabled={isOutOfStock} className="flex-1 h-12" />
+      )}
     </div>
   </div>
 );

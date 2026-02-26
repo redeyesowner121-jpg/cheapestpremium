@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
 import { PurchaseModal } from '@/components/product';
+import ResellModal from '@/components/product/ResellModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -43,6 +44,7 @@ const ProductDetailPage: React.FC = () => {
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentStock, setCurrentStock] = useState<number | null>(null);
+  const [showResellModal, setShowResellModal] = useState(false);
 
   useEffect(() => {
     if (!stateProduct && productId) loadProductById(productId);
@@ -119,9 +121,13 @@ const ProductDetailPage: React.FC = () => {
         <ProductInfo displayProduct={displayProduct} currentStock={currentStock} isOutOfStock={isOutOfStock} variations={variations} selectedVariation={selectedVariation} onSelectVariation={setSelectedVariation} userRank={userRank} isReseller={isReseller} />
       </main>
 
-      <ProductBottomBar displayProduct={displayProduct} currentPrice={currentPrice} formatPrice={formatPrice} settings={settings} selectedVariation={selectedVariation} isOutOfStock={isOutOfStock} />
+      <ProductBottomBar displayProduct={displayProduct} currentPrice={currentPrice} formatPrice={formatPrice} settings={settings} selectedVariation={selectedVariation} isOutOfStock={isOutOfStock} isReseller={isReseller} onResell={() => setShowResellModal(true)} />
 
       <PurchaseModal open={showPurchaseModal} onOpenChange={setShowPurchaseModal} product={displayProduct} selectedVariation={selectedVariation} currentPrice={currentPrice} quantity={quantity} onQuantityChange={setQuantity} currentStock={currentStock} exceedsStock={exceedsStock} userNote={userNote} onUserNoteChange={setUserNote} walletBalance={profile?.wallet_balance || 0} totalPrice={totalPrice} loading={loading} onBuy={handleBuy} flashSaleId={flashSale?.id} isLoggedIn={!!user} />
+
+      {isReseller && user && (
+        <ResellModal open={showResellModal} onOpenChange={setShowResellModal} product={displayProduct} selectedVariation={selectedVariation} resellerPrice={applicableResellerPrice || basePrice} userId={user.id} />
+      )}
 
       <OrderSuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} productName={successOrderData.productName} totalPrice={successOrderData.totalPrice} />
       <BottomNav />
