@@ -580,15 +580,10 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // AI query: if text contains "?" and not admin
-      if (!isAdmin(userId) && text.includes("?")) {
+      // AI auto-reply for all non-admin text messages
+      if (!isAdmin(userId)) {
         await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
         return jsonOk();
-      }
-
-      // Forward to admin
-      if (!isAdmin(userId)) {
-        await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser, lang);
       }
 
       return jsonOk();
@@ -1748,16 +1743,19 @@ async function handleAIQuery(token: string, supabase: any, chatId: number, userI
   const settings = await getSettings(supabase);
   const appName = settings.app_name || "RKR Premium Store";
 
-  const systemPrompt = `You are the AI assistant for ${appName}, a digital products store on Telegram.
+  const systemPrompt = `You are the friendly AI assistant for ${appName}, a digital premium products store on Telegram.
 Available products: ${productList}
 Website: ${settings.app_url || "https://cheapest-premiums.lovable.app"}
 WhatsApp: ${settings.contact_whatsapp || "+918900684167"}
 
 STRICT RULES:
-1. If asked about returns or refunds, ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
-2. Answer in ${lang === "bn" ? "Bengali" : "English"}.
-3. Be helpful, concise, and friendly.
-4. If you don't know the answer, say you'll forward the question to admin.`;
+1. If someone sends a greeting like "hi", "hello", "হাই", "হ্যালো", "hey", "assalamualaikum", "কেমন আছেন" etc., respond with a warm friendly greeting and briefly introduce the store and what we sell.
+2. If asked about returns or refunds, ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
+3. Answer in ${lang === "bn" ? "Bengali" : "English"}.
+4. Be helpful, concise, and friendly. Keep responses short (max 3-4 lines).
+5. For product/premium related questions, provide accurate info from the product list above.
+6. If you truly cannot answer or the question is unrelated to the store, say you'll forward to admin.
+7. Never make up product info that's not in the list.`;
 
   try {
     await sendMessage(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
