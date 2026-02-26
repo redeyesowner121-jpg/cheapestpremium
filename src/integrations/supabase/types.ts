@@ -1048,6 +1048,81 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_bot_users: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          is_banned: boolean
+          last_active: string
+          last_name: string | null
+          telegram_id: number
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          is_banned?: boolean
+          last_active?: string
+          last_name?: string | null
+          telegram_id: number
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          is_banned?: boolean
+          last_active?: string
+          last_name?: string | null
+          telegram_id?: number
+          username?: string | null
+        }
+        Relationships: []
+      }
+      telegram_orders: {
+        Row: {
+          admin_message_id: number | null
+          amount: number
+          created_at: string
+          id: string
+          product_id: string | null
+          product_name: string | null
+          screenshot_file_id: string | null
+          status: string
+          telegram_user_id: number
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          admin_message_id?: number | null
+          amount?: number
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          product_name?: string | null
+          screenshot_file_id?: string | null
+          status?: string
+          telegram_user_id: number
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          admin_message_id?: number | null
+          amount?: number
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          product_name?: string | null
+          screenshot_file_id?: string | null
+          status?: string
+          telegram_user_id?: number
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
