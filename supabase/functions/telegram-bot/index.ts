@@ -816,16 +816,28 @@ async function handleBuyProduct(token: string, supabase: any, chatId: number, pr
 // ===== BUY VARIATION =====
 
 async function handleBuyVariation(token: string, supabase: any, chatId: number, variationId: string, telegramUser: any, lang: string) {
-  const { data: variation } = await supabase
+  console.log("handleBuyVariation called with variationId:", variationId);
+  
+  const { data: variation, error: varError } = await supabase
     .from("product_variations")
-    .select("id, name, price, product_id, products(name, stock)")
+    .select("id, name, price, product_id")
     .eq("id", variationId)
     .single();
 
+  console.log("Variation query result:", JSON.stringify(variation), "Error:", JSON.stringify(varError));
+
   if (!variation) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
-  const productName = `${(variation as any).products?.name} - ${variation.name}`;
-  const stock = (variation as any).products?.stock;
-  if (stock !== null && stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
+
+  // Fetch product separately
+  const { data: product } = await supabase
+    .from("products")
+    .select("name, stock")
+    .eq("id", variation.product_id)
+    .single();
+
+  const productName = `${product?.name || "Product"} - ${variation.name}`;
+  const stock = product?.stock;
+  if (stock !== null && stock !== undefined && stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
 
   await showPaymentInfo(token, supabase, chatId, telegramUser, productName, variation.price, variation.product_id, variation.id, lang);
 }
@@ -850,6 +862,8 @@ async function showPaymentInfo(
   token: string, supabase: any, chatId: number, telegramUser: any,
   productName: string, price: number, productId: string, variationId: string | null, lang: string
 ) {
+  console.log("showPaymentInfo called:", { productName, price, productId, variationId });
+  
   const userId = telegramUser.id;
   const wallet = await ensureWallet(supabase, userId);
   const walletBalance = wallet?.balance || 0;
@@ -878,6 +892,9 @@ async function showPaymentInfo(
     const upiLink = generateUpiLink(finalAmount, productName);
     const qrUrl = generateUpiQrUrl(finalAmount, productName);
 
+    console.log("Generated UPI link:", upiLink);
+    console.log("Generated QR URL:", qrUrl);
+
     text += `<b>💳 ${lang === "bn" ? "পেমেন্ট করুন" : "Make Payment"}:</b>\n\n`;
     text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
     text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n\n`;
@@ -891,8 +908,33 @@ async function showPaymentInfo(
       data: { productName, price, finalAmount, productId, variationId, walletDeduction },
     });
 
-    // Send QR code image
-    await sendPhoto(token, chatId, qrUrl, text, { inline_keyboard: buttons });
+    // Try sending QR code image, fallback to text if it fails
+    try {
+      const photoRes = await fetch(`${TELEGRAM_API(token)}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          photo: qrUrl,
+          caption: text,
+          parse_mode: "HTML",
+          reply_markup: { inline_keyboard: buttons },
+        }),
+      });
+      const photoResult = await photoRes.json();
+      console.log("sendPhoto result:", JSON.stringify(photoResult));
+      
+      if (!photoResult.ok) {
+        // Fallback: send text message with QR link
+        console.log("sendPhoto failed, falling back to text message");
+        buttons.push([{ text: `📷 QR Code`, url: qrUrl }]);
+        await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+      }
+    } catch (e) {
+      console.error("sendPhoto error:", e);
+      buttons.push([{ text: `📷 QR Code`, url: qrUrl }]);
+      await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+    }
     
     // Follow up with screenshot request
     await sendMessage(token, chatId, t("send_screenshot", lang));
