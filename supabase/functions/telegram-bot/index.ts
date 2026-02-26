@@ -26,7 +26,7 @@ import {
   handleAdminMenu, handleReport, handleEditPrice, handleOutStock,
   handleUsersCommand, handleHistoryCommand, handleBanCommand,
   handleMakeReseller, handleAddAdmin, handleRemoveAdmin,
-  handleListAdmins, handleAllUsers, handleAddBalance,
+  handleListAdmins, handleAllUsers, handleAddBalance, handleDeductBalance,
 } from "./admin-handlers.ts";
 import { handleConversationStep } from "./conversation-handlers.ts";
 import { handleAIQuery } from "./ai-handler.ts";
@@ -301,6 +301,9 @@ Deno.serve(async (req) => {
           case "/add_balance":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAddBalance(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, parseFloat(parts[2]) || 0); break;
+          case "/deduct_balance":
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleDeductBalance(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, parseFloat(parts[2]) || 0); break;
           default: break;
         }
         return jsonOk();
