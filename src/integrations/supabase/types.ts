@@ -1126,6 +1126,27 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_bot_admins: {
+        Row: {
+          added_by: number
+          created_at: string
+          id: string
+          telegram_id: number
+        }
+        Insert: {
+          added_by: number
+          created_at?: string
+          id?: string
+          telegram_id: number
+        }
+        Update: {
+          added_by?: number
+          created_at?: string
+          id?: string
+          telegram_id?: number
+        }
+        Relationships: []
+      }
       telegram_bot_users: {
         Row: {
           created_at: string
