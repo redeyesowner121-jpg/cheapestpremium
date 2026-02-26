@@ -392,12 +392,15 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Wallet pay
-      if (data.startsWith("walletpay_")) {
-        const parts2 = data.replace("walletpay_", "").split("_");
-        const amount = parseFloat(parts2[0]);
-        const prodName = decodeURIComponent(parts2.slice(1).join("_"));
-        await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, amount, prodName, lang);
+      // Wallet pay (confirm from conversation state)
+      if (data === "walletpay_confirm") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "wallet_pay_confirm") {
+          await deleteConversationState(supabase, userId);
+          await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
+        }
         return jsonOk();
       }
 
@@ -932,9 +935,11 @@ async function showPaymentInfo(
   const buttons: any[][] = [];
 
   if (finalAmount === 0) {
-    // Full wallet pay
-    const payData = `walletpay_${price}_${encodeURIComponent(productName)}`;
-    buttons.push([{ text: t("pay_with_wallet", lang), callback_data: payData }]);
+    // Full wallet pay - store data in conversation state to avoid callback_data 64-byte limit
+    await setConversationState(supabase, userId, "wallet_pay_confirm", {
+      productName, price, productId, variationId,
+    });
+    buttons.push([{ text: t("pay_with_wallet", lang), callback_data: "walletpay_confirm" }]);
   } else {
     // Generate dynamic UPI link with exact amount
     const upiLink = generateUpiLink(finalAmount, productName);
