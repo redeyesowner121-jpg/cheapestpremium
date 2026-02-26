@@ -2,7 +2,7 @@
 
 import { t, UPI_ID, UPI_NAME } from "./constants.ts";
 import { sendMessage, getTelegramApiUrl } from "./telegram-api.ts";
-import { getSettings, ensureWallet, getWallet, setConversationState, notifyAllAdmins } from "./db-helpers.ts";
+import { getSettings, ensureWallet, getWallet, setConversationState, notifyAllAdmins, getAllAdminIds } from "./db-helpers.ts";
 
 // ===== UPI HELPERS =====
 
@@ -340,7 +340,23 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
   }
 
   const emoji: Record<string, string> = { confirmed: "✅", rejected: "❌", shipped: "📦" };
-  await sendMessage(token, adminChatId, `${emoji[newStatus] || "📋"} Order <b>${orderId.slice(0, 8)}</b> → <b>${newStatus.toUpperCase()}</b>`);
+  const statusLabel: Record<string, string> = { confirmed: "CONFIRMED", rejected: "REJECTED", shipped: "SHIPPED" };
+  await sendMessage(token, adminChatId, `${emoji[newStatus] || "📋"} Order <b>${orderId.slice(0, 8)}</b> → <b>${statusLabel[newStatus] || newStatus.toUpperCase()}</b>`);
+
+  // Notify other admins that this admin handled the order
+  const allAdminIds = await getAllAdminIds(supabase);
+  const otherAdmins = allAdminIds.filter(id => id !== adminChatId);
+  for (const otherAdmin of otherAdmins) {
+    try {
+      await sendMessage(token, otherAdmin,
+        `📋 <b>Order Handled by Another Admin</b>\n\n` +
+        `${emoji[newStatus] || "📋"} Order <code>${orderId.slice(0, 8)}</code> → <b>${statusLabel[newStatus] || newStatus.toUpperCase()}</b>\n` +
+        `📦 Product: <b>${order.product_name || "N/A"}</b>\n` +
+        `👤 Customer: <code>${order.telegram_user_id}</code>\n` +
+        `🛡️ Handled by Admin: <code>${adminChatId}</code>`
+      );
+    } catch { /* admin may have blocked bot */ }
+  }
 }
 
 // ===== START WITH REF =====
