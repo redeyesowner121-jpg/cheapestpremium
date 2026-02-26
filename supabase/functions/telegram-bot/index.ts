@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
         const convState = await getConversationState(supabase, userId);
         if (convState?.step === "wallet_pay_confirm") {
           await deleteConversationState(supabase, userId);
-          await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang);
+          await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId, convState.data.email);
         } else {
           await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
         }

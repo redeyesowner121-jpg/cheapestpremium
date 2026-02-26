@@ -85,11 +85,15 @@ export async function showPaymentInfo(
   const buttons: any[][] = [];
 
   if (finalAmount === 0) {
-    // Full wallet pay
-    await setConversationState(supabase, userId, "wallet_pay_confirm", {
+    // Full wallet pay - ask email first
+    await setConversationState(supabase, userId, "awaiting_email_wallet", {
       productName, price, productId, variationId,
     });
-    buttons.push([{ text: t("pay_with_wallet", lang), callback_data: "walletpay_confirm" }]);
+    text += lang === "bn"
+      ? "📧 আপনার <b>ইমেইল অ্যাড্রেস</b> পাঠান (যেখানে অর্ডার ডিটেইলস পাঠানো হবে):"
+      : "📧 Send your <b>email address</b> (order details will be sent here):";
+    await sendMessage(token, chatId, text);
+    return;
   } else {
     // Generate dynamic UPI link
     const upiLink = generateUpiLink(finalAmount, productName);
@@ -107,7 +111,7 @@ export async function showPaymentInfo(
 
     buttons.push([{ text: `💳 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}`, url: qrUrl }]);
 
-    await setConversationState(supabase, userId, "awaiting_screenshot", {
+    await setConversationState(supabase, userId, "awaiting_email", {
       productName, price, finalAmount, productId, variationId, walletDeduction,
     });
 
@@ -136,8 +140,10 @@ export async function showPaymentInfo(
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
 
-    // Follow up with screenshot request
-    await sendMessage(token, chatId, t("send_screenshot", lang));
+    // Ask for email first
+    await sendMessage(token, chatId, lang === "bn"
+      ? "📧 পেমেন্ট করার পর আপনার <b>ইমেইল অ্যাড্রেস</b> পাঠান (যেখানে অর্ডার ডিটেইলস পাঠানো হবে):"
+      : "📧 After payment, send your <b>email address</b> (order details will be sent here):");
     return;
   }
 
@@ -147,7 +153,7 @@ export async function showPaymentInfo(
 
 // ===== WALLET PAY =====
 
-export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string) {
+export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, email?: string) {
   const wallet = await getWallet(supabase, userId);
   if (!wallet || wallet.balance < amount) {
     await sendMessage(token, chatId, lang === "bn" ? "❌ পর্যাপ্ত ব্যালেন্স নেই।" : "❌ Insufficient wallet balance.");
@@ -173,6 +179,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     telegram_user_id: userId,
     username: `wallet_pay`,
     product_name: productName,
+    product_id: productId || null,
     amount: amount,
     status: "confirmed",
   }).select("id").single();
@@ -182,9 +189,21 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
   );
 
+  // Auto-send access_link for wallet pay (auto-confirmed)
+  if (productId) {
+    const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
+    if (product?.access_link) {
+      await sendMessage(token, chatId,
+        lang === "bn"
+          ? `🔗 <b>আপনার প্রোডাক্ট লিংক:</b>\n\n${product.access_link}\n\n⚠️ এই লিংক শুধুমাত্র আপনার জন্য। শেয়ার করবেন না।`
+          : `🔗 <b>Your Product Access Link:</b>\n\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`
+      );
+    }
+  }
+
   // Notify all admins
   await notifyAllAdmins(token, supabase,
-    `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+    `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📧 Email: ${email || "N/A"}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
   // Check referral bonus
@@ -279,9 +298,21 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     }
   }
 
-  // If confirmed, process referral and reseller profit
+  // If confirmed, process referral, reseller profit, and auto-send access_link
   if (newStatus === "confirmed") {
     await processReferralBonus(supabase, order.telegram_user_id, token);
+
+    // Auto-send access_link
+    if (order.product_id) {
+      const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
+      if (product?.access_link) {
+        await sendMessage(token, order.telegram_user_id,
+          userLang === "bn"
+            ? `🔗 <b>আপনার প্রোডাক্ট লিংক:</b>\n\n${product.access_link}\n\n⚠️ এই লিংক শুধুমাত্র আপনার জন্য। শেয়ার করবেন না।`
+            : `🔗 <b>Your Product Access Link:</b>\n\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`
+        );
+      }
+    }
 
     if (order.reseller_telegram_id && order.reseller_profit > 0) {
       const resellerWallet = await getWallet(supabase, order.reseller_telegram_id);

@@ -18,6 +18,53 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Awaiting email for wallet-only pay
+  if (state.step === "awaiting_email_wallet") {
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(text.trim())) {
+      await sendMessage(token, chatId, lang === "bn"
+        ? "⚠️ সঠিক ইমেইল অ্যাড্রেস দিন। উদাহরণ: user@gmail.com"
+        : "⚠️ Please enter a valid email address. Example: user@gmail.com");
+      return;
+    }
+    await setConversationState(supabase, userId, "wallet_pay_confirm", {
+      ...state.data,
+      email: text.trim().toLowerCase(),
+    });
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? `✅ ইমেইল: <b>${text.trim()}</b>\n\n💳 ওয়ালেট থেকে পেমেন্ট কনফার্ম করতে নীচের বাটনে ক্লিক করুন।`
+        : `✅ Email: <b>${text.trim()}</b>\n\n💳 Click the button below to confirm wallet payment.`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: lang === "bn" ? "💳 ওয়ালেট দিয়ে পে করুন" : "💳 Pay with Wallet", callback_data: "walletpay_confirm" }]],
+        },
+      }
+    );
+    return;
+  }
+
+  // Awaiting email before screenshot
+  if (state.step === "awaiting_email") {
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(text.trim())) {
+      await sendMessage(token, chatId, lang === "bn"
+        ? "⚠️ সঠিক ইমেইল অ্যাড্রেস দিন। উদাহরণ: user@gmail.com"
+        : "⚠️ Please enter a valid email address. Example: user@gmail.com");
+      return;
+    }
+    await setConversationState(supabase, userId, "awaiting_screenshot", {
+      ...state.data,
+      email: text.trim().toLowerCase(),
+    });
+    await sendMessage(token, chatId, lang === "bn"
+      ? `✅ ইমেইল: <b>${text.trim()}</b>\n\n📸 এখন পেমেন্ট স্ক্রিনশট পাঠান।`
+      : `✅ Email: <b>${text.trim()}</b>\n\n📸 Now send the payment screenshot.`);
+    return;
+  }
+
   // Awaiting payment screenshot
   if (state.step === "awaiting_screenshot") {
     if (!msg.photo) {
@@ -85,6 +132,7 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     // Send admin action buttons
     let adminMsg = `📩 <b>Payment Screenshot</b>\n\n` +
       `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
+      `📧 Email: <b>${orderData.email || "N/A"}</b>\n` +
       `📦 Product: <b>${orderData.productName}</b>\n` +
       `💰 Total Price: <b>₹${orderData.price}</b>\n`;
 
