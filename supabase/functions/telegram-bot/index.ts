@@ -895,10 +895,13 @@ async function showPaymentInfo(
 
     text += `<b>💳 ${lang === "bn" ? "পেমেন্ট করুন" : "Make Payment"}:</b>\n\n`;
     text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
-    text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n\n`;
-    text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন, তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay, then send payment screenshot."}`;
+    text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n`;
+    text += `🔗 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}:\n<code>${upiLink}</code>\n\n`;
+    text += `${lang === "bn" ? "নীচের QR কোড স্ক্যান করে পেমেন্ট করুন, অথবা UPI লিংক কপি করে অ্যাপে ওপেন করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Scan the QR code below to pay, or copy the UPI link and open it in your app. Then send payment screenshot."}`;
 
-    buttons.push([{ text: `💳 ${lang === "bn" ? "এখন পে করুন" : "Pay Now"} ₹${finalAmount}`, url: upiLink }]);
+    // Telegram inline keyboard does not support upi:// protocol URLs.
+    // Keep only https links in buttons so message delivery never fails.
+    buttons.push([{ text: `📷 ${lang === "bn" ? "QR কোড খুলুন" : "Open QR Code"}`, url: qrUrl }]);
 
     // Set conversation state to await screenshot
     conversationState.set(userId, {
@@ -923,14 +926,11 @@ async function showPaymentInfo(
       console.log("sendPhoto result:", JSON.stringify(photoResult));
       
       if (!photoResult.ok) {
-        // Fallback: send text message with QR link
         console.log("sendPhoto failed, falling back to text message");
-        buttons.push([{ text: `📷 QR Code`, url: qrUrl }]);
         await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
       }
     } catch (e) {
       console.error("sendPhoto error:", e);
-      buttons.push([{ text: `📷 QR Code`, url: qrUrl }]);
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
     
