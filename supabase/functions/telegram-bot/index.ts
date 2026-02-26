@@ -62,6 +62,7 @@ const T: Record<string, Record<string, string>> = {
     bn: "✅ যাচাই সম্পন্ন! স্বাগতম!",
   },
   view_products: { en: "🛍️ View Products", bn: "🛍️ পণ্য দেখুন" },
+  my_orders: { en: "📦 My Orders", bn: "📦 আমার অর্ডার" },
   my_wallet: { en: "💰 My Wallet", bn: "💰 আমার ওয়ালেট" },
   refer_earn: { en: "🎁 Refer & Earn", bn: "🎁 রেফার ও আয়" },
   support: { en: "📞 Support", bn: "📞 সাপোর্ট" },
@@ -404,6 +405,12 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // My orders
+      if (data === "my_orders") {
+        await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang);
+        return jsonOk();
+      }
+
       // My wallet
       if (data === "my_wallet") {
         await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang);
@@ -516,11 +523,15 @@ Deno.serve(async (req) => {
           case "/categories":
             await handleViewCategories(BOT_TOKEN, supabase, chatId, lang);
             break;
+          case "/myorders":
+          case "/orders":
+            await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang);
+            break;
           case "/help":
             await sendMessage(BOT_TOKEN, chatId,
               lang === "bn"
-                ? "📖 <b>কমান্ড:</b>\n/start - মূল মেনু\n/products - পণ্য দেখুন\n/help - সাহায্য"
-                : "📖 <b>Commands:</b>\n/start - Main menu\n/products - View products\n/help - Show help"
+                ? "📖 <b>কমান্ড:</b>\n/start - মূল মেনু\n/products - পণ্য দেখুন\n/myorders - আমার অর্ডার\n/help - সাহায্য"
+                : "📖 <b>Commands:</b>\n/start - Main menu\n/products - View products\n/myorders - My orders\n/help - Show help"
             );
             break;
           // Admin commands
@@ -671,8 +682,11 @@ async function showMainMenu(token: string, supabase: any, chatId: number, lang: 
       inline_keyboard: [
         [{ text: t("view_products", lang), callback_data: "view_products" }],
         [
-          { text: t("refer_earn", lang), callback_data: "refer_earn" },
+          { text: t("my_orders", lang), callback_data: "my_orders" },
           { text: t("my_wallet", lang), callback_data: "my_wallet" },
+        ],
+        [
+          { text: t("refer_earn", lang), callback_data: "refer_earn" },
         ],
         [
           { text: `⭐ ${lang === "bn" ? "রিভিউ" : "Reviews"} ↗`, url: "https://t.me/RKRxProofs" },
@@ -1081,6 +1095,84 @@ async function processReferralBonus(supabase: any, userId: number, token: string
       );
     }
   }
+}
+
+// ===== MY ORDERS =====
+
+async function handleMyOrders(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  const { data: orders } = await supabase
+    .from("telegram_orders")
+    .select("*")
+    .eq("telegram_user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!orders?.length) {
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? "📦 আপনার কোনো অর্ডার নেই।\n\nপ্রোডাক্ট কিনতে নিচের বাটনে ক্লিক করুন!"
+        : "📦 You have no orders yet.\n\nClick below to browse products!",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "🛍️ পণ্য দেখুন" : "🛍️ View Products", callback_data: "view_products" }],
+            [{ text: t("back_main", lang), callback_data: "back_main" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
+  const statusEmoji: Record<string, string> = {
+    pending: "⏳",
+    confirmed: "✅",
+    rejected: "❌",
+    shipped: "📦",
+    delivered: "🎉",
+  };
+
+  const statusText: Record<string, Record<string, string>> = {
+    pending: { en: "Pending", bn: "অপেক্ষমান" },
+    confirmed: { en: "Confirmed", bn: "নিশ্চিত" },
+    rejected: { en: "Rejected", bn: "প্রত্যাখ্যাত" },
+    shipped: { en: "Shipped", bn: "শিপ হয়েছে" },
+    delivered: { en: "Delivered", bn: "ডেলিভারি হয়েছে" },
+  };
+
+  let text = lang === "bn"
+    ? "📦 <b>আমার অর্ডারসমূহ</b> (সর্বশেষ ১০টি)\n\n"
+    : "📦 <b>My Orders</b> (Last 10)\n\n";
+
+  orders.forEach((o: any, i: number) => {
+    const emoji = statusEmoji[o.status] || "📋";
+    const status = statusText[o.status]?.[lang] || o.status;
+    const date = new Date(o.created_at).toLocaleDateString(lang === "bn" ? "bn-BD" : "en-IN", {
+      day: "numeric", month: "short", year: "numeric",
+    });
+
+    text += `${i + 1}. ${emoji} <b>${o.product_name || "N/A"}</b>\n`;
+    text += `   💵 ₹${o.amount} | ${lang === "bn" ? "স্ট্যাটাস" : "Status"}: <b>${status}</b>\n`;
+    text += `   📅 ${date}\n`;
+    if (o.status === "shipped" && o.product_name) {
+      text += `   ${lang === "bn" ? "🎉 শীঘ্রই ডেলিভারি হবে!" : "🎉 Arriving soon!"}\n`;
+    }
+    text += "\n";
+  });
+
+  text += lang === "bn"
+    ? "💡 <i>সমস্যা থাকলে সাপোর্টে যোগাযোগ করুন।</i>"
+    : "💡 <i>Contact support if you have any issues.</i>";
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: lang === "bn" ? "🛍️ আরো কিনুন" : "🛍️ Buy More", callback_data: "view_products" }],
+        [{ text: t("support", lang), callback_data: "support" }],
+        [{ text: t("back_main", lang), callback_data: "back_main" }],
+      ],
+    },
+  });
 }
 
 // ===== MY WALLET =====
