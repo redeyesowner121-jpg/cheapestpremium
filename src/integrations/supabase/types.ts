@@ -1054,6 +1054,7 @@ export type Database = {
           first_name: string | null
           id: string
           is_banned: boolean
+          language: string | null
           last_active: string
           last_name: string | null
           telegram_id: number
@@ -1064,6 +1065,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           is_banned?: boolean
+          language?: string | null
           last_active?: string
           last_name?: string | null
           telegram_id: number
@@ -1074,6 +1076,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           is_banned?: boolean
+          language?: string | null
           last_active?: string
           last_name?: string | null
           telegram_id?: number
@@ -1120,6 +1123,108 @@ export type Database = {
           telegram_user_id?: number
           updated_at?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      telegram_resale_links: {
+        Row: {
+          created_at: string
+          custom_price: number
+          id: string
+          is_active: boolean
+          link_code: string
+          product_id: string
+          reseller_price: number
+          reseller_telegram_id: number
+          uses: number
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          custom_price: number
+          id?: string
+          is_active?: boolean
+          link_code: string
+          product_id: string
+          reseller_price: number
+          reseller_telegram_id: number
+          uses?: number
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          custom_price?: number
+          id?: string
+          is_active?: boolean
+          link_code?: string
+          product_id?: string
+          reseller_price?: number
+          reseller_telegram_id?: number
+          uses?: number
+          variation_id?: string | null
+        }
+        Relationships: []
+      }
+      telegram_wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          telegram_id: number
+          type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          telegram_id: number
+          type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          telegram_id?: number
+          type?: string
+        }
+        Relationships: []
+      }
+      telegram_wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          is_reseller: boolean
+          referral_code: string | null
+          referred_by: number | null
+          telegram_id: number
+          total_earned: number
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          is_reseller?: boolean
+          referral_code?: string | null
+          referred_by?: number | null
+          telegram_id: number
+          total_earned?: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          is_reseller?: boolean
+          referral_code?: string | null
+          referred_by?: number | null
+          telegram_id?: number
+          total_earned?: number
+          updated_at?: string
         }
         Relationships: []
       }

@@ -7,24 +7,127 @@ const corsHeaders = {
 };
 
 const SUPER_ADMIN_ID = 6898461453;
+const BOT_USERNAME = "Cheapest_Premiums_bot";
+const REQUIRED_CHANNELS = ["@pocket_money27", "@RKRxOTT"];
 
 function isAdmin(userId: number): boolean {
   return userId === SUPER_ADMIN_ID;
 }
 
-const TELEGRAM_API = (token: string) =>
-  `https://api.telegram.org/bot${token}`;
+const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
 
-// In-memory conversation state for /add_product multi-step flow
+// In-memory conversation state
 const conversationState = new Map<number, { step: string; data: Record<string, any> }>();
 
-async function sendMessage(
-  token: string,
-  chatId: number,
-  text: string,
-  opts?: { reply_markup?: any; parse_mode?: string }
-) {
-  const res = await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
+// ===== TRANSLATIONS =====
+const T: Record<string, Record<string, string>> = {
+  welcome: {
+    en: "🛍️ <b>Welcome to RKR Premium Store!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments (UPI/Binance)\n💬 24/7 Support\n\nChoose an option below:",
+    bn: "🛍️ <b>RKR প্রিমিয়াম স্টোরে স্বাগতম!</b>\n\n✨ সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n⚡ তাৎক্ষণিক ডেলিভারি\n🔒 নিরাপদ পেমেন্ট (UPI/Binance)\n💬 ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:",
+  },
+  choose_lang: {
+    en: "🌐 <b>Choose Your Language / ভাষা নির্বাচন করুন</b>",
+    bn: "🌐 <b>Choose Your Language / ভাষা নির্বাচন করুন</b>",
+  },
+  lang_saved: {
+    en: "✅ Language set to <b>English</b>!",
+    bn: "✅ ভাষা <b>বাংলা</b> সেট করা হয়েছে!",
+  },
+  join_channels: {
+    en: "🔒 <b>Please join our channels first!</b>\n\nYou must join both channels to use this bot.\nAfter joining, click \"✅ I've Joined - Verify\".",
+    bn: "🔒 <b>প্রথমে আমাদের চ্যানেলে যোগ দিন!</b>\n\nবট ব্যবহার করতে উভয় চ্যানেলে যোগ দিতে হবে।\nযোগ দেওয়ার পর \"✅ যোগ দিয়েছি - যাচাই করুন\" ক্লিক করুন।",
+  },
+  not_joined: {
+    en: "❌ You haven't joined all channels yet. Please join both channels and try again.",
+    bn: "❌ আপনি এখনও সব চ্যানেলে যোগ দেননি। অনুগ্রহ করে উভয় চ্যানেলে যোগ দিন এবং আবার চেষ্টা করুন।",
+  },
+  verified: {
+    en: "✅ Verified! Welcome aboard!",
+    bn: "✅ যাচাই সম্পন্ন! স্বাগতম!",
+  },
+  view_products: { en: "🛍️ View Products", bn: "🛍️ পণ্য দেখুন" },
+  my_wallet: { en: "💰 My Wallet", bn: "💰 আমার ওয়ালেট" },
+  refer_earn: { en: "🎁 Refer & Earn", bn: "🎁 রেফার ও আয়" },
+  support: { en: "📞 Support", bn: "📞 সাপোর্ট" },
+  get_offers: { en: "🔥 Offers", bn: "🔥 অফার" },
+  back: { en: "⬅️ Back", bn: "⬅️ পিছনে" },
+  back_products: { en: "⬅️ Back to Products", bn: "⬅️ পণ্যে ফিরুন" },
+  back_main: { en: "⬅️ Main Menu", bn: "⬅️ মূল মেনু" },
+  buy_now: { en: "🛒 Buy Now", bn: "🛒 এখন কিনুন" },
+  details: { en: "📋 Details", bn: "📋 বিস্তারিত" },
+  no_products: { en: "😔 No products available right now.", bn: "😔 এখন কোনো পণ্য নেই।" },
+  product_not_found: { en: "❌ Product not found.", bn: "❌ পণ্য পাওয়া যায়নি।" },
+  out_of_stock: { en: "❌ Sorry, this product is out of stock.", bn: "❌ দুঃখিত, এই পণ্যটি স্টকে নেই।" },
+  order_confirmed: {
+    en: "✅ <b>Payment Verified!</b>\n\nYour payment has been verified. Order confirmed! Your product will be delivered shortly. ⚡",
+    bn: "✅ <b>পেমেন্ট যাচাই হয়েছে!</b>\n\nআপনার অর্ডার নিশ্চিত করা হয়েছে! পণ্যটি শীঘ্রই ডেলিভারি হবে। ⚡",
+  },
+  order_rejected: {
+    en: "❌ <b>Payment Not Verified</b>\n\nYour payment could not be verified. Please contact support.",
+    bn: "❌ <b>পেমেন্ট যাচাই ব্যর্থ</b>\n\nআপনার পেমেন্ট যাচাই করা যায়নি। সাপোর্টে যোগাযোগ করুন।",
+  },
+  order_shipped: {
+    en: "📦 <b>Order Shipped!</b>\n\nYour product has been dispatched! It will reach you soon. 🎉",
+    bn: "📦 <b>অর্ডার শিপ হয়েছে!</b>\n\nআপনার পণ্য পাঠানো হয়েছে! শীঘ্রই পৌঁছে যাবে। 🎉",
+  },
+  send_screenshot: {
+    en: "📸 Now send your payment screenshot here. It will be forwarded to admin for verification.",
+    bn: "📸 এখন আপনার পেমেন্ট স্ক্রিনশট এখানে পাঠান। যাচাইয়ের জন্য অ্যাডমিনের কাছে ফরোয়ার্ড হবে।",
+  },
+  wallet_header: {
+    en: "💰 <b>My Bot Wallet</b>",
+    bn: "💰 <b>আমার বট ওয়ালেট</b>",
+  },
+  referral_header: {
+    en: "🎁 <b>Refer & Earn</b>",
+    bn: "🎁 <b>রেফার ও আয়</b>",
+  },
+  no_return: {
+    en: "We have a strict <b>No-Return Policy</b>. All sales are final.",
+    bn: "আমাদের কোনো <b>রিটার্ন পলিসি নেই</b>। সকল বিক্রয় চূড়ান্ত।",
+  },
+  ai_forward: {
+    en: "I'm not sure about that. Would you like me to forward your question to the admin?",
+    bn: "আমি এই বিষয়ে নিশ্চিত নই। আপনি কি আপনার প্রশ্ন অ্যাডমিনের কাছে ফরোয়ার্ড করতে চান?",
+  },
+  resale_not_reseller: {
+    en: "❌ You are not a reseller. Contact admin to become one.",
+    bn: "❌ আপনি রিসেলার নন। রিসেলার হতে অ্যাডমিনের সাথে যোগাযোগ করুন।",
+  },
+  resale_enter_price: {
+    en: "💰 Enter your custom selling price (must be higher than reseller price: ₹{price}):",
+    bn: "💰 আপনার কাস্টম বিক্রয় মূল্য লিখুন (রিসেলার মূল্যের চেয়ে বেশি হতে হবে: ₹{price}):",
+  },
+  resale_price_low: {
+    en: "❌ Price must be higher than reseller price ₹{price}.",
+    bn: "❌ মূল্য রিসেলার মূল্য ₹{price} এর চেয়ে বেশি হতে হবে।",
+  },
+  resale_link_created: {
+    en: "✅ <b>Resale Link Created!</b>\n\n🔗 Link: https://t.me/{bot}?start=buy_{code}\n💰 Your Price: ₹{custom}\n📦 Reseller Price: ₹{reseller}\n💵 Profit per sale: ₹{profit}",
+    bn: "✅ <b>রিসেল লিংক তৈরি হয়েছে!</b>\n\n🔗 লিংক: https://t.me/{bot}?start=buy_{code}\n💰 আপনার মূল্য: ₹{custom}\n📦 রিসেলার মূল্য: ₹{reseller}\n💵 প্রতি বিক্রয়ে লাভ: ₹{profit}",
+  },
+  access_denied: {
+    en: "🚫 <b>Access Denied.</b> You are not authorized.",
+    bn: "🚫 <b>প্রবেশ নিষেধ।</b> আপনি অনুমোদিত নন।",
+  },
+  pay_with_wallet: {
+    en: "💰 Pay with Wallet",
+    bn: "💰 ওয়ালেট দিয়ে পে করুন",
+  },
+  wallet_paid: {
+    en: "✅ <b>Paid from Wallet!</b>\n\n₹{amount} deducted from your wallet.\nOrder placed for <b>{product}</b>.\nAdmin will deliver shortly. ⚡",
+    bn: "✅ <b>ওয়ালেট থেকে পেমেন্ট হয়েছে!</b>\n\n₹{amount} ওয়ালেট থেকে কাটা হয়েছে।\n<b>{product}</b> এর অর্ডার হয়েছে।\nঅ্যাডমিন শীঘ্রই ডেলিভারি করবে। ⚡",
+  },
+};
+
+function t(key: string, lang: string): string {
+  return T[key]?.[lang] || T[key]?.["en"] || key;
+}
+
+// ===== TELEGRAM HELPERS =====
+
+async function sendMessage(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
+  await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -34,16 +137,9 @@ async function sendMessage(
       ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
     }),
   });
-  return res.json();
 }
 
-async function sendPhoto(
-  token: string,
-  chatId: number,
-  photoUrl: string,
-  caption: string,
-  replyMarkup?: any
-) {
+async function sendPhoto(token: string, chatId: number, photoUrl: string, caption: string, replyMarkup?: any) {
   await fetch(`${TELEGRAM_API(token)}/sendPhoto`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -61,11 +157,7 @@ async function forwardMessage(token: string, chatId: number, fromChatId: number,
   await fetch(`${TELEGRAM_API(token)}/forwardMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      from_chat_id: fromChatId,
-      message_id: messageId,
-    }),
+    body: JSON.stringify({ chat_id: chatId, from_chat_id: fromChatId, message_id: messageId }),
   });
 }
 
@@ -73,12 +165,25 @@ async function answerCallbackQuery(token: string, callbackQueryId: string, text?
   await fetch(`${TELEGRAM_API(token)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      callback_query_id: callbackQueryId,
-      text: text || "",
-    }),
+    body: JSON.stringify({ callback_query_id: callbackQueryId, text: text || "" }),
   });
 }
+
+async function getChatMember(token: string, chatId: string, userId: number): Promise<string> {
+  try {
+    const res = await fetch(`${TELEGRAM_API(token)}/getChatMember`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, user_id: userId }),
+    });
+    const data = await res.json();
+    return data?.result?.status || "left";
+  } catch {
+    return "left";
+  }
+}
+
+// ===== DB HELPERS =====
 
 async function getSettings(supabase: any): Promise<Record<string, string>> {
   const { data } = await supabase.from("app_settings").select("key, value");
@@ -87,7 +192,6 @@ async function getSettings(supabase: any): Promise<Record<string, string>> {
   return settings;
 }
 
-// Upsert user into telegram_bot_users
 async function upsertTelegramUser(supabase: any, user: any) {
   await supabase.from("telegram_bot_users").upsert(
     {
@@ -101,15 +205,50 @@ async function upsertTelegramUser(supabase: any, user: any) {
   );
 }
 
-// Check if user is banned
 async function isBanned(supabase: any, telegramId: number): Promise<boolean> {
-  const { data } = await supabase
-    .from("telegram_bot_users")
-    .select("is_banned")
-    .eq("telegram_id", telegramId)
-    .single();
+  const { data } = await supabase.from("telegram_bot_users").select("is_banned").eq("telegram_id", telegramId).single();
   return data?.is_banned === true;
 }
+
+async function getUserLang(supabase: any, telegramId: number): Promise<string | null> {
+  const { data } = await supabase.from("telegram_bot_users").select("language").eq("telegram_id", telegramId).single();
+  return data?.language || null;
+}
+
+async function setUserLang(supabase: any, telegramId: number, lang: string) {
+  await supabase.from("telegram_bot_users").update({ language: lang }).eq("telegram_id", telegramId);
+}
+
+async function ensureWallet(supabase: any, telegramId: number): Promise<any> {
+  const { data: existing } = await supabase.from("telegram_wallets").select("*").eq("telegram_id", telegramId).single();
+  if (existing) return existing;
+
+  const refCode = "REF" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  const { data: wallet } = await supabase.from("telegram_wallets").insert({
+    telegram_id: telegramId,
+    referral_code: refCode,
+  }).select("*").single();
+  return wallet;
+}
+
+async function getWallet(supabase: any, telegramId: number): Promise<any> {
+  const { data } = await supabase.from("telegram_wallets").select("*").eq("telegram_id", telegramId).single();
+  return data;
+}
+
+// ===== CHECK CHANNEL MEMBERSHIP =====
+
+async function checkChannelMembership(token: string, userId: number): Promise<boolean> {
+  for (const channel of REQUIRED_CHANNELS) {
+    const status = await getChatMember(token, channel, userId);
+    if (!["member", "administrator", "creator"].includes(status)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// ===== MAIN HANDLER =====
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -117,77 +256,172 @@ Deno.serve(async (req) => {
   }
 
   const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  if (!BOT_TOKEN) {
-    return new Response("Bot token not configured", { status: 500 });
-  }
+  if (!BOT_TOKEN) return new Response("Bot token not configured", { status: 500 });
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
     const update = await req.json();
 
-    // Handle callback queries (button clicks)
+    // ===== CALLBACK QUERIES =====
     if (update.callback_query) {
-      const callbackQuery = update.callback_query;
-      const chatId = callbackQuery.message.chat.id;
-      const data = callbackQuery.data;
-      const telegramUser = callbackQuery.from;
+      const cq = update.callback_query;
+      const chatId = cq.message.chat.id;
+      const data = cq.data;
+      const telegramUser = cq.from;
       const userId = telegramUser.id;
 
-      // Check ban
       if (await isBanned(supabase, userId)) {
-        await answerCallbackQuery(BOT_TOKEN, callbackQuery.id);
+        await answerCallbackQuery(BOT_TOKEN, cq.id);
         return jsonOk();
       }
 
       await upsertTelegramUser(supabase, telegramUser);
-      await answerCallbackQuery(BOT_TOKEN, callbackQuery.id);
+      await answerCallbackQuery(BOT_TOKEN, cq.id);
 
-      // Admin action buttons
-      if (data.startsWith("admin_confirm_")) {
+      const lang = (await getUserLang(supabase, userId)) || "en";
+
+      // Language selection
+      if (data === "lang_en" || data === "lang_bn") {
+        const selectedLang = data === "lang_en" ? "en" : "bn";
+        await setUserLang(supabase, userId, selectedLang);
+        await sendMessage(BOT_TOKEN, chatId, t("lang_saved", selectedLang));
+        // Check channels
+        const joined = await checkChannelMembership(BOT_TOKEN, userId);
+        if (!joined) {
+          await showJoinChannels(BOT_TOKEN, chatId, selectedLang);
+        } else {
+          await ensureWallet(supabase, userId);
+          await showMainMenu(BOT_TOKEN, supabase, chatId, selectedLang);
+        }
+        return jsonOk();
+      }
+
+      // Verify join
+      if (data === "verify_join") {
+        const joined = await checkChannelMembership(BOT_TOKEN, userId);
+        if (!joined) {
+          await sendMessage(BOT_TOKEN, chatId, t("not_joined", lang));
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, t("verified", lang));
+          await ensureWallet(supabase, userId);
+          await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+        }
+        return jsonOk();
+      }
+
+      // Forward to admin
+      if (data === "forward_to_admin") {
+        await sendMessage(BOT_TOKEN, SUPER_ADMIN_ID,
+          `📩 User @${telegramUser.username || telegramUser.first_name} (${userId}) wants admin help.`
+        );
+        await sendMessage(BOT_TOKEN, chatId, lang === "bn"
+          ? "✅ আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন।"
+          : "✅ Your question has been forwarded to admin. You'll get a reply soon."
+        );
+        return jsonOk();
+      }
+
+      // Admin actions
+      if (data.startsWith("admin_confirm_") || data.startsWith("admin_reject_") || data.startsWith("admin_ship_")) {
         if (!isAdmin(userId)) return jsonOk();
-        const orderId = data.replace("admin_confirm_", "");
-        await handleAdminAction(BOT_TOKEN, supabase, orderId, "confirmed", chatId);
-      } else if (data.startsWith("admin_reject_")) {
-        if (!isAdmin(userId)) return jsonOk();
-        const orderId = data.replace("admin_reject_", "");
-        await handleAdminAction(BOT_TOKEN, supabase, orderId, "rejected", chatId);
-      } else if (data.startsWith("admin_ship_")) {
-        if (!isAdmin(userId)) return jsonOk();
-        const orderId = data.replace("admin_ship_", "");
-        await handleAdminAction(BOT_TOKEN, supabase, orderId, "shipped", chatId);
-      } else if (data === "view_products") {
-        await handleViewProducts(BOT_TOKEN, supabase, chatId);
-      } else if (data === "refer_earn") {
-        await handleReferEarn(BOT_TOKEN, supabase, chatId);
-      } else if (data === "my_wallet") {
-        await handleMyWallet(BOT_TOKEN, supabase, chatId, telegramUser);
-      } else if (data === "support") {
-        await handleSupport(BOT_TOKEN, supabase, chatId);
-      } else if (data === "get_offers") {
-        await handleGetOffers(BOT_TOKEN, supabase, chatId);
-      } else if (data.startsWith("cat_")) {
+        const parts = data.split("_");
+        const action = parts[1]; // confirm/reject/ship
+        const orderId = data.substring(data.indexOf("_", data.indexOf("_") + 1) + 1);
+        const statusMap: Record<string, string> = { confirm: "confirmed", reject: "rejected", ship: "shipped" };
+        await handleAdminAction(BOT_TOKEN, supabase, orderId, statusMap[action] || "confirmed", chatId);
+        return jsonOk();
+      }
+
+      // View products (categories)
+      if (data === "view_products") {
+        await handleViewCategories(BOT_TOKEN, supabase, chatId, lang);
+        return jsonOk();
+      }
+
+      // Category click
+      if (data.startsWith("cat_")) {
         const category = decodeURIComponent(data.replace("cat_", ""));
-        await handleCategoryProducts(BOT_TOKEN, supabase, chatId, category);
-      } else if (data.startsWith("product_")) {
+        await handleCategoryProducts(BOT_TOKEN, supabase, chatId, category, lang);
+        return jsonOk();
+      }
+
+      // Product detail
+      if (data.startsWith("product_")) {
         const productId = data.replace("product_", "");
-        await handleProductDetail(BOT_TOKEN, supabase, chatId, productId);
-      } else if (data.startsWith("buy_")) {
+        await handleProductDetail(BOT_TOKEN, supabase, chatId, productId, lang, userId);
+        return jsonOk();
+      }
+
+      // Variation buy
+      if (data.startsWith("buyvar_")) {
+        const varId = data.replace("buyvar_", "");
+        await handleBuyVariation(BOT_TOKEN, supabase, chatId, varId, telegramUser, lang);
+        return jsonOk();
+      }
+
+      // Buy product (no variation)
+      if (data.startsWith("buy_")) {
         const productId = data.replace("buy_", "");
-        await handleBuyProduct(BOT_TOKEN, supabase, chatId, productId, telegramUser);
-      } else if (data === "back_main") {
-        await handleStart(BOT_TOKEN, supabase, chatId);
-      } else if (data === "back_products") {
-        await handleViewProducts(BOT_TOKEN, supabase, chatId);
+        await handleBuyProduct(BOT_TOKEN, supabase, chatId, productId, telegramUser, lang);
+        return jsonOk();
+      }
+
+      // Wallet pay
+      if (data.startsWith("walletpay_")) {
+        const parts2 = data.replace("walletpay_", "").split("_");
+        const amount = parseFloat(parts2[0]);
+        const prodName = decodeURIComponent(parts2.slice(1).join("_"));
+        await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, amount, prodName, lang);
+        return jsonOk();
+      }
+
+      // My wallet
+      if (data === "my_wallet") {
+        await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang);
+        return jsonOk();
+      }
+
+      // Refer & earn
+      if (data === "refer_earn") {
+        await handleReferEarn(BOT_TOKEN, supabase, chatId, userId, lang);
+        return jsonOk();
+      }
+
+      // Support
+      if (data === "support") {
+        await handleSupport(BOT_TOKEN, supabase, chatId, lang);
+        return jsonOk();
+      }
+
+      // Offers
+      if (data === "get_offers") {
+        await handleGetOffers(BOT_TOKEN, supabase, chatId, lang);
+        return jsonOk();
+      }
+
+      // Back to main
+      if (data === "back_main") {
+        await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+        return jsonOk();
+      }
+
+      if (data === "back_products") {
+        await handleViewCategories(BOT_TOKEN, supabase, chatId, lang);
+        return jsonOk();
+      }
+
+      // Resale button
+      if (data.startsWith("resale_")) {
+        const productId = data.replace("resale_", "");
+        await handleResaleStart(BOT_TOKEN, supabase, chatId, userId, productId, lang);
+        return jsonOk();
       }
 
       return jsonOk();
     }
 
-    // Handle text messages
+    // ===== TEXT/PHOTO MESSAGES =====
     if (update.message) {
       const msg = update.message;
       const chatId = msg.chat.id;
@@ -195,15 +429,11 @@ Deno.serve(async (req) => {
       const userId = telegramUser.id;
       const text = msg.text || "";
 
-      // Check ban (silently ignore)
-      if (await isBanned(supabase, userId)) {
-        return jsonOk();
-      }
+      if (await isBanned(supabase, userId)) return jsonOk();
 
-      // Upsert user
       await upsertTelegramUser(supabase, telegramUser);
 
-      // Check if in conversation state (add_product flow or broadcast)
+      // Check conversation state first
       if (conversationState.has(userId)) {
         await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg);
         return jsonOk();
@@ -212,85 +442,137 @@ Deno.serve(async (req) => {
       // Commands
       if (text.startsWith("/")) {
         const parts = text.split(" ");
-        const command = parts[0].toLowerCase().split("@")[0]; // handle @botname
+        const command = parts[0].toLowerCase().split("@")[0];
+        const lang = (await getUserLang(supabase, userId)) || "en";
 
         switch (command) {
-          case "/start":
-            await handleStart(BOT_TOKEN, supabase, chatId);
+          case "/start": {
+            // Check for referral or resale link
+            const payload = parts[1] || "";
+            await ensureWallet(supabase, userId);
+
+            if (payload.startsWith("ref_")) {
+              await handleStartWithRef(supabase, userId, payload.replace("ref_", ""));
+            } else if (payload.startsWith("buy_")) {
+              const linkCode = payload.replace("buy_", "");
+              await handleResaleBuy(BOT_TOKEN, supabase, chatId, userId, telegramUser, linkCode, lang);
+              return jsonOk();
+            }
+
+            // Check language
+            const userLang = await getUserLang(supabase, userId);
+            if (!userLang) {
+              await showLanguageSelection(BOT_TOKEN, chatId);
+              return jsonOk();
+            }
+
+            // Check channels
+            const joined = await checkChannelMembership(BOT_TOKEN, userId);
+            if (!joined) {
+              await showJoinChannels(BOT_TOKEN, chatId, userLang);
+              return jsonOk();
+            }
+
+            await showMainMenu(BOT_TOKEN, supabase, chatId, userLang);
             break;
+          }
           case "/products":
           case "/categories":
-            await handleViewProducts(BOT_TOKEN, supabase, chatId);
+            await handleViewCategories(BOT_TOKEN, supabase, chatId, lang);
             break;
           case "/help":
             await sendMessage(BOT_TOKEN, chatId,
-              `📖 <b>Commands:</b>\n\n` +
-              `/start - Main menu\n` +
-              `/products - View products\n` +
-              `/help - Show this help`
+              lang === "bn"
+                ? "📖 <b>কমান্ড:</b>\n/start - মূল মেনু\n/products - পণ্য দেখুন\n/help - সাহায্য"
+                : "📖 <b>Commands:</b>\n/start - Main menu\n/products - View products\n/help - Show help"
             );
             break;
           // Admin commands
           case "/admin":
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAdminMenu(BOT_TOKEN, supabase, chatId);
             break;
           case "/broadcast":
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            await handleBroadcastStart(BOT_TOKEN, chatId, userId);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            conversationState.set(userId, { step: "broadcast_message", data: {} });
+            await sendMessage(BOT_TOKEN, chatId, "📢 <b>Broadcast Mode</b>\n\nSend the message (text/photo) to broadcast.\nSend /cancel to cancel.");
             break;
           case "/report":
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
+          case "/stats":
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleReport(BOT_TOKEN, supabase, chatId);
             break;
           case "/add_product":
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            await handleAddProductStart(BOT_TOKEN, chatId, userId);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            conversationState.set(userId, { step: "add_photo", data: {} });
+            await sendMessage(BOT_TOKEN, chatId, "📸 <b>Add Product (Step 1/4)</b>\n\nSend the product photo.\n/cancel to cancel.");
             break;
           case "/edit_price": {
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            const args = text.substring("/edit_price".length).trim();
-            await handleEditPrice(BOT_TOKEN, supabase, chatId, args);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleEditPrice(BOT_TOKEN, supabase, chatId, text.substring("/edit_price".length).trim());
             break;
           }
           case "/out_stock": {
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            const productName = text.substring("/out_stock".length).trim();
-            await handleOutStock(BOT_TOKEN, supabase, chatId, productName);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleOutStock(BOT_TOKEN, supabase, chatId, text.substring("/out_stock".length).trim());
             break;
           }
           case "/users":
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleUsersCommand(BOT_TOKEN, supabase, chatId);
             break;
           case "/history": {
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            const tgId = parts[1] ? parseInt(parts[1]) : 0;
-            await handleHistoryCommand(BOT_TOKEN, supabase, chatId, tgId);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleHistoryCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0);
             break;
           }
           case "/ban": {
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            const banId = parts[1] ? parseInt(parts[1]) : 0;
-            await handleBanCommand(BOT_TOKEN, supabase, chatId, banId, true);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleBanCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, true);
             break;
           }
           case "/unban": {
-            if (!isAdmin(userId)) { await sendAccessDenied(BOT_TOKEN, chatId); break; }
-            const unbanId = parts[1] ? parseInt(parts[1]) : 0;
-            await handleBanCommand(BOT_TOKEN, supabase, chatId, unbanId, false);
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleBanCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, false);
+            break;
+          }
+          case "/make_reseller": {
+            if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            const targetId = parseInt(parts[1]) || 0;
+            await handleMakeReseller(BOT_TOKEN, supabase, chatId, targetId);
             break;
           }
           default:
-            // Unknown command from non-admin, ignore
             break;
         }
         return jsonOk();
       }
 
-      // Non-command message from non-admin user → forward to admin
+      // Non-command messages from users
+      const lang = (await getUserLang(supabase, userId)) || "en";
+
+      // Check language first
+      if (!await getUserLang(supabase, userId)) {
+        await showLanguageSelection(BOT_TOKEN, chatId);
+        return jsonOk();
+      }
+
+      // Check channels
+      const joined = await checkChannelMembership(BOT_TOKEN, userId);
+      if (!joined) {
+        await showJoinChannels(BOT_TOKEN, chatId, lang);
+        return jsonOk();
+      }
+
+      // AI query: if text contains "?" and not admin
+      if (!isAdmin(userId) && text.includes("?")) {
+        await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
+        return jsonOk();
+      }
+
+      // Forward to admin
       if (!isAdmin(userId)) {
-        await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser);
+        await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser, lang);
       }
 
       return jsonOk();
@@ -312,548 +594,105 @@ function jsonOk() {
   });
 }
 
-async function sendAccessDenied(token: string, chatId: number) {
-  await sendMessage(token, chatId, "🚫 <b>Access Denied.</b> You are not authorized.");
-}
+// ===== LANGUAGE SELECTION =====
 
-// ===== ADMIN ACTION HANDLER (Confirm/Reject/Ship) =====
-
-async function handleAdminAction(
-  token: string,
-  supabase: any,
-  orderId: string,
-  newStatus: string,
-  adminChatId: number
-) {
-  const { data: order } = await supabase
-    .from("telegram_orders")
-    .select("*")
-    .eq("id", orderId)
-    .single();
-
-  if (!order) {
-    await sendMessage(token, adminChatId, "❌ Order not found.");
-    return;
-  }
-
-  // Update order status
-  await supabase
-    .from("telegram_orders")
-    .update({ status: newStatus, updated_at: new Date().toISOString() })
-    .eq("id", orderId);
-
-  // Send message to customer
-  const customerMessages: Record<string, string> = {
-    confirmed: "✅ <b>Payment Verified!</b>\n\nYour payment has been verified. Order confirmed! Your product will be delivered shortly. ⚡",
-    rejected: "❌ <b>Payment Not Verified</b>\n\nYour payment could not be verified. Please contact support if you believe this is an error.",
-    shipped: "📦 <b>Order Shipped!</b>\n\nYour product has been dispatched! It will reach you soon. Thank you for your purchase! 🎉",
-  };
-
-  await sendMessage(token, order.telegram_user_id, customerMessages[newStatus] || "Order updated.");
-
-  // Notify admin
-  const statusEmoji: Record<string, string> = { confirmed: "✅", rejected: "❌", shipped: "📦" };
-  await sendMessage(token, adminChatId,
-    `${statusEmoji[newStatus] || "📋"} Order <b>${orderId.slice(0, 8)}</b> marked as <b>${newStatus.toUpperCase()}</b>.`
-  );
-}
-
-// ===== FORWARD USER MESSAGE TO ADMIN =====
-
-async function forwardUserMessageToAdmin(
-  token: string,
-  supabase: any,
-  msg: any,
-  telegramUser: any
-) {
-  const userId = telegramUser.id;
-  const username = telegramUser.username ? `@${telegramUser.username}` : telegramUser.first_name || "Unknown";
-
-  // Forward the original message to admin
-  await forwardMessage(token, SUPER_ADMIN_ID, msg.chat.id, msg.message_id);
-
-  // Create telegram order record
-  const { data: order } = await supabase
-    .from("telegram_orders")
-    .insert({
-      telegram_user_id: userId,
-      username: username,
-      product_name: msg.text || (msg.photo ? "Screenshot/Photo" : "Message"),
-      amount: 0,
-      status: "pending",
-      screenshot_file_id: msg.photo ? msg.photo[msg.photo.length - 1]?.file_id : null,
-    })
-    .select("id")
-    .single();
-
-  const orderId = order?.id || "unknown";
-
-  // Send admin info header with action buttons
-  await sendMessage(token, SUPER_ADMIN_ID,
-    `📩 <b>New message from customer</b>\n\n` +
-    `👤 From: <b>${username}</b>\n` +
-    `🆔 ID: <code>${userId}</code>\n` +
-    `📋 Order: <code>${orderId.slice(0, 8)}</code>`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "✅ Confirm Order", callback_data: `admin_confirm_${orderId}` },
-            { text: "❌ Reject/Fake", callback_data: `admin_reject_${orderId}` },
-          ],
-          [
-            { text: "📦 Shipped", callback_data: `admin_ship_${orderId}` },
-          ],
-        ],
-      },
-    }
-  );
-}
-
-// ===== ADMIN MENU =====
-
-async function handleAdminMenu(token: string, supabase: any, chatId: number) {
-  const { count: userCount } = await supabase
-    .from("telegram_bot_users")
-    .select("*", { count: "exact", head: true });
-
-  const { count: orderCount } = await supabase
-    .from("telegram_orders")
-    .select("*", { count: "exact", head: true });
-
-  await sendMessage(token, chatId,
-    `🔐 <b>Admin Control Panel</b>\n\n` +
-    `👥 Total Bot Users: <b>${userCount || 0}</b>\n` +
-    `📦 Total Orders: <b>${orderCount || 0}</b>\n\n` +
-    `<b>Available Commands:</b>\n` +
-    `/broadcast - Send message to all users\n` +
-    `/report - Sales & analytics report\n` +
-    `/add_product - Add new product\n` +
-    `/edit_price [name] [price] - Update price\n` +
-    `/out_stock [name] - Mark out of stock\n` +
-    `/users - View user stats\n` +
-    `/history [telegram_id] - User order history\n` +
-    `/ban [telegram_id] - Ban a user\n` +
-    `/unban [telegram_id] - Unban a user`
-  );
-}
-
-// ===== BROADCAST =====
-
-async function handleBroadcastStart(token: string, chatId: number, userId: number) {
-  conversationState.set(userId, { step: "broadcast_message", data: {} });
-  await sendMessage(token, chatId,
-    "📢 <b>Broadcast Mode</b>\n\nSend me the message (text or photo with caption) you want to broadcast to all users.\n\nSend /cancel to cancel."
-  );
-}
-
-async function executeBroadcast(token: string, supabase: any, adminChatId: number, msg: any) {
-  const { data: users } = await supabase
-    .from("telegram_bot_users")
-    .select("telegram_id")
-    .eq("is_banned", false);
-
-  if (!users?.length) {
-    await sendMessage(token, adminChatId, "No users to broadcast to.");
-    return;
-  }
-
-  let sent = 0;
-  let failed = 0;
-
-  for (const user of users) {
-    try {
-      if (user.telegram_id === SUPER_ADMIN_ID) { sent++; continue; }
-
-      if (msg.photo) {
-        const photo = msg.photo[msg.photo.length - 1];
-        await sendPhoto(token, user.telegram_id, photo.file_id, msg.caption || "");
-      } else if (msg.text) {
-        await sendMessage(token, user.telegram_id, msg.text);
-      }
-      sent++;
-    } catch {
-      failed++;
-    }
-    // Small delay to avoid rate limiting
-    await new Promise(r => setTimeout(r, 50));
-  }
-
-  await sendMessage(token, adminChatId,
-    `📢 <b>Broadcast Complete!</b>\n\n✅ Sent: ${sent}\n❌ Failed: ${failed}`
-  );
-}
-
-// ===== REPORT =====
-
-async function handleReport(token: string, supabase: any, chatId: number) {
-  const { count: totalUsers } = await supabase
-    .from("telegram_bot_users")
-    .select("*", { count: "exact", head: true });
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const { data: todayOrders, count: todayOrderCount } = await supabase
-    .from("telegram_orders")
-    .select("*", { count: "exact" })
-    .gte("created_at", today.toISOString());
-
-  const { data: confirmedToday } = await supabase
-    .from("telegram_orders")
-    .select("amount")
-    .eq("status", "confirmed")
-    .gte("created_at", today.toISOString());
-
-  const todayRevenue = confirmedToday?.reduce((sum: number, o: any) => sum + (o.amount || 0), 0) || 0;
-
-  const { count: allTimeOrders } = await supabase
-    .from("telegram_orders")
-    .select("*", { count: "exact", head: true });
-
-  const { data: allConfirmed } = await supabase
-    .from("telegram_orders")
-    .select("amount")
-    .eq("status", "confirmed");
-
-  const allTimeRevenue = allConfirmed?.reduce((sum: number, o: any) => sum + (o.amount || 0), 0) || 0;
-
-  await sendMessage(token, chatId,
-    `📊 <b>Sales Report</b>\n\n` +
-    `👥 Total Registered Users: <b>${totalUsers || 0}</b>\n\n` +
-    `📅 <b>Today:</b>\n` +
-    `• Orders: ${todayOrderCount || 0}\n` +
-    `• Confirmed Revenue: ₹${todayRevenue}\n\n` +
-    `📈 <b>All Time:</b>\n` +
-    `• Total Orders: ${allTimeOrders || 0}\n` +
-    `• Confirmed Revenue: ₹${allTimeRevenue}`
-  );
-}
-
-// ===== ADD PRODUCT FLOW =====
-
-async function handleAddProductStart(token: string, chatId: number, userId: number) {
-  conversationState.set(userId, { step: "add_photo", data: {} });
-  await sendMessage(token, chatId,
-    "📸 <b>Add New Product (Step 1/4)</b>\n\nSend the product photo.\n\nSend /cancel to cancel."
-  );
-}
-
-async function handleConversationStep(token: string, supabase: any, chatId: number, userId: number, msg: any) {
-  const state = conversationState.get(userId)!;
-  const text = msg.text || "";
-
-  // Cancel
-  if (text === "/cancel") {
-    conversationState.delete(userId);
-    await sendMessage(token, chatId, "❌ Cancelled.");
-    return;
-  }
-
-  // Broadcast flow
-  if (state.step === "broadcast_message") {
-    conversationState.delete(userId);
-    await executeBroadcast(token, supabase, chatId, msg);
-    return;
-  }
-
-  // Add product flow
-  switch (state.step) {
-    case "add_photo": {
-      if (msg.photo) {
-        const photo = msg.photo[msg.photo.length - 1];
-        // Get file URL
-        const fileRes = await fetch(`${TELEGRAM_API(token)}/getFile`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ file_id: photo.file_id }),
-        });
-        const fileData = await fileRes.json();
-        const filePath = fileData.result?.file_path;
-        const imageUrl = filePath ? `https://api.telegram.org/file/bot${token}/${filePath}` : "";
-        
-        state.data.image_url = imageUrl;
-        state.data.file_id = photo.file_id;
-        state.step = "add_name";
-        await sendMessage(token, chatId, "✅ Photo received!\n\n📝 <b>Step 2/4:</b> Enter the product name.");
-      } else {
-        await sendMessage(token, chatId, "⚠️ Please send a photo.");
-      }
-      break;
-    }
-    case "add_name": {
-      state.data.name = text;
-      state.step = "add_price";
-      await sendMessage(token, chatId, `✅ Name: <b>${text}</b>\n\n💰 <b>Step 3/4:</b> Enter the price (number only).`);
-      break;
-    }
-    case "add_price": {
-      const price = parseFloat(text);
-      if (isNaN(price) || price <= 0) {
-        await sendMessage(token, chatId, "⚠️ Please enter a valid price (positive number).");
-        break;
-      }
-      state.data.price = price;
-      state.step = "add_category";
-      await sendMessage(token, chatId, `✅ Price: ₹${price}\n\n📂 <b>Step 4/4:</b> Enter the category name.`);
-      break;
-    }
-    case "add_category": {
-      state.data.category = text;
-      conversationState.delete(userId);
-
-      // Generate slug
-      const slug = state.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-
-      // Save product
-      const { data: product, error } = await supabase.from("products").insert({
-        name: state.data.name,
-        price: state.data.price,
-        category: text,
-        slug: slug + "-" + Date.now(),
-        image_url: state.data.image_url || null,
-        is_active: true,
-      }).select("id").single();
-
-      if (error) {
-        await sendMessage(token, chatId, `❌ Failed to add product: ${error.message}`);
-      } else {
-        await sendMessage(token, chatId,
-          `✅ <b>Product Added!</b>\n\n` +
-          `📦 Name: ${state.data.name}\n` +
-          `💰 Price: ₹${state.data.price}\n` +
-          `📂 Category: ${text}\n` +
-          `🆔 ID: <code>${product.id}</code>`
-        );
-      }
-      break;
-    }
-  }
-}
-
-// ===== EDIT PRICE =====
-
-async function handleEditPrice(token: string, supabase: any, chatId: number, args: string) {
-  // Format: /edit_price ProductName NewPrice
-  const lastSpaceIdx = args.lastIndexOf(" ");
-  if (lastSpaceIdx === -1) {
-    await sendMessage(token, chatId, "⚠️ Usage: <code>/edit_price Product Name 199</code>");
-    return;
-  }
-
-  const productName = args.substring(0, lastSpaceIdx).trim();
-  const newPrice = parseFloat(args.substring(lastSpaceIdx + 1));
-
-  if (!productName || isNaN(newPrice) || newPrice <= 0) {
-    await sendMessage(token, chatId, "⚠️ Usage: <code>/edit_price Product Name 199</code>");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("products")
-    .update({ price: newPrice, updated_at: new Date().toISOString() })
-    .ilike("name", `%${productName}%`)
-    .select("id, name, price");
-
-  if (error || !data?.length) {
-    await sendMessage(token, chatId, `❌ Product "${productName}" not found.`);
-  } else {
-    await sendMessage(token, chatId,
-      `✅ Price updated!\n\n📦 ${data[0].name}\n💰 New Price: ₹${newPrice}`
-    );
-  }
-}
-
-// ===== OUT OF STOCK =====
-
-async function handleOutStock(token: string, supabase: any, chatId: number, productName: string) {
-  if (!productName) {
-    await sendMessage(token, chatId, "⚠️ Usage: <code>/out_stock Product Name</code>");
-    return;
-  }
-
-  const { data, error } = await supabase
-    .from("products")
-    .update({ stock: 0, is_active: false, updated_at: new Date().toISOString() })
-    .ilike("name", `%${productName}%`)
-    .select("id, name");
-
-  if (error || !data?.length) {
-    await sendMessage(token, chatId, `❌ Product "${productName}" not found.`);
-  } else {
-    await sendMessage(token, chatId,
-      `✅ Marked as Out of Stock!\n\n📦 ${data[0].name}\n❌ Stock: 0 | Inactive`
-    );
-  }
-}
-
-// ===== USERS COMMAND =====
-
-async function handleUsersCommand(token: string, supabase: any, chatId: number) {
-  const { count: totalUsers } = await supabase
-    .from("telegram_bot_users")
-    .select("*", { count: "exact", head: true });
-
-  const { data: recentUsers } = await supabase
-    .from("telegram_bot_users")
-    .select("telegram_id, username, first_name, created_at")
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  let text = `👥 <b>Bot Users</b>\n\nTotal: <b>${totalUsers || 0}</b>\n\n<b>Recent signups:</b>\n`;
-
-  recentUsers?.forEach((u: any) => {
-    const name = u.username ? `@${u.username}` : u.first_name || "Unknown";
-    const date = new Date(u.created_at).toLocaleDateString();
-    text += `• ${name} (${u.telegram_id}) - ${date}\n`;
-  });
-
-  await sendMessage(token, chatId, text);
-}
-
-// ===== HISTORY COMMAND =====
-
-async function handleHistoryCommand(token: string, supabase: any, chatId: number, telegramId: number) {
-  if (!telegramId) {
-    await sendMessage(token, chatId, "⚠️ Usage: <code>/history 123456789</code>");
-    return;
-  }
-
-  const { data: orders } = await supabase
-    .from("telegram_orders")
-    .select("*")
-    .eq("telegram_user_id", telegramId)
-    .order("created_at", { ascending: false })
-    .limit(20);
-
-  if (!orders?.length) {
-    await sendMessage(token, chatId, `No orders found for user ${telegramId}.`);
-    return;
-  }
-
-  let text = `📜 <b>Order History for ${telegramId}</b>\n\n`;
-  orders.forEach((o: any, i: number) => {
-    const status = { pending: "⏳", confirmed: "✅", rejected: "❌", shipped: "📦" }[o.status] || "📋";
-    const date = new Date(o.created_at).toLocaleDateString();
-    text += `${i + 1}. ${status} ${o.product_name || "N/A"} - ₹${o.amount} (${date})\n`;
-  });
-
-  await sendMessage(token, chatId, text);
-}
-
-// ===== BAN/UNBAN =====
-
-async function handleBanCommand(token: string, supabase: any, chatId: number, telegramId: number, ban: boolean) {
-  if (!telegramId) {
-    await sendMessage(token, chatId, `⚠️ Usage: <code>/${ban ? "ban" : "unban"} 123456789</code>`);
-    return;
-  }
-
-  const { error } = await supabase
-    .from("telegram_bot_users")
-    .update({ is_banned: ban })
-    .eq("telegram_id", telegramId);
-
-  if (error) {
-    await sendMessage(token, chatId, `❌ User ${telegramId} not found.`);
-  } else {
-    await sendMessage(token, chatId,
-      ban
-        ? `🚫 User <code>${telegramId}</code> has been <b>BANNED</b>.`
-        : `✅ User <code>${telegramId}</code> has been <b>UNBANNED</b>.`
-    );
-  }
-}
-
-// ===== EXISTING HANDLERS (preserved) =====
-
-async function handleStart(token: string, supabase: any, chatId: number) {
-  const settings = await getSettings(supabase);
-  const appName = settings.app_name || "RKR Premium Store";
-  const appUrl = settings.app_url || "https://cheapest-premiums.lovable.app";
-
-  const welcomeText = `<b>${appName}</b>\n\nWhat we offer:\n- Premium subscriptions\n- Instant delivery\n- 24/7 support\n- Secure payments (UPI)\n\nSelect an option below to get started:`;
-
-  await sendMessage(token, chatId, welcomeText, {
+async function showLanguageSelection(token: string, chatId: number) {
+  await sendMessage(token, chatId, T.choose_lang.en, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🛍️ View Products", callback_data: "view_products" }],
         [
-          { text: "🎁 Refer & Earn", callback_data: "refer_earn" },
-          { text: "💰 My Wallet", callback_data: "my_wallet" },
+          { text: "🇬🇧 English", callback_data: "lang_en" },
+          { text: "🇧🇩 বাংলা", callback_data: "lang_bn" },
         ],
-        [
-          { text: "⭐ Reviews ↗", url: appUrl },
-          { text: "📞 Support ↗", callback_data: "support" },
-        ],
-        [{ text: "🔥 Get Offers ↗", callback_data: "get_offers" }],
       ],
     },
   });
 }
 
-async function handleViewProducts(token: string, supabase: any, chatId: number) {
-  const { data: products } = await supabase
-    .from("products")
-    .select("id, name, category")
-    .eq("is_active", true)
-    .order("sold_count", { ascending: false });
+// ===== JOIN CHANNELS =====
 
-  if (!products?.length) {
-    await sendMessage(token, chatId, "😔 No products available right now.", {
-      reply_markup: {
-        inline_keyboard: [[{ text: "⬅️ Back", callback_data: "back_main" }]],
-      },
+async function showJoinChannels(token: string, chatId: number, lang: string) {
+  await sendMessage(token, chatId, t("join_channels", lang), {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "📢 Join @pocket_money27", url: "https://t.me/pocket_money27" }],
+        [{ text: "📢 Join @RKRxOTT", url: "https://t.me/RKRxOTT" }],
+        [{ text: "✅ I've Joined - Verify", callback_data: "verify_join" }],
+      ],
+    },
+  });
+}
+
+// ===== MAIN MENU =====
+
+async function showMainMenu(token: string, supabase: any, chatId: number, lang: string) {
+  const settings = await getSettings(supabase);
+  const appUrl = settings.app_url || "https://cheapest-premiums.lovable.app";
+
+  await sendMessage(token, chatId, t("welcome", lang), {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: t("view_products", lang), callback_data: "view_products" }],
+        [
+          { text: t("refer_earn", lang), callback_data: "refer_earn" },
+          { text: t("my_wallet", lang), callback_data: "my_wallet" },
+        ],
+        [
+          { text: `⭐ ${lang === "bn" ? "রিভিউ" : "Reviews"} ↗`, url: appUrl },
+          { text: t("support", lang), callback_data: "support" },
+        ],
+        [{ text: t("get_offers", lang), callback_data: "get_offers" }],
+      ],
+    },
+  });
+}
+
+// ===== VIEW CATEGORIES =====
+
+async function handleViewCategories(token: string, supabase: any, chatId: number, lang: string) {
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("name, icon_url")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (!categories?.length) {
+    await sendMessage(token, chatId, t("no_products", lang), {
+      reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },
     });
     return;
   }
 
-  const settings = await getSettings(supabase);
-  const appName = settings.app_name || "RKR Premium Store";
-
-  let text = `<b>${appName} – Product Catalog</b>\n\nChoose from our premium digital products:\n\n<i>All products come with instant delivery and 24/7 support</i>`;
-
-  const productButtons: any[][] = [];
-  for (let i = 0; i < products.length; i += 2) {
-    const row: any[] = [
-      { text: products[i].name, callback_data: `product_${products[i].id}` },
-    ];
-    if (products[i + 1]) {
-      row.push({ text: products[i + 1].name, callback_data: `product_${products[i + 1].id}` });
+  const header = lang === "bn" ? "📂 <b>ক্যাটাগরি নির্বাচন করুন:</b>" : "📂 <b>Choose a Category:</b>";
+  const buttons: any[][] = [];
+  for (let i = 0; i < categories.length; i += 2) {
+    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
+    if (categories[i + 1]) {
+      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
     }
-    productButtons.push(row);
+    buttons.push(row);
   }
+  buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
 
-  productButtons.push([
-    { text: "🎁 Refer & Earn", callback_data: "refer_earn" },
-    { text: "💰 My Wallet", callback_data: "my_wallet" },
-  ]);
-  productButtons.push([
-    { text: "⭐ Reviews ↗", url: settings.app_url || "https://cheapest-premiums.lovable.app" },
-    { text: "📞 Support ↗", callback_data: "support" },
-  ]);
-  productButtons.push([{ text: "🔥 Get Offers ↗", callback_data: "get_offers" }]);
-
-  await sendMessage(token, chatId, text, {
-    reply_markup: { inline_keyboard: productButtons },
-  });
+  await sendMessage(token, chatId, header, { reply_markup: { inline_keyboard: buttons } });
 }
 
-async function handleCategoryProducts(token: string, supabase: any, chatId: number, category: string) {
+// ===== CATEGORY PRODUCTS =====
+
+async function handleCategoryProducts(token: string, supabase: any, chatId: number, category: string, lang: string) {
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, price, original_price, image_url, stock, description")
+    .select("id, name, price, original_price, image_url, stock")
     .eq("is_active", true)
     .eq("category", category)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(20);
 
   if (!products?.length) {
-    await sendMessage(token, chatId, `No products found in <b>${category}</b>.`, {
-      reply_markup: {
-        inline_keyboard: [[{ text: "⬅️ Back to Products", callback_data: "view_products" }]],
-      },
-    });
+    await sendMessage(token, chatId,
+      lang === "bn" ? `<b>${category}</b> ক্যাটাগরিতে কোনো পণ্য নেই।` : `No products in <b>${category}</b>.`,
+      { reply_markup: { inline_keyboard: [[{ text: t("back_products", lang), callback_data: "back_products" }]] } }
+    );
     return;
   }
 
@@ -861,82 +700,102 @@ async function handleCategoryProducts(token: string, supabase: any, chatId: numb
   const currency = settings.currency_symbol || "₹";
 
   for (const p of products) {
-    const priceText = p.original_price && p.original_price > p.price
-      ? `<s>${currency}${p.original_price}</s> ${currency}${p.price}`
-      : `${currency}${p.price}`;
-    const stockText = p.stock !== null && p.stock <= 0 ? "\n❌ Out of Stock" : "";
+    // Get first variation price if product price is 0
+    let displayPrice = p.price;
+    let displayOriginal = p.original_price;
+    if (p.price === 0) {
+      const { data: firstVar } = await supabase
+        .from("product_variations")
+        .select("price, original_price")
+        .eq("product_id", p.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .single();
+      if (firstVar) {
+        displayPrice = firstVar.price;
+        displayOriginal = firstVar.original_price;
+      }
+    }
+
+    const priceText = displayOriginal && displayOriginal > displayPrice
+      ? `<s>${currency}${displayOriginal}</s> ${currency}${displayPrice}`
+      : `${currency}${displayPrice}`;
+    const stockText = p.stock !== null && p.stock <= 0 ? `\n❌ ${lang === "bn" ? "স্টক নেই" : "Out of Stock"}` : "";
     const caption = `<b>${p.name}</b>\n💰 ${priceText}${stockText}`;
-    const buttons: any[][] = [];
+
+    const btns: any[][] = [];
     if (p.stock === null || p.stock > 0) {
-      buttons.push([
-        { text: "📋 Details", callback_data: `product_${p.id}` },
-        { text: "🛒 Buy Now", callback_data: `buy_${p.id}` },
+      btns.push([
+        { text: t("details", lang), callback_data: `product_${p.id}` },
+        { text: t("buy_now", lang), callback_data: `buy_${p.id}` },
       ]);
     } else {
-      buttons.push([{ text: "📋 Details", callback_data: `product_${p.id}` }]);
+      btns.push([{ text: t("details", lang), callback_data: `product_${p.id}` }]);
     }
+
     if (p.image_url) {
-      await sendPhoto(token, chatId, p.image_url, caption, { inline_keyboard: buttons });
+      await sendPhoto(token, chatId, p.image_url, caption, { inline_keyboard: btns });
     } else {
-      await sendMessage(token, chatId, caption, { reply_markup: { inline_keyboard: buttons } });
+      await sendMessage(token, chatId, caption, { reply_markup: { inline_keyboard: btns } });
     }
   }
 
   await sendMessage(token, chatId, "⬇️", {
-    reply_markup: {
-      inline_keyboard: [[{ text: "⬅️ Back to Products", callback_data: "view_products" }]],
-    },
+    reply_markup: { inline_keyboard: [[{ text: t("back_products", lang), callback_data: "back_products" }]] },
   });
 }
 
-async function handleProductDetail(token: string, supabase: any, chatId: number, productId: string) {
-  const { data: product } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", productId)
-    .single();
+// ===== PRODUCT DETAIL =====
 
-  if (!product) {
-    await sendMessage(token, chatId, "Product not found.");
-    return;
-  }
+async function handleProductDetail(token: string, supabase: any, chatId: number, productId: string, lang: string, userId: number) {
+  const { data: product } = await supabase.from("products").select("*").eq("id", productId).single();
+  if (!product) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
 
   const { data: variations } = await supabase
     .from("product_variations")
-    .select("id, name, price, original_price")
+    .select("id, name, price, original_price, reseller_price")
     .eq("product_id", productId)
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .order("created_at", { ascending: true });
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
-  const priceText = product.original_price && product.original_price > product.price
-    ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
-    : `${currency}${product.price}`;
-
   let text = `<b>${product.name}</b>\n\n`;
   if (product.description) text += `${product.description}\n\n`;
-  text += `💰 Price: ${priceText}\n`;
-  text += `⭐ Rating: ${product.rating || "N/A"}\n`;
-  text += `📦 Sold: ${product.sold_count || 0}\n`;
-  if (product.stock !== null) {
-    text += `📊 Stock: ${product.stock > 0 ? product.stock : "Out of Stock"}\n`;
-  }
+
+  const buttons: any[][] = [];
+
   if (variations?.length) {
-    text += `\n<b>📋 Variations:</b>\n`;
-    variations.forEach((v: any) => {
+    text += `<b>📋 ${lang === "bn" ? "ভেরিয়েশন:" : "Variations:"}</b>\n`;
+    for (const v of variations) {
       const vPrice = v.original_price && v.original_price > v.price
         ? `<s>${currency}${v.original_price}</s> ${currency}${v.price}`
         : `${currency}${v.price}`;
       text += `• ${v.name}: ${vPrice}\n`;
-    });
+      buttons.push([{ text: `🛒 ${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
+    }
+  } else {
+    const priceText = product.original_price && product.original_price > product.price
+      ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
+      : `${currency}${product.price}`;
+    text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceText}\n`;
+    if (product.stock === null || product.stock > 0) {
+      buttons.push([{ text: t("buy_now", lang), callback_data: `buy_${productId}` }]);
+    }
   }
 
-  const buttons: any[][] = [];
-  if (product.stock === null || product.stock > 0) {
-    buttons.push([{ text: "🛒 Buy Now", callback_data: `buy_${productId}` }]);
+  text += `\n⭐ ${lang === "bn" ? "রেটিং" : "Rating"}: ${product.rating || "N/A"}\n`;
+  text += `📦 ${lang === "bn" ? "বিক্রি" : "Sold"}: ${product.sold_count || 0}\n`;
+
+  // Check if reseller
+  const wallet = await getWallet(supabase, userId);
+  if (wallet?.is_reseller) {
+    buttons.push([{ text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` }]);
   }
-  buttons.push([{ text: "⬅️ Back to Products", callback_data: "view_products" }]);
+
+  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
   if (product.image_url) {
     await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
@@ -945,114 +804,251 @@ async function handleProductDetail(token: string, supabase: any, chatId: number,
   }
 }
 
-async function handleBuyProduct(token: string, supabase: any, chatId: number, productId: string, telegramUser: any) {
-  const { data: product } = await supabase
-    .from("products")
-    .select("name, price, stock")
-    .eq("id", productId)
+// ===== BUY PRODUCT =====
+
+async function handleBuyProduct(token: string, supabase: any, chatId: number, productId: string, telegramUser: any, lang: string) {
+  const { data: product } = await supabase.from("products").select("name, price, stock, id").eq("id", productId).single();
+  if (!product) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
+  if (product.stock !== null && product.stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
+
+  await showPaymentInfo(token, supabase, chatId, telegramUser, product.name, product.price, product.id, null, lang);
+}
+
+// ===== BUY VARIATION =====
+
+async function handleBuyVariation(token: string, supabase: any, chatId: number, variationId: string, telegramUser: any, lang: string) {
+  const { data: variation } = await supabase
+    .from("product_variations")
+    .select("id, name, price, product_id, products(name, stock)")
+    .eq("id", variationId)
     .single();
 
-  if (!product) {
-    await sendMessage(token, chatId, "❌ Product not found.");
-    return;
-  }
-  if (product.stock !== null && product.stock <= 0) {
-    await sendMessage(token, chatId, "❌ Sorry, this product is out of stock.");
-    return;
-  }
+  if (!variation) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
+  const productName = `${(variation as any).products?.name} - ${variation.name}`;
+  const stock = (variation as any).products?.stock;
+  if (stock !== null && stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
+
+  await showPaymentInfo(token, supabase, chatId, telegramUser, productName, variation.price, variation.product_id, variation.id, lang);
+}
+
+// ===== PAYMENT INFO WITH WALLET =====
+
+async function showPaymentInfo(
+  token: string, supabase: any, chatId: number, telegramUser: any,
+  productName: string, price: number, productId: string, variationId: string | null, lang: string
+) {
+  const userId = telegramUser.id;
+  const wallet = await ensureWallet(supabase, userId);
+  const walletBalance = wallet?.balance || 0;
+  const finalAmount = Math.max(0, price - walletBalance);
+  const walletDeduction = Math.min(walletBalance, price);
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const whatsapp = settings.contact_whatsapp || "+918900684167";
-  const appUrl = settings.app_url || "https://cheapest-premiums.lovable.app";
-  const binanceId = settings.binance_id || "";
   const paymentLink = settings.payment_link || "";
+  const paymentQr = settings.payment_qr_code || "";
+  const binanceId = settings.binance_id || "";
 
-  const userName = telegramUser?.first_name || "User";
-  const whatsappMsg = encodeURIComponent(
-    `Hi! I want to buy "${product.name}" (${currency}${product.price}) from Telegram.\nName: ${userName}\nTelegram ID: ${telegramUser?.id || "N/A"}`
-  );
-
-  let paymentText = `🛒 <b>Order: ${product.name}</b>\n\n💰 Price: <b>${currency}${product.price}</b>\n\n`;
-  paymentText += `<b>💳 Payment Methods:</b>\n\n`;
-  paymentText += `📱 <b>UPI Payment:</b>\n`;
-  if (paymentLink) paymentText += `🔗 Payment Link: ${paymentLink}\n`;
-  paymentText += `\n`;
-  if (binanceId) {
-    paymentText += `🪙 <b>Binance Pay:</b>\nBinance ID: <code>${binanceId}</code>\n\n`;
+  let text = `🛒 <b>${lang === "bn" ? "অর্ডার" : "Order"}: ${productName}</b>\n\n`;
+  text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: <b>${currency}${price}</b>\n`;
+  text += `💳 ${lang === "bn" ? "ওয়ালেট ব্যালেন্স" : "Wallet Balance"}: <b>${currency}${walletBalance}</b>\n`;
+  if (walletDeduction > 0) {
+    text += `🔻 ${lang === "bn" ? "ওয়ালেট কর্তন" : "Wallet Deduction"}: <b>-${currency}${walletDeduction}</b>\n`;
   }
-  paymentText += `<b>📝 How to order:</b>\n`;
-  paymentText += `1️⃣ Pay using any method above\n`;
-  paymentText += `2️⃣ Send payment screenshot here or on WhatsApp\n`;
-  paymentText += `3️⃣ Get instant delivery! ⚡\n`;
+  text += `\n💵 <b>${lang === "bn" ? "পরিশোধযোগ্য" : "Payable"}: ${currency}${finalAmount}</b>\n\n`;
 
   const buttons: any[][] = [];
-  if (paymentLink) buttons.push([{ text: "💳 Pay Now (UPI)", url: paymentLink }]);
-  buttons.push([{ text: "🌐 Buy on Website", url: `${appUrl}/products` }]);
-  buttons.push([{ text: "💬 WhatsApp Order", url: `https://wa.me/${whatsapp.replace("+", "")}?text=${whatsappMsg}` }]);
-  buttons.push([{ text: "⬅️ Back to Products", callback_data: "view_products" }]);
 
-  await sendMessage(token, chatId, paymentText, {
-    reply_markup: { inline_keyboard: buttons },
+  if (finalAmount === 0) {
+    // Full wallet pay
+    const payData = `walletpay_${price}_${encodeURIComponent(productName)}`;
+    buttons.push([{ text: t("pay_with_wallet", lang), callback_data: payData }]);
+  } else {
+    // Show payment methods
+    text += `<b>💳 ${lang === "bn" ? "পেমেন্ট মেথড" : "Payment Methods"}:</b>\n\n`;
+    if (paymentLink) {
+      text += `🔗 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}: ${paymentLink}\n`;
+      buttons.push([{ text: `💳 ${lang === "bn" ? "এখন পে করুন" : "Pay Now"} (UPI)`, url: paymentLink }]);
+    }
+    if (binanceId) {
+      text += `\n🪙 Binance Pay ID: <code>${binanceId}</code>\n`;
+    }
+    text += `\n${t("send_screenshot", lang)}`;
+  }
+
+  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+
+  // Send QR code if available
+  if (finalAmount > 0 && paymentQr) {
+    await sendPhoto(token, chatId, paymentQr, text, { inline_keyboard: buttons });
+  } else {
+    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+  }
+}
+
+// ===== WALLET PAY =====
+
+async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string) {
+  const wallet = await getWallet(supabase, userId);
+  if (!wallet || wallet.balance < amount) {
+    await sendMessage(token, chatId, lang === "bn" ? "❌ পর্যাপ্ত ব্যালেন্স নেই।" : "❌ Insufficient wallet balance.");
+    return;
+  }
+
+  // Deduct wallet
+  await supabase.from("telegram_wallets").update({
+    balance: wallet.balance - amount,
+    updated_at: new Date().toISOString(),
+  }).eq("telegram_id", userId);
+
+  // Record transaction
+  await supabase.from("telegram_wallet_transactions").insert({
+    telegram_id: userId,
+    type: "purchase_deduction",
+    amount: -amount,
+    description: `Purchase: ${productName}`,
+  });
+
+  // Create order
+  const { data: order } = await supabase.from("telegram_orders").insert({
+    telegram_user_id: userId,
+    username: `wallet_pay`,
+    product_name: productName,
+    amount: amount,
+    status: "confirmed",
+  }).select("id").single();
+
+  // Notify user
+  await sendMessage(token, chatId,
+    t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
+  );
+
+  // Notify admin
+  await sendMessage(token, SUPER_ADMIN_ID,
+    `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+  );
+
+  // Check referral bonus
+  await processReferralBonus(supabase, userId, token);
+}
+
+// ===== REFERRAL BONUS =====
+
+async function processReferralBonus(supabase: any, userId: number, token: string) {
+  const wallet = await getWallet(supabase, userId);
+  if (!wallet?.referred_by) return;
+
+  // Check if this is user's first purchase
+  const { count } = await supabase
+    .from("telegram_orders")
+    .select("*", { count: "exact", head: true })
+    .eq("telegram_user_id", userId)
+    .eq("status", "confirmed");
+
+  if (count === 1) {
+    // First purchase - give referral bonus
+    const settings = await getSettings(supabase);
+    const bonus = parseFloat(settings.referral_bonus) || 10;
+
+    const referrerWallet = await getWallet(supabase, wallet.referred_by);
+    if (referrerWallet) {
+      await supabase.from("telegram_wallets").update({
+        balance: referrerWallet.balance + bonus,
+        total_earned: referrerWallet.total_earned + bonus,
+        updated_at: new Date().toISOString(),
+      }).eq("telegram_id", wallet.referred_by);
+
+      await supabase.from("telegram_wallet_transactions").insert({
+        telegram_id: wallet.referred_by,
+        type: "referral_bonus",
+        amount: bonus,
+        description: `Referral bonus for user ${userId}`,
+      });
+
+      // Notify referrer
+      await sendMessage(token, wallet.referred_by,
+        `🎉 <b>Referral Bonus!</b>\n\n₹${bonus} added to your wallet! Your referred user made their first purchase.`
+      );
+    }
+  }
+}
+
+// ===== MY WALLET =====
+
+async function handleMyWallet(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  const wallet = await ensureWallet(supabase, userId);
+  const balance = wallet?.balance || 0;
+  const totalEarned = wallet?.total_earned || 0;
+  const refCode = wallet?.referral_code || "N/A";
+
+  const { data: recent } = await supabase
+    .from("telegram_wallet_transactions")
+    .select("type, amount, description, created_at")
+    .eq("telegram_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  let text = `${t("wallet_header", lang)}\n\n`;
+  text += `💵 ${lang === "bn" ? "ব্যালেন্স" : "Balance"}: <b>₹${balance}</b>\n`;
+  text += `📈 ${lang === "bn" ? "মোট আয়" : "Total Earned"}: <b>₹${totalEarned}</b>\n`;
+  text += `🔗 ${lang === "bn" ? "রেফারেল কোড" : "Referral Code"}: <code>${refCode}</code>\n`;
+  text += `📎 ${lang === "bn" ? "রেফারেল লিংক" : "Referral Link"}: https://t.me/${BOT_USERNAME}?start=ref_${refCode}\n`;
+
+  if (recent?.length) {
+    text += `\n<b>${lang === "bn" ? "সাম্প্রতিক লেনদেন:" : "Recent Transactions:"}</b>\n`;
+    for (const tx of recent) {
+      const emoji = tx.amount > 0 ? "🟢" : "🔴";
+      const sign = tx.amount > 0 ? "+" : "";
+      text += `${emoji} ${sign}₹${tx.amount} - ${tx.description || tx.type}\n`;
+    }
+  }
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },
   });
 }
 
-async function handleReferEarn(token: string, supabase: any, chatId: number) {
-  const settings = await getSettings(supabase);
-  const currency = settings.currency_symbol || "₹";
-  const referralBonus = settings.referral_bonus || "10";
-  const appUrl = settings.app_url || "https://cheapest-premiums.lovable.app";
+// ===== REFER & EARN =====
 
-  await sendMessage(token, chatId,
-    `🎁 <b>Refer & Earn!</b>\n\nRefer your friends and earn <b>${currency}${referralBonus}</b> for each referral!\n\n` +
-    `1️⃣ Sign up on our website\n2️⃣ Get your referral code\n3️⃣ Share with friends\n4️⃣ Earn wallet balance! 💰`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🌐 Sign Up & Get Referral Code", url: `${appUrl}/auth` }],
-          [{ text: "⬅️ Back", callback_data: "back_main" }],
-        ],
-      },
-    }
-  );
+async function handleReferEarn(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  const wallet = await ensureWallet(supabase, userId);
+  const refCode = wallet?.referral_code || "N/A";
+  const settings = await getSettings(supabase);
+  const bonus = settings.referral_bonus || "10";
+
+  let text = `${t("referral_header", lang)}\n\n`;
+  text += lang === "bn"
+    ? `প্রতিটি রেফারেলের জন্য ₹${bonus} বোনাস পান!\n\n🔗 আপনার রেফারেল লিংক:\nhttps://t.me/${BOT_USERNAME}?start=ref_${refCode}\n\n📋 কোড: <code>${refCode}</code>\n\n1️⃣ লিংক শেয়ার করুন\n2️⃣ বন্ধু যোগ দিক\n3️⃣ তারা কেনাকাটা করলে আপনি বোনাস পাবেন!`
+    : `Earn ₹${bonus} for every referral!\n\n🔗 Your referral link:\nhttps://t.me/${BOT_USERNAME}?start=ref_${refCode}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },
+  });
 }
 
-async function handleMyWallet(token: string, supabase: any, chatId: number, telegramUser: any) {
-  const settings = await getSettings(supabase);
-  const appUrl = settings.app_url || "https://cheapest-premiums.lovable.app";
+// ===== SUPPORT =====
 
-  await sendMessage(token, chatId,
-    `💰 <b>My Wallet</b>\n\nView your wallet balance, deposit, and manage transactions on our website.\n\n✅ Deposit via UPI\n✅ International payments via Binance\n✅ Instant top-up`,
-    {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "💰 Open Wallet", url: `${appUrl}/wallet` }],
-          [{ text: "⬅️ Back", callback_data: "back_main" }],
-        ],
-      },
-    }
-  );
-}
-
-async function handleSupport(token: string, supabase: any, chatId: number) {
+async function handleSupport(token: string, supabase: any, chatId: number, lang: string) {
   const settings = await getSettings(supabase);
   const whatsapp = settings.contact_whatsapp || "+918900684167";
-  const email = settings.contact_email || "";
 
-  let supportText = `📞 <b>Customer Support</b>\n\nWe're here to help you 24/7!\n\n📱 WhatsApp: ${whatsapp}\n`;
-  if (email) supportText += `📧 Email: ${email}\n`;
+  const text = lang === "bn"
+    ? `📞 <b>সাপোর্ট</b>\n\n24/7 সাহায্যের জন্য আমরা আছি!\n📱 WhatsApp: ${whatsapp}`
+    : `📞 <b>Support</b>\n\nWe're here 24/7!\n📱 WhatsApp: ${whatsapp}`;
 
-  await sendMessage(token, chatId, supportText, {
+  await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "💬 Chat on WhatsApp", url: `https://wa.me/${whatsapp.replace("+", "")}` }],
-        [{ text: "⬅️ Back", callback_data: "back_main" }],
+        [{ text: "💬 WhatsApp", url: `https://wa.me/${whatsapp.replace("+", "")}` }],
+        [{ text: t("back_main", lang), callback_data: "back_main" }],
       ],
     },
   });
 }
 
-async function handleGetOffers(token: string, supabase: any, chatId: number) {
+// ===== OFFERS =====
+
+async function handleGetOffers(token: string, supabase: any, chatId: number, lang: string) {
   const { data: flashSales } = await supabase
     .from("flash_sales")
     .select("*, products(name, price, image_url)")
@@ -1069,33 +1065,512 @@ async function handleGetOffers(token: string, supabase: any, chatId: number) {
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
-  let text = `🔥 <b>Current Offers & Deals</b>\n\n`;
+  let text = `🔥 <b>${lang === "bn" ? "বর্তমান অফার" : "Current Offers"}</b>\n\n`;
   if (flashSales?.length) {
-    text += `⚡ <b>Flash Sales:</b>\n`;
-    flashSales.forEach((sale: any) => {
-      text += `• ${sale.products?.name || "Product"}: <b>${currency}${sale.sale_price}</b> (was ${currency}${sale.products?.price})\n`;
+    text += `⚡ <b>${lang === "bn" ? "ফ্ল্যাশ সেল" : "Flash Sales"}:</b>\n`;
+    flashSales.forEach((s: any) => {
+      text += `• ${s.products?.name || "Product"}: <b>${currency}${s.sale_price}</b> (was ${currency}${s.products?.price})\n`;
     });
-    text += `\n`;
+    text += "\n";
   }
   if (coupons?.length) {
-    text += `🎟️ <b>Coupon Codes:</b>\n`;
+    text += `🎟️ <b>${lang === "bn" ? "কুপন কোড" : "Coupon Codes"}:</b>\n`;
     coupons.forEach((c: any) => {
-      const discount = c.discount_type === "percentage" ? `${c.discount_value}% OFF` : `${currency}${c.discount_value} OFF`;
-      text += `• <code>${c.code}</code> - ${discount}\n`;
-      if (c.description) text += `  ${c.description}\n`;
+      const disc = c.discount_type === "percentage" ? `${c.discount_value}% OFF` : `${currency}${c.discount_value} OFF`;
+      text += `• <code>${c.code}</code> - ${disc}\n`;
     });
-    text += `\n`;
   }
   if (!flashSales?.length && !coupons?.length) {
-    text += `No special offers right now. Check back later! 🔜`;
+    text += lang === "bn" ? "এখন কোনো অফার নেই। পরে দেখুন! 🔜" : "No offers right now. Check back later! 🔜";
   }
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🛍️ View Products", callback_data: "view_products" }],
-        [{ text: "⬅️ Back", callback_data: "back_main" }],
+        [{ text: t("view_products", lang), callback_data: "view_products" }],
+        [{ text: t("back_main", lang), callback_data: "back_main" }],
       ],
     },
   });
+}
+
+// ===== FORWARD USER MESSAGE TO ADMIN =====
+
+async function forwardUserMessageToAdmin(token: string, supabase: any, msg: any, telegramUser: any, lang: string) {
+  const userId = telegramUser.id;
+  const username = telegramUser.username ? `@${telegramUser.username}` : telegramUser.first_name || "Unknown";
+
+  await forwardMessage(token, SUPER_ADMIN_ID, msg.chat.id, msg.message_id);
+
+  const { data: order } = await supabase.from("telegram_orders").insert({
+    telegram_user_id: userId,
+    username,
+    product_name: msg.text || (msg.photo ? "Screenshot/Photo" : "Message"),
+    amount: 0,
+    status: "pending",
+    screenshot_file_id: msg.photo ? msg.photo[msg.photo.length - 1]?.file_id : null,
+  }).select("id").single();
+
+  const orderId = order?.id || "unknown";
+
+  await sendMessage(token, SUPER_ADMIN_ID,
+    `📩 <b>New message from customer</b>\n\n👤 From: <b>${username}</b>\n🆔 ID: <code>${userId}</code>\n📋 Order: <code>${orderId.slice(0, 8)}</code>`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ Confirm", callback_data: `admin_confirm_${orderId}` },
+            { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
+          ],
+          [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+        ],
+      },
+    }
+  );
+}
+
+// ===== ADMIN ACTION =====
+
+async function handleAdminAction(token: string, supabase: any, orderId: string, newStatus: string, adminChatId: number) {
+  const { data: order } = await supabase.from("telegram_orders").select("*").eq("id", orderId).single();
+  if (!order) { await sendMessage(token, adminChatId, "❌ Order not found."); return; }
+
+  // Get user language
+  const userLang = (await getUserLang(supabase, order.telegram_user_id)) || "en";
+
+  await supabase.from("telegram_orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderId);
+
+  const msgKey: Record<string, string> = { confirmed: "order_confirmed", rejected: "order_rejected", shipped: "order_shipped" };
+  await sendMessage(token, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
+
+  // If confirmed, process referral
+  if (newStatus === "confirmed") {
+    await processReferralBonus(supabase, order.telegram_user_id, token);
+  }
+
+  const emoji: Record<string, string> = { confirmed: "✅", rejected: "❌", shipped: "📦" };
+  await sendMessage(token, adminChatId, `${emoji[newStatus] || "📋"} Order <b>${orderId.slice(0, 8)}</b> → <b>${newStatus.toUpperCase()}</b>`);
+}
+
+// ===== ADMIN MENU =====
+
+async function handleAdminMenu(token: string, supabase: any, chatId: number) {
+  const { count: userCount } = await supabase.from("telegram_bot_users").select("*", { count: "exact", head: true });
+  const { count: orderCount } = await supabase.from("telegram_orders").select("*", { count: "exact", head: true });
+  const { count: walletCount } = await supabase.from("telegram_wallets").select("*", { count: "exact", head: true });
+  const { count: resellerCount } = await supabase.from("telegram_wallets").select("*", { count: "exact", head: true }).eq("is_reseller", true);
+
+  await sendMessage(token, chatId,
+    `🔐 <b>Admin Control Panel</b>\n\n` +
+    `👥 Bot Users: <b>${userCount || 0}</b>\n` +
+    `📦 Orders: <b>${orderCount || 0}</b>\n` +
+    `💰 Wallets: <b>${walletCount || 0}</b>\n` +
+    `🔄 Resellers: <b>${resellerCount || 0}</b>\n\n` +
+    `<b>Commands:</b>\n` +
+    `/broadcast - Broadcast to all\n` +
+    `/report or /stats - Analytics\n` +
+    `/add_product - Add product\n` +
+    `/edit_price [name] [price]\n` +
+    `/out_stock [name]\n` +
+    `/users - User stats\n` +
+    `/history [id] - Order history\n` +
+    `/ban [id] / /unban [id]\n` +
+    `/make_reseller [id]`
+  );
+}
+
+// ===== REPORT =====
+
+async function handleReport(token: string, supabase: any, chatId: number) {
+  const { count: totalUsers } = await supabase.from("telegram_bot_users").select("*", { count: "exact", head: true });
+  const { count: totalWallets } = await supabase.from("telegram_wallets").select("*", { count: "exact", head: true });
+  const { count: resellerCount } = await supabase.from("telegram_wallets").select("*", { count: "exact", head: true }).eq("is_reseller", true);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  const { count: todayOrderCount } = await supabase.from("telegram_orders").select("*", { count: "exact", head: true }).gte("created_at", today.toISOString());
+  const { data: confirmedToday } = await supabase.from("telegram_orders").select("amount").eq("status", "confirmed").gte("created_at", today.toISOString());
+  const todayRevenue = confirmedToday?.reduce((s: number, o: any) => s + (o.amount || 0), 0) || 0;
+
+  const { count: allOrders } = await supabase.from("telegram_orders").select("*", { count: "exact", head: true });
+  const { data: allConfirmed } = await supabase.from("telegram_orders").select("amount").eq("status", "confirmed");
+  const allRevenue = allConfirmed?.reduce((s: number, o: any) => s + (o.amount || 0), 0) || 0;
+
+  const { data: walletSum } = await supabase.from("telegram_wallets").select("balance");
+  const totalWalletBalance = walletSum?.reduce((s: number, w: any) => s + (w.balance || 0), 0) || 0;
+
+  await sendMessage(token, chatId,
+    `📊 <b>Sales & Analytics Report</b>\n\n` +
+    `👥 Users: <b>${totalUsers || 0}</b>\n` +
+    `💰 Wallets: <b>${totalWallets || 0}</b>\n` +
+    `🔄 Resellers: <b>${resellerCount || 0}</b>\n` +
+    `💵 Total Wallet Balance: <b>₹${totalWalletBalance}</b>\n\n` +
+    `📅 <b>Today:</b>\n• Orders: ${todayOrderCount || 0}\n• Revenue: ₹${todayRevenue}\n\n` +
+    `📈 <b>All Time:</b>\n• Orders: ${allOrders || 0}\n• Revenue: ₹${allRevenue}`
+  );
+}
+
+// ===== CONVERSATION STEP =====
+
+async function handleConversationStep(token: string, supabase: any, chatId: number, userId: number, msg: any) {
+  const state = conversationState.get(userId)!;
+  const text = msg.text || "";
+
+  if (text === "/cancel") {
+    conversationState.delete(userId);
+    await sendMessage(token, chatId, "❌ Cancelled.");
+    return;
+  }
+
+  // Broadcast
+  if (state.step === "broadcast_message") {
+    conversationState.delete(userId);
+    await executeBroadcast(token, supabase, chatId, msg);
+    return;
+  }
+
+  // Resale price entry
+  if (state.step === "resale_price") {
+    const price = parseFloat(text);
+    const resellerPrice = state.data.reseller_price;
+    const lang = state.data.lang || "en";
+
+    if (isNaN(price) || price <= resellerPrice) {
+      await sendMessage(token, chatId, t("resale_price_low", lang).replace("{price}", String(resellerPrice)));
+      return;
+    }
+
+    conversationState.delete(userId);
+
+    // Generate link
+    const linkCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    await supabase.from("telegram_resale_links").insert({
+      reseller_telegram_id: userId,
+      product_id: state.data.product_id,
+      variation_id: state.data.variation_id || null,
+      custom_price: price,
+      reseller_price: resellerPrice,
+      link_code: linkCode,
+    });
+
+    const profit = price - resellerPrice;
+    await sendMessage(token, chatId,
+      t("resale_link_created", lang)
+        .replace("{bot}", BOT_USERNAME)
+        .replace("{code}", linkCode)
+        .replace("{custom}", String(price))
+        .replace("{reseller}", String(resellerPrice))
+        .replace("{profit}", String(profit))
+    );
+    return;
+  }
+
+  // Add product flow
+  switch (state.step) {
+    case "add_photo": {
+      if (msg.photo) {
+        const photo = msg.photo[msg.photo.length - 1];
+        const fileRes = await fetch(`${TELEGRAM_API(token)}/getFile`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file_id: photo.file_id }),
+        });
+        const fileData = await fileRes.json();
+        const filePath = fileData.result?.file_path;
+        state.data.image_url = filePath ? `https://api.telegram.org/file/bot${token}/${filePath}` : "";
+        state.step = "add_name";
+        await sendMessage(token, chatId, "✅ Photo received!\n📝 <b>Step 2/4:</b> Enter product name.");
+      } else {
+        await sendMessage(token, chatId, "⚠️ Please send a photo.");
+      }
+      break;
+    }
+    case "add_name":
+      state.data.name = text;
+      state.step = "add_price";
+      await sendMessage(token, chatId, `✅ Name: <b>${text}</b>\n💰 <b>Step 3/4:</b> Enter price.`);
+      break;
+    case "add_price": {
+      const price = parseFloat(text);
+      if (isNaN(price) || price <= 0) { await sendMessage(token, chatId, "⚠️ Enter a valid price."); break; }
+      state.data.price = price;
+      state.step = "add_category";
+      await sendMessage(token, chatId, `✅ Price: ₹${price}\n📂 <b>Step 4/4:</b> Enter category.`);
+      break;
+    }
+    case "add_category": {
+      conversationState.delete(userId);
+      const slug = state.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Date.now();
+      const { data: product, error } = await supabase.from("products").insert({
+        name: state.data.name, price: state.data.price, category: text,
+        slug, image_url: state.data.image_url || null, is_active: true,
+      }).select("id").single();
+
+      if (error) {
+        await sendMessage(token, chatId, `❌ Failed: ${error.message}`);
+      } else {
+        await sendMessage(token, chatId,
+          `✅ <b>Product Added!</b>\n📦 ${state.data.name}\n💰 ₹${state.data.price}\n📂 ${text}\n🆔 <code>${product.id}</code>`
+        );
+      }
+      break;
+    }
+  }
+}
+
+// ===== BROADCAST =====
+
+async function executeBroadcast(token: string, supabase: any, adminChatId: number, msg: any) {
+  const { data: users } = await supabase.from("telegram_bot_users").select("telegram_id").eq("is_banned", false);
+  if (!users?.length) { await sendMessage(token, adminChatId, "No users to broadcast to."); return; }
+
+  let sent = 0, failed = 0;
+  for (const user of users) {
+    try {
+      if (user.telegram_id === SUPER_ADMIN_ID) { sent++; continue; }
+      if (msg.photo) {
+        await sendPhoto(token, user.telegram_id, msg.photo[msg.photo.length - 1].file_id, msg.caption || "");
+      } else if (msg.text) {
+        await sendMessage(token, user.telegram_id, msg.text);
+      }
+      sent++;
+    } catch { failed++; }
+    await new Promise(r => setTimeout(r, 50));
+  }
+  await sendMessage(token, adminChatId, `📢 <b>Broadcast Complete!</b>\n✅ Sent: ${sent}\n❌ Failed: ${failed}`);
+}
+
+// ===== EDIT PRICE =====
+
+async function handleEditPrice(token: string, supabase: any, chatId: number, args: string) {
+  const lastSpace = args.lastIndexOf(" ");
+  if (lastSpace === -1) { await sendMessage(token, chatId, "⚠️ Usage: <code>/edit_price Name 199</code>"); return; }
+  const name = args.substring(0, lastSpace).trim();
+  const newPrice = parseFloat(args.substring(lastSpace + 1));
+  if (!name || isNaN(newPrice)) { await sendMessage(token, chatId, "⚠️ Usage: <code>/edit_price Name 199</code>"); return; }
+
+  const { data, error } = await supabase.from("products").update({ price: newPrice, updated_at: new Date().toISOString() }).ilike("name", `%${name}%`).select("name, price");
+  if (error || !data?.length) { await sendMessage(token, chatId, `❌ "${name}" not found.`); }
+  else { await sendMessage(token, chatId, `✅ ${data[0].name} → ₹${newPrice}`); }
+}
+
+// ===== OUT STOCK =====
+
+async function handleOutStock(token: string, supabase: any, chatId: number, name: string) {
+  if (!name) { await sendMessage(token, chatId, "⚠️ Usage: <code>/out_stock Name</code>"); return; }
+  const { data, error } = await supabase.from("products").update({ stock: 0, is_active: false }).ilike("name", `%${name}%`).select("name");
+  if (error || !data?.length) { await sendMessage(token, chatId, `❌ "${name}" not found.`); }
+  else { await sendMessage(token, chatId, `✅ ${data[0].name} → Out of Stock`); }
+}
+
+// ===== USERS =====
+
+async function handleUsersCommand(token: string, supabase: any, chatId: number) {
+  const { count } = await supabase.from("telegram_bot_users").select("*", { count: "exact", head: true });
+  const { data: recent } = await supabase.from("telegram_bot_users").select("telegram_id, username, first_name, created_at").order("created_at", { ascending: false }).limit(10);
+
+  let text = `👥 <b>Users: ${count || 0}</b>\n\n`;
+  recent?.forEach((u: any) => {
+    text += `• ${u.username ? "@" + u.username : u.first_name || "?"} (${u.telegram_id})\n`;
+  });
+  await sendMessage(token, chatId, text);
+}
+
+// ===== HISTORY =====
+
+async function handleHistoryCommand(token: string, supabase: any, chatId: number, tgId: number) {
+  if (!tgId) { await sendMessage(token, chatId, "⚠️ Usage: <code>/history 123456</code>"); return; }
+  const { data: orders } = await supabase.from("telegram_orders").select("*").eq("telegram_user_id", tgId).order("created_at", { ascending: false }).limit(20);
+  if (!orders?.length) { await sendMessage(token, chatId, `No orders for ${tgId}.`); return; }
+
+  let text = `📜 <b>History for ${tgId}</b>\n\n`;
+  orders.forEach((o: any, i: number) => {
+    const e = { pending: "⏳", confirmed: "✅", rejected: "❌", shipped: "📦" }[o.status] || "📋";
+    text += `${i + 1}. ${e} ${o.product_name || "N/A"} - ₹${o.amount}\n`;
+  });
+  await sendMessage(token, chatId, text);
+}
+
+// ===== BAN =====
+
+async function handleBanCommand(token: string, supabase: any, chatId: number, tgId: number, ban: boolean) {
+  if (!tgId) { await sendMessage(token, chatId, `⚠️ Usage: <code>/${ban ? "ban" : "unban"} 123456</code>`); return; }
+  await supabase.from("telegram_bot_users").update({ is_banned: ban }).eq("telegram_id", tgId);
+  await sendMessage(token, chatId, ban ? `🚫 ${tgId} BANNED` : `✅ ${tgId} UNBANNED`);
+}
+
+// ===== MAKE RESELLER =====
+
+async function handleMakeReseller(token: string, supabase: any, chatId: number, tgId: number) {
+  if (!tgId) { await sendMessage(token, chatId, "⚠️ Usage: <code>/make_reseller 123456</code>"); return; }
+
+  // Ensure wallet exists
+  const wallet = await getWallet(supabase, tgId);
+  if (!wallet) {
+    await ensureWallet(supabase, tgId);
+  }
+
+  const currentWallet = await getWallet(supabase, tgId);
+  const newStatus = !currentWallet?.is_reseller;
+
+  await supabase.from("telegram_wallets").update({ is_reseller: newStatus }).eq("telegram_id", tgId);
+
+  await sendMessage(token, chatId,
+    newStatus
+      ? `✅ User <code>${tgId}</code> is now a <b>RESELLER</b>!`
+      : `❌ User <code>${tgId}</code> reseller status <b>REMOVED</b>.`
+  );
+
+  // Notify user
+  try {
+    await sendMessage(token, tgId,
+      newStatus
+        ? "🎉 You've been granted <b>Reseller</b> status! You can now create resale links on products."
+        : "ℹ️ Your reseller status has been removed."
+    );
+  } catch { /* user may have blocked bot */ }
+}
+
+// ===== RESALE START =====
+
+async function handleResaleStart(token: string, supabase: any, chatId: number, userId: number, productId: string, lang: string) {
+  const wallet = await getWallet(supabase, userId);
+  if (!wallet?.is_reseller) {
+    await sendMessage(token, chatId, t("resale_not_reseller", lang));
+    return;
+  }
+
+  const { data: product } = await supabase.from("products").select("id, name, reseller_price, price").eq("id", productId).single();
+  if (!product) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
+
+  const resellerPrice = product.reseller_price || product.price;
+
+  conversationState.set(userId, {
+    step: "resale_price",
+    data: { product_id: productId, reseller_price: resellerPrice, lang },
+  });
+
+  await sendMessage(token, chatId,
+    t("resale_enter_price", lang).replace("{price}", String(resellerPrice))
+  );
+}
+
+// ===== RESALE BUY (via deep link) =====
+
+async function handleResaleBuy(token: string, supabase: any, chatId: number, userId: number, telegramUser: any, linkCode: string, lang: string) {
+  const { data: link } = await supabase.from("telegram_resale_links").select("*").eq("link_code", linkCode).eq("is_active", true).single();
+
+  if (!link) {
+    await sendMessage(token, chatId, lang === "bn" ? "❌ লিংক পাওয়া যায়নি বা মেয়াদ শেষ।" : "❌ Link not found or expired.");
+    return;
+  }
+
+  // Get product name
+  const { data: product } = await supabase.from("products").select("name").eq("id", link.product_id).single();
+  const productName = product?.name || "Product";
+
+  // Show payment for custom price
+  await showPaymentInfo(token, supabase, chatId, telegramUser, productName, link.custom_price, link.product_id, link.variation_id, lang);
+
+  // Increment uses
+  await supabase.from("telegram_resale_links").update({ uses: link.uses + 1 }).eq("id", link.id);
+
+  // Credit reseller profit on payment (handled in admin confirm)
+  // Store resale info in order for later processing
+}
+
+// ===== START WITH REF =====
+
+async function handleStartWithRef(supabase: any, userId: number, refCode: string) {
+  const wallet = await ensureWallet(supabase, userId);
+  if (wallet?.referred_by) return; // Already referred
+
+  // Find referrer
+  const { data: referrer } = await supabase.from("telegram_wallets").select("telegram_id").eq("referral_code", refCode).single();
+  if (referrer && referrer.telegram_id !== userId) {
+    await supabase.from("telegram_wallets").update({ referred_by: referrer.telegram_id }).eq("telegram_id", userId);
+  }
+}
+
+// ===== AI QUERY =====
+
+async function handleAIQuery(token: string, supabase: any, chatId: number, userId: number, question: string, lang: string) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    await sendMessage(token, chatId, lang === "bn" ? "AI সাময়িকভাবে অনুপলব্ধ।" : "AI is temporarily unavailable.");
+    return;
+  }
+
+  // Get product catalog for context
+  const { data: products } = await supabase.from("products").select("name, price, category, description").eq("is_active", true).limit(50);
+  const productList = products?.map((p: any) => `${p.name} (₹${p.price}, ${p.category})`).join(", ") || "No products";
+
+  const settings = await getSettings(supabase);
+  const appName = settings.app_name || "RKR Premium Store";
+
+  const systemPrompt = `You are the AI assistant for ${appName}, a digital products store on Telegram.
+Available products: ${productList}
+Website: ${settings.app_url || "https://cheapest-premiums.lovable.app"}
+WhatsApp: ${settings.contact_whatsapp || "+918900684167"}
+
+STRICT RULES:
+1. If asked about returns or refunds, ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
+2. Answer in ${lang === "bn" ? "Bengali" : "English"}.
+3. Be helpful, concise, and friendly.
+4. If you don't know the answer, say you'll forward the question to admin.`;
+
+  try {
+    await sendMessage(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: question },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const answer = data?.choices?.[0]?.message?.content || "";
+
+    if (!answer || answer.toLowerCase().includes("forward") || answer.toLowerCase().includes("admin")) {
+      await sendMessage(token, chatId, t("ai_forward", lang), {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "📩 অ্যাডমিনকে পাঠান" : "📩 Forward to Admin", callback_data: "forward_to_admin" }],
+            [{ text: t("back_main", lang), callback_data: "back_main" }],
+          ],
+        },
+      });
+    } else {
+      await sendMessage(token, chatId, `🤖 ${answer}`, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "📩 অ্যাডমিনকে জিজ্ঞাসা করুন" : "📩 Ask Admin", callback_data: "forward_to_admin" }],
+            [{ text: t("back_main", lang), callback_data: "back_main" }],
+          ],
+        },
+      });
+    }
+  } catch (error) {
+    console.error("AI query error:", error);
+    await sendMessage(token, chatId, t("ai_forward", lang), {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: lang === "bn" ? "📩 অ্যাডমিনকে পাঠান" : "📩 Forward to Admin", callback_data: "forward_to_admin" }],
+        ],
+      },
+    });
+  }
 }
