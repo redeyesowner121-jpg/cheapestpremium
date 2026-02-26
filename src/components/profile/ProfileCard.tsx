@@ -1,18 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Edit } from 'lucide-react';
+import { Edit, Copy, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BlueTick from '@/components/BlueTick';
 import { RankBadge } from '@/components/RankBadge';
 import { UserProfile } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import MyReferralsModal from './MyReferralsModal';
 
 interface ProfileCardProps {
   profile: UserProfile | null;
   onEditProfile: () => void;
+  referralCount?: number;
 }
 
-const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile }) => {
+const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile, referralCount }) => {
+  const [showReferrals, setShowReferrals] = useState(false);
+
+  const handleCopyUserId = () => {
+    navigator.clipboard.writeText(profile?.referral_code || '');
+    toast.success('User ID copied!');
+  };
   return (
+    <>
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -38,8 +48,18 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile }) => 
         {profile?.has_blue_check && <BlueTick size="md" />}
       </h2>
       <p className="text-primary-foreground/70 text-sm">{profile?.email}</p>
+      {/* User ID (Referral Code) */}
+      <div className="flex items-center justify-center gap-2 mt-1">
+        <span className="text-xs text-primary-foreground/60">User ID:</span>
+        <code className="text-xs font-mono font-bold text-primary-foreground bg-white/15 px-2 py-0.5 rounded-lg">
+          {profile?.referral_code || '---'}
+        </code>
+        <button onClick={handleCopyUserId} className="text-primary-foreground/70 hover:text-primary-foreground active:scale-90 transition-transform">
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+      </div>
       {profile?.phone && (
-        <p className="text-primary-foreground/60 text-xs">{profile.phone}</p>
+        <p className="text-primary-foreground/60 text-xs mt-1">{profile.phone}</p>
       )}
 
       {/* Stats */}
@@ -56,10 +76,10 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile }) => 
           </p>
           <p className="text-xs text-primary-foreground/70">Orders</p>
         </div>
-        <div className="text-center">
-          <p className="text-2xl font-bold text-primary-foreground">0</p>
-          <p className="text-xs text-primary-foreground/70">Referrals</p>
-        </div>
+        <button onClick={() => setShowReferrals(true)} className="text-center active:scale-95 transition-transform">
+          <p className="text-2xl font-bold text-primary-foreground">{referralCount ?? 0}</p>
+          <p className="text-xs text-primary-foreground/70 underline underline-offset-2">My Referrals</p>
+        </button>
       </div>
 
       {/* Rank Badge */}
@@ -94,6 +114,13 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile }) => 
         Edit Profile
       </Button>
     </motion.div>
+
+    <MyReferralsModal
+      open={showReferrals}
+      onOpenChange={setShowReferrals}
+      referralCode={profile?.referral_code || ''}
+    />
+    </>
   );
 };
 
