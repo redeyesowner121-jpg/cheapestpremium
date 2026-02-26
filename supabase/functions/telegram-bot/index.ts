@@ -580,8 +580,14 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // AI auto-reply for all non-admin text messages
-      if (!isAdmin(userId)) {
+      // If user sends a photo (payment screenshot etc.), forward directly to admin — skip AI
+      if (msg.photo) {
+        await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser, lang);
+        return jsonOk();
+      }
+
+      // AI auto-reply for all non-admin text messages (only for actual text, not empty)
+      if (!isAdmin(userId) && text && text.trim().length > 0) {
         await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
         return jsonOk();
       }
