@@ -4,6 +4,7 @@ import { SUPER_ADMIN_ID } from "./constants.ts";
 import { sendMessage, sendPhoto } from "./telegram-api.ts";
 import { getWallet, ensureWallet, getSettings } from "./db-helpers.ts";
 
+
 // ===== ADMIN MENU =====
 
 export async function handleAdminMenu(token: string, supabase: any, chatId: number) {
@@ -29,6 +30,7 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
     `/history [id] - Order history\n` +
     `/ban [id] / /unban [id]\n` +
     `/make_reseller [id]\n` +
+    `/add_balance [id] [amount]\n` +
     `/add_admin [id] - Add admin (Owner only)\n` +
     `/remove_admin [id] - Remove admin (Owner only)\n` +
     `/admins - List admins (Owner only)`
@@ -232,6 +234,46 @@ export async function handleListAdmins(token: string, supabase: any, chatId: num
 
   text += `\nTotal: <b>${(admins?.length || 0) + 1}</b> admins`;
   await sendMessage(token, chatId, text);
+}
+
+// ===== ADD BALANCE =====
+
+export async function handleAddBalance(token: string, supabase: any, chatId: number, tgId: number, amount: number) {
+  if (!tgId || isNaN(amount) || amount <= 0) {
+    await sendMessage(token, chatId, "⚠️ Usage: <code>/add_balance 123456 500</code>");
+    return;
+  }
+
+  const { data: wallet } = await supabase.from("telegram_wallets").select("*").eq("telegram_id", tgId).single();
+  if (!wallet) {
+    await ensureWallet(supabase, tgId);
+  }
+
+  const { error } = await supabase.from("telegram_wallets").update({
+    balance: (wallet?.balance || 0) + amount,
+    updated_at: new Date().toISOString(),
+  }).eq("telegram_id", tgId);
+
+  if (error) {
+    await sendMessage(token, chatId, `❌ Failed: ${error.message}`);
+    return;
+  }
+
+  // Record transaction
+  await supabase.from("telegram_wallet_transactions").insert({
+    telegram_id: tgId,
+    amount,
+    type: "admin_credit",
+    description: `Admin added ₹${amount}`,
+  });
+
+  const newBalance = (wallet?.balance || 0) + amount;
+  await sendMessage(token, chatId, `✅ <b>Balance Added!</b>\n\n👤 User: <code>${tgId}</code>\n💰 Added: ₹${amount}\n💵 New Balance: ₹${newBalance}`);
+
+  // Notify user
+  try {
+    await sendMessage(token, tgId, `🎉 ₹${amount} has been added to your wallet by admin!\n\n💰 New Balance: ₹${newBalance}`);
+  } catch { /* user may have blocked bot */ }
 }
 
 // ===== ALL USERS (PAGINATED) =====
