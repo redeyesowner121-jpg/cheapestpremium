@@ -85,14 +85,18 @@ export async function showPaymentInfo(
   const buttons: any[][] = [];
 
   if (finalAmount === 0) {
-    // Full wallet pay - ask email first
-    await setConversationState(supabase, userId, "awaiting_email_wallet", {
+    // Full wallet pay - show confirm button directly
+    await setConversationState(supabase, userId, "wallet_pay_confirm", {
       productName, price, productId, variationId,
     });
     text += lang === "bn"
-      ? "📧 আপনার <b>ইমেইল অ্যাড্রেস</b> পাঠান (যেখানে অর্ডার ডিটেইলস পাঠানো হবে):"
-      : "📧 Send your <b>email address</b> (order details will be sent here):";
-    await sendMessage(token, chatId, text);
+      ? "💳 ওয়ালেট থেকে পেমেন্ট কনফার্ম করতে নীচের বাটনে ক্লিক করুন।"
+      : "💳 Click the button below to confirm wallet payment.";
+    await sendMessage(token, chatId, text, {
+      reply_markup: {
+        inline_keyboard: [[{ text: lang === "bn" ? "💳 ওয়ালেট দিয়ে পে করুন" : "💳 Pay with Wallet", callback_data: "walletpay_confirm" }]],
+      },
+    });
     return;
   } else {
     // Generate dynamic UPI link
@@ -111,7 +115,7 @@ export async function showPaymentInfo(
 
     buttons.push([{ text: `💳 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}`, url: qrUrl }]);
 
-    await setConversationState(supabase, userId, "awaiting_email", {
+    await setConversationState(supabase, userId, "awaiting_screenshot", {
       productName, price, finalAmount, productId, variationId, walletDeduction,
     });
 
@@ -140,10 +144,10 @@ export async function showPaymentInfo(
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
 
-    // Ask for email first
+    // Ask for screenshot directly
     await sendMessage(token, chatId, lang === "bn"
-      ? "📧 পেমেন্ট করার পর আপনার <b>ইমেইল অ্যাড্রেস</b> পাঠান (যেখানে অর্ডার ডিটেইলস পাঠানো হবে):"
-      : "📧 After payment, send your <b>email address</b> (order details will be sent here):");
+      ? "📸 পেমেন্ট করার পর <b>স্ক্রিনশট</b> পাঠান।"
+      : "📸 After payment, send the <b>screenshot</b>.");
     return;
   }
 
@@ -153,7 +157,7 @@ export async function showPaymentInfo(
 
 // ===== WALLET PAY =====
 
-export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, email?: string) {
+export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string) {
   const wallet = await getWallet(supabase, userId);
   if (!wallet || wallet.balance < amount) {
     await sendMessage(token, chatId, lang === "bn" ? "❌ পর্যাপ্ত ব্যালেন্স নেই।" : "❌ Insufficient wallet balance.");
@@ -203,7 +207,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 
   // Notify all admins
   await notifyAllAdmins(token, supabase,
-    `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📧 Email: ${email || "N/A"}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+    `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
   // Check referral bonus
