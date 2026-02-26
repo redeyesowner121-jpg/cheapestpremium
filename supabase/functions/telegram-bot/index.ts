@@ -1267,17 +1267,17 @@ async function handleReferEarn(token: string, supabase: any, chatId: number, use
 // ===== SUPPORT =====
 
 async function handleSupport(token: string, supabase: any, chatId: number, lang: string) {
-  const settings = await getSettings(supabase);
-  const whatsapp = settings.contact_whatsapp || "+918900684167";
+  const supportNumber = "+201556690444";
 
   const text = lang === "bn"
-    ? `📞 <b>সাপোর্ট</b>\n\n24/7 সাহায্যের জন্য আমরা আছি!\n📱 WhatsApp: ${whatsapp}`
-    : `📞 <b>Support</b>\n\nWe're here 24/7!\n📱 WhatsApp: ${whatsapp}`;
+    ? `📞 <b>সাপোর্ট</b>\n\n24/7 সাহায্যের জন্য আমরা আছি!\n\n📱 WhatsApp: ${supportNumber}\n✈️ Telegram: ${supportNumber}`
+    : `📞 <b>Support</b>\n\nWe're here 24/7!\n\n📱 WhatsApp: ${supportNumber}\n✈️ Telegram: ${supportNumber}`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "💬 WhatsApp", url: `https://wa.me/${whatsapp.replace("+", "")}` }],
+        [{ text: "💬 WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}` }],
+        [{ text: "✈️ Telegram", url: `https://t.me/${supportNumber.replace("+", "")}` }],
         [{ text: t("back_main", lang), callback_data: "back_main" }],
       ],
     },
@@ -2055,7 +2055,7 @@ async function handleAIQuery(token: string, supabase: any, chatId: number, userI
 
   const settings = await getSettings(supabase);
   const appName = settings.app_name || "RKR Premium Store";
-  const whatsapp = settings.contact_whatsapp || "+918900684167";
+  const supportNumber = "+201556690444";
 
   const systemPrompt = `You are the smart, friendly AI assistant for "${appName}" — a Telegram-based digital premium products store. You are an expert sales assistant.
 
@@ -2071,7 +2071,7 @@ ${couponInfo !== "No active coupons" ? `🎟️ ACTIVE COUPONS:\n${couponInfo}` 
 👤 THIS USER'S WALLET: ₹${walletBalance}
 ${refCode ? `🔗 Their Referral Code: ${refCode}` : ""}
 
-📞 Support WhatsApp: ${whatsapp}
+📞 Support WhatsApp/Telegram: ${supportNumber}
 
 STRICT RULES:
 1. GREETINGS: If someone says "hi", "hello", "হাই", "হ্যালো", "hey", "assalamualaikum", "কেমন আছেন" etc., respond warmly, introduce the store, and highlight 2-3 best products or current offers.
