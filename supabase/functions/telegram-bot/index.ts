@@ -844,18 +844,16 @@ async function handleBuyVariation(token: string, supabase: any, chatId: number, 
 
 // ===== PAYMENT INFO WITH WALLET =====
 
-const UPI_ID = "8900684167@axl";
-const UPI_NAME = "RKR Premium Store";
+const UPI_ID = "8900684167@ibl";
+const UPI_NAME = "Asif Ikbal Rubaiul Islam";
 
 function generateUpiLink(amount: number, productName: string): string {
-  const tn = encodeURIComponent(productName.substring(0, 50));
-  return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${tn}`;
+  return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(productName.substring(0, 50))}`;
 }
 
 function generateUpiQrUrl(amount: number, productName: string): string {
-  // Use a QR code generation API
-  const upiString = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent(productName.substring(0, 50))}`;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
+  const upiString = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(productName.substring(0, 50))}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(upiString)}`;
 }
 
 async function showPaymentInfo(
