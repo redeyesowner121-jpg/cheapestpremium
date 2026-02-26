@@ -231,8 +231,12 @@ Deno.serve(async (req) => {
             const userLang = await getUserLang(supabase, userId);
             if (!userLang) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
 
-            const joined = await checkChannelMembership(BOT_TOKEN, userId);
-            if (!joined) { await showJoinChannels(BOT_TOKEN, chatId, userLang); return jsonOk(); }
+            // Admins bypass channel check
+            const isUserAdmin = await isAdminBot(supabase, userId);
+            if (!isUserAdmin) {
+              const joined = await checkChannelMembership(BOT_TOKEN, userId);
+              if (!joined) { await showJoinChannels(BOT_TOKEN, chatId, userLang); return jsonOk(); }
+            }
 
             await showMainMenu(BOT_TOKEN, supabase, chatId, userLang);
             break;
@@ -314,8 +318,12 @@ Deno.serve(async (req) => {
 
       if (!await getUserLang(supabase, userId)) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
 
-      const joined = await checkChannelMembership(BOT_TOKEN, userId);
-      if (!joined) { await showJoinChannels(BOT_TOKEN, chatId, lang); return jsonOk(); }
+      // Admins bypass channel check
+      const isUserAdminMsg = await isAdminBot(supabase, userId);
+      if (!isUserAdminMsg) {
+        const joined = await checkChannelMembership(BOT_TOKEN, userId);
+        if (!joined) { await showJoinChannels(BOT_TOKEN, chatId, lang); return jsonOk(); }
+      }
 
       // Photos forwarded to admin
       if (msg.photo) { await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser, lang); return jsonOk(); }
