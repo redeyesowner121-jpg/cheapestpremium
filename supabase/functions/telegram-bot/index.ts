@@ -322,6 +322,15 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // Admin chat reply
+      if (data.startsWith("admin_chat_")) {
+        if (!isAdmin(userId)) return jsonOk();
+        const targetUserId = parseInt(data.replace("admin_chat_", ""));
+        conversationState.set(userId, { step: "admin_reply", data: { targetUserId } });
+        await sendMessage(BOT_TOKEN, chatId, `💬 <b>Reply mode</b>\n\nType your message to send to user <code>${targetUserId}</code>.\n\nSend /cancel to cancel.`);
+        return jsonOk();
+      }
+
       // Admin actions
       if (data.startsWith("admin_confirm_") || data.startsWith("admin_reject_") || data.startsWith("admin_ship_")) {
         if (!isAdmin(userId)) return jsonOk();
@@ -1180,6 +1189,7 @@ async function forwardUserMessageToAdmin(token: string, supabase: any, msg: any,
             { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
           ],
           [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+          [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
         ],
       },
     }
@@ -1330,10 +1340,25 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
               { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
             ],
             [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
           ],
         },
       }
     );
+    return;
+  }
+
+  // Admin reply to user
+  if (state.step === "admin_reply") {
+    conversationState.delete(userId);
+    const targetUserId = state.data.targetUserId;
+    if (text === "/cancel") {
+      await sendMessage(token, chatId, "❌ Reply cancelled.");
+      return;
+    }
+    // Forward the admin's text message to the target user
+    await sendMessage(token, targetUserId, `📩 <b>Admin Reply:</b>\n\n${text}`);
+    await sendMessage(token, chatId, `✅ Message sent to user <code>${targetUserId}</code>.`);
     return;
   }
 
