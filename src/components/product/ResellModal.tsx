@@ -51,8 +51,9 @@ const ResellModal: React.FC<ResellModalProps> = ({
       const url = `${window.location.origin}/resale/${linkCode}`;
       setGeneratedLink(url);
       toast.success('Resale link created!');
-    } catch (err) {
-      toast.error('Failed to create resale link');
+    } catch (err: any) {
+      console.error('Resale link error:', err);
+      toast.error(err?.message || 'Failed to create resale link');
     }
     setLoading(false);
   };
