@@ -1417,6 +1417,42 @@ async function handleAdminAction(token: string, supabase: any, orderId: string, 
   const msgKey: Record<string, string> = { confirmed: "order_confirmed", rejected: "order_rejected", shipped: "order_shipped" };
   await sendMessage(token, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
 
+  // If rejected, refund any wallet deduction
+  if (newStatus === "rejected") {
+    // Find the wallet deduction for this order
+    const { data: deductions } = await supabase.from("telegram_wallet_transactions")
+      .select("*")
+      .eq("telegram_id", order.telegram_user_id)
+      .eq("type", "purchase_deduction")
+      .ilike("description", `%${order.product_name}%`)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (deductions?.length && deductions[0].amount < 0) {
+      const refundAmount = Math.abs(deductions[0].amount);
+      const wallet = await getWallet(supabase, order.telegram_user_id);
+      if (wallet) {
+        await supabase.from("telegram_wallets").update({
+          balance: wallet.balance + refundAmount,
+          updated_at: new Date().toISOString(),
+        }).eq("telegram_id", order.telegram_user_id);
+
+        await supabase.from("telegram_wallet_transactions").insert({
+          telegram_id: order.telegram_user_id,
+          type: "refund",
+          amount: refundAmount,
+          description: `Refund: ${order.product_name} (rejected)`,
+        });
+
+        await sendMessage(token, order.telegram_user_id,
+          userLang === "bn"
+            ? `💰 ₹${refundAmount} আপনার ওয়ালেটে ফেরত দেওয়া হয়েছে।`
+            : `💰 ₹${refundAmount} refunded to your wallet.`
+        );
+      }
+    }
+  }
+
   // If confirmed, process referral and reseller profit
   if (newStatus === "confirmed") {
     await processReferralBonus(supabase, order.telegram_user_id, token);
@@ -1438,7 +1474,6 @@ async function handleAdminAction(token: string, supabase: any, orderId: string, 
           description: `Resale profit: ${order.product_name}`,
         });
 
-        // Notify reseller
         try {
           await sendMessage(token, order.reseller_telegram_id,
             `💰 <b>Resale Profit!</b>\n\n₹${order.reseller_profit} added to your wallet!\nProduct: ${order.product_name}`
@@ -1538,13 +1573,32 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
     const lang = (await getUserLang(supabase, userId)) || "en";
     const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
 
+    // Deduct wallet balance for partial payment
+    const walletDeduction = orderData.walletDeduction || 0;
+    if (walletDeduction > 0) {
+      const wallet = await getWallet(supabase, userId);
+      if (wallet && wallet.balance >= walletDeduction) {
+        await supabase.from("telegram_wallets").update({
+          balance: wallet.balance - walletDeduction,
+          updated_at: new Date().toISOString(),
+        }).eq("telegram_id", userId);
+
+        await supabase.from("telegram_wallet_transactions").insert({
+          telegram_id: userId,
+          type: "purchase_deduction",
+          amount: -walletDeduction,
+          description: `Partial wallet pay: ${orderData.productName}`,
+        });
+      }
+    }
+
     // Create order in DB
     const { data: order } = await supabase.from("telegram_orders").insert({
       telegram_user_id: userId,
       username,
       product_name: orderData.productName,
       product_id: orderData.productId || null,
-      amount: orderData.finalAmount || orderData.price,
+      amount: orderData.price,
       status: "pending",
       screenshot_file_id: msg.photo[msg.photo.length - 1]?.file_id || null,
       reseller_telegram_id: orderData.reseller_telegram_id || null,
@@ -1554,11 +1608,18 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
     const orderId = order?.id || "unknown";
 
     // Notify user
-    await sendMessage(token, chatId,
-      lang === "bn"
-        ? "✅ <b>স্ক্রিনশট পাঠানো হয়েছে!</b>\n\nঅ্যাডমিন যাচাই করছে। শীঘ্রই আপডেট পাবেন। ⏳"
-        : "✅ <b>Screenshot received!</b>\n\nAdmin is verifying your payment. You'll get an update soon. ⏳"
-    );
+    let userConfirmMsg = lang === "bn"
+      ? "✅ <b>স্ক্রিনশট পাঠানো হয়েছে!</b>\n\n"
+      : "✅ <b>Screenshot received!</b>\n\n";
+    if (walletDeduction > 0) {
+      userConfirmMsg += lang === "bn"
+        ? `💳 ওয়ালেট থেকে ₹${walletDeduction} কাটা হয়েছে।\n`
+        : `💳 ₹${walletDeduction} deducted from wallet.\n`;
+    }
+    userConfirmMsg += lang === "bn"
+      ? "অ্যাডমিন যাচাই করছে। শীঘ্রই আপডেট পাবেন। ⏳"
+      : "Admin is verifying your payment. You'll get an update soon. ⏳";
+    await sendMessage(token, chatId, userConfirmMsg);
 
     // Forward screenshot to all admins
     await forwardToAllAdmins(token, supabase, chatId, msg.message_id);
@@ -1567,7 +1628,12 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
     let adminMsg = `📩 <b>Payment Screenshot</b>\n\n` +
       `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
       `📦 Product: <b>${orderData.productName}</b>\n` +
-      `💵 Amount: <b>₹${orderData.finalAmount || orderData.price}</b>\n` +
+      `💰 Total Price: <b>₹${orderData.price}</b>\n`;
+
+    if (walletDeduction > 0) {
+      adminMsg += `💳 Wallet Deducted: <b>₹${walletDeduction}</b>\n`;
+    }
+    adminMsg += `💵 UPI Paid: <b>₹${orderData.finalAmount || orderData.price}</b>\n` +
       `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`;
 
     // Add variation info if available
