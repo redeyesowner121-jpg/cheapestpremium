@@ -1765,26 +1765,93 @@ async function handleAIQuery(token: string, supabase: any, chatId: number, userI
     return;
   }
 
-  // Get product catalog for context
-  const { data: products } = await supabase.from("products").select("name, price, category, description").eq("is_active", true).limit(50);
-  const productList = products?.map((p: any) => `${p.name} (₹${p.price}, ${p.category})`).join(", ") || "No products";
+  // Fetch rich product context with variations
+  const [productsRes, categoriesRes, flashSalesRes, couponsRes, walletRes] = await Promise.all([
+    supabase.from("products").select("name, price, original_price, category, description, stock, reseller_price, is_active").eq("is_active", true).limit(100),
+    supabase.from("categories").select("name").eq("is_active", true).order("sort_order"),
+    supabase.from("flash_sales").select("sale_price, products(name, price)").eq("is_active", true).gt("end_time", new Date().toISOString()).limit(10),
+    supabase.from("coupons").select("code, description, discount_type, discount_value").eq("is_active", true).limit(10),
+    supabase.from("telegram_wallets").select("balance, referral_code").eq("telegram_id", userId).single(),
+  ]);
+
+  // Fetch variations for all products
+  const products = productsRes.data || [];
+  const productIds = products.map((p: any) => p.name);
+  const { data: allVariations } = await supabase.from("product_variations").select("name, price, original_price, reseller_price, product_id, is_active, products(name)").eq("is_active", true);
+
+  // Build detailed product catalog
+  const productCatalog = products.map((p: any) => {
+    const vars = (allVariations || []).filter((v: any) => v.products?.name === p.name);
+    let info = `📦 ${p.name} — ₹${p.price}`;
+    if (p.original_price && p.original_price > p.price) info += ` (MRP: ₹${p.original_price}, ${Math.round((1 - p.price / p.original_price) * 100)}% OFF)`;
+    if (p.stock !== null && p.stock !== undefined) info += ` | Stock: ${p.stock > 0 ? p.stock : "OUT OF STOCK ❌"}`;
+    info += ` | Category: ${p.category}`;
+    if (p.description) info += ` | ${p.description.slice(0, 80)}`;
+    if (vars.length > 0) {
+      info += `\n   Variations: ${vars.map((v: any) => {
+        let vInfo = `${v.name}: ₹${v.price}`;
+        if (v.original_price && v.original_price > v.price) vInfo += ` (was ₹${v.original_price})`;
+        return vInfo;
+      }).join(" | ")}`;
+    }
+    return info;
+  }).join("\n");
+
+  const categoryList = (categoriesRes.data || []).map((c: any) => c.name).join(", ");
+
+  // Flash sales context
+  const flashSaleInfo = (flashSalesRes.data || []).map((s: any) =>
+    `⚡ ${s.products?.name || "Product"}: ₹${s.sale_price} (was ₹${s.products?.price})`
+  ).join("\n") || "No active flash sales";
+
+  // Coupon context
+  const couponInfo = (couponsRes.data || []).map((c: any) => {
+    const disc = c.discount_type === "percentage" ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`;
+    return `🎟️ ${c.code}: ${disc}${c.description ? ` - ${c.description}` : ""}`;
+  }).join("\n") || "No active coupons";
+
+  // User wallet context
+  const walletBalance = walletRes.data?.balance || 0;
+  const refCode = walletRes.data?.referral_code || "";
 
   const settings = await getSettings(supabase);
   const appName = settings.app_name || "RKR Premium Store";
+  const whatsapp = settings.contact_whatsapp || "+918900684167";
 
-  const systemPrompt = `You are the friendly AI assistant for ${appName}, a digital premium products store on Telegram.
-Available products: ${productList}
-Website: ${settings.app_url || "https://cheapest-premiums.lovable.app"}
-WhatsApp: ${settings.contact_whatsapp || "+918900684167"}
+  const systemPrompt = `You are the smart, friendly AI assistant for "${appName}" — a Telegram-based digital premium products store. You are an expert sales assistant.
+
+📋 PRODUCT CATALOG:
+${productCatalog || "No products available"}
+
+📂 CATEGORIES: ${categoryList || "None"}
+
+${flashSaleInfo !== "No active flash sales" ? `🔥 FLASH SALES:\n${flashSaleInfo}` : ""}
+
+${couponInfo !== "No active coupons" ? `🎟️ ACTIVE COUPONS:\n${couponInfo}` : ""}
+
+👤 THIS USER'S WALLET: ₹${walletBalance}
+${refCode ? `🔗 Their Referral Code: ${refCode}` : ""}
+
+📞 Support WhatsApp: ${whatsapp}
 
 STRICT RULES:
-1. If someone sends a greeting like "hi", "hello", "হাই", "হ্যালো", "hey", "assalamualaikum", "কেমন আছেন" etc., respond with a warm friendly greeting and briefly introduce the store and what we sell.
-2. If asked about returns or refunds, ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
-3. Answer in ${lang === "bn" ? "Bengali" : "English"}.
-4. Be helpful, concise, and friendly. Keep responses short (max 3-4 lines).
-5. For product/premium related questions, provide accurate info from the product list above.
-6. If you truly cannot answer or the question is unrelated to the store, say you'll forward to admin.
-7. Never make up product info that's not in the list.`;
+1. GREETINGS: If someone says "hi", "hello", "হাই", "হ্যালো", "hey", "assalamualaikum", "কেমন আছেন" etc., respond warmly, introduce the store, and highlight 2-3 best products or current offers.
+2. PRODUCT QUERIES: When asked about a product, give EXACT price, variations (if any), stock status, and discount info. Never guess prices.
+3. COMPARISONS: If asked to compare products or suggest alternatives, do it intelligently using the catalog data.
+4. PRICE/BUDGET: If user mentions a budget, recommend products within that range.
+5. STOCK: If a product is out of stock (stock=0), clearly say so and suggest alternatives in the same category.
+6. OFFERS: Proactively mention flash sales and coupons when relevant to the user's query.
+7. WALLET: If user asks about wallet/balance, tell them their balance (₹${walletBalance}).
+8. REFERRAL: If asked about referral/earning, explain the referral system and share their code if available.
+9. RETURNS/REFUNDS: ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
+10. LANGUAGE: Answer in ${lang === "bn" ? "Bengali" : "English"}.
+11. CONCISE: Keep responses helpful but concise (max 8-10 lines). Use emojis.
+12. BUYING: If user wants to buy, tell them to click "🛒 View Products" in the menu or type /products to browse and purchase.
+13. DO NOT share any website/store links. Only mention products, prices, and the bot's commands.
+14. UPSELL: When relevant, suggest complementary or popular products.
+15. If you truly cannot answer or the question is unrelated, say you'll forward to admin.
+16. Never make up product info that's not in the catalog.
+17. For order status questions, tell them to contact admin via Support button.`;
 
   try {
     await sendMessage(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
@@ -1824,6 +1891,7 @@ STRICT RULES:
       await sendMessage(token, chatId, `🤖 ${answer}`, {
         reply_markup: {
           inline_keyboard: [
+            [{ text: lang === "bn" ? "🛒 প্রোডাক্ট দেখুন" : "🛒 View Products", callback_data: "view_products" }],
             [{ text: lang === "bn" ? "📩 অ্যাডমিনকে জিজ্ঞাসা করুন" : "📩 Ask Admin", callback_data: "forward_to_admin" }],
             [{ text: t("back_main", lang), callback_data: "back_main" }],
           ],
