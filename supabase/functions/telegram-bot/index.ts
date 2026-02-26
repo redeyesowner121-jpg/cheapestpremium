@@ -19,6 +19,33 @@ async function isAdminBot(supabase: any, userId: number): Promise<boolean> {
   const { data } = await supabase.from("telegram_bot_admins").select("id").eq("telegram_id", userId).maybeSingle();
   return !!data;
 }
+// Get all admin IDs (super admin + db admins)
+async function getAllAdminIds(supabase: any): Promise<number[]> {
+  const ids = [SUPER_ADMIN_ID];
+  const { data } = await supabase.from("telegram_bot_admins").select("telegram_id");
+  if (data?.length) {
+    for (const a of data) {
+      if (!ids.includes(a.telegram_id)) ids.push(a.telegram_id);
+    }
+  }
+  return ids;
+}
+
+// Send message to all admins
+async function notifyAllAdmins(token: string, supabase: any, text: string, opts?: { reply_markup?: any }) {
+  const adminIds = await getAllAdminIds(supabase);
+  for (const adminId of adminIds) {
+    try { await sendMessage(token, adminId, text, opts); } catch { /* admin may have blocked bot */ }
+  }
+}
+
+// Forward a message to all admins
+async function forwardToAllAdmins(token: string, supabase: any, fromChatId: number, messageId: number) {
+  const adminIds = await getAllAdminIds(supabase);
+  for (const adminId of adminIds) {
+    try { await forwardMessage(token, adminId, fromChatId, messageId); } catch { /* */ }
+  }
+}
 
 const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
 
@@ -335,12 +362,19 @@ Deno.serve(async (req) => {
 
       // Forward to admin
       if (data === "forward_to_admin") {
-        await sendMessage(BOT_TOKEN, SUPER_ADMIN_ID,
-          `📩 User @${telegramUser.username || telegramUser.first_name} (${userId}) wants admin help.`
+        // Set user into "chatting_with_admin" mode so AI is disabled
+        await setConversationState(supabase, userId, "chatting_with_admin", {});
+        await notifyAllAdmins(BOT_TOKEN, supabase,
+          `📩 User @${telegramUser.username || telegramUser.first_name} (${userId}) wants admin help.`,
+          {
+            reply_markup: {
+              inline_keyboard: [[{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }]],
+            },
+          }
         );
         await sendMessage(BOT_TOKEN, chatId, lang === "bn"
-          ? "✅ আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন।"
-          : "✅ Your question has been forwarded to admin. You'll get a reply soon."
+          ? "✅ আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন।\n\n💬 এখন আপনি সরাসরি মেসেজ পাঠাতে পারেন। চ্যাট শেষ করতে /endchat লিখুন।"
+          : "✅ Your question has been forwarded to admin. You'll get a reply soon.\n\n💬 You can now send messages directly. Type /endchat to end chat."
         );
         return jsonOk();
       }
@@ -350,7 +384,7 @@ Deno.serve(async (req) => {
         if (!await isAdminBot(supabase, userId)) return jsonOk();
         const targetUserId = parseInt(data.replace("admin_chat_", ""));
         await setConversationState(supabase, userId, "admin_reply", { targetUserId });
-        await sendMessage(BOT_TOKEN, chatId, `💬 <b>Reply mode</b>\n\nType your message to send to user <code>${targetUserId}</code>.\n\nSend /cancel to cancel.`);
+        await sendMessage(BOT_TOKEN, chatId, `💬 <b>Chat mode with user <code>${targetUserId}</code></b>\n\nType messages to send. Each message will be delivered to the user.\n\nSend /endchat to end the conversation.`);
         return jsonOk();
       }
 
@@ -1083,8 +1117,8 @@ async function handleWalletPay(token: string, supabase: any, chatId: number, use
     t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
   );
 
-  // Notify admin
-  await sendMessage(token, SUPER_ADMIN_ID,
+  // Notify all admins
+  await notifyAllAdmins(token, supabase,
     `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
@@ -1338,7 +1372,8 @@ async function forwardUserMessageToAdmin(token: string, supabase: any, msg: any,
   const userId = telegramUser.id;
   const username = telegramUser.username ? `@${telegramUser.username}` : telegramUser.first_name || "Unknown";
 
-  await forwardMessage(token, SUPER_ADMIN_ID, msg.chat.id, msg.message_id);
+  // Forward to ALL admins
+  await forwardToAllAdmins(token, supabase, msg.chat.id, msg.message_id);
 
   const { data: order } = await supabase.from("telegram_orders").insert({
     telegram_user_id: userId,
@@ -1351,7 +1386,7 @@ async function forwardUserMessageToAdmin(token: string, supabase: any, msg: any,
 
   const orderId = order?.id || "unknown";
 
-  await sendMessage(token, SUPER_ADMIN_ID,
+  await notifyAllAdmins(token, supabase,
     `📩 <b>New message from customer</b>\n\n👤 From: <b>${username}</b>\n🆔 ID: <code>${userId}</code>\n📋 Order: <code>${orderId.slice(0, 8)}</code>`,
     {
       reply_markup: {
@@ -1525,10 +1560,10 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
         : "✅ <b>Screenshot received!</b>\n\nAdmin is verifying your payment. You'll get an update soon. ⏳"
     );
 
-    // Forward screenshot to admin
-    await forwardMessage(token, SUPER_ADMIN_ID, chatId, msg.message_id);
+    // Forward screenshot to all admins
+    await forwardToAllAdmins(token, supabase, chatId, msg.message_id);
 
-    // Send admin action buttons
+    // Send admin action buttons to all admins
     let adminMsg = `📩 <b>Payment Screenshot</b>\n\n` +
       `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
       `📦 Product: <b>${orderData.productName}</b>\n` +
@@ -1551,7 +1586,7 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
       adminMsg += `\n🔄 <b>Resale Order</b> — Reseller: <code>${orderData.reseller_telegram_id}</code>, Profit: ₹${orderData.reseller_profit}`;
     }
 
-    await sendMessage(token, SUPER_ADMIN_ID, adminMsg,
+    await notifyAllAdmins(token, supabase, adminMsg,
       {
         reply_markup: {
           inline_keyboard: [
@@ -1568,17 +1603,48 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
     return;
   }
 
-  // Admin reply to user
+  // Admin reply to user (persistent chat mode)
   if (state.step === "admin_reply") {
-    await deleteConversationState(supabase, userId);
     const targetUserId = state.data.targetUserId;
-    if (text === "/cancel") {
-      await sendMessage(token, chatId, "❌ Reply cancelled.");
+    if (text === "/endchat" || text === "/cancel") {
+      await deleteConversationState(supabase, userId);
+      await sendMessage(token, chatId, `✅ Chat with user <code>${targetUserId}</code> ended.`);
       return;
     }
-    // Forward the admin's text message to the target user
-    await sendMessage(token, targetUserId, `📩 <b>Admin Reply:</b>\n\n${text}`);
-    await sendMessage(token, chatId, `✅ Message sent to user <code>${targetUserId}</code>.`);
+    // Forward admin's message to the target user
+    if (msg.photo) {
+      await forwardMessage(token, targetUserId, chatId, msg.message_id);
+    } else {
+      await sendMessage(token, targetUserId, `📩 <b>Admin:</b>\n\n${text}`);
+    }
+    await sendMessage(token, chatId, `✅ Sent to <code>${targetUserId}</code>. Continue typing or /endchat to stop.`);
+    // Don't delete state - keep chat mode active
+    return;
+  }
+
+  // User chatting with admin (AI disabled, messages forwarded)
+  if (state.step === "chatting_with_admin") {
+    if (text === "/endchat" || text === "/cancel") {
+      await deleteConversationState(supabase, userId);
+      const lang2 = (await getUserLang(supabase, userId)) || "en";
+      await sendMessage(token, chatId, lang2 === "bn"
+        ? "✅ চ্যাট শেষ হয়েছে। মূল মেনুতে ফিরে যাচ্ছি..."
+        : "✅ Chat ended. Returning to main menu..."
+      );
+      await showMainMenu(token, supabase, chatId, lang2);
+      return;
+    }
+    // Forward user message (text or photo) to all admins
+    const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
+    await forwardToAllAdmins(token, supabase, chatId, msg.message_id);
+    await notifyAllAdmins(token, supabase,
+      `💬 <b>Live Chat</b> from <b>${username}</b> (<code>${userId}</code>)`,
+      {
+        reply_markup: {
+          inline_keyboard: [[{ text: "💬 Reply", callback_data: `admin_chat_${userId}` }]],
+        },
+      }
+    );
     return;
   }
 
