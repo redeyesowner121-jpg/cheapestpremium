@@ -44,6 +44,20 @@ const ProfilePage: React.FC = () => {
   const [buyingBlueTick, setBuyingBlueTick] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notifications_enabled || false);
   const [claimingBonus, setClaimingBonus] = useState(false);
+  const [referralCount, setReferralCount] = useState(0);
+
+  // Fetch referral count
+  useEffect(() => {
+    if (!profile?.referral_code) return;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('referred_by', profile.referral_code);
+      setReferralCount(count || 0);
+    };
+    fetchCount();
+  }, [profile?.referral_code]);
 
   const handleToggleNotifications = async () => {
     try {
@@ -209,7 +223,7 @@ const ProfilePage: React.FC = () => {
     <div className="min-h-screen bg-background pb-24">
       <Header />
       <main className="pt-20 px-4 max-w-lg mx-auto">
-        <ProfileCard profile={profile} onEditProfile={() => navigate('/profile/edit')} />
+        <ProfileCard profile={profile} onEditProfile={() => navigate('/profile/edit')} referralCount={referralCount} />
         <RankProgressionCard rankBalance={profile?.rank_balance || 0} className="mt-6" />
         <ReferralSection referralCode={profile?.referral_code || ''} onCustomize={() => setShowEditReferral(true)} />
 
