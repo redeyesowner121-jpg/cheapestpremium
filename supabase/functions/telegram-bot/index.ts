@@ -929,6 +929,8 @@ async function showPaymentInfo(
     text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
     text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n`;
     text += `🔗 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}:\n<code>${upiLink}</code>\n\n`;
+    text += `🌐 ${lang === "bn" ? "ইন্টারন্যাশনাল/বাইন্যান্স পেমেন্টের জন্য" : "For International/Binance Payment"}:\n`;
+    text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
     text += `${lang === "bn" ? "নীচের QR কোড স্ক্যান করে পেমেন্ট করুন, অথবা UPI লিংক কপি করে অ্যাপে ওপেন করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Scan the QR code below to pay, or copy the UPI link and open it in your app. Then send payment screenshot."}`;
 
     // Telegram inline keyboard does not support upi:// protocol URLs.
