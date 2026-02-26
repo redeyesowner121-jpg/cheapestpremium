@@ -1138,6 +1138,27 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_conversation_state: {
+        Row: {
+          data: Json
+          step: string
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          data?: Json
+          step: string
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          step?: string
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       telegram_orders: {
         Row: {
           admin_message_id: number | null

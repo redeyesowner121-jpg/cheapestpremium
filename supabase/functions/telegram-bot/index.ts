@@ -16,8 +16,24 @@ function isAdmin(userId: number): boolean {
 
 const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
 
-// In-memory conversation state
-const conversationState = new Map<number, { step: string; data: Record<string, any> }>();
+// DB-based conversation state helpers
+async function getConversationState(supabase: any, telegramId: number): Promise<{ step: string; data: Record<string, any> } | null> {
+  const { data } = await supabase.from("telegram_conversation_state").select("step, data").eq("telegram_id", telegramId).single();
+  return data ? { step: data.step, data: data.data || {} } : null;
+}
+
+async function setConversationState(supabase: any, telegramId: number, step: string, stateData: Record<string, any>) {
+  await supabase.from("telegram_conversation_state").upsert({
+    telegram_id: telegramId,
+    step,
+    data: stateData,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "telegram_id" });
+}
+
+async function deleteConversationState(supabase: any, telegramId: number) {
+  await supabase.from("telegram_conversation_state").delete().eq("telegram_id", telegramId);
+}
 
 // ===== TRANSLATIONS =====
 const T: Record<string, Record<string, string>> = {
@@ -326,7 +342,7 @@ Deno.serve(async (req) => {
       if (data.startsWith("admin_chat_")) {
         if (!isAdmin(userId)) return jsonOk();
         const targetUserId = parseInt(data.replace("admin_chat_", ""));
-        conversationState.set(userId, { step: "admin_reply", data: { targetUserId } });
+        await setConversationState(supabase, userId, "admin_reply", { targetUserId });
         await sendMessage(BOT_TOKEN, chatId, `💬 <b>Reply mode</b>\n\nType your message to send to user <code>${targetUserId}</code>.\n\nSend /cancel to cancel.`);
         return jsonOk();
       }
@@ -449,9 +465,10 @@ Deno.serve(async (req) => {
 
       await upsertTelegramUser(supabase, telegramUser);
 
-      // Check conversation state first
-      if (conversationState.has(userId)) {
-        await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg);
+      // Check conversation state first (DB-based)
+      const convState = await getConversationState(supabase, userId);
+      if (convState) {
+        await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg, convState);
         return jsonOk();
       }
 
@@ -510,7 +527,7 @@ Deno.serve(async (req) => {
             break;
           case "/broadcast":
             if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            conversationState.set(userId, { step: "broadcast_message", data: {} });
+            await setConversationState(supabase, userId, "broadcast_message", {});
             await sendMessage(BOT_TOKEN, chatId, "📢 <b>Broadcast Mode</b>\n\nSend the message (text/photo) to broadcast.\nSend /cancel to cancel.");
             break;
           case "/report":
@@ -520,7 +537,7 @@ Deno.serve(async (req) => {
             break;
           case "/add_product":
             if (!isAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            conversationState.set(userId, { step: "add_photo", data: {} });
+            await setConversationState(supabase, userId, "add_photo", {});
             await sendMessage(BOT_TOKEN, chatId, "📸 <b>Add Product (Step 1/4)</b>\n\nSend the product photo.\n/cancel to cancel.");
             break;
           case "/edit_price": {
@@ -655,7 +672,7 @@ async function showMainMenu(token: string, supabase: any, chatId: number, lang: 
           { text: t("my_wallet", lang), callback_data: "my_wallet" },
         ],
         [
-          { text: `⭐ ${lang === "bn" ? "রিভিউ" : "Reviews"} ↗`, url: appUrl },
+          { text: `⭐ ${lang === "bn" ? "রিভিউ" : "Reviews"} ↗`, url: "https://t.me/RKRxProofs" },
           { text: t("support", lang), callback_data: "support" },
         ],
         [{ text: t("get_offers", lang), callback_data: "get_offers" }],
@@ -936,10 +953,8 @@ async function showPaymentInfo(
     // Payment link button - directly opens UPI payment
     buttons.push([{ text: `💳 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}`, url: qrUrl }]);
 
-    // Set conversation state to await screenshot
-    conversationState.set(userId, {
-      step: "awaiting_screenshot",
-      data: { productName, price, finalAmount, productId, variationId, walletDeduction },
+    await setConversationState(supabase, userId, "awaiting_screenshot", {
+      productName, price, finalAmount, productId, variationId, walletDeduction,
     });
 
     // Try sending QR code image, fallback to text if it fails
@@ -1329,12 +1344,11 @@ async function handleReport(token: string, supabase: any, chatId: number) {
 
 // ===== CONVERSATION STEP =====
 
-async function handleConversationStep(token: string, supabase: any, chatId: number, userId: number, msg: any) {
-  const state = conversationState.get(userId)!;
+async function handleConversationStep(token: string, supabase: any, chatId: number, userId: number, msg: any, state: { step: string; data: Record<string, any> }) {
   const text = msg.text || "";
 
   if (text === "/cancel") {
-    conversationState.delete(userId);
+    await deleteConversationState(supabase, userId);
     await sendMessage(token, chatId, "❌ Cancelled.");
     return;
   }
@@ -1348,7 +1362,7 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
     }
 
     const orderData = state.data;
-    conversationState.delete(userId);
+    await deleteConversationState(supabase, userId);
     const lang = (await getUserLang(supabase, userId)) || "en";
     const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
 
@@ -1384,6 +1398,18 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
       `💵 Amount: <b>₹${orderData.finalAmount || orderData.price}</b>\n` +
       `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`;
 
+    // Add variation info if available
+    if (orderData.variationId) {
+      const { data: varInfo } = await supabase.from("product_variations").select("name").eq("id", orderData.variationId).single();
+      if (varInfo) {
+        adminMsg += `\n📋 Variation: <b>${varInfo.name}</b>`;
+      }
+    }
+
+    if (orderData.walletDeduction > 0) {
+      adminMsg += `\n💳 Wallet Deduction: ₹${orderData.walletDeduction}`;
+    }
+
     if (orderData.reseller_telegram_id) {
       adminMsg += `\n🔄 <b>Resale Order</b> — Reseller: <code>${orderData.reseller_telegram_id}</code>, Profit: ₹${orderData.reseller_profit}`;
     }
@@ -1407,7 +1433,7 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
 
   // Admin reply to user
   if (state.step === "admin_reply") {
-    conversationState.delete(userId);
+    await deleteConversationState(supabase, userId);
     const targetUserId = state.data.targetUserId;
     if (text === "/cancel") {
       await sendMessage(token, chatId, "❌ Reply cancelled.");
@@ -1421,7 +1447,7 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
 
   // Broadcast
   if (state.step === "broadcast_message") {
-    conversationState.delete(userId);
+    await deleteConversationState(supabase, userId);
     await executeBroadcast(token, supabase, chatId, msg);
     return;
   }
@@ -1437,7 +1463,7 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
       return;
     }
 
-    conversationState.delete(userId);
+    await deleteConversationState(supabase, userId);
 
     // Generate link
     const linkCode = Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -1479,8 +1505,8 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
         });
         const fileData = await fileRes.json();
         const filePath = fileData.result?.file_path;
-        state.data.image_url = filePath ? `https://api.telegram.org/file/bot${token}/${filePath}` : "";
-        state.step = "add_name";
+        const image_url = filePath ? `https://api.telegram.org/file/bot${token}/${filePath}` : "";
+        await setConversationState(supabase, userId, "add_name", { ...state.data, image_url });
         await sendMessage(token, chatId, "✅ Photo received!\n📝 <b>Step 2/4:</b> Enter product name.");
       } else {
         await sendMessage(token, chatId, "⚠️ Please send a photo.");
@@ -1488,20 +1514,18 @@ async function handleConversationStep(token: string, supabase: any, chatId: numb
       break;
     }
     case "add_name":
-      state.data.name = text;
-      state.step = "add_price";
+      await setConversationState(supabase, userId, "add_price", { ...state.data, name: text });
       await sendMessage(token, chatId, `✅ Name: <b>${text}</b>\n💰 <b>Step 3/4:</b> Enter price.`);
       break;
     case "add_price": {
       const price = parseFloat(text);
       if (isNaN(price) || price <= 0) { await sendMessage(token, chatId, "⚠️ Enter a valid price."); break; }
-      state.data.price = price;
-      state.step = "add_category";
+      await setConversationState(supabase, userId, "add_category", { ...state.data, price });
       await sendMessage(token, chatId, `✅ Price: ₹${price}\n📂 <b>Step 4/4:</b> Enter category.`);
       break;
     }
     case "add_category": {
-      conversationState.delete(userId);
+      await deleteConversationState(supabase, userId);
       const slug = state.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Date.now();
       const { data: product, error } = await supabase.from("products").insert({
         name: state.data.name, price: state.data.price, category: text,
@@ -1647,9 +1671,8 @@ async function handleResaleStart(token: string, supabase: any, chatId: number, u
 
   const resellerPrice = product.reseller_price || product.price;
 
-  conversationState.set(userId, {
-    step: "resale_price",
-    data: { product_id: productId, variation_id: variationId, reseller_price: resellerPrice, lang },
+  await setConversationState(supabase, userId, "resale_price", {
+    product_id: productId, variation_id: variationId, reseller_price: resellerPrice, lang,
   });
 
   await sendMessage(token, chatId,
@@ -1675,9 +1698,8 @@ async function handleResaleVariationStart(token: string, supabase: any, chatId: 
 
   const resellerPrice = variation.reseller_price || variation.price;
 
-  conversationState.set(userId, {
-    step: "resale_price",
-    data: { product_id: variation.product_id, variation_id: variationId, reseller_price: resellerPrice, lang },
+  await setConversationState(supabase, userId, "resale_price", {
+    product_id: variation.product_id, variation_id: variationId, reseller_price: resellerPrice, lang,
   });
 
   await sendMessage(token, chatId,
@@ -1706,12 +1728,15 @@ async function handleResaleBuy(token: string, supabase: any, chatId: number, use
   // Show payment for custom price - this sets conversation state to awaiting_screenshot
   await showPaymentInfo(token, supabase, chatId, telegramUser, productName, link.custom_price, link.product_id, link.variation_id, lang);
 
-  // Patch the conversation state to include resale link info for profit crediting
-  const currentState = conversationState.get(userId);
+  // Update the conversation state to include resale link info for profit crediting
+  const currentState = await getConversationState(supabase, userId);
   if (currentState) {
-    currentState.data.resale_link_id = link.id;
-    currentState.data.reseller_telegram_id = link.reseller_telegram_id;
-    currentState.data.reseller_profit = link.custom_price - link.reseller_price;
+    await setConversationState(supabase, userId, currentState.step, {
+      ...currentState.data,
+      resale_link_id: link.id,
+      reseller_telegram_id: link.reseller_telegram_id,
+      reseller_profit: link.custom_price - link.reseller_price,
+    });
   }
 
   // Increment uses
