@@ -1856,6 +1856,26 @@ STRICT RULES:
   try {
     await sendMessage(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
 
+    // Fetch last 10 messages for conversation history
+    const { data: historyRows } = await supabase
+      .from("telegram_ai_messages")
+      .select("role, content")
+      .eq("telegram_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    // Build messages array: system + history (reversed to chronological) + new question
+    const historyMessages = (historyRows || []).reverse().map((m: any) => ({
+      role: m.role as string,
+      content: m.content as string,
+    }));
+
+    const allMessages = [
+      { role: "system", content: systemPrompt },
+      ...historyMessages,
+      { role: "user", content: question },
+    ];
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -1864,10 +1884,7 @@ STRICT RULES:
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question },
-        ],
+        messages: allMessages,
       }),
     });
 
@@ -1877,6 +1894,23 @@ STRICT RULES:
 
     const data = await response.json();
     const answer = data?.choices?.[0]?.message?.content || "";
+
+    // Save user question and AI answer to history
+    await supabase.from("telegram_ai_messages").insert([
+      { telegram_id: userId, role: "user", content: question },
+      ...(answer ? [{ telegram_id: userId, role: "assistant", content: answer }] : []),
+    ]);
+
+    // Clean old messages (keep last 20 per user)
+    const { data: oldMessages } = await supabase
+      .from("telegram_ai_messages")
+      .select("id")
+      .eq("telegram_id", userId)
+      .order("created_at", { ascending: false })
+      .range(20, 1000);
+    if (oldMessages?.length) {
+      await supabase.from("telegram_ai_messages").delete().in("id", oldMessages.map((m: any) => m.id));
+    }
 
     if (!answer || answer.toLowerCase().includes("forward") || answer.toLowerCase().includes("admin")) {
       await sendMessage(token, chatId, t("ai_forward", lang), {
