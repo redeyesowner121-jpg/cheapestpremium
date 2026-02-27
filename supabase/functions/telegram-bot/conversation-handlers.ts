@@ -6,8 +6,8 @@ import {
   deleteConversationState, setConversationState, getUserLang,
   getWallet, notifyAllAdmins, forwardToAllAdmins,
 } from "./db-helpers.ts";
-import { showMainMenu } from "./menu-handlers.ts";
-import { executeBroadcast } from "./admin-handlers.ts";
+import { showMainMenu } from "./menu/menu-navigation.ts";
+import { executeBroadcast } from "./admin/admin-menu.ts";
 
 export async function handleConversationStep(token: string, supabase: any, chatId: number, userId: number, msg: any, state: { step: string; data: Record<string, any> }) {
   const text = msg.text || "";
