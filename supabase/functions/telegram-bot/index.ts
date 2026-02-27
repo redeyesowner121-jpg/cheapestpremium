@@ -203,11 +203,16 @@ Deno.serve(async (req) => {
 
       await upsertTelegramUser(supabase, telegramUser);
 
-      // Check conversation state first
-      const convState = await getConversationState(supabase, userId);
-      if (convState) {
-        await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg, convState);
-        return jsonOk();
+      // Allow /start to reset stuck conversation state
+      if (text.startsWith("/start")) {
+        await deleteConversationState(supabase, userId);
+      } else {
+        // Check conversation state first
+        const convState = await getConversationState(supabase, userId);
+        if (convState) {
+          await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg, convState);
+          return jsonOk();
+        }
       }
 
       // Commands
