@@ -328,9 +328,14 @@ Deno.serve(async (req) => {
       // Photos forwarded to admin
       if (msg.photo) { await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser, lang); return jsonOk(); }
 
-      // AI auto-reply for non-admin text
-      if (!await isAdminBot(supabase, userId) && text && text.trim().length > 0) {
-        await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
+      // AI auto-reply for text messages (both admin and non-admin)
+      if (text && text.trim().length > 0) {
+        // For admins, show main menu as default response
+        if (isUserAdminMsg) {
+          await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+        } else {
+          await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
+        }
         return jsonOk();
       }
 
