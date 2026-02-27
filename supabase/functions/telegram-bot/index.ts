@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
         await sendMessage(BOT_TOKEN, chatId, t("lang_saved", selectedLang));
         const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
         if (!joined) {
-          await showJoinChannels(BOT_TOKEN, chatId, selectedLang);
+          await showJoinChannels(BOT_TOKEN, supabase, chatId, selectedLang);
         } else {
           await ensureWallet(supabase, userId);
           await showMainMenu(BOT_TOKEN, supabase, chatId, selectedLang);
@@ -247,6 +247,8 @@ Deno.serve(async (req) => {
             await showMainMenu(BOT_TOKEN, supabase, chatId, userLang);
             break;
           }
+          case "/menu":
+            await showMainMenu(BOT_TOKEN, supabase, chatId, lang); break;
           case "/products":
           case "/categories":
             await handleViewCategories(BOT_TOKEN, supabase, chatId, lang); break;
