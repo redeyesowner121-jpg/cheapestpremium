@@ -27,6 +27,7 @@ import {
   handleUsersCommand, handleHistoryCommand, handleBanCommand,
   handleMakeReseller, handleAddAdmin, handleRemoveAdmin,
   handleListAdmins, handleAllUsers, handleAddBalance, handleDeductBalance,
+  handleListChannels, handleAddChannel, handleRemoveChannel,
 } from "./admin-handlers.ts";
 import { handleConversationStep } from "./conversation-handlers.ts";
 import { handleAIQuery } from "./ai-handler.ts";
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
         const selectedLang = data === "lang_en" ? "en" : "bn";
         await setUserLang(supabase, userId, selectedLang);
         await sendMessage(BOT_TOKEN, chatId, t("lang_saved", selectedLang));
-        const joined = await checkChannelMembership(BOT_TOKEN, userId);
+        const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
         if (!joined) {
           await showJoinChannels(BOT_TOKEN, chatId, selectedLang);
         } else {
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
 
       // Verify join
       if (data === "verify_join") {
-        const joined = await checkChannelMembership(BOT_TOKEN, userId);
+        const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
         if (!joined) {
           await sendMessage(BOT_TOKEN, chatId, t("not_joined", lang));
         } else {
@@ -239,8 +240,8 @@ Deno.serve(async (req) => {
             // Admins bypass channel check
             const isUserAdmin = await isAdminBot(supabase, userId);
             if (!isUserAdmin) {
-              const joined = await checkChannelMembership(BOT_TOKEN, userId);
-              if (!joined) { await showJoinChannels(BOT_TOKEN, chatId, userLang); return jsonOk(); }
+              const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
+              if (!joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, userLang); return jsonOk(); }
             }
 
             await showMainMenu(BOT_TOKEN, supabase, chatId, userLang);
@@ -313,6 +314,15 @@ Deno.serve(async (req) => {
           case "/deduct_balance":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleDeductBalance(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, parseFloat(parts[2]) || 0); break;
+          case "/channels":
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleListChannels(BOT_TOKEN, supabase, chatId); break;
+          case "/add_channel":
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleAddChannel(BOT_TOKEN, supabase, chatId, parts[1] || ""); break;
+          case "/remove_channel":
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleRemoveChannel(BOT_TOKEN, supabase, chatId, parts[1] || ""); break;
           default: break;
         }
         return jsonOk();
@@ -326,8 +336,8 @@ Deno.serve(async (req) => {
       // Admins bypass channel check
       const isUserAdminMsg = await isAdminBot(supabase, userId);
       if (!isUserAdminMsg) {
-        const joined = await checkChannelMembership(BOT_TOKEN, userId);
-        if (!joined) { await showJoinChannels(BOT_TOKEN, chatId, lang); return jsonOk(); }
+        const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
+        if (!joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
       }
 
       // Photos forwarded to admin

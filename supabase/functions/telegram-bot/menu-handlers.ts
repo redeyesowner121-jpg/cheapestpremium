@@ -2,7 +2,7 @@
 
 import { T, t, BOT_USERNAME } from "./constants.ts";
 import { sendMessage, sendPhoto } from "./telegram-api.ts";
-import { getSettings, ensureWallet, getWallet } from "./db-helpers.ts";
+import { getSettings, ensureWallet, getWallet, getRequiredChannels } from "./db-helpers.ts";
 
 // ===== LANGUAGE SELECTION =====
 
@@ -21,15 +21,16 @@ export async function showLanguageSelection(token: string, chatId: number) {
 
 // ===== JOIN CHANNELS =====
 
-export async function showJoinChannels(token: string, chatId: number, lang: string) {
+export async function showJoinChannels(token: string, supabase: any, chatId: number, lang: string) {
+  const channels = await getRequiredChannels(supabase);
+  const buttons: any[][] = channels.map((ch: string) => {
+    const name = ch.startsWith("@") ? ch : `@${ch}`;
+    return [{ text: `📢 Join ${name}`, url: `https://t.me/${name.replace("@", "")}` }];
+  });
+  buttons.push([{ text: "✅ I've Joined - Verify", callback_data: "verify_join" }]);
+
   await sendMessage(token, chatId, t("join_channels", lang), {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "📢 Join @pocket_money27", url: "https://t.me/pocket_money27" }],
-        [{ text: "📢 Join @RKRxOTT", url: "https://t.me/RKRxOTT" }],
-        [{ text: "✅ I've Joined - Verify", callback_data: "verify_join" }],
-      ],
-    },
+    reply_markup: { inline_keyboard: buttons },
   });
 }
 
