@@ -3,7 +3,7 @@
 import { t, BOT_USERNAME } from "./constants.ts";
 import { sendMessage } from "./telegram-api.ts";
 import { getWallet, setConversationState, getConversationState, ensureWallet } from "./db-helpers.ts";
-import { showPaymentInfo } from "./payment-handlers.ts";
+import { showPaymentInfo } from "./payment/buy-handlers.ts";
 
 // ===== RESALE START =====
 
