@@ -2,7 +2,7 @@
 
 import { SUPER_ADMIN_ID } from "./constants.ts";
 import { sendMessage, sendPhoto } from "./telegram-api.ts";
-import { getWallet, ensureWallet, getSettings } from "./db-helpers.ts";
+import { getWallet, ensureWallet, getSettings, getRequiredChannels, addRequiredChannel, removeRequiredChannel } from "./db-helpers.ts";
 
 
 // ===== ADMIN MENU =====
@@ -19,22 +19,31 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
     `📦 Orders: <b>${orderCount || 0}</b>\n` +
     `💰 Wallets: <b>${walletCount || 0}</b>\n` +
     `🔄 Resellers: <b>${resellerCount || 0}</b>\n\n` +
-    `<b>Commands:</b>\n` +
+    `<b>📋 All Commands:</b>\n\n` +
+    `<b>📢 Broadcast & Analytics:</b>\n` +
     `/broadcast - Broadcast to all\n` +
-    `/report or /stats - Analytics\n` +
+    `/report or /stats - Analytics\n\n` +
+    `<b>📦 Product Management:</b>\n` +
     `/add_product - Add product\n` +
     `/edit_price [name] [price]\n` +
-    `/out_stock [name]\n` +
+    `/out_stock [name]\n\n` +
+    `<b>👥 User Management:</b>\n` +
     `/users - Recent users\n` +
     `/allusers - All users list\n` +
     `/history [id] - Order history\n` +
     `/ban [id] / /unban [id]\n` +
-    `/make_reseller [id]\n` +
+    `/make_reseller [id]\n\n` +
+    `<b>💰 Wallet Management:</b>\n` +
     `/add_balance [id] [amount]\n` +
-    `/deduct_balance [id] [amount]\n` +
-    `/add_admin [id] - Add admin (Owner only)\n` +
-    `/remove_admin [id] - Remove admin (Owner only)\n` +
-    `/admins - List admins (Owner only)`
+    `/deduct_balance [id] [amount]\n\n` +
+    `<b>📢 Channel Management:</b>\n` +
+    `/channels - List required channels\n` +
+    `/add_channel @channel - Add channel\n` +
+    `/remove_channel @channel - Remove\n\n` +
+    `<b>👑 Owner Only:</b>\n` +
+    `/add_admin [id] - Add admin\n` +
+    `/remove_admin [id] - Remove admin\n` +
+    `/admins - List admins`
   );
 }
 
@@ -354,4 +363,32 @@ export async function handleAllUsers(token: string, supabase: any, chatId: numbe
   if (navRow.length) buttons.push(navRow);
 
   await sendMessage(token, chatId, text, buttons.length ? { reply_markup: { inline_keyboard: buttons } } : undefined);
+}
+
+// ===== CHANNEL MANAGEMENT =====
+
+export async function handleListChannels(token: string, supabase: any, chatId: number) {
+  const channels = await getRequiredChannels(supabase);
+  if (!channels.length) {
+    await sendMessage(token, chatId, "📢 <b>Required Channels</b>\n\nNo required channels configured. Users can use bot without joining any channel.");
+    return;
+  }
+  let text = `📢 <b>Required Channels (${channels.length})</b>\n\n`;
+  channels.forEach((c: string, i: number) => {
+    text += `${i + 1}. ${c}\n`;
+  });
+  text += `\n<b>Commands:</b>\n/add_channel @channel\n/remove_channel @channel`;
+  await sendMessage(token, chatId, text);
+}
+
+export async function handleAddChannel(token: string, supabase: any, chatId: number, channelName: string) {
+  if (!channelName) { await sendMessage(token, chatId, "⚠️ Usage: <code>/add_channel @channel_name</code>"); return; }
+  const updated = await addRequiredChannel(supabase, channelName);
+  await sendMessage(token, chatId, `✅ Channel <b>${channelName}</b> added!\n\n📢 Current channels (${updated.length}):\n${updated.join("\n")}`);
+}
+
+export async function handleRemoveChannel(token: string, supabase: any, chatId: number, channelName: string) {
+  if (!channelName) { await sendMessage(token, chatId, "⚠️ Usage: <code>/remove_channel @channel_name</code>"); return; }
+  const updated = await removeRequiredChannel(supabase, channelName);
+  await sendMessage(token, chatId, `✅ Channel <b>${channelName}</b> removed!\n\n📢 Current channels (${updated.length}):\n${updated.length ? updated.join("\n") : "None - users can use bot freely"}`);
 }

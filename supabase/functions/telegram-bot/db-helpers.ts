@@ -117,12 +117,50 @@ export async function getWallet(supabase: any, telegramId: number): Promise<any>
   return data;
 }
 
+// ===== CHANNEL HELPERS =====
+
+export async function getRequiredChannels(supabase: any): Promise<string[]> {
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "required_channels").maybeSingle();
+  if (data?.value) {
+    try {
+      const channels = JSON.parse(data.value);
+      if (Array.isArray(channels) && channels.length > 0) return channels;
+    } catch { /* fallback */ }
+  }
+  // Fallback to hardcoded
+  const { REQUIRED_CHANNELS } = await import("./constants.ts");
+  return REQUIRED_CHANNELS;
+}
+
+export async function addRequiredChannel(supabase: any, channel: string): Promise<string[]> {
+  const channels = await getRequiredChannels(supabase);
+  const normalized = channel.startsWith("@") ? channel : `@${channel}`;
+  if (!channels.includes(normalized)) channels.push(normalized);
+  await supabase.from("app_settings").upsert({ key: "required_channels", value: JSON.stringify(channels), updated_at: new Date().toISOString() }, { onConflict: "key" });
+  return channels;
+}
+
+export async function removeRequiredChannel(supabase: any, channel: string): Promise<string[]> {
+  const channels = await getRequiredChannels(supabase);
+  const normalized = channel.startsWith("@") ? channel : `@${channel}`;
+  const updated = channels.filter((c: string) => c.toLowerCase() !== normalized.toLowerCase());
+  await supabase.from("app_settings").upsert({ key: "required_channels", value: JSON.stringify(updated), updated_at: new Date().toISOString() }, { onConflict: "key" });
+  return updated;
+}
+
 // ===== CHANNEL MEMBERSHIP =====
 
-export async function checkChannelMembership(token: string, userId: number): Promise<boolean> {
-  const { REQUIRED_CHANNELS } = await import("./constants.ts");
+export async function checkChannelMembership(token: string, userId: number, supabase?: any): Promise<boolean> {
   const { getChatMember } = await import("./telegram-api.ts");
-  for (const channel of REQUIRED_CHANNELS) {
+  let channels: string[];
+  if (supabase) {
+    channels = await getRequiredChannels(supabase);
+  } else {
+    const { REQUIRED_CHANNELS } = await import("./constants.ts");
+    channels = REQUIRED_CHANNELS;
+  }
+  if (channels.length === 0) return true;
+  for (const channel of channels) {
     const status = await getChatMember(token, channel, userId);
     if (!["member", "administrator", "creator"].includes(status)) {
       return false;
