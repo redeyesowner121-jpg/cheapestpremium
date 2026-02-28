@@ -113,7 +113,7 @@ const Index: React.FC = () => {
           .filter((v: any) => v.is_active !== false)
           .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         const firstVar = vars[0];
-        const displayPrice = p.price === 0 && firstVar ? firstVar.price : p.price;
+        const displayPrice = firstVar ? firstVar.price : p.price;
         return {
           id: p.id,
           name: p.name,
@@ -133,7 +133,7 @@ const Index: React.FC = () => {
         const firstVar = vars[0];
         return {
           id: p.id, name: p.name,
-          price: p.price === 0 && firstVar ? firstVar.price : p.price,
+          price: firstVar ? firstVar.price : p.price,
           originalPrice: p.original_price,
           image: p.image_url || 'https://via.placeholder.com/200',
           rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
@@ -147,7 +147,7 @@ const Index: React.FC = () => {
         const firstVar = vars[0];
         return {
           id: p.id, name: p.name,
-          price: p.price === 0 && firstVar ? firstVar.price : p.price,
+          price: firstVar ? firstVar.price : p.price,
           originalPrice: p.original_price,
           image: p.image_url || 'https://via.placeholder.com/200',
           rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
