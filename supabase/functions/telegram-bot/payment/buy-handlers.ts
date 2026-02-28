@@ -93,7 +93,8 @@ export async function showPaymentInfo(
     text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
     text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay. Then send payment screenshot."}`;
 
-    buttons.push([{ text: `💳 ${lang === "bn" ? "পেমেন্ট লিংক" : "Payment Link"}`, url: qrUrl }]);
+    const upiLink = generateUpiLink(finalAmount, productName);
+    buttons.push([{ text: `💳 ${lang === "bn" ? "এখনই পে করুন" : "Pay Now"}`, url: upiLink }]);
 
     await setConversationState(supabase, userId, "awaiting_screenshot", {
       productName, price, finalAmount, productId, variationId, walletDeduction,
