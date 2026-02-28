@@ -140,6 +140,40 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Admin teaching AI - save answer to knowledge base
+  if (state.step === "admin_teaching_ai") {
+    const { targetUserId, originalQuestion, questionLang } = state.data;
+    await deleteConversationState(supabase, userId);
+
+    // Save to knowledge base
+    await supabase.from("telegram_ai_knowledge").insert({
+      question: originalQuestion,
+      answer: text,
+      added_by: userId,
+      original_user_id: targetUserId,
+      language: questionLang || "en",
+    });
+
+    // Clear user's awaiting state
+    const userState = await import("./db-helpers.ts").then(m => m.getConversationState(supabase, targetUserId));
+    if (userState?.step === "awaiting_admin_answer") {
+      await deleteConversationState(supabase, targetUserId);
+    }
+
+    // Send answer to the user
+    const userLang = questionLang || "en";
+    await sendMessage(token, targetUserId,
+      userLang === "bn"
+        ? `📩 <b>অ্যাডমিনের উত্তর:</b>\n\n${text}`
+        : `📩 <b>Admin's Answer:</b>\n\n${text}`
+    );
+
+    await sendMessage(token, chatId,
+      `✅ <b>Done!</b>\n\n📩 Answer sent to user <code>${targetUserId}</code>\n🧠 AI has learned this answer for future use.\n\n❓ <b>Q:</b> ${originalQuestion}\n✅ <b>A:</b> ${text}`
+    );
+    return;
+  }
+
   // User chatting with admin (AI disabled)
   if (state.step === "chatting_with_admin") {
     if (text === "/endchat" || text === "/cancel") {
