@@ -4,8 +4,8 @@ import { t, UPI_ID, UPI_NAME } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
 
-function generatePayUrl(amount: number, productName: string): string {
-  return `https://upilinks.in/payment-link/upi/${UPI_ID}?pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&tn=${encodeURIComponent(productName.substring(0, 50))}`;
+function generatePayUrl(amount: number): string {
+  return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
 }
 
 function generateUpiQrUrl(amount: number): string {
@@ -93,7 +93,7 @@ export async function showPaymentInfo(
     text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
     text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay. Then send payment screenshot."}`;
 
-    const payUrl = generatePayUrl(finalAmount, productName);
+    const payUrl = generatePayUrl(finalAmount);
     buttons.push([{ text: `💳 ${lang === "bn" ? "এখনই পে করুন" : "Pay Now"}`, url: payUrl }]);
 
     await setConversationState(supabase, userId, "awaiting_screenshot", {
