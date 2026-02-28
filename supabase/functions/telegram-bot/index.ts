@@ -8,7 +8,7 @@ import {
   isSuperAdmin, isAdminBot, upsertTelegramUser, isBanned,
   getUserLang, setUserLang, ensureWallet, checkChannelMembership,
   getConversationState, deleteConversationState, setConversationState,
-  notifyAllAdmins,
+  notifyAllAdmins, getUserData,
 } from "./db-helpers.ts";
 import {
   showLanguageSelection, showJoinChannels, showMainMenu,
@@ -57,15 +57,15 @@ Deno.serve(async (req) => {
       const telegramUser = cq.from;
       const userId = telegramUser.id;
 
-      if (await isBanned(supabase, userId)) {
-        await answerCallbackQuery(BOT_TOKEN, cq.id);
-        return jsonOk();
-      }
+      // Parallel: fetch user data + upsert + answer callback (fire-and-forget)
+      const [userData] = await Promise.all([
+        getUserData(supabase, userId),
+        upsertTelegramUser(supabase, telegramUser),
+        answerCallbackQuery(BOT_TOKEN, cq.id),
+      ]);
 
-      await upsertTelegramUser(supabase, telegramUser);
-      await answerCallbackQuery(BOT_TOKEN, cq.id);
-
-      const lang = (await getUserLang(supabase, userId)) || "en";
+      if (userData.is_banned) return jsonOk();
+      const lang = userData.language || "en";
 
       // Language selection
       if (data === "lang_en" || data === "lang_bn") {
@@ -200,9 +200,14 @@ Deno.serve(async (req) => {
       const userId = telegramUser.id;
       const text = msg.text || "";
 
-      if (await isBanned(supabase, userId)) return jsonOk();
+      // Parallel: fetch user data + upsert in one go
+      const [userData] = await Promise.all([
+        getUserData(supabase, userId),
+        upsertTelegramUser(supabase, telegramUser),
+      ]);
 
-      await upsertTelegramUser(supabase, telegramUser);
+      if (userData.is_banned) return jsonOk();
+      const lang = userData.language || "en";
 
       // Allow /start to reset stuck conversation state
       if (text.startsWith("/start")) {
@@ -220,12 +225,10 @@ Deno.serve(async (req) => {
       if (text.startsWith("/")) {
         const parts = text.split(" ");
         const command = parts[0].toLowerCase().split("@")[0];
-        const lang = (await getUserLang(supabase, userId)) || "en";
 
         switch (command) {
           case "/start": {
             const payload = parts[1] || "";
-            await ensureWallet(supabase, userId);
 
             if (payload.startsWith("ref_")) {
               await handleStartWithRef(supabase, userId, payload.replace("ref_", ""));
@@ -234,17 +237,17 @@ Deno.serve(async (req) => {
               return jsonOk();
             }
 
-            const userLang = await getUserLang(supabase, userId);
-            if (!userLang) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
+            if (!userData.language) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
 
-            // Admins bypass channel check
-            const isUserAdmin = await isAdminBot(supabase, userId);
-            if (!isUserAdmin) {
-              const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
-              if (!joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, userLang); return jsonOk(); }
-            }
+            // Parallel: admin check + channel check + wallet ensure
+            const [isUserAdmin, joined] = await Promise.all([
+              isAdminBot(supabase, userId),
+              checkChannelMembership(BOT_TOKEN, userId, supabase),
+              ensureWallet(supabase, userId),
+            ]);
+            if (!isUserAdmin && !joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
 
-            await showMainMenu(BOT_TOKEN, supabase, chatId, userLang);
+            await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
             break;
           }
           case "/menu":
@@ -330,16 +333,16 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Non-command messages
-      const lang = (await getUserLang(supabase, userId)) || "en";
+      // Non-command messages — lang already fetched above
+      if (!userData.language) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
 
-      if (!await getUserLang(supabase, userId)) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
-
-      // Admins bypass channel check
-      const isUserAdminMsg = await isAdminBot(supabase, userId);
-      if (!isUserAdminMsg) {
-        const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
-        if (!joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
+      // Parallel: admin check + channel check
+      const [isUserAdminMsg, joinedMsg] = await Promise.all([
+        isAdminBot(supabase, userId),
+        checkChannelMembership(BOT_TOKEN, userId, supabase),
+      ]);
+      if (!isUserAdminMsg && !joinedMsg) {
+        await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); return jsonOk();
       }
 
       // Photos forwarded to admin

@@ -94,6 +94,12 @@ export async function getUserLang(supabase: any, telegramId: number): Promise<st
   return data?.language || null;
 }
 
+// Combined fetch: ban status + language in ONE query
+export async function getUserData(supabase: any, telegramId: number): Promise<{ is_banned: boolean; language: string | null }> {
+  const { data } = await supabase.from("telegram_bot_users").select("is_banned, language").eq("telegram_id", telegramId).single();
+  return { is_banned: data?.is_banned === true, language: data?.language || null };
+}
+
 export async function setUserLang(supabase: any, telegramId: number, lang: string) {
   await supabase.from("telegram_bot_users").update({ language: lang }).eq("telegram_id", telegramId);
 }
@@ -160,11 +166,9 @@ export async function checkChannelMembership(token: string, userId: number, supa
     channels = REQUIRED_CHANNELS;
   }
   if (channels.length === 0) return true;
-  for (const channel of channels) {
-    const status = await getChatMember(token, channel, userId);
-    if (!["member", "administrator", "creator"].includes(status)) {
-      return false;
-    }
-  }
-  return true;
+  // Check all channels in PARALLEL instead of sequential
+  const results = await Promise.all(
+    channels.map(ch => getChatMember(token, ch, userId))
+  );
+  return results.every(status => ["member", "administrator", "creator"].includes(status));
 }
