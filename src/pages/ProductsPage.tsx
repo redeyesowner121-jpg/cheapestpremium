@@ -160,7 +160,7 @@ const ProductsPage: React.FC = () => {
         const firstVar = vars[0];
         return {
           ...p,
-          price: p.price === 0 && firstVar ? firstVar.price : p.price,
+          price: firstVar ? firstVar.price : p.price,
           product_variations: undefined
         };
       });
