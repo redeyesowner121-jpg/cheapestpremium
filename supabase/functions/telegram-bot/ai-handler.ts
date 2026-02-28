@@ -2,7 +2,25 @@
 
 import { t, BOT_USERNAME } from "./constants.ts";
 import { sendMessage } from "./telegram-api.ts";
-import { getSettings, getWallet } from "./db-helpers.ts";
+import { getSettings, getWallet, setConversationState, notifyAllAdmins } from "./db-helpers.ts";
+
+// Fetch knowledge base entries relevant to the question
+async function getKnowledgeContext(supabase: any, question: string): Promise<string> {
+  // Get all knowledge entries (small table, fast)
+  const { data } = await supabase
+    .from("telegram_ai_knowledge")
+    .select("question, answer, language")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (!data?.length) return "";
+
+  const entries = data.map((k: any) =>
+    `Q: ${k.question}\nA: ${k.answer}`
+  ).join("\n\n");
+
+  return `\n\n📚 LEARNED KNOWLEDGE (from admin answers - USE THESE FIRST if relevant):\n${entries}`;
+}
 
 export async function handleAIQuery(token: string, supabase: any, chatId: number, userId: number, question: string, lang: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -11,13 +29,14 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
     return;
   }
 
-  // Fetch rich product context with variations
-  const [productsRes, categoriesRes, flashSalesRes, couponsRes, walletRes] = await Promise.all([
+  // Fetch all context in parallel
+  const [productsRes, categoriesRes, flashSalesRes, couponsRes, walletRes, knowledgeContext] = await Promise.all([
     supabase.from("products").select("name, price, original_price, category, description, stock, reseller_price, is_active").eq("is_active", true).limit(100),
     supabase.from("categories").select("name").eq("is_active", true).order("sort_order"),
     supabase.from("flash_sales").select("sale_price, products(name, price)").eq("is_active", true).gt("end_time", new Date().toISOString()).limit(10),
     supabase.from("coupons").select("code, description, discount_type, discount_value").eq("is_active", true).limit(10),
     supabase.from("telegram_wallets").select("balance, referral_code").eq("telegram_id", userId).single(),
+    getKnowledgeContext(supabase, question),
   ]);
 
   // Fetch variations for all products
@@ -75,9 +94,10 @@ ${couponInfo !== "No active coupons" ? `🎟️ ACTIVE COUPONS:\n${couponInfo}` 
 ${refCode ? `🔗 Their Referral Code: ${refCode}` : ""}
 
 📞 Support WhatsApp/Telegram: ${supportNumber}
+${knowledgeContext}
 
 STRICT RULES:
-1. GREETINGS: If someone says "hi", "hello", "হাই", "হ্যালো", "hey", "assalamualaikum", "কেমন আছেন" etc., respond warmly, introduce the store, and highlight 2-3 best products or current offers.
+1. GREETINGS: If someone says "hi", "hello", "হাই", "হ্যালো", "hey", "assalamualaikum", "কেমন আছেন", "namaste", "namaskar" etc., respond warmly, introduce the store, and highlight 2-3 best products or current offers.
 2. PRODUCT QUERIES: When asked about a product, give EXACT price, variations (if any), stock status, and discount info. Never guess prices.
 3. COMPARISONS: If asked to compare products or suggest alternatives, do it intelligently using the catalog data.
 4. PRICE/BUDGET: If user mentions a budget, recommend products within that range.
@@ -86,14 +106,15 @@ STRICT RULES:
 7. WALLET: If user asks about wallet/balance, tell them their balance (₹${walletBalance}).
 8. REFERRAL: If asked about referral/earning, explain the referral system and share their code if available.
 9. RETURNS/REFUNDS: ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
-10. LANGUAGE: Answer in ${lang === "bn" ? "Bengali" : "English"}.
+10. LANGUAGE: ALWAYS reply in the SAME language the user writes in. If they write Bengali, reply in Bengali. If Hindi (in English script like "kya hai"), reply in Hindi (English script). If English, reply in English. Match their exact language style.
 11. CONCISE: Keep responses helpful but concise (max 8-10 lines). Use emojis.
 12. BUYING: If user wants to buy, tell them to click "🛒 View Products" in the menu or type /products to browse and purchase.
 13. DO NOT share any website/store links. Only mention products, prices, and the bot's commands.
 14. UPSELL: When relevant, suggest complementary or popular products.
-15. If you truly cannot answer or the question is unrelated, say you'll forward to admin.
-16. Never make up product info that's not in the catalog.
-17. For order status questions, tell them to contact admin via Support button.`;
+15. KNOWLEDGE BASE: If the user's question matches something in the LEARNED KNOWLEDGE section, use that answer as your primary source. These are admin-verified answers.
+16. CONFIDENCE: If you truly CANNOT answer the question (not in catalog, not in knowledge base, unrelated to store), respond with EXACTLY this marker at the START of your message: "[FORWARD_TO_ADMIN]" followed by a polite message saying you'll forward to admin.
+17. Never make up product info that's not in the catalog.
+18. For order status questions, tell them to contact admin via Support button.`;
 
   try {
     await sendMessage(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
@@ -153,15 +174,46 @@ STRICT RULES:
       await supabase.from("telegram_ai_messages").delete().in("id", oldMessages.map((m: any) => m.id));
     }
 
-    if (!answer || answer.toLowerCase().includes("forward") || answer.toLowerCase().includes("admin")) {
-      await sendMessage(token, chatId, t("ai_forward", lang), {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: lang === "bn" ? "📩 অ্যাডমিনকে পাঠান" : "📩 Forward to Admin", callback_data: "forward_to_admin" }],
-            [{ text: t("back_main", lang), callback_data: "back_main" }],
-          ],
-        },
+    // Check if AI wants to forward to admin
+    const shouldForward = !answer || answer.startsWith("[FORWARD_TO_ADMIN]");
+
+    if (shouldForward) {
+      // Auto-forward to admin with the question stored for learning
+      const cleanAnswer = answer?.replace("[FORWARD_TO_ADMIN]", "").trim();
+
+      // Save the unanswered question for admin to answer
+      await setConversationState(supabase, userId, "awaiting_admin_answer", {
+        originalQuestion: question,
+        questionLang: lang,
       });
+
+      // Notify admins with the question and a reply button
+      const username = `User ${userId}`;
+      await notifyAllAdmins(token, supabase,
+        `🤖❓ <b>AI couldn't answer</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>\n\n📝 Reply to teach AI this answer. Click "Answer" below:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}` }],
+              [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
+            ],
+          },
+        }
+      );
+
+      // Tell user their question is forwarded
+      await sendMessage(token, chatId,
+        cleanAnswer || (lang === "bn"
+          ? "🤔 আমি এই প্রশ্নের উত্তর দিতে পারছি না। আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হচ্ছে। শীঘ্রই উত্তর পাবেন! ⏳"
+          : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳"),
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: t("back_main", lang), callback_data: "back_main" }],
+            ],
+          },
+        }
+      );
     } else {
       await sendMessage(token, chatId, `🤖 ${answer}`, {
         reply_markup: {
@@ -175,12 +227,29 @@ STRICT RULES:
     }
   } catch (error) {
     console.error("AI query error:", error);
-    await sendMessage(token, chatId, t("ai_forward", lang), {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: lang === "bn" ? "📩 অ্যাডমিনকে পাঠান" : "📩 Forward to Admin", callback_data: "forward_to_admin" }],
-        ],
-      },
-    });
+    // On error, also forward to admin
+    await notifyAllAdmins(token, supabase,
+      `🤖❌ <b>AI Error - Question forwarded</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}` }],
+            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
+          ],
+        },
+      }
+    );
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? "🤔 আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন! ⏳"
+        : "🤔 Your question has been forwarded to admin. You'll get a reply soon! ⏳",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: t("back_main", lang), callback_data: "back_main" }],
+          ],
+        },
+      }
+    );
   }
 }

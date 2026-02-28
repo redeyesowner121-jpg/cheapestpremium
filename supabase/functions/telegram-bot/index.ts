@@ -122,6 +122,26 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // AI Teach - admin answers a question AI couldn't handle
+      if (data.startsWith("ai_teach_")) {
+        if (!await isAdminBot(supabase, userId)) return jsonOk();
+        const targetUserId = parseInt(data.replace("ai_teach_", ""));
+        // Get the user's unanswered question from their conversation state
+        const userState = await getConversationState(supabase, targetUserId);
+        const originalQuestion = userState?.step === "awaiting_admin_answer" ? userState.data.originalQuestion : null;
+        const questionLang = userState?.data?.questionLang || "en";
+
+        await setConversationState(supabase, userId, "admin_teaching_ai", {
+          targetUserId,
+          originalQuestion: originalQuestion || "Unknown question",
+          questionLang,
+        });
+        await sendMessage(BOT_TOKEN, chatId,
+          `📝 <b>Teach AI Mode</b>\n\n❓ User's Question: <b>${originalQuestion || "Unknown"}</b>\n\n✍️ Type your answer. This will:\n1. Be sent to the user\n2. Be saved so AI can answer similar questions in future\n\nSend /cancel to cancel.`
+        );
+        return jsonOk();
+      }
+
       // Admin actions (confirm/reject/ship)
       if (data.startsWith("admin_confirm_") || data.startsWith("admin_reject_") || data.startsWith("admin_ship_")) {
         if (!await isAdminBot(supabase, userId)) return jsonOk();
