@@ -4,13 +4,13 @@ import { t, UPI_ID, UPI_NAME } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
 
-function generateUpiLink(amount: number, productName: string): string {
-  return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(productName.substring(0, 50))}`;
+function generatePayUrl(amount: number, productName: string): string {
+  return `https://upilinks.in/payment-link/upi/${UPI_ID}?pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&tn=${encodeURIComponent(productName.substring(0, 50))}`;
 }
 
-function generateUpiQrUrl(amount: number, productName: string): string {
-  const upiString = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&mc=0000&mode=02&purpose=00&am=${amount}&cu=INR&tn=${encodeURIComponent(productName.substring(0, 50))}`;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(upiString)}`;
+function generateUpiQrUrl(amount: number): string {
+  const upiString = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
 }
 
 export async function handleBuyProduct(token: string, supabase: any, chatId: number, productId: string, telegramUser: any, lang: string) {
@@ -84,7 +84,7 @@ export async function showPaymentInfo(
     });
     return;
   } else {
-    const qrUrl = generateUpiQrUrl(finalAmount, productName);
+    const qrUrl = generateUpiQrUrl(finalAmount);
 
     text += `<b>💳 ${lang === "bn" ? "পেমেন্ট করুন" : "Make Payment"}:</b>\n\n`;
     text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
@@ -93,8 +93,8 @@ export async function showPaymentInfo(
     text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
     text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay. Then send payment screenshot."}`;
 
-    const upiLink = generateUpiLink(finalAmount, productName);
-    buttons.push([{ text: `💳 ${lang === "bn" ? "এখনই পে করুন" : "Pay Now"}`, url: upiLink }]);
+    const payUrl = generatePayUrl(finalAmount, productName);
+    buttons.push([{ text: `💳 ${lang === "bn" ? "এখনই পে করুন" : "Pay Now"}`, url: payUrl }]);
 
     await setConversationState(supabase, userId, "awaiting_screenshot", {
       productName, price, finalAmount, productId, variationId, walletDeduction,
