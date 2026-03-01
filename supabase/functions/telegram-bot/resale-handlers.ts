@@ -89,12 +89,37 @@ export async function handleResaleBuy(token: string, supabase: any, chatId: numb
 
 // ===== START WITH REF =====
 
-export async function handleStartWithRef(supabase: any, userId: number, refCode: string) {
+export async function handleStartWithRef(token: string, supabase: any, userId: number, telegramUser: any, refCode: string, lang: string) {
   const wallet = await ensureWallet(supabase, userId);
   if (wallet?.referred_by) return;
 
   const { data: referrer } = await supabase.from("telegram_wallets").select("telegram_id").eq("referral_code", refCode).single();
   if (referrer && referrer.telegram_id !== userId) {
     await supabase.from("telegram_wallets").update({ referred_by: referrer.telegram_id }).eq("telegram_id", userId);
+
+    // Get referrer's info for welcome message
+    const { data: referrerUser } = await supabase.from("telegram_bot_users").select("first_name, username").eq("telegram_id", referrer.telegram_id).single();
+    const referrerName = referrerUser?.first_name || referrerUser?.username || "Someone";
+
+    // Get referred user's name
+    const newUserName = telegramUser.first_name || telegramUser.username || "New User";
+
+    // Send welcome message to the new user
+    const welcomeMsg = lang === "bn"
+      ? `🎉 <b>স্বাগতম!</b>\n\nআপনি <b>${referrerName}</b> এর রেফারেল লিঙ্কের মাধ্যমে জয়েন করেছেন। 🤝\n\nআমাদের প্ল্যাটফর্মে আপনাকে পেয়ে আমরা আনন্দিত! দারুণ সব প্রোডাক্ট ও অফার উপভোগ করুন। 🛍️`
+      : `🎉 <b>Welcome!</b>\n\nYou joined via <b>${referrerName}</b>'s referral link. 🤝\n\nWe're thrilled to have you! Explore amazing products & offers. 🛍️`;
+    
+    await sendMessage(token, userId, welcomeMsg);
+
+    // Get referrer's language
+    const { data: referrerLangData } = await supabase.from("telegram_bot_users").select("language").eq("telegram_id", referrer.telegram_id).single();
+    const refLang = referrerLangData?.language || "en";
+
+    // Send congratulation message to the referrer
+    const congratsMsg = refLang === "bn"
+      ? `🎊 <b>অভিনন্দন!</b> 🎊\n\n🥳 আপনার রেফারেল সফল হয়েছে!\n\n👤 <b>${newUserName}</b> আপনার রেফারেল লিঙ্কের মাধ্যমে আমাদের বটে জয়েন করেছে।\n\n🏆 আরো বেশি রেফার করুন, আরো বেশি বোনাস আর্ন করুন! 💰`
+      : `🎊 <b>Congratulations!</b> 🎊\n\n🥳 Your referral was successful!\n\n👤 <b>${newUserName}</b> has joined the bot through your referral link.\n\n🏆 Keep referring & earn more bonuses! 💰`;
+    
+    await sendMessage(token, referrer.telegram_id, congratsMsg);
   }
 }
