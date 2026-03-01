@@ -8,9 +8,18 @@ function generatePayUrl(amount: number): string {
   return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
 }
 
+function generateTelegramPayUrl(amount: number, productName: string): string {
+  return `https://upilinks.in/payment-link/upi/${UPI_ID}?pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&tn=${encodeURIComponent(productName.substring(0, 50))}`;
+}
+
 function generateUpiQrUrl(amount: number): string {
-  const upiString = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
+  const upiString = generatePayUrl(amount);
   return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
+}
+
+function generateFallbackQrUrl(amount: number): string {
+  const upiString = generatePayUrl(amount);
+  return `https://quickchart.io/qr?size=300&text=${encodeURIComponent(upiString)}`;
 }
 
 export async function handleBuyProduct(token: string, supabase: any, chatId: number, productId: string, telegramUser: any, lang: string) {
@@ -84,40 +93,51 @@ export async function showPaymentInfo(
     });
     return;
   } else {
-    const qrUrl = generateUpiQrUrl(finalAmount);
+    const upiIntentUrl = generatePayUrl(finalAmount);
 
     text += `<b>💳 ${lang === "bn" ? "পেমেন্ট করুন" : "Make Payment"}:</b>\n\n`;
     text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
-    text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n\n`;
+    text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n`;
+    text += `🔗 UPI: <code>${upiIntentUrl.replace(/&/g, "&amp;")}</code>\n\n`;
     text += `🌐 ${lang === "bn" ? "ইন্টারন্যাশনাল/বাইন্যান্স পেমেন্টের জন্য" : "For International/Binance Payment"}:\n`;
     text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
     text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay. Then send payment screenshot."}`;
 
-    const payUrl = generatePayUrl(finalAmount);
+    const payUrl = generateTelegramPayUrl(finalAmount, productName);
     buttons.push([{ text: `💳 ${lang === "bn" ? "এখনই পে করুন" : "Pay Now"}`, url: payUrl }]);
 
     await setConversationState(supabase, userId, "awaiting_screenshot", {
       productName, price, finalAmount, productId, variationId, walletDeduction,
     });
 
-    try {
-      const photoRes = await fetch(`${getTelegramApiUrl(token)}/sendPhoto`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          photo: qrUrl,
-          caption: text,
-          parse_mode: "HTML",
-          reply_markup: { inline_keyboard: buttons },
-        }),
-      });
-      const photoResult = await photoRes.json();
+    let paymentMessageSent = false;
+    const qrUrls = [generateUpiQrUrl(finalAmount), generateFallbackQrUrl(finalAmount)];
 
-      if (!photoResult.ok) {
-        await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+    for (const qrUrl of qrUrls) {
+      try {
+        const photoRes = await fetch(`${getTelegramApiUrl(token)}/sendPhoto`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: qrUrl,
+            caption: text,
+            parse_mode: "HTML",
+            reply_markup: { inline_keyboard: buttons },
+          }),
+        });
+
+        const photoResult = await photoRes.json();
+        if (photoResult.ok) {
+          paymentMessageSent = true;
+          break;
+        }
+      } catch {
+        // try next QR provider
       }
-    } catch {
+    }
+
+    if (!paymentMessageSent) {
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
 
