@@ -8,17 +8,8 @@ function generatePayUrl(amount: number): string {
   return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
 }
 
-function generateTelegramPayUrl(amount: number, productName: string): string {
-  const baseUrl = Deno.env.get("SUPABASE_URL") || "";
-  const params = new URLSearchParams({
-    action: "upi_redirect",
-    pa: UPI_ID,
-    pn: UPI_NAME,
-    am: amount.toString(),
-    tn: productName.substring(0, 50),
-    cu: "INR",
-  });
-  return `${baseUrl}/functions/v1/telegram-bot?${params.toString()}`;
+function generateTelegramPayUrl(amount: number): string {
+  return `https://upi.me/${UPI_ID}?amt=${amount}&pn=${encodeURIComponent(UPI_NAME)}&cu=INR`;
 }
 
 function generateUpiQrUrl(amount: number): string {
@@ -112,7 +103,7 @@ export async function showPaymentInfo(
     text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
     text += `${lang === "bn" ? "নীচের বাটনে ক্লিক করে পেমেন্ট করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Click the button below to pay. Then send payment screenshot."}`;
 
-    const payUrl = generateTelegramPayUrl(finalAmount, productName);
+    const payUrl = generateTelegramPayUrl(finalAmount);
     buttons.push([{ text: `💳 ${lang === "bn" ? "এখনই পে করুন" : "Pay Now"}`, url: payUrl }]);
 
     await setConversationState(supabase, userId, "awaiting_screenshot", {
