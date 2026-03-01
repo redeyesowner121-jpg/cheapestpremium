@@ -9,7 +9,16 @@ function generatePayUrl(amount: number): string {
 }
 
 function generateTelegramPayUrl(amount: number, productName: string): string {
-  return `https://upilinks.in/payment-link/upi/${UPI_ID}?pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&tn=${encodeURIComponent(productName.substring(0, 50))}`;
+  const baseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const params = new URLSearchParams({
+    action: "upi_redirect",
+    pa: UPI_ID,
+    pn: UPI_NAME,
+    am: amount.toString(),
+    tn: productName.substring(0, 50),
+    cu: "INR",
+  });
+  return `${baseUrl}/functions/v1/telegram-bot?${params.toString()}`;
 }
 
 function generateUpiQrUrl(amount: number): string {
