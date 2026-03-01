@@ -337,7 +337,7 @@ Deno.serve(async (req) => {
             const payload = parts[1] || "";
 
             if (payload.startsWith("ref_")) {
-              await handleStartWithRef(supabase, userId, payload.replace("ref_", ""));
+              await handleStartWithRef(BOT_TOKEN, supabase, userId, telegramUser, payload.replace("ref_", ""), lang);
             } else if (payload.startsWith("buy_")) {
               await handleResaleBuy(BOT_TOKEN, supabase, chatId, userId, telegramUser, payload.replace("buy_", ""), lang);
               return jsonOk();
