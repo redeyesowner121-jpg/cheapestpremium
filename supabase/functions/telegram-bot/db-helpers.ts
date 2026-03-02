@@ -130,12 +130,10 @@ export async function getRequiredChannels(supabase: any): Promise<string[]> {
   if (data?.value) {
     try {
       const channels = JSON.parse(data.value);
-      if (Array.isArray(channels) && channels.length > 0) return channels;
-    } catch { /* fallback */ }
+      if (Array.isArray(channels)) return channels;
+    } catch { /* ignore parse error */ }
   }
-  // Fallback to hardcoded
-  const { REQUIRED_CHANNELS } = await import("./constants.ts");
-  return REQUIRED_CHANNELS;
+  return [];
 }
 
 export async function addRequiredChannel(supabase: any, channel: string): Promise<string[]> {
@@ -158,13 +156,8 @@ export async function removeRequiredChannel(supabase: any, channel: string): Pro
 
 export async function checkChannelMembership(token: string, userId: number, supabase?: any): Promise<boolean> {
   const { getChatMember } = await import("./telegram-api.ts");
-  let channels: string[];
-  if (supabase) {
-    channels = await getRequiredChannels(supabase);
-  } else {
-    const { REQUIRED_CHANNELS } = await import("./constants.ts");
-    channels = REQUIRED_CHANNELS;
-  }
+  if (!supabase) return true;
+  const channels = await getRequiredChannels(supabase);
   if (channels.length === 0) return true;
   // Check all channels in PARALLEL instead of sequential
   const results = await Promise.all(
