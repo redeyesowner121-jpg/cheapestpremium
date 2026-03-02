@@ -9,7 +9,7 @@ function generatePayUrl(amount: number): string {
 }
 
 function generateTelegramPayUrl(amount: number): string {
-  return `https://upi.me/${UPI_ID}?amt=${amount}&pn=${encodeURIComponent(UPI_NAME)}&cu=INR`;
+  return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
 }
 
 function generateUpiQrUrl(amount: number): string {
