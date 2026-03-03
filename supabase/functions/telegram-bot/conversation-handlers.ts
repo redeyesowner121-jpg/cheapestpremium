@@ -1,6 +1,6 @@
 // ===== CONVERSATION STEP HANDLERS =====
 
-import { t, BOT_USERNAME } from "./constants.ts";
+import { t, BOT_USERNAME, RESALE_BOT_USERNAME } from "./constants.ts";
 import { sendMessage, forwardMessage, getTelegramApiUrl } from "./telegram-api.ts";
 import {
   deleteConversationState, setConversationState, getUserLang,
@@ -256,7 +256,7 @@ export async function handleConversationStep(token: string, supabase: any, chatI
 
     const profit = price - resellerPrice;
     const linkMsg = `✅ <b>${lang === "bn" ? "রিসেল লিংক তৈরি হয়েছে!" : "Resale Link Created!"}</b>\n\n` +
-      `🔗 Link: <code>https://t.me/${BOT_USERNAME}?start=buy_${linkCode}</code>\n` +
+      `🔗 Link: <code>https://t.me/${RESALE_BOT_USERNAME}?start=buy_${linkCode}</code>\n` +
       `💰 ${lang === "bn" ? "আপনার মূল্য" : "Your Price"}: ₹${price}\n` +
       `📦 ${lang === "bn" ? "রিসেলার মূল্য" : "Reseller Price"}: ₹${resellerPrice}\n` +
       `💵 ${lang === "bn" ? "প্রতি বিক্রয়ে লাভ" : "Profit per sale"}: ₹${profit}`;
