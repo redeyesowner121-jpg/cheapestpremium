@@ -2,7 +2,7 @@
 // All logic is split into separate modules for maintainability.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, t, UPI_ID, UPI_NAME } from "./constants.ts";
+import { corsHeaders, t, UPI_ID, UPI_NAME, RESALE_BOT_USERNAME } from "./constants.ts";
 import { answerCallbackQuery } from "./telegram-api.ts";
 import {
   isSuperAdmin, isAdminBot, upsertTelegramUser, isBanned,
@@ -20,7 +20,7 @@ import {
   handleBuyProduct, handleBuyVariation, handleWalletPay, handleAdminAction,
 } from "./payment-handlers.ts";
 import {
-  handleResaleStart, handleResaleVariationStart, handleResaleBuy, handleStartWithRef,
+  handleResaleStart, handleResaleVariationStart, handleStartWithRef,
 } from "./resale-handlers.ts";
 import {
   handleAdminMenu, handleReport, handleEditPrice, handleOutStock,
@@ -339,7 +339,21 @@ Deno.serve(async (req) => {
             if (payload.startsWith("ref_")) {
               await handleStartWithRef(BOT_TOKEN, supabase, userId, telegramUser, payload.replace("ref_", ""), lang);
             } else if (payload.startsWith("buy_")) {
-              await handleResaleBuy(BOT_TOKEN, supabase, chatId, userId, telegramUser, payload.replace("buy_", ""), lang);
+              const linkCode = payload.replace("buy_", "");
+              const resaleUrl = `https://t.me/${RESALE_BOT_USERNAME}?start=buy_${linkCode}`;
+
+              await sendMessage(
+                BOT_TOKEN,
+                chatId,
+                lang === "bn"
+                  ? `🔒 এই রিসেল লিংক শুধুমাত্র রিসেলার বটে খোলে।\n\n👉 এখানে যান: <code>${resaleUrl}</code>`
+                  : `🔒 This resale link works only in the reseller bot.\n\n👉 Open here: <code>${resaleUrl}</code>`,
+                {
+                  reply_markup: {
+                    inline_keyboard: [[{ text: lang === "bn" ? "🚀 রিসেলার বটে যান" : "🚀 Open Reseller Bot", url: resaleUrl }]],
+                  },
+                }
+              );
               return jsonOk();
             }
 
