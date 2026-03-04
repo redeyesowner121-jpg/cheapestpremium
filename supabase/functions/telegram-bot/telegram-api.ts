@@ -3,16 +3,24 @@
 const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
 
 export async function sendMessage(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
-  await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: opts?.parse_mode || "HTML",
-      ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
-    }),
-  });
+  try {
+    const res = await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: opts?.parse_mode || "HTML",
+        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
+      }),
+    });
+    const result = await res.json();
+    if (!result.ok) {
+      console.error("sendMessage failed:", JSON.stringify(result));
+    }
+  } catch (e) {
+    console.error("sendMessage error:", e);
+  }
 }
 
 export async function sendPhoto(token: string, chatId: number, photoUrl: string, caption: string, replyMarkup?: any) {
