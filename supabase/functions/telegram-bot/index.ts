@@ -466,7 +466,40 @@ Deno.serve(async (req) => {
           case "/remove_channel":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleRemoveChannel(BOT_TOKEN, supabase, chatId, parts[1] || ""); break;
-          default: break;
+          default: {
+            // Unknown command → try as product name search (e.g. /Netflix, /Spotify)
+            const searchTerm = command.replace("/", "").trim();
+            if (searchTerm.length >= 2) {
+              const { data: matchedProducts } = await supabase
+                .from("products")
+                .select("id, name")
+                .eq("is_active", true)
+                .ilike("name", `%${searchTerm}%`)
+                .limit(10);
+
+              if (matchedProducts?.length === 1) {
+                // Exact single match → show product detail directly
+                await handleProductDetail(BOT_TOKEN, supabase, chatId, matchedProducts[0].id, lang, userId);
+              } else if (matchedProducts?.length > 1) {
+                // Multiple matches → show list
+                let text = lang === "bn"
+                  ? `🔍 <b>"${searchTerm}" এর জন্য ${matchedProducts.length}টি পণ্য পাওয়া গেছে:</b>\n\n`
+                  : `🔍 <b>Found ${matchedProducts.length} products for "${searchTerm}":</b>\n\n`;
+                const buttons = matchedProducts.map((p: any) => [
+                  { text: `📦 ${p.name}`, callback_data: `product_${p.id}` },
+                ]);
+                buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
+                await sendMessage(BOT_TOKEN, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+              } else {
+                await sendMessage(BOT_TOKEN, chatId,
+                  lang === "bn"
+                    ? `❌ "/${searchTerm}" নামে কোনো পণ্য পাওয়া যায়নি।`
+                    : `❌ No product found matching "/${searchTerm}".`
+                );
+              }
+            }
+            break;
+          }
         }
         return jsonOk();
       }

@@ -5,6 +5,25 @@ import { sendMessage } from "../telegram-api.ts";
 import { getWallet, getUserLang, getAllAdminIds } from "../db-helpers.ts";
 import { processReferralBonus } from "./wallet-pay.ts";
 
+// Try sending message via multiple bot tokens (for resale buyers who only talked to resale bot)
+async function sendToUser(tokens: string[], chatId: number, text: string) {
+  for (const token of tokens) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+      });
+      const result = await res.json();
+      if (result.ok) return true;
+      console.log(`sendToUser token attempt failed for chat ${chatId}:`, result.description);
+    } catch (e) {
+      console.error(`sendToUser error:`, e);
+    }
+  }
+  return false;
+}
+
 export async function handleAdminAction(token: string, supabase: any, orderId: string, newStatus: string, adminChatId: number) {
   const { data: order } = await supabase.from("telegram_orders").select("*").eq("id", orderId).single();
   if (!order) { await sendMessage(token, adminChatId, "❌ Order not found."); return; }
@@ -13,8 +32,15 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   await supabase.from("telegram_orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderId);
 
+  // Build list of tokens to try (main first, then resale if it's a resale order)
+  const tokensToTry = [token];
+  const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
+  if (resaleToken && resaleToken !== token && order.reseller_telegram_id) {
+    tokensToTry.push(resaleToken);
+  }
+
   const msgKey: Record<string, string> = { confirmed: "order_confirmed", rejected: "order_rejected", shipped: "order_shipped" };
-  await sendMessage(token, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
+  await sendToUser(tokensToTry, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
 
   // If rejected, refund any wallet deduction
   if (newStatus === "rejected") {
@@ -42,7 +68,7 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
           description: `Refund: ${order.product_name} (rejected)`,
         });
 
-        await sendMessage(token, order.telegram_user_id,
+        await sendToUser(tokensToTry, order.telegram_user_id,
           userLang === "bn"
             ? `💰 ₹${refundAmount} আপনার ওয়ালেটে ফেরত দেওয়া হয়েছে।`
             : `💰 ₹${refundAmount} refunded to your wallet.`
@@ -58,7 +84,7 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     if (order.product_id) {
       const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
       if (product?.access_link) {
-        await sendMessage(token, order.telegram_user_id,
+        await sendToUser(tokensToTry, order.telegram_user_id,
           userLang === "bn"
             ? `🔗 <b>আপনার প্রোডাক্ট লিংক:</b>\n\n${product.access_link}\n\n⚠️ এই লিংক শুধুমাত্র আপনার জন্য। শেয়ার করবেন না।`
             : `🔗 <b>Your Product Access Link:</b>\n\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`

@@ -142,7 +142,7 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
-  // Admin reply to user (persistent chat mode)
+  // Admin reply to user (persistent chat mode) - try both main + resale bot tokens
   if (state.step === "admin_reply") {
     const targetUserId = state.data.targetUserId;
     if (text === "/endchat" || text === "/cancel") {
@@ -150,12 +150,39 @@ export async function handleConversationStep(token: string, supabase: any, chatI
       await sendMessage(token, chatId, `✅ Chat with user <code>${targetUserId}</code> ended.`);
       return;
     }
-    if (msg.photo) {
-      await forwardMessage(token, targetUserId, chatId, msg.message_id);
-    } else {
-      await sendMessage(token, targetUserId, `📩 <b>Admin:</b>\n\n${text}`);
+
+    // Try sending via main bot first, then resale bot if needed
+    const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
+    const tokensToTry = [token];
+    if (resaleToken && resaleToken !== token) tokensToTry.push(resaleToken);
+
+    let sent = false;
+    for (const t of tokensToTry) {
+      try {
+        if (msg.photo) {
+          const res = await fetch(`https://api.telegram.org/bot${t}/forwardMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: targetUserId, from_chat_id: chatId, message_id: msg.message_id }),
+          });
+          const result = await res.json();
+          if (result.ok) { sent = true; break; }
+        } else {
+          const res = await fetch(`https://api.telegram.org/bot${t}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: targetUserId, text: `📩 <b>Admin:</b>\n\n${text}`, parse_mode: "HTML" }),
+          });
+          const result = await res.json();
+          if (result.ok) { sent = true; break; }
+        }
+      } catch (e) { console.error("Admin reply attempt error:", e); }
     }
-    await sendMessage(token, chatId, `✅ Sent to <code>${targetUserId}</code>. Continue typing or /endchat to stop.`);
+
+    await sendMessage(token, chatId, sent
+      ? `✅ Sent to <code>${targetUserId}</code>. Continue typing or /endchat to stop.`
+      : `⚠️ Could not deliver to <code>${targetUserId}</code>. User may have blocked the bot.`
+    );
     return;
   }
 
