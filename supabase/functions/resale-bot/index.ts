@@ -2,6 +2,10 @@
 // This bot ONLY handles resale link purchases. No product browsing, no original prices.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveTelegramBotTokens } from "../_shared/telegram-token-resolver.ts";
+
+const MAIN_BOT_USERNAME = "Cheapest_Premiums_bot";
+const RESALE_BOT_USERNAME = "Cheap_reseller_bot";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -342,8 +346,16 @@ async function handleResaleScreenshot(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const RESALE_BOT_TOKEN = Deno.env.get("RESALE_BOT_TOKEN");
-  const MAIN_BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  const { mainBotToken, resaleBotToken } = await resolveTelegramBotTokens({
+    configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+    configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+    expectedMainUsername: MAIN_BOT_USERNAME,
+    expectedResaleUsername: RESALE_BOT_USERNAME,
+  });
+
+  const RESALE_BOT_TOKEN = resaleBotToken;
+  const MAIN_BOT_TOKEN = mainBotToken || resaleBotToken;
+
   if (!RESALE_BOT_TOKEN || !MAIN_BOT_TOKEN) {
     return new Response(JSON.stringify({ error: "Bot tokens not configured" }), { status: 500, headers: corsHeaders });
   }

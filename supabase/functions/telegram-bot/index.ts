@@ -2,7 +2,7 @@
 // All logic is split into separate modules for maintainability.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders, t, UPI_ID, UPI_NAME, RESALE_BOT_USERNAME } from "./constants.ts";
+import { corsHeaders, t, UPI_ID, UPI_NAME, BOT_USERNAME, RESALE_BOT_USERNAME } from "./constants.ts";
 import { answerCallbackQuery } from "./telegram-api.ts";
 import {
   isSuperAdmin, isAdminBot, upsertTelegramUser, isBanned,
@@ -32,6 +32,7 @@ import {
 import { handleConversationStep } from "./conversation-handlers.ts";
 import { handleAIQuery } from "./ai-handler.ts";
 import { sendMessage } from "./telegram-api.ts";
+import { resolveTelegramBotTokens } from "../_shared/telegram-token-resolver.ts";
 
 // ===== MAIN HANDLER =====
 
@@ -127,8 +128,25 @@ Deno.serve(async (req) => {
     return new Response("Not found", { status: 404, headers: corsHeaders });
   }
 
-  const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN");
-  if (!BOT_TOKEN) return new Response("Bot token not configured", { status: 500 });
+  const { mainBotToken: BOT_TOKEN, tokenUsernames } = await resolveTelegramBotTokens({
+    configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+    configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+    expectedMainUsername: BOT_USERNAME,
+    expectedResaleUsername: RESALE_BOT_USERNAME,
+  });
+
+  if (!BOT_TOKEN) {
+    return new Response("Bot token not configured", { status: 500 });
+  }
+
+  if (
+    tokenUsernames.configuredMainTokenUsername &&
+    tokenUsernames.configuredMainTokenUsername.toLowerCase() !== BOT_USERNAME.toLowerCase()
+  ) {
+    console.warn(
+      `TELEGRAM_BOT_TOKEN is mapped to @${tokenUsernames.configuredMainTokenUsername}; using resolved token for @${BOT_USERNAME}`
+    );
+  }
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
