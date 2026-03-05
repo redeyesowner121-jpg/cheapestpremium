@@ -46,7 +46,8 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
   // Build detailed product catalog
   const productCatalog = products.map((p: any) => {
     const vars = (allVariations || []).filter((v: any) => v.products?.name === p.name);
-    let info = `📦 ${p.name} — ₹${p.price}`;
+    const cmdName = p.name.replace(/\s+/g, "_");
+    let info = `📦 ${p.name} (/${cmdName}) — ₹${p.price}`;
     if (p.original_price && p.original_price > p.price) info += ` (MRP: ₹${p.original_price}, ${Math.round((1 - p.price / p.original_price) * 100)}% OFF)`;
     if (p.stock !== null && p.stock !== undefined) info += ` | Stock: ${p.stock > 0 ? p.stock : "OUT OF STOCK ❌"}`;
     info += ` | Category: ${p.category}`;
@@ -108,9 +109,9 @@ STRICT RULES:
 9. RETURNS/REFUNDS: ALWAYS say: "We have a strict No-Return Policy. All sales are final." / "আমাদের কোনো রিটার্ন পলিসি নেই। সকল বিক্রয় চূড়ান্ত।"
 10. LANGUAGE: ALWAYS reply in the SAME language the user writes in. If they write Bengali, reply in Bengali. If Hindi (in English script like "kya hai"), reply in Hindi (English script). If English, reply in English. Match their exact language style.
 11. CONCISE: Keep responses helpful but concise (max 8-10 lines). Use emojis.
-12. BUYING: If user wants to buy, tell them to click "🛒 View Products" in the menu or type /products to browse and purchase.
+12. BUYING: When recommending products, ALWAYS mention them with /{ProductName} format (replace spaces with _). Example: "Netflix চাইলে /Netflix টাইপ করুন!" or "Try /Spotify for music!". This lets users tap the command to directly see the product.
 13. DO NOT share any website/store links. Only mention products, prices, and the bot's commands.
-14. UPSELL: When relevant, suggest complementary or popular products.
+14. UPSELL: When relevant, suggest complementary or popular products using /{name} format.
 15. KNOWLEDGE BASE: If the user's question matches something in the LEARNED KNOWLEDGE section, use that answer as your primary source. These are admin-verified answers.
 16. CONFIDENCE: If you truly CANNOT answer the question (not in catalog, not in knowledge base, unrelated to store), respond with EXACTLY this marker at the START of your message: "[FORWARD_TO_ADMIN]" followed by a polite message saying you'll forward to admin.
 17. Never make up product info that's not in the catalog.
