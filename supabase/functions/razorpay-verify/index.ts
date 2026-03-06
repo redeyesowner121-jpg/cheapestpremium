@@ -111,8 +111,8 @@ serve(async (req) => {
       razorpay_payment_id
     });
 
-    // Handle referral bonus on first deposit
-    if (isFirstDeposit && profile.referred_by) {
+    // Handle referral bonus on first deposit (skip if amount < 15)
+    if (isFirstDeposit && profile.referred_by && amount >= 15) {
       // Find the referrer by referral code
       const { data: referrer } = await supabase
         .from('profiles')

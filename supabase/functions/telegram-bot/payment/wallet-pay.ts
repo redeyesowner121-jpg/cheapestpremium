@@ -51,10 +51,15 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
-  await processReferralBonus(supabase, userId, token);
+  await processReferralBonus(supabase, userId, token, amount);
 }
 
-export async function processReferralBonus(supabase: any, userId: number, token: string) {
+export async function processReferralBonus(supabase: any, userId: number, token: string, orderAmount: number = 0) {
+  // Skip referral bonus for products below ₹15
+  if (orderAmount > 0 && orderAmount < 15) {
+    console.log(`Skipping referral bonus: order amount ₹${orderAmount} is below ₹15 minimum`);
+    return;
+  }
   const wallet = await getWallet(supabase, userId);
   if (!wallet?.referred_by) return;
 
