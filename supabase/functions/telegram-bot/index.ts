@@ -28,6 +28,7 @@ import {
   handleMakeReseller, handleAddAdmin, handleRemoveAdmin,
   handleListAdmins, handleAllUsers, handleAddBalance, handleDeductBalance,
   handleListChannels, handleAddChannel, handleRemoveChannel,
+  handleBotSettings, handleSetMinReferral,
 } from "./admin-handlers.ts";
 import { handleConversationStep } from "./conversation-handlers.ts";
 import { handleAIQuery } from "./ai-handler.ts";
@@ -333,11 +334,11 @@ Deno.serve(async (req) => {
       if (userData.is_banned) return jsonOk();
       const lang = userData.language || "en";
 
-      // Allow /start to reset stuck conversation state
-      if (text.startsWith("/start")) {
+      // Allow /start and all admin/slash commands to reset stuck conversation state
+      if (text.startsWith("/")) {
         await deleteConversationState(supabase, userId);
       } else {
-        // Check conversation state first
+        // Check conversation state first (only for non-command messages)
         const convState = await getConversationState(supabase, userId);
         if (convState) {
           await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg, convState);
@@ -466,6 +467,12 @@ Deno.serve(async (req) => {
           case "/remove_channel":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleRemoveChannel(BOT_TOKEN, supabase, chatId, parts[1] || ""); break;
+          case "/bot_settings":
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleBotSettings(BOT_TOKEN, supabase, chatId); break;
+          case "/set_min_referral":
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleSetMinReferral(BOT_TOKEN, supabase, chatId, parseFloat(parts[1]) || 0); break;
           default: {
             // Unknown command → try as product name search (e.g. /Netflix, /Spotify)
             const searchTerm = command.replace("/", "").trim();

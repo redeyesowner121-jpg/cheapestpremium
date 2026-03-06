@@ -1,6 +1,6 @@
 // ===== ADMIN HANDLERS - Re-exports from split modules =====
 
-export { handleAdminMenu, handleReport, executeBroadcast } from "./admin/admin-menu.ts";
+export { handleAdminMenu, handleReport, executeBroadcast, handleBotSettings, handleSetMinReferral } from "./admin/admin-menu.ts";
 export { handleEditPrice, handleOutStock } from "./admin/admin-products.ts";
 export {
   handleUsersCommand, handleHistoryCommand, handleBanCommand,

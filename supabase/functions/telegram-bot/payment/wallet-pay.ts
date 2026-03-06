@@ -55,9 +55,13 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 }
 
 export async function processReferralBonus(supabase: any, userId: number, token: string, orderAmount: number = 0) {
-  // Skip referral bonus for products below ₹15
-  if (orderAmount > 0 && orderAmount < 15) {
-    console.log(`Skipping referral bonus: order amount ₹${orderAmount} is below ₹15 minimum`);
+  // Get configurable minimum referral amount from settings
+  const settings = await getSettings(supabase);
+  const minReferralAmount = parseFloat(settings.min_referral_amount) || 15;
+  
+  // Skip referral bonus for products below minimum
+  if (orderAmount > 0 && orderAmount < minReferralAmount) {
+    console.log(`Skipping referral bonus: order amount ₹${orderAmount} is below ₹${minReferralAmount} minimum`);
     return;
   }
   const wallet = await getWallet(supabase, userId);
