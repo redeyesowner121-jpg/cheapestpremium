@@ -2,6 +2,7 @@
 
 import { SUPER_ADMIN_ID } from "../constants.ts";
 import { sendMessage, sendPhoto } from "../telegram-api.ts";
+import { getSettings } from "../db-helpers.ts";
 
 export async function handleAdminMenu(token: string, supabase: any, chatId: number) {
   const { count: userCount } = await supabase.from("telegram_bot_users").select("*", { count: "exact", head: true });
@@ -39,8 +40,38 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
     `<b>👑 Owner Only:</b>\n` +
     `/add_admin [id] - Add admin\n` +
     `/remove_admin [id] - Remove admin\n` +
-    `/admins - List admins`
+    `/admins - List admins\n\n` +
+    `<b>⚙️ Bot Settings:</b>\n` +
+    `/set_min_referral [amount] - Set min order for referral bonus\n` +
+    `/bot_settings - View bot settings`
   );
+}
+
+export async function handleBotSettings(token: string, supabase: any, chatId: number) {
+  const settings = await getSettings(supabase);
+  const minRef = settings.min_referral_amount || "15";
+  const refBonus = settings.referral_bonus || "10";
+  
+  await sendMessage(token, chatId,
+    `⚙️ <b>Bot Settings</b>\n\n` +
+    `🎁 Referral Bonus: <b>₹${refBonus}</b>\n` +
+    `📊 Min Order for Referral: <b>₹${minRef}</b>\n\n` +
+    `Use /set_min_referral [amount] to change minimum.`
+  );
+}
+
+export async function handleSetMinReferral(token: string, supabase: any, chatId: number, amount: number) {
+  if (!amount || amount < 0) {
+    await sendMessage(token, chatId, "❌ Usage: /set_min_referral [amount]\nExample: /set_min_referral 15");
+    return;
+  }
+  
+  await supabase.from("app_settings").upsert(
+    { key: "min_referral_amount", value: String(amount), updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
+  
+  await sendMessage(token, chatId, `✅ Minimum referral order amount set to <b>₹${amount}</b>\n\nOrders below this amount won't trigger referral bonus.`);
 }
 
 export async function handleReport(token: string, supabase: any, chatId: number) {

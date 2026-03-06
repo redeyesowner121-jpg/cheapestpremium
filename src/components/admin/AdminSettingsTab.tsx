@@ -309,7 +309,7 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             />
           </div>
         </SettingItem>
-        <SettingItem label="Referral Bonus" description="Amount given when referred user joins">
+        <SettingItem label="Referral Bonus" description="Amount given when referred user's first purchase">
           <div className="flex items-center gap-1">
             <span className="text-sm text-muted-foreground">₹</span>
             <Input
@@ -317,6 +317,18 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
               value={localSettings.referral_bonus || '10'}
               onChange={(e) => updateLocal('referral_bonus', e.target.value)}
               onBlur={(e) => handleSave('referral_bonus', e.target.value)}
+              className="w-24 h-9 text-sm rounded-lg"
+            />
+          </div>
+        </SettingItem>
+        <SettingItem label="Min Referral Order Amount" description="Minimum product price to trigger referral bonus">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground">₹</span>
+            <Input
+              type="number"
+              value={localSettings.min_referral_amount || '15'}
+              onChange={(e) => updateLocal('min_referral_amount', e.target.value)}
+              onBlur={(e) => handleSave('min_referral_amount', e.target.value)}
               className="w-24 h-9 text-sm rounded-lg"
             />
           </div>

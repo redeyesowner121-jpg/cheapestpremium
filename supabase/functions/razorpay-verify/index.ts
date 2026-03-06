@@ -111,8 +111,16 @@ serve(async (req) => {
       razorpay_payment_id
     });
 
-    // Handle referral bonus on first deposit (skip if amount < 15)
-    if (isFirstDeposit && profile.referred_by && amount >= 15) {
+    // Get configurable minimum referral amount
+    const { data: minRefSetting } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'min_referral_amount')
+      .maybeSingle();
+    const minReferralAmount = parseFloat(minRefSetting?.value) || 15;
+
+    // Handle referral bonus on first deposit (skip if amount < minimum)
+    if (isFirstDeposit && profile.referred_by && amount >= minReferralAmount) {
       // Find the referrer by referral code
       const { data: referrer } = await supabase
         .from('profiles')
