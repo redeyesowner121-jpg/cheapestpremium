@@ -79,7 +79,7 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   // If confirmed, process referral, reseller profit, and auto-send access_link
   if (newStatus === "confirmed") {
-    await processReferralBonus(supabase, order.telegram_user_id, token);
+    await processReferralBonus(supabase, order.telegram_user_id, token, order.amount);
 
     if (order.product_id) {
       const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
