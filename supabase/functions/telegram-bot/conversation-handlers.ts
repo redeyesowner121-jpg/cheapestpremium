@@ -252,6 +252,130 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // ===== ADMIN BUTTON-BASED CONVERSATION STEPS =====
+  
+  // Edit price (from button)
+  if (state.step === "admin_edit_price") {
+    await deleteConversationState(supabase, userId);
+    const { handleEditPrice } = await import("./admin/admin-products.ts");
+    await handleEditPrice(token, supabase, chatId, text);
+    return;
+  }
+
+  // Out of stock (from button)
+  if (state.step === "admin_out_stock") {
+    await deleteConversationState(supabase, userId);
+    const { handleOutStock } = await import("./admin/admin-products.ts");
+    await handleOutStock(token, supabase, chatId, text);
+    return;
+  }
+
+  // History (from button)
+  if (state.step === "admin_history") {
+    await deleteConversationState(supabase, userId);
+    const tgId = parseInt(text);
+    if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+    const { handleHistoryCommand } = await import("./admin/admin-users.ts");
+    await handleHistoryCommand(token, supabase, chatId, tgId);
+    return;
+  }
+
+  // Make reseller (from button)
+  if (state.step === "admin_make_reseller") {
+    await deleteConversationState(supabase, userId);
+    const tgId = parseInt(text);
+    if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+    const { handleMakeReseller } = await import("./admin/admin-users.ts");
+    await handleMakeReseller(token, supabase, chatId, tgId);
+    return;
+  }
+
+  // Ban user (from button)
+  if (state.step === "admin_ban_user") {
+    await deleteConversationState(supabase, userId);
+    const tgId = parseInt(text);
+    if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+    const { handleBanCommand } = await import("./admin/admin-users.ts");
+    await handleBanCommand(token, supabase, chatId, tgId, true);
+    return;
+  }
+
+  // Unban user (from button)
+  if (state.step === "admin_unban_user") {
+    await deleteConversationState(supabase, userId);
+    const tgId = parseInt(text);
+    if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+    const { handleBanCommand } = await import("./admin/admin-users.ts");
+    await handleBanCommand(token, supabase, chatId, tgId, false);
+    return;
+  }
+
+  // Add balance (from button)
+  if (state.step === "admin_add_balance") {
+    await deleteConversationState(supabase, userId);
+    const parts = text.split(/\s+/);
+    const tgId = parseInt(parts[0]);
+    const amount = parseFloat(parts[1]);
+    const { handleAddBalance } = await import("./admin/admin-wallet.ts");
+    await handleAddBalance(token, supabase, chatId, tgId || 0, amount || 0);
+    return;
+  }
+
+  // Deduct balance (from button)
+  if (state.step === "admin_deduct_balance") {
+    await deleteConversationState(supabase, userId);
+    const parts = text.split(/\s+/);
+    const tgId = parseInt(parts[0]);
+    const amount = parseFloat(parts[1]);
+    const { handleDeductBalance } = await import("./admin/admin-wallet.ts");
+    await handleDeductBalance(token, supabase, chatId, tgId || 0, amount || 0);
+    return;
+  }
+
+  // Add channel (from button)
+  if (state.step === "admin_add_channel") {
+    await deleteConversationState(supabase, userId);
+    const { handleAddChannel } = await import("./admin/admin-channels.ts");
+    await handleAddChannel(token, supabase, chatId, text.trim());
+    return;
+  }
+
+  // Remove channel (from button)
+  if (state.step === "admin_remove_channel") {
+    await deleteConversationState(supabase, userId);
+    const { handleRemoveChannel } = await import("./admin/admin-channels.ts");
+    await handleRemoveChannel(token, supabase, chatId, text.trim());
+    return;
+  }
+
+  // Add admin (from button)
+  if (state.step === "admin_add_admin") {
+    await deleteConversationState(supabase, userId);
+    const tgId = parseInt(text);
+    if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+    const { handleAddAdmin } = await import("./admin/admin-users.ts");
+    await handleAddAdmin(token, supabase, chatId, tgId);
+    return;
+  }
+
+  // Remove admin (from button)
+  if (state.step === "admin_remove_admin") {
+    await deleteConversationState(supabase, userId);
+    const tgId = parseInt(text);
+    if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+    const { handleRemoveAdmin } = await import("./admin/admin-users.ts");
+    await handleRemoveAdmin(token, supabase, chatId, tgId);
+    return;
+  }
+
+  // Edit setting (from button)
+  if (state.step === "admin_edit_setting") {
+    await deleteConversationState(supabase, userId);
+    const { saveSetting } = await import("./admin/admin-menu.ts");
+    await saveSetting(token, supabase, chatId, state.data.settingKey, text.trim());
+    return;
+  }
+
   // Resale price entry
   if (state.step === "resale_price") {
     const price = parseFloat(text);
