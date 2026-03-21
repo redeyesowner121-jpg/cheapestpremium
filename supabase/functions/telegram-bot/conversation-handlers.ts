@@ -389,7 +389,10 @@ export async function handleConversationStep(token: string, supabase: any, chatI
 
     await deleteConversationState(supabase, userId);
 
-    const linkCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const timestamp = Date.now().toString(36);
+    const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const linkCode = `${timestamp}${randomPart}`;
+
     const { error: insertError } = await supabase.from("telegram_resale_links").insert({
       reseller_telegram_id: userId,
       product_id: state.data.product_id,
@@ -407,7 +410,7 @@ export async function handleConversationStep(token: string, supabase: any, chatI
 
     const profit = price - resellerPrice;
     const linkMsg = `✅ <b>${lang === "bn" ? "রিসেল লিংক তৈরি হয়েছে!" : "Resale Link Created!"}</b>\n\n` +
-      `🔗 Link: <code>https://t.me/${RESALE_BOT_USERNAME}?start=buy_${linkCode}</code>\n` +
+      `🔗 Link: <code>https://t.me/${RESALE_BOT_USERNAME}?start=buy_${encodeURIComponent(linkCode)}</code>\n` +
       `💰 ${lang === "bn" ? "আপনার মূল্য" : "Your Price"}: ₹${price}\n` +
       `📦 ${lang === "bn" ? "রিসেলার মূল্য" : "Reseller Price"}: ₹${resellerPrice}\n` +
       `💵 ${lang === "bn" ? "প্রতি বিক্রয়ে লাভ" : "Profit per sale"}: ₹${profit}`;

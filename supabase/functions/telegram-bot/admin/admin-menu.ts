@@ -305,18 +305,37 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
   const { data: users } = await supabase.from("telegram_bot_users").select("telegram_id").eq("is_banned", false);
   if (!users?.length) { await sendMessage(token, adminChatId, "No users to broadcast to."); return; }
 
-  let sent = 0, failed = 0;
-  for (const user of users) {
-    try {
-      if (user.telegram_id === SUPER_ADMIN_ID) { sent++; continue; }
-      if (msg.photo) {
-        await sendPhoto(token, user.telegram_id, msg.photo[msg.photo.length - 1].file_id, msg.caption || "");
-      } else if (msg.text) {
-        await sendMessage(token, user.telegram_id, msg.text);
+  let sent = 0, failed = 0, skipped = 0;
+  const batchSize = 10;
+  const delayBetweenBatches = 1000;
+
+  for (let i = 0; i < users.length; i += batchSize) {
+    const batch = users.slice(i, i + batchSize);
+    const promises = batch.map(async (user: any) => {
+      try {
+        if (user.telegram_id === SUPER_ADMIN_ID) {
+          skipped++;
+          return true;
+        }
+        if (msg.photo) {
+          await sendPhoto(token, user.telegram_id, msg.photo[msg.photo.length - 1].file_id, msg.caption || "");
+        } else if (msg.text) {
+          await sendMessage(token, user.telegram_id, msg.text);
+        }
+        sent++;
+        return true;
+      } catch (e) {
+        console.error(`Broadcast to user ${user.telegram_id} failed:`, e);
+        failed++;
+        return false;
       }
-      sent++;
-    } catch { failed++; }
-    await new Promise(r => setTimeout(r, 50));
+    });
+
+    await Promise.all(promises);
+    if (i + batchSize < users.length) {
+      await new Promise(r => setTimeout(r, delayBetweenBatches));
+    }
   }
-  await sendMessage(token, adminChatId, `📢 <b>Broadcast Complete!</b>\n✅ Sent: ${sent}\n❌ Failed: ${failed}`);
+
+  await sendMessage(token, adminChatId, `📢 <b>Broadcast Complete!</b>\n✅ Sent: ${sent}\n❌ Failed: ${failed}\n⏭️ Skipped: ${skipped}\n📊 Total: ${users.length}`);
 }
