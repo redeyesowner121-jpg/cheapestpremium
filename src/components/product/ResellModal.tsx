@@ -48,7 +48,7 @@ const ResellModal: React.FC<ResellModalProps> = ({
 
       if (error) throw error;
 
-      const url = `https://t.me/Cheap_reseller_bot?start=buy_${linkCode}`;
+      const url = `https://t.me/AIR1XOTT_bot?start=buy_${encodeURIComponent(linkCode)}`;
       setGeneratedLink(url);
       toast.success('Resale link created!');
     } catch (err: any) {

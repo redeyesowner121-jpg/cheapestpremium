@@ -4,8 +4,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveTelegramBotTokens } from "../_shared/telegram-token-resolver.ts";
 
-const MAIN_BOT_USERNAME = "Cheapest_Premiums_bot";
-const RESALE_BOT_USERNAME = "Cheap_reseller_bot";
+const MAIN_BOT_USERNAME = "Air1_Premium_bot";
+const RESALE_BOT_USERNAME = "AIR1XOTT_bot";
 const THIRD_BOT_USERNAME = "third_store_bot";
 const THIRD_BOT_OWNER_ID = 7170630274;
 
