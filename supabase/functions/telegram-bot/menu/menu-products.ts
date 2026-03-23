@@ -19,15 +19,19 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   }
 
   const header = lang === "bn" ? "📂 <b>ক্যাটাগরি নির্বাচন করুন:</b>" : "📂 <b>Choose a Category:</b>";
+
+  const categoryEmojis = ["🎬", "🎵", "🛠️", "🎮", "🔐", "📚"];
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
-    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
+    const emoji1 = categoryEmojis[i % categoryEmojis.length];
+    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
     if (categories[i + 1]) {
-      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
+      const emoji2 = categoryEmojis[(i + 1) % categoryEmojis.length];
+      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
     }
     buttons.push(row);
   }
-  buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
+  buttons.push([{ text: `🔙 ${t("back_main", lang)}`, callback_data: "back_main" }]);
 
   await sendMessage(token, chatId, header, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -61,10 +65,12 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     text += `📦 <b>${p.name}</b> — ${priceText}${stock}\n`;
   });
 
-  const buttons: any[][] = products.map((p: any) => [
-    { text: `📦 ${p.name}`, callback_data: `product_${p.id}` },
-  ]);
-  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+  const productEmojis = ["🔵", "🟢", "🟡", "🟠", "🔴", "🟣", "🟤", "⚫"];
+  const buttons: any[][] = products.map((p: any, index: number) => {
+    const emoji = productEmojis[index % productEmojis.length];
+    return [{ text: `${emoji} ${p.name}`, callback_data: `product_${p.id}` }];
+  });
+  buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -110,17 +116,20 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
-    for (const v of variations) {
+    const variationColors = ["🟢", "🔵", "🟡", "🟣", "🟠", "🔴"];
+    for (let idx = 0; idx < variations.length; idx++) {
+      const v = variations[idx];
+      const colorEmoji = variationColors[idx % variationColors.length];
       if (isReseller) {
         buttons.push([
-          { text: `🛒 ${v.name}`, callback_data: `buyvar_${v.id}` },
+          { text: `${colorEmoji} ${v.name}`, callback_data: `buyvar_${v.id}` },
           { text: `🔄 Resale`, callback_data: `resalevar_${v.id}` },
         ]);
       } else {
-        buttons.push([{ text: `🛒 ${v.name}`, callback_data: `buyvar_${v.id}` }]);
+        buttons.push([{ text: `${colorEmoji} ${v.name}`, callback_data: `buyvar_${v.id}` }]);
       }
     }
-    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+    buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
     if (product.image_url) {
       await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
@@ -139,15 +148,15 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     if (product.stock === null || product.stock > 0) {
       if (isReseller) {
         buttons.push([
-          { text: t("buy_now", lang), callback_data: `buy_${productId}` },
+          { text: `🟢 ${t("buy_now", lang)}`, callback_data: `buy_${productId}` },
           { text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` },
         ]);
       } else {
-        buttons.push([{ text: t("buy_now", lang), callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `🟢 ${t("buy_now", lang)}`, callback_data: `buy_${productId}` }]);
       }
     }
 
-    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+    buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
     if (product.image_url) {
       await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
