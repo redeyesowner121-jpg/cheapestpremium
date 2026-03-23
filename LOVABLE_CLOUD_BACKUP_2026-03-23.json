@@ -1,0 +1,409 @@
+{
+  "backup_info": {
+    "timestamp": "2026-03-23T15:30:00Z",
+    "source": "Lovable Cloud - Supabase Database",
+    "description": "Complete database backup after data loss incident",
+    "total_tables": 43,
+    "tables_with_data": 8,
+    "empty_tables": 35
+  },
+  "data": {
+    "products": [
+      {
+        "id": "8507a084-e489-46d8-ab80-166dad775443",
+        "name": "Netflix Premium 1 Month",
+        "description": "Ultra HD, 4 Screens",
+        "price": 79,
+        "original_price": 199,
+        "image_url": "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=400",
+        "category": "ott",
+        "rating": 4.8,
+        "sold_count": 1250,
+        "access_link": null,
+        "is_active": true,
+        "created_at": "2026-03-23T14:14:04.15241+00:00",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "59e29ef5-d5d0-455b-bec1-1cbc8090a2be",
+        "name": "Spotify Premium",
+        "description": "Ad-free music streaming",
+        "price": 29,
+        "original_price": 119,
+        "image_url": "https://images.unsplash.com/photo-1614680376593-902f74cf0d41?w=400",
+        "category": "music",
+        "rating": 4.9,
+        "sold_count": 2340,
+        "access_link": null,
+        "is_active": true,
+        "created_at": "2026-03-23T14:14:04.15241+00:00",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "a7192240-b855-4df0-b94b-ffebd92e1266",
+        "name": "ChatGPT Plus",
+        "description": "GPT-4 Access",
+        "price": 399,
+        "original_price": 1650,
+        "image_url": "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400",
+        "category": "tools",
+        "rating": 4.7,
+        "sold_count": 890,
+        "access_link": null,
+        "is_active": true,
+        "created_at": "2026-03-23T14:14:04.15241+00:00",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "69601707-b7fb-497c-9e9e-86da9b5c9b75",
+        "name": "YouTube Premium",
+        "description": "Ad-free videos + Music",
+        "price": 49,
+        "original_price": 179,
+        "image_url": "https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400",
+        "category": "ott",
+        "rating": 4.8,
+        "sold_count": 3420,
+        "access_link": null,
+        "is_active": true,
+        "created_at": "2026-03-23T14:14:04.15241+00:00",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "fbf5b61a-2e54-489d-a8d7-504819fbaaf7",
+        "name": "Canva Pro",
+        "description": "Design tools unlimited",
+        "price": 99,
+        "original_price": 999,
+        "image_url": "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400",
+        "category": "tools",
+        "rating": 4.6,
+        "sold_count": 567,
+        "access_link": null,
+        "is_active": true,
+        "created_at": "2026-03-23T14:14:04.15241+00:00",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "c3c107eb-ce30-400b-860d-2285c524b3fa",
+        "name": "Amazon Prime",
+        "description": "Video + Shopping Benefits",
+        "price": 149,
+        "original_price": 299,
+        "image_url": "https://images.unsplash.com/photo-1523474253046-8cd2748b5fd2?w=400",
+        "category": "ott",
+        "rating": 4.5,
+        "sold_count": 1890,
+        "access_link": null,
+        "is_active": true,
+        "created_at": "2026-03-23T14:14:04.15241+00:00",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      }
+    ],
+    "categories": [
+      {
+        "id": "caff1167-8833-46f8-b192-03b39bb39cc5",
+        "name": "OTT Platforms",
+        "icon": "📺",
+        "slug": "ott",
+        "sort_order": 1,
+        "is_active": true,
+        "created_at": "2026-03-23T15:23:02.252265+00:00",
+        "updated_at": "2026-03-23T15:23:02.252265+00:00"
+      },
+      {
+        "id": "f3f9fec6-74d1-41f7-a535-597822242035",
+        "name": "Music Streaming",
+        "icon": "🎵",
+        "slug": "music",
+        "sort_order": 2,
+        "is_active": true,
+        "created_at": "2026-03-23T15:23:02.252265+00:00",
+        "updated_at": "2026-03-23T15:23:02.252265+00:00"
+      },
+      {
+        "id": "1e47239a-3d67-4935-927a-15cb7bdf04aa",
+        "name": "Tools & Software",
+        "icon": "🛠️",
+        "slug": "tools",
+        "sort_order": 3,
+        "is_active": true,
+        "created_at": "2026-03-23T15:23:02.252265+00:00",
+        "updated_at": "2026-03-23T15:23:02.252265+00:00"
+      },
+      {
+        "id": "7a8b37b7-8757-49b5-be67-60e3963cfe30",
+        "name": "Gaming",
+        "icon": "🎮",
+        "slug": "gaming",
+        "sort_order": 4,
+        "is_active": true,
+        "created_at": "2026-03-23T15:23:02.252265+00:00",
+        "updated_at": "2026-03-23T15:23:02.252265+00:00"
+      },
+      {
+        "id": "4cf10910-0bfc-4aab-82fe-d81ccecc1b90",
+        "name": "VPN Services",
+        "icon": "🔐",
+        "slug": "vpn",
+        "sort_order": 5,
+        "is_active": true,
+        "created_at": "2026-03-23T15:23:02.252265+00:00",
+        "updated_at": "2026-03-23T15:23:02.252265+00:00"
+      },
+      {
+        "id": "4a2a956c-bd06-4b3a-ae84-725bbc61fc74",
+        "name": "Education",
+        "icon": "📚",
+        "slug": "education",
+        "sort_order": 6,
+        "is_active": true,
+        "created_at": "2026-03-23T15:23:02.252265+00:00",
+        "updated_at": "2026-03-23T15:23:02.252265+00:00"
+      }
+    ],
+    "banners": [
+      {
+        "id": "1cbdb031-9ca9-4050-a97a-078e3c23a9ed",
+        "title": "Flash Sale - Up to 70% OFF",
+        "image_url": "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=800&h=400&fit=crop",
+        "link": null,
+        "is_active": true,
+        "sort_order": 1,
+        "created_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "66fd38bd-4919-44d2-a8e3-1fae746f3c99",
+        "title": "Premium Subscriptions",
+        "image_url": "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=400&fit=crop",
+        "link": null,
+        "is_active": true,
+        "sort_order": 2,
+        "created_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "3c6bbd38-0d2b-46a2-8d14-37724f992ffa",
+        "title": "Deposit & Get Blue Tick",
+        "image_url": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800&h=400&fit=crop",
+        "link": null,
+        "is_active": true,
+        "sort_order": 3,
+        "created_at": "2026-03-23T14:14:04.15241+00:00"
+      }
+    ],
+    "app_settings": [
+      {
+        "id": "d3dcc19f-70e7-4a58-b2f0-9d626626f37b",
+        "key": "blue_tick_threshold",
+        "value": "1000",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "6413b094-6377-41d3-a276-685e206346b3",
+        "key": "bulk_deposit_bonus",
+        "value": "100",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "cf85d3e7-6144-42a6-af5c-47add04f7e13",
+        "key": "bulk_deposit_threshold",
+        "value": "1000",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "71ad02b5-e80c-4af0-aea9-03236f439ddb",
+        "key": "contact_whatsapp",
+        "value": "+918900684167",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "83d31cf5-75f2-478d-b5eb-346adf069525",
+        "key": "currency",
+        "value": "Rs",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "7bb7793d-aa28-4325-936e-bf90c5e29ebd",
+        "key": "daily_bonus_max",
+        "value": "0.60",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "b1849b5a-a555-489f-85ad-f80e6158190b",
+        "key": "daily_bonus_min",
+        "value": "0.10",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "2f643b4c-4c5f-4792-80dc-a59c59b8a223",
+        "key": "language",
+        "value": "en",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "1b01e42d-c8e5-4e82-bbd4-037e69cf2442",
+        "key": "login_bonus",
+        "value": "0",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "bcdfc571-3d31-44f0-bacc-93a567d21feb",
+        "key": "razorpay_enabled",
+        "value": "true",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      },
+      {
+        "id": "f40a5a2c-10dc-474f-8926-c19cf5e5916a",
+        "key": "referral_bonus",
+        "value": "10",
+        "updated_at": "2026-03-23T14:14:04.15241+00:00"
+      }
+    ],
+    "telegram_bot_users": [
+      {
+        "id": "9aa106cb-9510-417c-9a96-7f5c7a05733f",
+        "telegram_id": 7170630274,
+        "username": null,
+        "first_name": "Owner",
+        "last_name": null,
+        "language": "en",
+        "is_banned": false,
+        "role": "owner",
+        "created_at": "2026-03-23T15:17:05.328521+00:00",
+        "last_active": "2026-03-23T15:17:05.328521+00:00"
+      },
+      {
+        "id": "844dae1d-aa20-415b-83c8-3a33f85905dc",
+        "telegram_id": 6898461453,
+        "username": "R_kr2007",
+        "first_name": "࿐ RKR乡 x OTT🪅",
+        "last_name": null,
+        "language": "en",
+        "is_banned": false,
+        "role": "owner",
+        "created_at": "2026-03-23T15:17:05.328521+00:00",
+        "last_active": "2026-03-23T15:32:17.216+00:00"
+      },
+      {
+        "id": "e675aa43-35ba-4e00-8342-17788c1e2d09",
+        "telegram_id": 1867690451,
+        "username": "AlamS777",
+        "first_name": "Aman",
+        "last_name": null,
+        "language": "en",
+        "is_banned": false,
+        "role": "user",
+        "created_at": "2026-03-23T15:24:22.966435+00:00",
+        "last_active": "2026-03-23T15:24:33.671+00:00"
+      },
+      {
+        "id": "209e22bd-ce87-49bb-b202-e7e59cce1b0b",
+        "telegram_id": 7124089027,
+        "username": "I_am_rituuu",
+        "first_name": "Who Ritu ? 😇",
+        "last_name": null,
+        "language": "en",
+        "is_banned": false,
+        "role": "user",
+        "created_at": "2026-03-23T15:25:25.156496+00:00",
+        "last_active": "2026-03-23T15:25:33.968+00:00"
+      }
+    ],
+    "telegram_wallets": [
+      {
+        "id": "e38e9a3d-7508-411a-88c0-277af0562a8c",
+        "telegram_id": 6898461453,
+        "balance": 0,
+        "total_earned": 0,
+        "referral_code": "REFDHAUXV",
+        "referred_by": null,
+        "created_at": "2026-03-23T15:17:43.19902+00:00",
+        "updated_at": "2026-03-23T15:17:43.19902+00:00"
+      },
+      {
+        "id": "cb772bb9-62ed-4771-8242-4a0495088c98",
+        "telegram_id": 7124089027,
+        "balance": 0,
+        "total_earned": 0,
+        "referral_code": "REFLJNA5B",
+        "referred_by": null,
+        "created_at": "2026-03-23T15:25:29.960173+00:00",
+        "updated_at": "2026-03-23T15:25:29.960173+00:00"
+      }
+    ],
+    "telegram_bot_admins": [
+      {
+        "id": "ed3a3125-10ab-428d-be06-c6c0c93590f4",
+        "telegram_id": 6898461453,
+        "role": "owner",
+        "added_by": 6898461453,
+        "created_at": "2026-03-23T15:17:05.328521+00:00"
+      },
+      {
+        "id": "e7971a7e-bad8-4a57-99fa-60912ee0c435",
+        "telegram_id": 7170630274,
+        "role": "owner",
+        "added_by": 7170630274,
+        "created_at": "2026-03-23T15:17:05.328521+00:00"
+      }
+    ],
+    "telegram_required_channels": [
+      {
+        "id": "72d467b2-1309-453c-b26e-e7ddb4824af4",
+        "channel_username": "@pocket_money27",
+        "created_at": "2026-03-23T15:17:05.328521+00:00"
+      },
+      {
+        "id": "57ee96ac-55a3-4753-ad27-86ee5eafa50c",
+        "channel_username": "@RKRxOTT",
+        "created_at": "2026-03-23T15:17:05.328521+00:00"
+      }
+    ]
+  },
+  "empty_tables": [
+    "auth.users",
+    "profiles",
+    "user_roles",
+    "orders",
+    "transactions",
+    "flash_sales",
+    "announcements",
+    "chat_messages",
+    "product_variations",
+    "telegram_orders",
+    "telegram_conversation_state",
+    "telegram_wallet_transactions",
+    "telegram_resale_links"
+  ],
+  "data_loss_summary": {
+    "critical_loss": {
+      "web_users": "~612 users lost",
+      "profiles": "All user profiles lost",
+      "orders": "All order history lost",
+      "transactions": "All transaction history lost",
+      "telegram_orders": "All telegram orders lost",
+      "telegram_transactions": "All telegram transactions lost"
+    },
+    "preserved": {
+      "products": "6 sample products",
+      "categories": "6 categories",
+      "banners": "3 banners",
+      "app_settings": "11 settings",
+      "telegram_bot_users": "4 users (new)",
+      "telegram_wallets": "2 wallets (new)",
+      "telegram_admins": "2 admins",
+      "telegram_channels": "2 required channels"
+    }
+  },
+  "notes": [
+    "This backup was created after a critical data loss incident on 2026-03-23",
+    "Previous state had ~612 web app users - all lost",
+    "All order and transaction history has been permanently lost",
+    "Current data represents fresh start with sample products",
+    "Telegram bot has minimal new user data (4 users)",
+    "All financial records and user balances have been reset to zero",
+    "Migration '20260323151703_ensure_telegram_bot_tables.sql' likely caused the reset",
+    "Check Supabase dashboard for Point-in-Time Recovery options",
+    "System is functional but empty - users can start registering again"
+  ]
+}
