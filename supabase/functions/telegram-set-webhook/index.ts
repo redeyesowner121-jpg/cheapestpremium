@@ -1,10 +1,7 @@
-import { getTelegramBotUsername } from "../_shared/telegram-token-resolver.ts";
-import { getTelegramBotUsername } from "../_shared/telegram-token-resolver.ts";
-import { resolveTelegramBotTokens } from "../_shared/telegram-token-resolver.ts";
+import { getTelegramBotUsername, resolveTelegramBotTokens } from "../_shared/telegram-token-resolver.ts";
 
 const MAIN_BOT_USERNAME = "Air1_Premium_bot";
 const RESALE_BOT_USERNAME = "AIR1XOTT_bot";
-const THIRD_BOT_USERNAME = "third_store_bot";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,24 +90,8 @@ Deno.serve(async (req) => {
           telegram_response: resaleResponse,
         });
       }
-    // Setup third bot webhook
-    const thirdBotToken = Deno.env.get("THIRD_BOT_TOKEN");
-    if (thirdBotToken) {
-      const thirdBotUsername = await getTelegramBotUsername(thirdBotToken);
-      const thirdWebhookUrl = `${SUPABASE_URL}/functions/v1/third-bot`;
-      const thirdResponse = await setWebhook(thirdBotToken, thirdWebhookUrl, 3);
-      console.log("Third bot webhook result:", thirdResponse);
-      results.push({
-        bot: "third",
-        username: thirdBotUsername,
-        webhook_url: thirdWebhookUrl,
-        telegram_response: thirdResponse,
-      });
     }
 
-    }
-
-    // Setup third bot webhook
     const thirdBotToken = Deno.env.get("THIRD_BOT_TOKEN");
     if (thirdBotToken) {
       const thirdBotUsername = await getTelegramBotUsername(thirdBotToken);
