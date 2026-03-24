@@ -53,7 +53,7 @@ const MaintenanceScreen = () => {
 // App Content with Settings Applied
 const AppContent = () => {
   const { settings, loading: settingsLoading } = useAppSettingsContext();
-  const { isAdmin, isTempAdmin } = useAuth();
+  const { isAdmin, isTempAdmin, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (settings.app_name) {
@@ -61,8 +61,17 @@ const AppContent = () => {
     }
   }, [settings.app_name]);
 
+  // Show loading while auth or settings are loading
+  if (authLoading || settingsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   // Show maintenance screen for non-admin users when maintenance mode is ON
-  if (!settingsLoading && settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
+  if (settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
     return <MaintenanceScreen />;
   }
 
