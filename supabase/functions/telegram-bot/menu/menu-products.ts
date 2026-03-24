@@ -5,11 +5,15 @@ import { sendMessage, sendPhoto } from "../telegram-api.ts";
 import { getSettings, getWallet } from "../db-helpers.ts";
 
 export async function handleViewCategories(token: string, supabase: any, chatId: number, lang: string) {
-  const { data: categories } = await supabase
+  const { data: categories, error } = await supabase
     .from("categories")
-    .select("name, icon_url")
+    .select("name, slug, icon")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("Category fetch error:", error);
+  }
 
   if (!categories?.length) {
     await sendMessage(token, chatId, t("no_products", lang), {
@@ -24,10 +28,10 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
     const emoji1 = categoryEmojis[i % categoryEmojis.length];
-    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
+    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].slug)}` }];
     if (categories[i + 1]) {
       const emoji2 = categoryEmojis[(i + 1) % categoryEmojis.length];
-      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
+      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].slug)}` });
     }
     buttons.push(row);
   }
@@ -37,13 +41,17 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 }
 
 export async function handleCategoryProducts(token: string, supabase: any, chatId: number, category: string, lang: string) {
-  const { data: products } = await supabase
+  const { data: products, error } = await supabase
     .from("products")
     .select("id, name, price, original_price, image_url, stock")
     .eq("category", category)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(20);
+
+  if (error) {
+    console.error("Product fetch error:", error);
+  }
 
   if (!products?.length) {
     await sendMessage(token, chatId, t("no_products", lang), {
@@ -76,11 +84,15 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
 }
 
 export async function handleProductDetail(token: string, supabase: any, chatId: number, productId: string, lang: string, userId: number) {
-  const { data: product } = await supabase
+  const { data: product, error } = await supabase
     .from("products")
     .select("*")
     .eq("id", productId)
-    .single();
+    .maybeSingle();
+
+  if (error) {
+    console.error("Product detail fetch error:", error);
+  }
 
   if (!product) {
     await sendMessage(token, chatId, t("product_not_found", lang));
