@@ -176,18 +176,29 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
 
 export async function handleLoginCode(token: string, supabase: any, chatId: number, userId: number, lang: string) {
   try {
+    const { data: botUser } = await supabase
+      .from("telegram_bot_users")
+      .select("username, first_name")
+      .eq("telegram_id", userId)
+      .maybeSingle();
+
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
 
     await supabase.from("telegram_login_codes").insert({
       code,
       telegram_id: userId,
+      username: botUser?.username || null,
+      first_name: botUser?.first_name || null,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     });
 
+    const boltLink = `https://bolt.new?telegramLogin=${code}`;
+    const lovableLink = `https://lovable.dev?telegramLogin=${code}`;
+
     const text = lang === "bn"
-      ? `🔐 <b>ওয়েবসাইট লগইন কোড</b>\n\n📋 আপনার কোড: <code>${code}</code>\n\n✅ এই কোডটি এখন সক্রিয়। ৫ মিনিটের মধ্যে ওয়েবসাইটে লগইন করুন।\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
-      : `🔐 <b>Website Login Code</b>\n\n📋 Your code: <code>${code}</code>\n\n✅ Code is active for 5 minutes.\n\n⚠️ Do not share this code with anyone.`;
+      ? `🔐 <b>ওয়েবসাইট লগইন কোড</b>\n\n📋 আপনার কোড: <code>${code}</code>\n\n✅ এই কোডটি এখন সক্রিয়। ৫ মিনিটের মধ্যে লগইন করুন।\n\n🔗 লিংক:\n• Bolt: ${boltLink}\n• Lovable: ${lovableLink}\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
+      : `🔐 <b>Website Login Code</b>\n\n📋 Your code: <code>${code}</code>\n\n✅ Code is active for 5 minutes.\n\n🔗 Links:\n• Bolt: ${boltLink}\n• Lovable: ${lovableLink}\n\n⚠️ Do not share this code with anyone.`;
 
     await sendMessage(token, chatId, text);
   } catch (e) {

@@ -33,12 +33,17 @@ const AuthPage: React.FC = () => {
     referralCode: '',
   });
 
-  // Check for referral code in URL and auto-switch to signup mode
   useEffect(() => {
     const refCode = searchParams.get('ref');
     if (refCode) {
       setFormData(prev => ({ ...prev, referralCode: refCode.toUpperCase() }));
       setIsLogin(false);
+    }
+
+    const telegramCode = searchParams.get('telegramLogin');
+    if (telegramCode) {
+      setTelegramCode(telegramCode);
+      setShowTelegramCodeModal(true);
     }
   }, [searchParams]);
 
@@ -86,64 +91,42 @@ const AuthPage: React.FC = () => {
 
     setVerifyingCode(true);
     try {
-      const { data: loginCodeData, error: codeError } = await supabase
-        .from('telegram_login_codes')
-        .select('telegram_id, username, first_name, used')
-        .eq('code', telegramCode.trim())
-        .maybeSingle();
-
-      if (codeError || !loginCodeData) {
-        toast.error('Invalid login code. Please try again.');
-        return;
-      }
-
-      if (loginCodeData.used) {
-        toast.error('This code has already been used. Get a new code from the bot.');
-        return;
-      }
-
-      // Mark code as used
-      await supabase
-        .from('telegram_login_codes')
-        .update({ used: true })
-        .eq('code', telegramCode.trim());
-
-      // Check if user exists, if not create one
-      const email = `telegram_${loginCodeData.telegram_id}@telegram.rkr.app`;
-      const password = `telegram_${loginCodeData.telegram_id}_secure`;
-
-      let { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/telegram-login`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ code: telegramCode.trim() }),
       });
 
-      if (signInError) {
-        // Create new account
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to verify code');
+        return;
+      }
+
+      const { user_id, email, name } = data;
+
+      const { data: session, error: sessionError } = await supabase.auth.signInWithPassword({
+        email: `telegram_${user_id}@bot.local`,
+        password: Math.random().toString(36).slice(-20),
+      });
+
+      if (sessionError) {
         const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
+          email: `telegram_${user_id}@bot.local`,
+          password: Math.random().toString(36).slice(-20),
           options: {
             emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              name: loginCodeData.first_name || loginCodeData.username || 'Telegram User',
-              telegram_id: loginCodeData.telegram_id
-            }
+            data: { name, telegram_id: user_id }
           }
         });
 
         if (signUpError) {
-          toast.error(signUpError.message);
-          return;
-        }
-
-        // Sign in after signup
-        const { error: finalSignInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (finalSignInError) {
-          toast.error('Failed to login after account creation');
+          toast.error('Failed to create account');
           return;
         }
       }
