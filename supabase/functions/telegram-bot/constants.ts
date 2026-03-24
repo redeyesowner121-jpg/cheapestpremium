@@ -1,7 +1,7 @@
 // ===== CONSTANTS & TRANSLATIONS =====
 
 export const SUPER_ADMIN_ID = 6898461453;
-export const BOT_USERNAME = "Air1_Premium_bot";
+export const BOT_USERNAME = "RKR_Premium_bot";
 export const RESALE_BOT_USERNAME = "AIR1XOTT_bot";
 export const REQUIRED_CHANNELS = ["@pocket_money27", "@RKRxOTT"];
 export const UPI_ID = "8900684167@ibl";

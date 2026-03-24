@@ -183,102 +183,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithTelegram = async () => {
     try {
-      toast.info('Opening Telegram login...');
+      // Redirect to Telegram bot for authentication
+      const botUsername = 'RKR_Premium_bot';
+      const telegramBotUrl = `https://t.me/${botUsername}`;
 
-      // Create a promise that resolves when Telegram callback is triggered
-      const telegramLoginPromise = new Promise<any>((resolve, reject) => {
-        (window as any).onTelegramAuth = (user: any) => {
-          resolve(user);
-        };
-
-        // Timeout after 5 minutes
-        setTimeout(() => {
-          reject(new Error('Telegram login timed out'));
-        }, 300000);
+      toast.info('Opening Telegram bot...', {
+        description: 'You will be redirected to Telegram to complete login'
       });
 
-      // Open Telegram Web App for login
-      const botUsername = 'RKR_Premium_bot'; // Replace with your bot username
-      const telegramWebAppUrl = `https://t.me/${botUsername}?start=weblogin`;
+      // Open in new window or redirect
+      window.open(telegramBotUrl, '_blank');
 
-      const width = 600;
-      const height = 700;
-      const left = (window.innerWidth - width) / 2;
-      const top = (window.innerHeight - height) / 2;
-
-      const popup = window.open(
-        telegramWebAppUrl,
-        'Telegram Login',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
-
-      if (!popup) {
-        toast.error('Please allow popups to login with Telegram');
-        return;
-      }
-
-      toast.info('Please complete login in Telegram window...');
-
-      // Wait for Telegram callback or timeout
-      const telegramUser = await telegramLoginPromise;
-
-      popup?.close();
-
-      if (!telegramUser || !telegramUser.id) {
-        toast.error('Failed to get Telegram user data');
-        return;
-      }
-
-      // Create email from Telegram ID
-      const email = `telegram_${telegramUser.id}@telegram.rkr.app`;
-      const name = telegramUser.first_name + (telegramUser.last_name ? ` ${telegramUser.last_name}` : '');
-      const username = telegramUser.username;
-      const photoUrl = telegramUser.photo_url;
-
-      // Generate secure password from Telegram ID
-      const password = `telegram_${telegramUser.id}_${telegramUser.auth_date}_secure`;
-
-      // Try to sign in first
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      toast.info('Complete login in Telegram', {
+        description: 'Use /start command in the bot to login and manage your account'
       });
-
-      if (signInError) {
-        // Create new account
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              name,
-              telegram_id: telegramUser.id,
-              telegram_username: username,
-              avatar_url: photoUrl
-            }
-          }
-        });
-
-        if (signUpError) {
-          toast.error(signUpError.message);
-          throw signUpError;
-        }
-
-        // Update profile with Telegram data
-        if (data.user) {
-          await supabase.from('profiles').update({
-            name,
-            avatar_url: photoUrl
-          }).eq('id', data.user.id);
-        }
-      }
-
-      toast.success('Welcome!');
     } catch (error: any) {
-      if (error.message !== 'Telegram login timed out') {
-        toast.error(error.message || 'Telegram login failed');
-      }
+      toast.error(error.message || 'Failed to open Telegram bot');
       throw error;
     }
   };
