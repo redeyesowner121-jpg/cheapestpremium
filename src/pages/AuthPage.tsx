@@ -86,28 +86,33 @@ const AuthPage: React.FC = () => {
     }
     setRecoverySending(true);
     try {
-      const { data: adminRoles } = await supabase
+      const { data: adminRoles, error: adminError } = await supabase
         .from('user_roles')
         .select('user_id')
-        .in('role', ['admin']);
+        .eq('role', 'admin');
 
-      if (!adminRoles?.length) {
+      if (adminError || !adminRoles?.length) {
         toast.error('No admin found. Please try again later.');
         return;
       }
 
-      const { data: userProfile } = await supabase
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('name')
         .eq('email', recoveryEmail.trim())
         .maybeSingle();
 
+      if (profileError && profileError.code !== 'PGRST116') {
+        throw profileError;
+      }
+
       for (const admin of adminRoles) {
-        await supabase.from('chat_messages').insert({
+        const { error: insertError } = await supabase.from('chat_messages').insert({
           user_id: admin.user_id,
           is_admin: false,
           message: `🔑 Password Recovery Request\n\nEmail: ${recoveryEmail.trim()}\nName: ${userProfile?.name || 'Unknown'}\n\nThis user is requesting password recovery. Please assist them.`,
         });
+        if (insertError) console.error('Failed to notify admin:', insertError);
       }
 
       toast.success('Recovery request sent to admin! They will contact you soon.');

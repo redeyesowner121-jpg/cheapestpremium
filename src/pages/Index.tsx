@@ -46,113 +46,122 @@ const Index: React.FC = () => {
   }, [user, permission]);
 
   const loadData = async () => {
-    // Load all data in parallel
-    const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes, categoriesRes] = await Promise.all([
-      supabase
-        .from('banners')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true }),
-      supabase
-        .from('flash_sales')
-        .select('*, products(*)')
-        .eq('is_active', true)
-        .gt('end_time', new Date().toISOString()),
-      supabase
-        .from('products')
-        .select('*, product_variations(*)')
-        .eq('is_active', true)
-        .limit(8),
-      supabase
-        .from('products')
-        .select('*, product_variations(*)')
-        .eq('is_active', true)
-        .ilike('category', '%methods%')
-        .limit(6),
-      supabase
-        .from('products')
-        .select('*, product_variations(*)')
-        .eq('is_active', true)
-        .ilike('category', '%courses%')
-        .limit(6),
-      supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-    ]);
+    try {
+      const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes, categoriesRes] = await Promise.all([
+        supabase
+          .from('banners')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('flash_sales')
+          .select('*, products(*)')
+          .eq('is_active', true)
+          .gt('end_time', new Date().toISOString()),
+        supabase
+          .from('products')
+          .select('*, product_variations(*)')
+          .eq('is_active', true)
+          .limit(8),
+        supabase
+          .from('products')
+          .select('*, product_variations(*)')
+          .eq('is_active', true)
+          .ilike('category', '%methods%')
+          .limit(6),
+        supabase
+          .from('products')
+          .select('*, product_variations(*)')
+          .eq('is_active', true)
+          .ilike('category', '%courses%')
+          .limit(6),
+        supabase
+          .from('categories')
+          .select('*')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
+      ]);
 
-    if (categoriesRes.data) setCategories(categoriesRes.data);
+      if (categoriesRes.error) console.error('Categories error:', categoriesRes.error);
+      if (categoriesRes.data) setCategories(categoriesRes.data);
 
-    if (bannersRes.data && bannersRes.data.length > 0) {
-      setBanners(bannersRes.data.map(b => ({
-        id: b.id,
-        image: b.image_url,
-        title: b.title,
-        link: b.link
-      })));
-    }
+      if (bannersRes.error) console.error('Banners error:', bannersRes.error);
+      if (bannersRes.data && bannersRes.data.length > 0) {
+        setBanners(bannersRes.data.map(b => ({
+          id: b.id,
+          image: b.image_url,
+          title: b.title,
+          link: b.link
+        })));
+      }
 
-    if (flashSalesRes.data) {
-      setFlashSales(flashSalesRes.data.map(fs => ({
-        id: fs.id,
-        productId: fs.product_id,
-        name: fs.products?.name || 'Product',
-        originalPrice: fs.products?.price || 0,
-        salePrice: fs.sale_price,
-        image: fs.products?.image_url || 'https://via.placeholder.com/200',
-        endTime: new Date(fs.end_time).getTime(),
-        productData: fs.products,
-        variationName: (fs as any).variation_name || null,
-      })));
-    }
+      if (flashSalesRes.error) console.error('Flash sales error:', flashSalesRes.error);
+      if (flashSalesRes.data) {
+        setFlashSales(flashSalesRes.data.map(fs => ({
+          id: fs.id,
+          productId: fs.product_id,
+          name: fs.products?.name || 'Product',
+          originalPrice: fs.products?.price || 0,
+          salePrice: fs.sale_price,
+          image: fs.products?.image_url || 'https://via.placeholder.com/200',
+          endTime: new Date(fs.end_time).getTime(),
+          productData: fs.products,
+          variationName: (fs as any).variation_name || null,
+        })));
+      }
 
-    if (productsRes.data) {
-      setProducts(productsRes.data.map(p => {
-        const vars = (p.product_variations || [])
-          .filter((v: any) => v.is_active !== false)
-          .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        const firstVar = vars[0];
-        const displayPrice = firstVar ? firstVar.price : p.price;
-        return {
-          id: p.id,
-          name: p.name,
-          price: displayPrice,
-          originalPrice: p.original_price,
-          image: p.image_url || 'https://via.placeholder.com/200',
-          rating: p.rating || 4.5,
-          soldCount: p.sold_count || 0,
-          reseller_price: p.reseller_price
-        };
-      }));
-    }
+      if (productsRes.error) console.error('Products error:', productsRes.error);
+      if (productsRes.data) {
+        setProducts(productsRes.data.map(p => {
+          const vars = (p.product_variations || [])
+            .filter((v: any) => v.is_active !== false)
+            .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          const firstVar = vars[0];
+          const displayPrice = firstVar ? firstVar.price : p.price;
+          return {
+            id: p.id,
+            name: p.name,
+            price: displayPrice,
+            originalPrice: p.original_price,
+            image: p.image_url || 'https://via.placeholder.com/200',
+            rating: p.rating || 4.5,
+            soldCount: p.sold_count || 0,
+            reseller_price: p.reseller_price
+          };
+        }));
+      }
 
-    if (methodsRes.data) {
-      setMethodsProducts(methodsRes.data.map(p => {
-        const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        const firstVar = vars[0];
-        return {
-          id: p.id, name: p.name,
-          price: firstVar ? firstVar.price : p.price,
-          originalPrice: p.original_price,
-          image: p.image_url || 'https://via.placeholder.com/200',
-          rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
-        };
-      }));
-    }
+      if (methodsRes.error) console.error('Methods error:', methodsRes.error);
+      if (methodsRes.data) {
+        setMethodsProducts(methodsRes.data.map(p => {
+          const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          const firstVar = vars[0];
+          return {
+            id: p.id, name: p.name,
+            price: firstVar ? firstVar.price : p.price,
+            originalPrice: p.original_price,
+            image: p.image_url || 'https://via.placeholder.com/200',
+            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
+          };
+        }));
+      }
 
-    if (coursesRes.data) {
-      setCoursesProducts(coursesRes.data.map(p => {
-        const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        const firstVar = vars[0];
-        return {
-          id: p.id, name: p.name,
-          price: firstVar ? firstVar.price : p.price,
-          originalPrice: p.original_price,
-          image: p.image_url || 'https://via.placeholder.com/200',
-          rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
-        };
-      }));
+      if (coursesRes.error) console.error('Courses error:', coursesRes.error);
+      if (coursesRes.data) {
+        setCoursesProducts(coursesRes.data.map(p => {
+          const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          const firstVar = vars[0];
+          return {
+            id: p.id, name: p.name,
+            price: firstVar ? firstVar.price : p.price,
+            originalPrice: p.original_price,
+            image: p.image_url || 'https://via.placeholder.com/200',
+            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
+          };
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
     }
   };
 
