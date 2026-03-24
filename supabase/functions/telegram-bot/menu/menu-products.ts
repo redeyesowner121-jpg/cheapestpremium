@@ -41,10 +41,18 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 }
 
 export async function handleCategoryProducts(token: string, supabase: any, chatId: number, category: string, lang: string) {
+  const { data: catData } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("slug", category)
+    .maybeSingle();
+
+  const categoryName = catData?.name || category;
+
   const { data: products, error } = await supabase
     .from("products")
     .select("id, name, price, original_price, image_url")
-    .eq("category", category)
+    .eq("category", categoryName)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
     .limit(20);
