@@ -14,7 +14,8 @@ import {
   showLanguageSelection, showJoinChannels, showMainMenu,
   handleViewCategories, handleCategoryProducts, handleProductDetail,
   handleMyOrders, handleMyWallet, handleReferEarn, handleSupport,
-  handleGetOffers, forwardUserMessageToAdmin,
+  handleGetOffers, forwardUserMessageToAdmin, handleLoginCode,
+  handleWalletDeposit, handleWalletWithdraw,
 } from "./menu-handlers.ts";
 import {
   handleBuyProduct, handleBuyVariation, handleWalletPay, handleAdminAction,
@@ -419,6 +420,9 @@ Deno.serve(async (req) => {
       if (data === "my_orders") { await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
       // My wallet
       if (data === "my_wallet") { await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
+      // Wallet operations
+      if (data === "wallet_deposit") { await handleWalletDeposit(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
+      if (data === "wallet_withdraw") { await handleWalletWithdraw(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
       // Refer & earn
       if (data === "refer_earn") { await handleReferEarn(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
       // Support
@@ -526,9 +530,11 @@ Deno.serve(async (req) => {
           case "/help":
             await sendMessage(BOT_TOKEN, chatId,
               lang === "bn"
-                ? "📖 <b>কমান্ড:</b>\n/start - মূল মেনু\n/products - পণ্য দেখুন\n/myorders - আমার অর্ডার\n/help - সাহায্য"
-                : "📖 <b>Commands:</b>\n/start - Main menu\n/products - View products\n/myorders - My orders\n/help - Show help"
+                ? "📖 <b>কমান্ড:</b>\n/start - মূল মেনু\n/products - পণ্য দেখুন\n/myorders - আমার অর্ডার\n/login_code - ওয়েবসাইট লগইন কোড\n/help - সাহায্য"
+                : "📖 <b>Commands:</b>\n/start - Main menu\n/products - View products\n/myorders - My orders\n/login_code - Website login code\n/help - Show help"
             ); break;
+          case "/login_code":
+            await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); break;
           // Admin commands
           case "/admin":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }

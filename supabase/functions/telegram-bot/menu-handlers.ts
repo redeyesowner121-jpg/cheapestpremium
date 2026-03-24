@@ -8,5 +8,6 @@ export {
   handleViewCategories, handleCategoryProducts, handleProductDetail,
 } from "./menu/menu-products.ts";
 export {
-  handleMyOrders, handleMyWallet, handleReferEarn, handleGetOffers,
+  handleMyOrders, handleMyWallet, handleReferEarn, handleGetOffers, handleLoginCode,
+  handleWalletDeposit, handleWalletWithdraw,
 } from "./menu/menu-features.ts";

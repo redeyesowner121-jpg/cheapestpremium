@@ -99,7 +99,15 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
   }
 
   await sendMessage(token, chatId, text, {
-    reply_markup: { inline_keyboard: [[{ text: `🔙 ${t("back_main", lang)}`, callback_data: "back_main" }]] },
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: lang === "bn" ? "➕ টপ আপ" : "➕ Deposit", callback_data: "wallet_deposit" },
+          { text: lang === "bn" ? "➖ উইথড" : "➖ Withdraw", callback_data: "wallet_withdraw" }
+        ],
+        [{ text: `🔙 ${t("back_main", lang)}`, callback_data: "back_main" }],
+      ],
+    },
   });
 }
 
@@ -161,6 +169,76 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
       inline_keyboard: [
         [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products" }],
         [{ text: `🔙 ${t("back_main", lang)}`, callback_data: "back_main" }],
+      ],
+    },
+  });
+}
+
+export async function handleLoginCode(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  try {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    await supabase.from("telegram_login_codes").insert({
+      code,
+      telegram_id: userId,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    });
+
+    const text = lang === "bn"
+      ? `🔐 <b>ওয়েবসাইট লগইন কোড</b>\n\n📋 আপনার কোড: <code>${code}</code>\n\n✅ এই কোডটি এখন সক্রিয়। ৫ মিনিটের মধ্যে ওয়েবসাইটে লগইন করুন।\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
+      : `🔐 <b>Website Login Code</b>\n\n📋 Your code: <code>${code}</code>\n\n✅ Code is active for 5 minutes.\n\n⚠️ Do not share this code with anyone.`;
+
+    await sendMessage(token, chatId, text);
+  } catch (e) {
+    console.error("Login code error:", e);
+    const text = lang === "bn"
+      ? `❌ কোড তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।`
+      : `❌ Failed to generate code. Please try again.`;
+    await sendMessage(token, chatId, text);
+  }
+}
+
+export async function handleWalletDeposit(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  const settings = await getSettings(supabase);
+  const minDeposit = settings.min_deposit_amount || "100";
+  const maxDeposit = settings.max_deposit_amount || "50000";
+
+  const text = lang === "bn"
+    ? `➕ <b>ওয়ালেট টপ আপ</b>\n\n💳 টপআপের জন্য এক্সচেঞ্জ অ্যাপ ব্যবহার করুন বা UPI এ পাঠান।\n\n📊 সীমা:\n• ন্যূনতম: ₹${minDeposit}\n• সর্বোচ্চ: ₹${maxDeposit}\n\n⏳ আপনার লেনদেন মিনিটে দেখা যাবে।`
+    : `➕ <b>Wallet Top Up</b>\n\n💳 Use exchanges or UPI to deposit.\n\n📊 Limits:\n• Minimum: ₹${minDeposit}\n• Maximum: ₹${maxDeposit}\n\n⏳ Credit appears within minutes.`;
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: lang === "bn" ? "💬 সাপোর্ট যোগাযোগ করুন" : "💬 Contact Support", callback_data: "support" }],
+        [{ text: lang === "bn" ? "🔙 ফিরে যান" : "🔙 Back", callback_data: "my_wallet" }],
+      ],
+    },
+  });
+}
+
+export async function handleWalletWithdraw(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  const wallet = await getWallet(supabase, userId);
+  const balance = wallet?.balance || 0;
+
+  if (balance <= 0) {
+    const text = lang === "bn"
+      ? `❌ আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹1 প্রয়োজন।`
+      : `❌ Your balance is insufficient. Minimum ₹1 required.`;
+    await sendMessage(token, chatId, text);
+    return;
+  }
+
+  const text = lang === "bn"
+    ? `➖ <b>ওয়ালেট উইথড</b>\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>\n\n🏦 পেমেন্ট পদ্ধতি:\n• ব্যাংক ট্রান্সফার\n• নগদ (ঢাকা)\n• বিকাশ/নগদ\n\n💬 সাপোর্টে অনুরোধ জানান।`
+    : `➖ <b>Wallet Withdrawal</b>\n\n💵 Current Balance: <b>₹${balance}</b>\n\n🏦 Payment Methods:\n• Bank Transfer\n• Cash (Dhaka)\n• Bkash/Nagad\n\n💬 Contact support to request.`;
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: lang === "bn" ? "💬 সাপোর্ট যোগাযোগ করুন" : "💬 Contact Support", callback_data: "support" }],
+        [{ text: lang === "bn" ? "🔙 ফিরে যান" : "🔙 Back", callback_data: "my_wallet" }],
       ],
     },
   });
