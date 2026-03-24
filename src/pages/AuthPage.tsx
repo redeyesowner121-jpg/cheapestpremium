@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Phone, Eye, EyeOff, Gift, ArrowLeft, Send } from 'lucide-react';
+import { Mail, Lock, User, Phone, Eye, EyeOff, Gift, ArrowLeft, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -20,6 +21,9 @@ const AuthPage: React.FC = () => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [recoverySending, setRecoverySending] = useState(false);
+  const [showTelegramCodeModal, setShowTelegramCodeModal] = useState(false);
+  const [telegramCode, setTelegramCode] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -69,13 +73,89 @@ const AuthPage: React.FC = () => {
   };
 
   const handleTelegramLogin = async () => {
-    setLoading(true);
+    setShowTelegramCodeModal(true);
+    setLoading(false);
+  };
+
+  const handleTelegramCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!telegramCode.trim()) {
+      toast.error('Please enter the login code from Telegram');
+      return;
+    }
+
+    setVerifyingCode(true);
     try {
-      await loginWithTelegram();
-    } catch (error) {
-      // Error handled in context
+      const { data: loginCodeData, error: codeError } = await supabase
+        .from('telegram_login_codes')
+        .select('telegram_id, username, first_name, used')
+        .eq('code', telegramCode.trim())
+        .maybeSingle();
+
+      if (codeError || !loginCodeData) {
+        toast.error('Invalid login code. Please try again.');
+        return;
+      }
+
+      if (loginCodeData.used) {
+        toast.error('This code has already been used. Get a new code from the bot.');
+        return;
+      }
+
+      // Mark code as used
+      await supabase
+        .from('telegram_login_codes')
+        .update({ used: true })
+        .eq('code', telegramCode.trim());
+
+      // Check if user exists, if not create one
+      const email = `telegram_${loginCodeData.telegram_id}@telegram.rkr.app`;
+      const password = `telegram_${loginCodeData.telegram_id}_secure`;
+
+      let { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        // Create new account
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              name: loginCodeData.first_name || loginCodeData.username || 'Telegram User',
+              telegram_id: loginCodeData.telegram_id
+            }
+          }
+        });
+
+        if (signUpError) {
+          toast.error(signUpError.message);
+          return;
+        }
+
+        // Sign in after signup
+        const { error: finalSignInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (finalSignInError) {
+          toast.error('Failed to login after account creation');
+          return;
+        }
+      }
+
+      toast.success('Logged in successfully!');
+      setShowTelegramCodeModal(false);
+      setTelegramCode('');
+      navigate('/');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to verify code');
     } finally {
-      setLoading(false);
+      setVerifyingCode(false);
     }
   };
 
@@ -340,6 +420,78 @@ const AuthPage: React.FC = () => {
           </>
         )}
       </motion.div>
+
+      <Dialog open={showTelegramCodeModal} onOpenChange={setShowTelegramCodeModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-[#0088cc]" />
+              Telegram Login Code
+            </DialogTitle>
+            <DialogDescription>
+              Open the Telegram bot and use /start to get your login code, then paste it below.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleTelegramCodeSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Login Code</label>
+              <Input
+                type="text"
+                placeholder="Paste your 6-digit code here"
+                value={telegramCode}
+                onChange={(e) => setTelegramCode(e.target.value.trim())}
+                className="h-12 text-center text-lg tracking-widest uppercase"
+                maxLength={20}
+                autoFocus
+                disabled={verifyingCode}
+              />
+            </div>
+
+            <div className="bg-muted p-3 rounded-lg text-sm text-muted-foreground">
+              <p className="font-semibold mb-2">How to get your code:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Open Telegram and find <strong>@Air1_Premium_bot</strong></li>
+                <li>Tap the /start command or send /login</li>
+                <li>Copy the 6-digit code provided</li>
+                <li>Paste it in the field above</li>
+              </ol>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowTelegramCodeModal(false);
+                  setTelegramCode('');
+                }}
+                disabled={verifyingCode}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-[#0088cc] hover:bg-[#0077b3] text-white"
+                disabled={verifyingCode || !telegramCode.trim()}
+              >
+                {verifyingCode ? 'Verifying...' : 'Login'}
+              </Button>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-[#0088cc] hover:bg-transparent hover:text-[#0077b3]"
+              onClick={() => window.open('https://t.me/Air1_Premium_bot', '_blank')}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Open Telegram Bot
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
