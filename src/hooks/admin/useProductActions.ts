@@ -1,6 +1,26 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+async function triggerProductSync(type: 'product' | 'category', action: 'create' | 'update' | 'delete', data?: any) {
+  try {
+    const syncUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-products-webhook`;
+    const response = await fetch(syncUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ type, action, data }),
+    });
+
+    if (!response.ok) {
+      console.error('Sync webhook failed:', response.status);
+    }
+  } catch (error) {
+    console.error('Failed to trigger sync webhook:', error);
+  }
+}
+
 interface ProductForm {
   name: string;
   description: string;
@@ -51,7 +71,7 @@ export async function handleAddProduct(
     toast.error('Failed to add product');
     return false;
   }
-  
+
   if (pendingVariations.length > 0) {
     const variationsToInsert = pendingVariations.map(v => ({
       product_id: newProduct.id,
@@ -60,11 +80,12 @@ export async function handleAddProduct(
       original_price: v.original_price ? parseFloat(v.original_price) : null,
       reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
     }));
-    
+
     await supabase.from('product_variations').insert(variationsToInsert);
   }
-  
+
   toast.success('Product added!');
+  await triggerProductSync('product', 'create', { id: newProduct.id, name: newProduct.name });
   onComplete();
   return true;
 }
@@ -87,7 +108,7 @@ export async function handleUpdateProduct(
   const firstVarPrice = existingVars?.[0]?.price ?? (pendingVariations.length > 0 && pendingVariations[0].price ? parseFloat(pendingVariations[0].price) : null);
   const mainPrice = firstVarPrice ?? (productForm.price ? parseFloat(productForm.price) : 0);
 
-  const { error } = await supabase.from('products').update({
+  const { data: updatedProduct, error } = await supabase.from('products').update({
     name: productForm.name,
     description: productForm.description,
     price: mainPrice,
@@ -98,13 +119,13 @@ export async function handleUpdateProduct(
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active
-  }).eq('id', productId);
-  
+  }).eq('id', productId).select().single();
+
   if (error) {
     toast.error('Failed to update product');
     return false;
   }
-  
+
   if (pendingVariations.length > 0) {
     const variationsToInsert = pendingVariations.map(v => ({
       product_id: productId,
@@ -113,11 +134,14 @@ export async function handleUpdateProduct(
       original_price: v.original_price ? parseFloat(v.original_price) : null,
       reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
     }));
-    
+
     await supabase.from('product_variations').insert(variationsToInsert);
   }
-  
+
   toast.success('Product updated!');
+  if (updatedProduct) {
+    await triggerProductSync('product', 'update', { id: updatedProduct.id, name: updatedProduct.name });
+  }
   onComplete();
   return true;
 }
@@ -127,18 +151,19 @@ export async function handleDeleteProduct(productId: string, onComplete: () => v
     .from('orders')
     .select('*', { count: 'exact', head: true })
     .eq('product_id', productId);
-  
+
   if (orderCount && orderCount > 0) {
     const { error } = await supabase
       .from('products')
       .update({ is_active: false })
       .eq('id', productId);
-    
+
     if (error) {
       toast.error('Failed to deactivate product');
       return false;
     }
     toast.success('Product deactivated (has existing orders)');
+    await triggerProductSync('product', 'update', { id: productId });
   } else {
     await supabase.from('product_variations').delete().eq('product_id', productId);
     const { error } = await supabase.from('products').delete().eq('id', productId);
@@ -147,8 +172,9 @@ export async function handleDeleteProduct(productId: string, onComplete: () => v
       return false;
     }
     toast.success('Product deleted!');
+    await triggerProductSync('product', 'delete', { id: productId });
   }
-  
+
   onComplete();
   return true;
 }

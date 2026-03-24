@@ -1,11 +1,11 @@
 /*
   # Sync Products Webhook
 
-  This webhook is triggered when products or categories are updated/created/deleted.
-  It serves as a notification system to keep the bot in sync with the website.
-
-  Usage: Call this endpoint to trigger product/category sync events
+  This webhook syncs products between website and Telegram bot.
+  It receives notifications about product changes and queues them for bot processing.
 */
+
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +18,11 @@ interface SyncPayload {
   action: "create" | "update" | "delete";
   data?: any;
 }
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -51,6 +56,29 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`[SYNC] ${payload.type} ${payload.action}:`, payload.data?.id || payload.data?.name);
+
+    if (payload.type === "product") {
+      if (payload.data?.id) {
+        const { data: product } = await supabase
+          .from("products")
+          .select("*")
+          .eq("id", payload.data.id)
+          .maybeSingle();
+
+        if (product) {
+          const { error: queueError } = await supabase
+            .from("product_sync_queue")
+            .insert({
+              event_type: `product_${payload.action}`,
+              product_id: product.id,
+            });
+
+          if (queueError) {
+            console.error("Queue error:", queueError);
+          }
+        }
+      }
+    }
 
     const response = {
       success: true,
