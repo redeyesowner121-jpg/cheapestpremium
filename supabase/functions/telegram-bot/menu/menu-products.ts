@@ -43,7 +43,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 export async function handleCategoryProducts(token: string, supabase: any, chatId: number, category: string, lang: string) {
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, price, original_price, image_url, stock")
+    .select("id, name, price, original_price, image_url")
     .eq("category", category)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -69,8 +69,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     const priceText = p.original_price && p.original_price > p.price
       ? `<s>${currency}${p.original_price}</s> ${currency}${p.price}`
       : `${currency}${p.price}`;
-    const stock = p.stock !== null && p.stock <= 0 ? " ❌" : "";
-    text += `📦 <b>${p.name}</b> — ${priceText}${stock}\n`;
+    text += `📦 <b>${p.name}</b> — ${priceText}\n`;
   });
 
   const productEmojis = ["🔵", "🟢", "🟡", "🟠", "🔴", "🟣", "🟤", "⚫"];

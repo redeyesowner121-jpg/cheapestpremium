@@ -173,9 +173,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       image_url: imageUrl,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
-      is_active: productForm.is_active,
       seo_tags: productForm.seo_tags || '',
-      slug: `product-${slugNum}`
+      is_active: productForm.is_active
     }).select().single();
     
     if (error || !newProduct) {
@@ -183,7 +182,6 @@ const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
     
-    // Add pending variations if any
     if (pendingVariations.length > 0) {
       const variationsToInsert = pendingVariations.map(v => ({
         product_id: newProduct.id,
@@ -191,8 +189,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
         price: parseFloat(v.price),
         reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
       }));
-      
-      await supabase.from('product_variations').insert(variationsToInsert);
+
+      const { error: varError } = await supabase.from('product_variations').insert(variationsToInsert);
+      if (varError) {
+        console.error('Variation insert error:', varError);
+        toast.error('Failed to add variations');
+      }
     }
     
     toast.success('Product added!');
@@ -220,8 +222,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       image_url: imageUrl,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
-      is_active: productForm.is_active,
-      seo_tags: productForm.seo_tags || ''
+      seo_tags: productForm.seo_tags || '',
+      is_active: productForm.is_active
     }).eq('id', editingProduct.id);
     
     if (error) {
@@ -229,7 +231,6 @@ const ProductModal: React.FC<ProductModalProps> = ({
       return;
     }
     
-    // Add any new pending variations for this product
     if (pendingVariations.length > 0) {
       const variationsToInsert = pendingVariations.map(v => ({
         product_id: editingProduct.id,
@@ -237,8 +238,12 @@ const ProductModal: React.FC<ProductModalProps> = ({
         price: parseFloat(v.price),
         reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
       }));
-      
-      await supabase.from('product_variations').insert(variationsToInsert);
+
+      const { error: varError } = await supabase.from('product_variations').insert(variationsToInsert);
+      if (varError) {
+        console.error('Variation insert error:', varError);
+        toast.error('Failed to add variations');
+      }
     }
     
     toast.success('Product updated!');
