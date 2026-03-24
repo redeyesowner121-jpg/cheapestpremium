@@ -184,7 +184,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithTelegram = async () => {
     try {
       // Redirect to Telegram bot for authentication
-      const botUsername = 'RKR_Premium_bot';
+      const botUsername = 'Air1_Premium_bot';
       const telegramBotUrl = `https://t.me/${botUsername}`;
 
       toast.info('Opening Telegram bot...', {

@@ -1,6 +1,6 @@
 import { getTelegramBotUsername, resolveTelegramBotTokens } from "../_shared/telegram-token-resolver.ts";
 
-const MAIN_BOT_USERNAME = "RKR_Premium_bot";
+const MAIN_BOT_USERNAME = "Air1_Premium_bot";
 const RESALE_BOT_USERNAME = "AIR1XOTT_bot";
 
 const corsHeaders = {
