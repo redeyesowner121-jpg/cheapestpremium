@@ -641,32 +641,8 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Non-command messages — lang already fetched above
-      if (!userData.language) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
-
-      // Parallel: admin check + channel check
-      const [isUserAdminMsg, joinedMsg] = await Promise.all([
-        isAdminBot(supabase, userId),
-        checkChannelMembership(BOT_TOKEN, userId, supabase),
-      ]);
-      if (!isUserAdminMsg && !joinedMsg) {
-        await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); return jsonOk();
-      }
-
-      // Photos forwarded to admin
-      if (msg.photo) { await forwardUserMessageToAdmin(BOT_TOKEN, supabase, msg, telegramUser, lang); return jsonOk(); }
-
-      // AI auto-reply for text messages (both admin and non-admin)
-      if (text && text.trim().length > 0) {
-        // For admins, show main menu as default response
-        if (isUserAdminMsg) {
-          await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
-        } else {
-          await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
-        }
-        return jsonOk();
-      }
-
+      // Bot is unavailable - send single message to all users
+      await sendMessage(BOT_TOKEN, chatId, "The bot is unavailable now. Message @r_kr2007 or @air1xott");
       return jsonOk();
     }
 
