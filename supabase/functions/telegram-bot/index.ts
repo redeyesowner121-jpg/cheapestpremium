@@ -519,22 +519,6 @@ Deno.serve(async (req) => {
             await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
             break;
           }
-          case "/menu":
-            await showMainMenu(BOT_TOKEN, supabase, chatId, lang); break;
-          case "/products":
-          case "/categories":
-            await handleViewCategories(BOT_TOKEN, supabase, chatId, lang); break;
-          case "/myorders":
-          case "/orders":
-            await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang); break;
-          case "/help":
-            await sendMessage(BOT_TOKEN, chatId,
-              lang === "bn"
-                ? "📖 <b>কমান্ড:</b>\n/start - মূল মেনু\n/products - পণ্য দেখুন\n/myorders - আমার অর্ডার\n/login_code - ওয়েবসাইট লগইন কোড\n/help - সাহায্য"
-                : "📖 <b>Commands:</b>\n/start - Main menu\n/products - View products\n/myorders - My orders\n/login_code - Website login code\n/help - Show help"
-            ); break;
-          case "/login_code":
-            await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); break;
           // Admin commands
           case "/admin":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
@@ -543,68 +527,6 @@ Deno.serve(async (req) => {
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await setConversationState(supabase, userId, "broadcast_message", {});
             await sendMessage(BOT_TOKEN, chatId, "📢 <b>Broadcast Mode</b>\n\nSend the message (text/photo) to broadcast.\nSend /cancel to cancel."); break;
-          case "/report":
-          case "/stats":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleReport(BOT_TOKEN, supabase, chatId); break;
-          case "/add_product":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await setConversationState(supabase, userId, "add_photo", {});
-            await sendMessage(BOT_TOKEN, chatId, "📸 <b>Add Product (Step 1/4)</b>\n\nSend the product photo.\n/cancel to cancel."); break;
-          case "/edit_price":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleEditPrice(BOT_TOKEN, supabase, chatId, text.substring("/edit_price".length).trim()); break;
-          case "/out_stock":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleOutStock(BOT_TOKEN, supabase, chatId, text.substring("/out_stock".length).trim()); break;
-          case "/users":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleUsersCommand(BOT_TOKEN, supabase, chatId); break;
-          case "/history":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleHistoryCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0); break;
-          case "/ban":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleBanCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, true); break;
-          case "/unban":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleBanCommand(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, false); break;
-          case "/make_reseller":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleMakeReseller(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0); break;
-          case "/add_admin":
-            if (!isSuperAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleAddAdmin(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0); break;
-          case "/remove_admin":
-            if (!isSuperAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleRemoveAdmin(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0); break;
-          case "/admins":
-            if (!isSuperAdmin(userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleListAdmins(BOT_TOKEN, supabase, chatId); break;
-          case "/allusers":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleAllUsers(BOT_TOKEN, supabase, chatId, 0); break;
-          case "/add_balance":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleAddBalance(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, parseFloat(parts[2]) || 0); break;
-          case "/deduct_balance":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleDeductBalance(BOT_TOKEN, supabase, chatId, parseInt(parts[1]) || 0, parseFloat(parts[2]) || 0); break;
-          case "/channels":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleListChannels(BOT_TOKEN, supabase, chatId); break;
-          case "/add_channel":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleAddChannel(BOT_TOKEN, supabase, chatId, parts[1] || ""); break;
-          case "/remove_channel":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleRemoveChannel(BOT_TOKEN, supabase, chatId, parts[1] || ""); break;
-          case "/bot_settings":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleBotSettings(BOT_TOKEN, supabase, chatId); break;
-          case "/set_min_referral":
-            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleSetMinReferral(BOT_TOKEN, supabase, chatId, parseFloat(parts[1]) || 0); break;
           default: {
             // Unknown command → try as product name search (e.g. /Netflix, /Spotify)
             const searchTerm = command.replace("/", "").trim();
