@@ -174,7 +174,8 @@ const ProductModal: React.FC<ProductModalProps> = ({
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       seo_tags: productForm.seo_tags || '',
-      is_active: productForm.is_active
+      is_active: productForm.is_active,
+      slug: `product-${slugNum}`
     }).select().single();
     
     if (error || !newProduct) {

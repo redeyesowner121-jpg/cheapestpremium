@@ -83,7 +83,7 @@ const ProductsPage: React.FC = () => {
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
   const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadProducts();
