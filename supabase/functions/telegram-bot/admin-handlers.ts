@@ -14,3 +14,7 @@ export {
 } from "./admin/admin-users.ts";
 export { handleAddBalance, handleDeductBalance } from "./admin/admin-wallet.ts";
 export { handleListChannels, handleAddChannel, handleRemoveChannel } from "./admin/admin-channels.ts";
+export {
+  handleAITrainingMenu, startTrainingCategory, handleTrainingQuestion,
+  handleTrainingAnswer, handleViewKnowledge, startDeleteKnowledge, executeDeleteKnowledge,
+} from "./admin/admin-ai-training.ts";

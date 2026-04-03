@@ -14,7 +14,7 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
     [{ text: "📦 Products", callback_data: "adm_products" }, { text: "👥 Users", callback_data: "adm_users" }],
     [{ text: "💰 Wallet", callback_data: "adm_wallet" }, { text: "📊 Analytics", callback_data: "adm_analytics" }],
     [{ text: "📢 Broadcast", callback_data: "adm_broadcast" }, { text: "📢 Channels", callback_data: "adm_channels" }],
-    [{ text: "⚙️ Settings (20+)", callback_data: "adm_settings" }],
+    [{ text: "🧠 AI Training", callback_data: "adm_ai_training" }, { text: "⚙️ Settings", callback_data: "adm_settings" }],
   ];
 
   if (isSuperAdmin(userId)) {
