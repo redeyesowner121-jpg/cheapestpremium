@@ -19,6 +19,7 @@ import {
 } from "./menu-handlers.ts";
 import {
   handleBuyProduct, handleBuyVariation, handleWalletPay, handleAdminAction,
+  showBinancePayment, showUpiPayment, handleBinanceVerify,
 } from "./payment-handlers.ts";
 import {
   handleResaleStart, handleResaleVariationStart, handleStartWithRef,
@@ -452,6 +453,47 @@ Deno.serve(async (req) => {
         } else {
           await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
         }
+        return jsonOk();
+      }
+
+      // Payment method choice: Binance
+      if (data === "paymethod_binance") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "choose_payment_method") {
+          await showBinancePayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+        }
+        return jsonOk();
+      }
+
+      // Payment method choice: UPI
+      if (data === "paymethod_upi") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "choose_payment_method") {
+          await showUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+        }
+        return jsonOk();
+      }
+
+      // Binance verify payment
+      if (data === "binance_verify") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "binance_payment_pending") {
+          await handleBinanceVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+        }
+        return jsonOk();
+      }
+
+      // Binance cancel
+      if (data === "binance_cancel") {
+        await deleteConversationState(supabase, userId);
+        await sendMessage(BOT_TOKEN, chatId, "Payment cancelled.");
+        await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
         return jsonOk();
       }
 
