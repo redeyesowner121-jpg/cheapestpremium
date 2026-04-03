@@ -32,7 +32,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
     }
     buttons.push(row);
   }
-  buttons.push([{ text: `🔙 ${t("back_main", lang)}`, callback_data: "back_main" }]);
+  buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
 
   await sendMessage(token, chatId, header, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -71,7 +71,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   const buttons: any[][] = products.map((p: any) => {
     return [{ text: p.name, callback_data: `product_${p.id}` }];
   });
-  buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
+  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -144,7 +144,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         buttons.push([{ text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
       }
     }
-    buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
+    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
     if (primaryImage) {
       await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
@@ -177,7 +177,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       }
     }
 
-    buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
+    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
     if (primaryImage) {
       await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
