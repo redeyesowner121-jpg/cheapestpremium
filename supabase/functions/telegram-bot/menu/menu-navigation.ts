@@ -2,7 +2,7 @@
 
 import { T, t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
-import { getRequiredChannels } from "../db-helpers.ts";
+import { getRequiredChannels, getSettings } from "../db-helpers.ts";
 
 export async function showLanguageSelection(token: string, chatId: number) {
   await sendMessage(token, chatId, T.choose_lang.en, {
@@ -30,8 +30,16 @@ export async function showJoinChannels(token: string, supabase: any, chatId: num
   });
 }
 
-export async function showMainMenu(token: string, _supabase: any, chatId: number, lang: string) {
-  await sendMessage(token, chatId, t("welcome", lang), {
+export async function showMainMenu(token: string, supabase: any, chatId: number, lang: string) {
+  // Read store name from DB settings
+  const settings = await getSettings(supabase);
+  const storeName = settings.app_name || "RKR Premium Store";
+
+  const welcomeText = lang === "bn"
+    ? `🛍️ <b>${storeName}-এ স্বাগতম!</b>\n\n✨ সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n⚡ তাৎক্ষণিক ডেলিভারি\n🔒 নিরাপদ পেমেন্ট\n💬 ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:`
+    : `🛍️ <b>Welcome to ${storeName}!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments\n💬 24/7 Support\n\nChoose an option below:`;
+
+  await sendMessage(token, chatId, welcomeText, {
     reply_markup: {
       inline_keyboard: [
         [{ text: t("view_products", lang), callback_data: "view_products" }],
@@ -52,8 +60,10 @@ export async function showMainMenu(token: string, _supabase: any, chatId: number
   });
 }
 
-export async function handleSupport(token: string, _supabase: any, chatId: number, lang: string) {
-  const supportNumber = "+201556690444";
+export async function handleSupport(token: string, supabase: any, chatId: number, lang: string) {
+  // Read support contact from DB settings
+  const settings = await getSettings(supabase);
+  const supportNumber = settings.support_contact || "+201556690444";
 
   await sendMessage(token, chatId,
     lang === "bn"
