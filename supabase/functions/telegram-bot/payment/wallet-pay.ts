@@ -3,6 +3,7 @@
 import { t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getSettings, getWallet, notifyAllAdmins } from "../db-helpers.ts";
+import { syncPurchaseToProfile } from "./sync-helpers.ts";
 
 export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string) {
   const wallet = await getWallet(supabase, userId);
@@ -50,6 +51,14 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   await notifyAllAdmins(token, supabase,
     `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
+
+  // Sync purchase to website profile
+  let accessLink: string | undefined;
+  if (productId) {
+    const { data: prod } = await supabase.from("products").select("access_link").eq("id", productId).single();
+    accessLink = prod?.access_link || undefined;
+  }
+  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, accessLink);
 
   await processReferralBonus(supabase, userId, token, amount);
 }

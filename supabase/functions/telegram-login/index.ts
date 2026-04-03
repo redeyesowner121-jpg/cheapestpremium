@@ -147,7 +147,7 @@ Deno.serve(async (req: Request) => {
       await supabase.auth.admin.updateUserById(user.id, { password: stablePassword });
     }
 
-    // Sync wallet data from telegram
+    // Sync wallet data: merge bot + website balances
     const { data: telegramWallet } = await supabase
       .from("telegram_wallets")
       .select("balance, total_earned")
@@ -170,17 +170,27 @@ Deno.serve(async (req: Request) => {
       ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    // Upsert profile
+    // Get existing profile
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id, has_blue_check, avatar_url")
+      .select("id, has_blue_check, avatar_url, wallet_balance, total_deposit, rank_balance")
       .eq("id", user.id)
       .maybeSingle();
 
+    // Merge wallets: take the HIGHER value to avoid losing money from either side
+    const botBalance = telegramWallet?.balance || 0;
+    const botTotalDeposit = telegramWallet?.total_earned || 0;
+    const webBalance = existingProfile?.wallet_balance || 0;
+    const webTotalDeposit = existingProfile?.total_deposit || 0;
+
+    // Use the maximum of both - prevents overwriting a higher website balance with lower bot balance
+    const mergedBalance = Math.max(botBalance, webBalance);
+    const mergedTotalDeposit = Math.max(botTotalDeposit, webTotalDeposit);
+
     const profileUpdate: any = {
       name,
-      wallet_balance: telegramWallet?.balance || 0,
-      total_deposit: telegramWallet?.total_earned || 0,
+      wallet_balance: mergedBalance,
+      total_deposit: mergedTotalDeposit,
     };
 
     // Always update avatar if we got one from Telegram
@@ -201,6 +211,15 @@ Deno.serve(async (req: Request) => {
       });
     } else {
       await supabase.from("profiles").update(profileUpdate).eq("id", user.id);
+    }
+
+    // Also sync website balance back to telegram wallet (ensure both match)
+    if (telegramWallet && mergedBalance !== botBalance) {
+      await supabase.from("telegram_wallets").update({
+        balance: mergedBalance,
+        total_earned: mergedTotalDeposit,
+        updated_at: new Date().toISOString(),
+      }).eq("telegram_id", telegramId);
     }
 
     // Schedule blue tick removal after 3 days (store expiry in user metadata)

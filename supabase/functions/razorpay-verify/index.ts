@@ -156,6 +156,44 @@ serve(async (req) => {
       }
     }
 
+    // Sync deposit to telegram wallet if user has linked telegram account
+    try {
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      if (userProfile?.email) {
+        const tgMatch = userProfile.email.match(/^telegram_(\d+)@bot\.local$/);
+        if (tgMatch) {
+          const telegramId = parseInt(tgMatch[1]);
+          const { data: tgWallet } = await supabase
+            .from('telegram_wallets')
+            .select('balance, total_earned')
+            .eq('telegram_id', telegramId)
+            .maybeSingle();
+
+          if (tgWallet) {
+            await supabase.from('telegram_wallets').update({
+              balance: (tgWallet.balance || 0) + amount,
+              total_earned: (tgWallet.total_earned || 0) + amount,
+              updated_at: new Date().toISOString(),
+            }).eq('telegram_id', telegramId);
+
+            await supabase.from('telegram_wallet_transactions').insert({
+              telegram_id: telegramId,
+              type: 'deposit',
+              amount,
+              description: `Deposit via Razorpay (Website)`,
+            });
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.error('Telegram wallet sync error (non-fatal):', syncErr);
+    }
+
     console.log('Payment verified and wallet updated for user:', userId);
 
     return new Response(

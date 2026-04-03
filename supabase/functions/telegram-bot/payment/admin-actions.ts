@@ -79,6 +79,36 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   // If confirmed, process referral, reseller profit, and auto-send access_link
   if (newStatus === "confirmed") {
+    // If this is a wallet deposit order, credit the wallet
+    if (order.product_name?.startsWith("Wallet Deposit")) {
+      const depositAmount = order.amount;
+      const wallet = await getWallet(supabase, order.telegram_user_id);
+      if (wallet) {
+        await supabase.from("telegram_wallets").update({
+          balance: wallet.balance + depositAmount,
+          total_earned: wallet.total_earned + depositAmount,
+          updated_at: new Date().toISOString(),
+        }).eq("telegram_id", order.telegram_user_id);
+
+        await supabase.from("telegram_wallet_transactions").insert({
+          telegram_id: order.telegram_user_id,
+          type: "deposit",
+          amount: depositAmount,
+          description: `Manual UPI deposit approved`,
+        });
+
+        await sendToUser(tokensToTry, order.telegram_user_id,
+          userLang === "bn"
+            ? `💰 ₹${depositAmount} আপনার ওয়ালেটে জমা হয়েছে!`
+            : `💰 ₹${depositAmount} has been deposited to your wallet!`
+        );
+
+        // Sync to website profile
+        const { syncDepositToProfile } = await import("./sync-helpers.ts");
+        await syncDepositToProfile(supabase, order.telegram_user_id, depositAmount, "manual_upi");
+      }
+    }
+
     await processReferralBonus(supabase, order.telegram_user_id, token, order.amount);
 
     if (order.product_id) {
