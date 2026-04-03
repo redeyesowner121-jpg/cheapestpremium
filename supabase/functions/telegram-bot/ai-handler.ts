@@ -219,8 +219,8 @@ STRICT RULES:
       await sendMessage(token, chatId, `🤖 ${answer}`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: lang === "bn" ? "🛒 প্রোডাক্ট দেখুন" : "🛒 View Products", callback_data: "view_products" }],
-            [{ text: lang === "bn" ? "📩 অ্যাডমিনকে জিজ্ঞাসা করুন" : "📩 Ask Admin", callback_data: "forward_to_admin" }],
+            [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
+            [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
             [{ text: t("back_main", lang), callback_data: "back_main" }],
           ],
         },
