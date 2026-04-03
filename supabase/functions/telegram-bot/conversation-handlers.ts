@@ -18,9 +18,28 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
-  // Awaiting payment screenshot
+  // ===== DEPOSIT: Enter amount =====
+  if (state.step === "deposit_enter_amount") {
+    const amount = parseFloat(text);
+    const lang2 = (await getUserLang(supabase, userId)) || "en";
+    if (isNaN(amount) || amount <= 0) {
+      await sendMessage(token, chatId, lang2 === "bn" ? "⚠️ সঠিক পরিমাণ লিখুন।" : "⚠️ Please enter a valid amount.");
+      return;
+    }
+    const { showDepositMethodChoice } = await import("./payment/deposit-handlers.ts");
+    await showDepositMethodChoice(token, supabase, chatId, userId, amount, lang2);
+    return;
+  }
 
-  if (state.step === "awaiting_screenshot") {
+  // ===== DEPOSIT: Awaiting screenshot (manual UPI) =====
+  if (state.step === "deposit_awaiting_screenshot") {
+    const lang2 = (await getUserLang(supabase, userId)) || "en";
+    const { handleDepositScreenshot } = await import("./payment/deposit-handlers.ts");
+    await handleDepositScreenshot(token, supabase, chatId, userId, msg, state.data, lang2);
+    return;
+  }
+
+  // Awaiting payment screenshot
     if (!msg.photo) {
       const lang = (await getUserLang(supabase, userId)) || "en";
       await sendMessage(token, chatId, lang === "bn" ? "📸 অনুগ্রহ করে পেমেন্ট স্ক্রিনশট পাঠান (ছবি হিসেবে)।" : "📸 Please send the payment screenshot as a photo.");
