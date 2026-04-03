@@ -25,7 +25,7 @@ const ResalePurchasePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successOrderData, setSuccessOrderData] = useState({ productName: '', totalPrice: 0 });
+  const [successOrderData, setSuccessOrderData] = useState<{ productName: string; totalPrice: number; accessLink?: string | null }>({ productName: '', totalPrice: 0 });
   const [userNote, setUserNote] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -162,6 +162,7 @@ const ResalePurchasePage: React.FC = () => {
         onClose={() => { setShowSuccessModal(false); navigate('/orders'); }}
         productName={successOrderData.productName}
         totalPrice={successOrderData.totalPrice}
+        accessLink={successOrderData.accessLink}
       />
       <BottomNav />
     </div>
