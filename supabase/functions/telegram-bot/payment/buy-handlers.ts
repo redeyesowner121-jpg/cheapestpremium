@@ -82,7 +82,7 @@ export async function showPaymentInfo(
       : "💳 Click the button below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
       reply_markup: {
-        inline_keyboard: [[{ text: lang === "bn" ? "🟢 ওয়ালেট দিয়ে পে করুন" : "🟢 Pay with Wallet", callback_data: "walletpay_confirm" }]],
+        inline_keyboard: [[{ text: t("pay_with_wallet", lang), callback_data: "walletpay_confirm" }]],
       },
     });
     return;

@@ -584,7 +584,7 @@ Deno.serve(async (req) => {
                   ? `🔍 <b>"${searchTerm}" এর জন্য ${matchedProducts.length}টি পণ্য পাওয়া গেছে:</b>\n\n`
                   : `🔍 <b>Found ${matchedProducts.length} products for "${searchTerm}":</b>\n\n`;
                 const buttons = matchedProducts.map((p: any) => [
-                  { text: `📦 ${p.name}`, callback_data: `product_${p.id}` },
+                  { text: p.name, callback_data: `product_${p.id}` },
                 ]);
                 buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
                 await sendMessage(BOT_TOKEN, chatId, text, { reply_markup: { inline_keyboard: buttons } });
