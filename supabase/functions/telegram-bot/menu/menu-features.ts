@@ -216,22 +216,8 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
 }
 
 export async function handleWalletDeposit(token: string, supabase: any, chatId: number, userId: number, lang: string) {
-  const settings = await getSettings(supabase);
-  const minDeposit = settings.min_deposit_amount || "100";
-  const maxDeposit = settings.max_deposit_amount || "50000";
-
-  const text = lang === "bn"
-    ? `➕ <b>ওয়ালেট টপ আপ</b>\n\n💳 টপআপের জন্য এক্সচেঞ্জ অ্যাপ ব্যবহার করুন বা UPI এ পাঠান।\n\n📊 সীমা:\n• ন্যূনতম: ₹${minDeposit}\n• সর্বোচ্চ: ₹${maxDeposit}\n\n⏳ আপনার লেনদেন মিনিটে দেখা যাবে।`
-    : `➕ <b>Wallet Top Up</b>\n\n💳 Use exchanges or UPI to deposit.\n\n📊 Limits:\n• Minimum: ₹${minDeposit}\n• Maximum: ₹${maxDeposit}\n\n⏳ Credit appears within minutes.`;
-
-  await sendMessage(token, chatId, text, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: t("support", lang), callback_data: "support" }],
-        [{ text: t("back", lang), callback_data: "my_wallet" }],
-      ],
-    },
-  });
+  const { handleDepositStart } = await import("../payment/deposit-handlers.ts");
+  await handleDepositStart(token, supabase, chatId, userId, lang);
 }
 
 export async function handleWalletWithdraw(token: string, supabase: any, chatId: number, userId: number, lang: string) {

@@ -538,6 +538,86 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // ===== WALLET DEPOSIT FLOW =====
+      if (data.startsWith("deposit_amt_")) {
+        const amt = parseInt(data.replace("deposit_amt_", ""));
+        if (amt > 0) {
+          const { showDepositMethodChoice } = await import("./payment/deposit-handlers.ts");
+          await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, amt, lang);
+        }
+        return jsonOk();
+      }
+
+      if (data === "deposit_binance") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.data?.amount) {
+          const { showDepositBinance } = await import("./payment/deposit-handlers.ts");
+          await showDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
+      if (data === "deposit_upi") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.data?.amount) {
+          const { showDepositUpi } = await import("./payment/deposit-handlers.ts");
+          await showDepositUpi(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
+      if (data === "deposit_upi_auto") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.data?.amount) {
+          const { showDepositRazorpay } = await import("./payment/deposit-handlers.ts");
+          await showDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
+      if (data === "deposit_upi_manual") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.data?.amount) {
+          const { showDepositManualUpi } = await import("./payment/deposit-handlers.ts");
+          await showDepositManualUpi(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
+      if (data === "deposit_binance_verify") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "deposit_binance_pending") {
+          const { verifyDepositBinance } = await import("./payment/deposit-handlers.ts");
+          await verifyDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
+      if (data === "deposit_razorpay_verify") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "deposit_razorpay_pending") {
+          const { verifyDepositRazorpay } = await import("./payment/deposit-handlers.ts");
+          await verifyDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
+      if (data === "deposit_cancel") {
+        await deleteConversationState(supabase, userId);
+        await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ ডিপোজিট বাতিল হয়েছে।" : "❌ Deposit cancelled.");
+        await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang);
+        return jsonOk();
+      }
+
+      if (data === "deposit_choose_method") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.data?.amount) {
+          const { showDepositMethodChoice } = await import("./payment/deposit-handlers.ts");
+          await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+        } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+        return jsonOk();
+      }
+
       // My orders
       if (data === "my_orders") { await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
       // My wallet
