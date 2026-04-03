@@ -1300,6 +1300,39 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_login_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          first_name: string | null
+          id: string
+          telegram_id: number
+          used: boolean
+          username: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at: string
+          first_name?: string | null
+          id?: string
+          telegram_id: number
+          used?: boolean
+          username?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          first_name?: string | null
+          id?: string
+          telegram_id?: number
+          used?: boolean
+          username?: string | null
+        }
+        Relationships: []
+      }
       telegram_orders: {
         Row: {
           admin_message_id: number | null
