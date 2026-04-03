@@ -311,11 +311,11 @@ export async function showManualUpiPayment(
   await sendMessage(token, chatId, "After payment, send the <b>screenshot</b>.");
 }
 
-// Verify Razorpay payment
+// Verify Razorpay payment by searching for matching note
 export async function handleRazorpayVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
-  const { paymentLinkId, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
+  const { paymentNote, paymentId, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -330,16 +330,47 @@ export async function handleRazorpayVerify(
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Check payment link status
-    const statusRes = await fetch(`https://api.razorpay.com/v1/payment_links/${paymentLinkId}`, {
-      headers: { "Authorization": `Basic ${authHeader}` },
+    // Fetch recent payments from Razorpay (last 1 hour)
+    const fromTime = Math.floor(Date.now() / 1000) - 3600;
+    const paymentsRes = await fetch(
+      `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
+      { headers: { "Authorization": `Basic ${authHeader}` } }
+    );
+
+    if (!paymentsRes.ok) {
+      console.error("Razorpay payments fetch error:", await paymentsRes.text());
+      await sendMessage(token, chatId, "Verification error. Please try again in a moment.", {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
+          ],
+        },
+      });
+      return;
+    }
+
+    const paymentsData = await paymentsRes.json();
+    const payments = paymentsData.items || [];
+
+    // Search for a captured/authorized payment matching the note and amount
+    const amountPaise = Math.round(finalAmount * 100);
+    const matchingPayment = payments.find((p: any) => {
+      const noteMatch =
+        (p.notes && Object.values(p.notes).some((v: any) => String(v) === paymentNote)) ||
+        (p.description && p.description.includes(paymentNote));
+      const amountMatch = p.amount === amountPaise;
+      const statusMatch = p.status === "captured" || p.status === "authorized";
+      return noteMatch && amountMatch && statusMatch;
     });
 
-    const statusData = await statusRes.json();
-
-    if (statusData.status === "paid") {
+    if (matchingPayment) {
       // Payment confirmed!
       const { processReferralBonus } = await import("./wallet-pay.ts");
+
+      // Update payment record
+      if (paymentId) {
+        await supabase.from("payments").update({ status: "success" }).eq("id", paymentId);
+      }
 
       // Deduct wallet if applicable
       if (walletDeduction > 0) {
@@ -373,13 +404,12 @@ export async function handleRazorpayVerify(
 
       await sendMessage(token, chatId, successText);
       await setConversationState(supabase, telegramUser.id, "idle", {});
-
       await processReferralBonus(token, supabase, telegramUser.id, price, "en");
     } else {
-      await sendMessage(token, chatId, `Payment not yet completed (Status: ${statusData.status}).\n\nPlease complete payment and try again.`, {
+      await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you:\n1. Paid exactly <b>₹${finalAmount}</b>\n2. Added note: <code>${paymentNote}</code>\n\nTry verifying again after completing payment.`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💳 Pay Now", url: stateData.shortUrl }],
+            [{ text: "💳 Pay Now", url: "https://razorpay.me/@asifikbalrubaiulislam" }],
             [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
             [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
           ],
