@@ -24,6 +24,7 @@ const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const ResalePurchasePage = lazy(() => import("./pages/ResalePurchasePage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
