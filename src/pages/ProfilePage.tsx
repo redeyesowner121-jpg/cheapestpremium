@@ -216,7 +216,7 @@ const ProfilePage: React.FC = () => {
     { icon: <Bell className="w-5 h-5" />, label: 'Notifications', color: 'text-success', bgColor: 'bg-success/10', onClick: () => navigate('/notifications'), toggle: true, toggleValue: notificationsEnabled, onToggle: handleToggleNotifications },
     { icon: <Gift className="w-5 h-5" />, label: 'Daily Bonus', value: canClaimDailyBonus() ? 'Claim Now!' : 'Claimed ✓', color: 'text-pink-500', bgColor: 'bg-pink-100', onClick: () => setShowDailyBonus(true), isClaimable: canClaimDailyBonus() },
     { icon: <HelpCircle className="w-5 h-5" />, label: 'Help & Support', color: 'text-slate-500', bgColor: 'bg-slate-100', onClick: () => navigate('/chat') },
-    { icon: <Shield className="w-5 h-5" />, label: 'Terms & Privacy', color: 'text-muted-foreground', bgColor: 'bg-muted', onClick: () => {} },
+    { icon: <Shield className="w-5 h-5" />, label: 'Terms & Privacy', color: 'text-muted-foreground', bgColor: 'bg-muted', onClick: () => navigate('/terms') },
   ];
 
   return (
