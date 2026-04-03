@@ -601,6 +601,69 @@ export type Database = {
         }
         Relationships: []
       }
+      payments: {
+        Row: {
+          amount: number
+          amount_usd: number | null
+          created_at: string
+          id: string
+          note: string
+          payment_method: string | null
+          product_id: string | null
+          product_name: string | null
+          status: string
+          telegram_user_id: number | null
+          updated_at: string
+          user_id: string
+          variation_id: string | null
+        }
+        Insert: {
+          amount: number
+          amount_usd?: number | null
+          created_at?: string
+          id?: string
+          note: string
+          payment_method?: string | null
+          product_id?: string | null
+          product_name?: string | null
+          status?: string
+          telegram_user_id?: number | null
+          updated_at?: string
+          user_id: string
+          variation_id?: string | null
+        }
+        Update: {
+          amount?: number
+          amount_usd?: number | null
+          created_at?: string
+          id?: string
+          note?: string
+          payment_method?: string | null
+          product_id?: string | null
+          product_name?: string | null
+          status?: string
+          telegram_user_id?: number | null
+          updated_at?: string
+          user_id?: string
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_history: {
         Row: {
           id: string
