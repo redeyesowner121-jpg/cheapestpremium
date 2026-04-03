@@ -1,6 +1,6 @@
 // ===== WALLET, ORDERS, REFERRAL, OFFERS =====
 
-import { t, BOT_USERNAME } from "../constants.ts";
+import { t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet } from "../db-helpers.ts";
 
@@ -76,6 +76,10 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
   const totalEarned = wallet?.total_earned || 0;
   const refCode = wallet?.referral_code || "N/A";
 
+  // Read bot username from DB settings
+  const settings = await getSettings(supabase);
+  const botUsername = settings.bot_username || "Air1_Premium_bot";
+
   const { data: recent } = await supabase
     .from("telegram_wallet_transactions")
     .select("type, amount, description, created_at")
@@ -87,7 +91,7 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
   text += `💵 ${lang === "bn" ? "ব্যালেন্স" : "Balance"}: <b>₹${balance}</b>\n`;
   text += `📈 ${lang === "bn" ? "মোট আয়" : "Total Earned"}: <b>₹${totalEarned}</b>\n`;
   text += `🔗 ${lang === "bn" ? "রেফারেল কোড" : "Referral Code"}: <code>${refCode}</code>\n`;
-  text += `📎 ${lang === "bn" ? "রেফারেল লিংক" : "Referral Link"}: https://t.me/${BOT_USERNAME}?start=ref_${encodeURIComponent(refCode)}\n`;
+  text += `📎 ${lang === "bn" ? "রেফারেল লিংক" : "Referral Link"}: https://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n`;
 
   if (recent?.length) {
     text += `\n<b>${lang === "bn" ? "সাম্প্রতিক লেনদেন:" : "Recent Transactions:"}</b>\n`;
@@ -116,11 +120,12 @@ export async function handleReferEarn(token: string, supabase: any, chatId: numb
   const refCode = wallet?.referral_code || "N/A";
   const settings = await getSettings(supabase);
   const bonus = settings.referral_bonus || "10";
+  const botUsername = settings.bot_username || "Air1_Premium_bot";
 
   let text = `${t("referral_header", lang)}\n\n`;
   text += lang === "bn"
-    ? `প্রতিটি রেফারেলের জন্য ₹${bonus} বোনাস পান!\n\n🔗 আপনার রেফারেল লিংক:\nhttps://t.me/${BOT_USERNAME}?start=ref_${encodeURIComponent(refCode)}\n\n📋 কোড: <code>${refCode}</code>\n\n1️⃣ লিংক শেয়ার করুন\n2️⃣ বন্ধু যোগ দিক\n3️⃣ তারা কেনাকাটা করলে আপনি বোনাস পাবেন!`
-    : `Earn ₹${bonus} for every referral!\n\n🔗 Your referral link:\nhttps://t.me/${BOT_USERNAME}?start=ref_${encodeURIComponent(refCode)}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
+    ? `প্রতিটি রেফারেলের জন্য ₹${bonus} বোনাস পান!\n\n🔗 আপনার রেফারেল লিংক:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 কোড: <code>${refCode}</code>\n\n1️⃣ লিংক শেয়ার করুন\n2️⃣ বন্ধু যোগ দিক\n3️⃣ তারা কেনাকাটা করলে আপনি বোনাস পাবেন!`
+    : `Earn ₹${bonus} for every referral!\n\n🔗 Your referral link:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },

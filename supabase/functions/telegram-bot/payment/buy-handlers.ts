@@ -1,20 +1,20 @@
 // ===== BUY & PAYMENT HANDLERS =====
 
-import { t, UPI_ID } from "../constants.ts";
+import { t } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
 
-function generatePayUrl(amount: number): string {
-  return `upi://pay?pa=8900684167@ibl&pn=Asif%20Ikbal%20Rubaiul%20Islam&am=${amount}&cu=INR`;
+function generatePayUrl(upiId: string, upiName: string, amount: number): string {
+  return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR`;
 }
 
-function generateUpiQrUrl(amount: number): string {
-  const upiString = generatePayUrl(amount);
+function generateUpiQrUrl(upiId: string, upiName: string, amount: number): string {
+  const upiString = generatePayUrl(upiId, upiName, amount);
   return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
 }
 
-function generateFallbackQrUrl(amount: number): string {
-  const upiString = generatePayUrl(amount);
+function generateFallbackQrUrl(upiId: string, upiName: string, amount: number): string {
+  const upiString = generatePayUrl(upiId, upiName, amount);
   return `https://quickchart.io/qr?size=300&text=${encodeURIComponent(upiString)}`;
 }
 
@@ -62,8 +62,12 @@ export async function showPaymentInfo(
   const finalAmount = Math.max(0, price - walletBalance);
   const walletDeduction = Math.min(walletBalance, price);
 
+  // Read ALL settings from DB dynamically
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
+  const upiId = settings.upi_id || "8900684167@ibl";
+  const upiName = settings.upi_name || "Asif Ikbal Rubaiul Islam";
+  const binanceId = settings.binance_id || "1178303416";
 
   let text = `🛒 <b>${lang === "bn" ? "অর্ডার" : "Order"}: ${productName}</b>\n\n`;
   text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: <b>${currency}${price}</b>\n`;
@@ -87,15 +91,15 @@ export async function showPaymentInfo(
     });
     return;
   } else {
-    const upiIntentUrl = generatePayUrl(finalAmount);
+    const upiIntentUrl = generatePayUrl(upiId, upiName, finalAmount);
     const escapedUpiIntentUrl = upiIntentUrl.replace(/&/g, "&amp;");
 
     text += `<b>💳 ${lang === "bn" ? "পেমেন্ট করুন" : "Make Payment"}:</b>\n\n`;
-    text += `📱 UPI ID: <code>${UPI_ID}</code>\n`;
+    text += `📱 UPI ID: <code>${upiId}</code>\n`;
     text += `💵 ${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${finalAmount}</b>\n`;
     text += `🔗 UPI: <code>${escapedUpiIntentUrl}</code>\n\n`;
     text += `🌐 ${lang === "bn" ? "ইন্টারন্যাশনাল/বাইন্যান্স পেমেন্টের জন্য" : "For International/Binance Payment"}:\n`;
-    text += `🆔 Binance ID: <code>1178303416</code>\n\n`;
+    text += `🆔 Binance ID: <code>${binanceId}</code>\n\n`;
     text += `${lang === "bn" ? "QR স্ক্যান করুন বা UPI লিংক কপি করে পেমেন্ট করুন। তারপর পেমেন্ট স্ক্রিনশট পাঠান।" : "Scan QR or copy the UPI link to pay. Then send payment screenshot."}`;
 
     await setConversationState(supabase, userId, "awaiting_screenshot", {
@@ -103,7 +107,7 @@ export async function showPaymentInfo(
     });
 
     let paymentMessageSent = false;
-    const qrUrls = [generateUpiQrUrl(finalAmount), generateFallbackQrUrl(finalAmount)];
+    const qrUrls = [generateUpiQrUrl(upiId, upiName, finalAmount), generateFallbackQrUrl(upiId, upiName, finalAmount)];
 
     for (const qrUrl of qrUrls) {
       try {
@@ -132,7 +136,7 @@ export async function showPaymentInfo(
 
     if (!paymentMessageSent) {
       await sendMessage(token, chatId, text);
-      await sendMessage(token, chatId, `📎 QR Link:\n${generateFallbackQrUrl(finalAmount)}`);
+      await sendMessage(token, chatId, `📎 QR Link:\n${generateFallbackQrUrl(upiId, upiName, finalAmount)}`);
     }
 
     await sendMessage(token, chatId, `🔗 UPI Link:\n<code>${escapedUpiIntentUrl}</code>`);
