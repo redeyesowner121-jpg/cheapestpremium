@@ -67,6 +67,19 @@ export const handleProductPurchase = async (
       ? `${displayProduct.name} - ${selectedVariation.name}`
       : displayProduct.name;
 
+    // Check if product has access_link for instant delivery
+    let accessLink: string | null = null;
+    if (displayProduct.id) {
+      const { data: productData } = await supabase
+        .from('products')
+        .select('access_link')
+        .eq('id', displayProduct.id)
+        .single();
+      accessLink = productData?.access_link || null;
+    }
+
+    const isInstantDelivery = !!accessLink;
+
     const orderData: any = {
       product_id: displayProduct.id,
       product_name: productName,
@@ -75,8 +88,9 @@ export const handleProductPurchase = async (
       total_price: totalPrice,
       quantity,
       user_note: userNote + (donationAmount > 0 ? ` [Donation: ₹${donationAmount}]` : ''),
-      status: 'pending',
-      discount_applied: discount
+      status: isInstantDelivery ? 'confirmed' : 'pending',
+      discount_applied: discount,
+      access_link: accessLink,
     };
 
     if (isGuestCheckout) {
@@ -102,7 +116,7 @@ export const handleProductPurchase = async (
     }
 
     if (user) {
-      await supabase.from('notifications').insert({ user_id: user.id, title: 'Order Placed', message: `Your order for ${productName} has been placed successfully!`, type: 'order' });
+      await supabase.from('notifications').insert({ user_id: user.id, title: isInstantDelivery ? 'Order Delivered' : 'Order Placed', message: isInstantDelivery ? `Your order for ${productName} has been delivered! Check your orders for the access link.` : `Your order for ${productName} has been placed successfully!`, type: 'order' });
     }
 
     const hasStock = currentStock !== null;
@@ -110,7 +124,7 @@ export const handleProductPurchase = async (
 
     if (currentStock !== null) setCurrentStock(currentStock - quantity);
 
-    setSuccessOrderData({ productName, totalPrice: finalTotal });
+    setSuccessOrderData({ productName, totalPrice: finalTotal, accessLink });
     setShowPurchaseModal(false);
     setShowSuccessModal(true);
     if (user) await refreshProfile();
