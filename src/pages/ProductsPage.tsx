@@ -283,6 +283,7 @@ const ProductsPage: React.FC = () => {
         onClose={() => setShowSuccessModal(false)}
         productName={successOrderData.productName}
         totalPrice={successOrderData.totalPrice}
+        accessLink={successOrderData.accessLink}
       />
 
       <BottomNav />
