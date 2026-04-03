@@ -169,6 +169,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
 
+    // Check if email confirmation is required
+    if (data.user && !data.session) {
+      // Email confirmation required - user not auto-logged in
+      toast.success('📧 Verification email sent! Please check your inbox and verify your email before logging in.', {
+        duration: 8000,
+      });
+      return;
+    }
+
     // Update profile with additional data if created
     if (data.user) {
       await supabase.from('profiles').update({
@@ -176,9 +185,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone,
         referred_by: referralCode
       }).eq('id', data.user.id);
-
-      // Note: Referral bonus is now handled on first deposit in razorpay-verify
-      // This prevents double bonus - users must deposit to trigger referral reward
     }
     
     toast.success('Account created successfully!');
