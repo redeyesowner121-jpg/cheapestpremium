@@ -33,6 +33,8 @@ import {
   handleAdminProductsMenu, handleAdminUsersMenu, handleAdminWalletMenu,
   handleAdminChannelsMenu, handleAdminOwnerMenu,
   handleAdminSettingsMenu, handleSettingsCategory, promptSettingEdit, saveSetting,
+  handleAITrainingMenu, startTrainingCategory, handleViewKnowledge,
+  startDeleteKnowledge, executeDeleteKnowledge,
 } from "./admin-handlers.ts";
 import { handleConversationStep } from "./conversation-handlers.ts";
 import { handleAIQuery } from "./ai-handler.ts";
