@@ -40,6 +40,7 @@ export async function handleConversationStep(token: string, supabase: any, chatI
   }
 
   // Awaiting payment screenshot
+  if (state.step === "awaiting_screenshot") {
     if (!msg.photo) {
       const lang = (await getUserLang(supabase, userId)) || "en";
       await sendMessage(token, chatId, lang === "bn" ? "📸 অনুগ্রহ করে পেমেন্ট স্ক্রিনশট পাঠান (ছবি হিসেবে)।" : "📸 Please send the payment screenshot as a photo.");
