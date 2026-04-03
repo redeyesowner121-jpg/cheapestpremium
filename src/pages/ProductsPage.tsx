@@ -36,7 +36,7 @@ const ProductsPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successOrderData, setSuccessOrderData] = useState({ productName: '', totalPrice: 0 });
+  const [successOrderData, setSuccessOrderData] = useState<{ productName: string; totalPrice: number; accessLink?: string | null }>({ productName: '', totalPrice: 0 });
   const [quantity, setQuantity] = useState(1);
   const [orderNote, setOrderNote] = useState('');
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
