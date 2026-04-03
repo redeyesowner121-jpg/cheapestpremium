@@ -128,6 +128,11 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     loadSettings();
     
+    // Safety timeout: if settings haven't loaded in 5 seconds, stop loading anyway
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+    
     const channel = supabase
       .channel('app_settings_global')
       .on('postgres_changes', {
@@ -137,7 +142,7 @@ export const AppSettingsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }, () => loadSettings())
       .subscribe();
     
-    return () => { supabase.removeChannel(channel); };
+    return () => { clearTimeout(timeout); supabase.removeChannel(channel); };
   }, [loadSettings]);
 
   return (
