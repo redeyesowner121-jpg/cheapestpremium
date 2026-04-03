@@ -208,7 +208,7 @@ export async function showUpiPayment(
   });
 }
 
-// Step 2b-i: Auto UPI via Razorpay Payment Link
+// Step 2b-i: Auto UPI via Razorpay (Note-based verification)
 export async function showRazorpayUpiPayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
@@ -217,81 +217,50 @@ export async function showRazorpayUpiPayment(
   const currency = settings.currency_symbol || "₹";
   const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
 
-  await sendMessage(token, chatId, "Creating payment link...");
+  const paymentNote = generatePaymentNote();
+  const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
 
-  try {
-    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
-    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+  // Create payment record
+  const { data: payment } = await supabase.from("payments").insert({
+    user_id: userId.toString(),
+    amount: finalAmount,
+    note: paymentNote,
+    status: "pending",
+    payment_method: "razorpay_upi",
+    product_id: productId,
+    variation_id: variationId,
+    product_name: productName,
+    telegram_user_id: userId,
+  }).select("id").single();
 
-    if (!razorpayKeyId || !razorpayKeySecret) {
-      await sendMessage(token, chatId, "Auto payment is not configured. Please use manual method.");
-      return;
-    }
+  // Store in conversation state
+  await setConversationState(supabase, userId, "razorpay_payment_pending", {
+    productName, price, finalAmount, productId, variationId, walletDeduction,
+    paymentId: payment?.id,
+    paymentNote,
+  });
 
-    const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+  let text = `<b>⚡ Auto UPI Payment</b>\n\n`;
+  text += `Product: <b>${productName}</b>\n`;
+  text += `Amount: <b>${currency}${finalAmount}</b>\n\n`;
+  text += `<b>Instructions:</b>\n`;
+  text += `1. Click <b>Pay Now</b> below\n`;
+  text += `2. Pay exactly <b>${currency}${finalAmount}</b>\n`;
+  text += `3. In the <b>note/description</b> field, paste:\n`;
+  text += `   <code>${paymentNote}</code>\n`;
+  text += `4. Complete payment\n`;
+  text += `5. Click <b>Verify Payment</b>\n\n`;
+  text += `<i>⚠️ You MUST add the note for auto-verification.</i>`;
 
-    // Create Razorpay Payment Link
-    const linkRes = await fetch("https://api.razorpay.com/v1/payment_links", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Basic ${authHeader}`,
-      },
-      body: JSON.stringify({
-        amount: Math.round(finalAmount * 100), // paise
-        currency: "INR",
-        description: `Purchase: ${productName}`,
-        customer: {
-          name: telegramUser.first_name || "Customer",
-        },
-        notify: { sms: false, email: false },
-        callback_method: "get",
-        expire_by: Math.floor(Date.now() / 1000) + 1800, // 30 min expiry
-        notes: {
-          telegram_user_id: userId.toString(),
-          product_id: productId,
-          product_name: productName,
-        },
-      }),
-    });
-
-    if (!linkRes.ok) {
-      const errText = await linkRes.text();
-      console.error("Razorpay payment link error:", errText);
-      await sendMessage(token, chatId, "Failed to create payment link. Please use manual method.");
-      return;
-    }
-
-    const linkData = await linkRes.json();
-    const paymentLinkId = linkData.id;
-    const shortUrl = linkData.short_url;
-
-    // Store in conversation state
-    await setConversationState(supabase, userId, "razorpay_payment_pending", {
-      productName, price, finalAmount, productId, variationId, walletDeduction,
-      paymentLinkId, shortUrl,
-    });
-
-    let text = `<b>⚡ Auto UPI Payment</b>\n\n`;
-    text += `Product: <b>${productName}</b>\n`;
-    text += `Amount: <b>${currency}${finalAmount}</b>\n\n`;
-    text += `Click the button below to pay:\n`;
-    text += `${shortUrl}\n\n`;
-    text += `After payment, click <b>Verify Payment</b>.`;
-
-    await sendMessage(token, chatId, text, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "💳 Pay Now", url: shortUrl }],
-          [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
-          [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
-        ],
-      },
-    });
-  } catch (err) {
-    console.error("Razorpay error:", err);
-    await sendMessage(token, chatId, "Payment error. Please try manual method.");
-  }
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "💳 Pay Now", url: razorpayMeUrl }],
+        [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
+        [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
+      ],
+    },
+  });
 }
 
 // Step 2b-ii: Manual UPI (existing screenshot flow)
