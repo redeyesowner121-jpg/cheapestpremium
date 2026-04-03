@@ -21,7 +21,18 @@ function generateFallbackQrUrl(upiId: string, upiName: string, amount: number): 
 }
 
 function generatePaymentNote(): string {
-  return Math.floor(10000000 + Math.random() * 90000000).toString();
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  let note = '';
+  // 8 chars: ~6 letters + 2 digits (80/20 ratio)
+  for (let i = 0; i < 8; i++) {
+    if (i === 3 || i === 6) {
+      note += digits[Math.floor(Math.random() * digits.length)];
+    } else {
+      note += letters[Math.floor(Math.random() * letters.length)];
+    }
+  }
+  return note;
 }
 
 function inrToUsd(inrAmount: number): number {
