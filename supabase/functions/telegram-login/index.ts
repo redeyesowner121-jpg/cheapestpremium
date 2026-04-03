@@ -14,6 +14,70 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+async function fetchTelegramAvatar(botToken: string, telegramId: number): Promise<string | null> {
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${botToken}/getUserProfilePhotos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: telegramId, limit: 1 }),
+    });
+    const data = await res.json();
+    if (!data?.result?.photos?.length) return null;
+
+    const photos = data.result.photos[0];
+    const fileId = photos[photos.length - 1].file_id;
+
+    const fileRes = await fetch(`https://api.telegram.org/bot${botToken}/getFile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: fileId }),
+    });
+    const fileData = await fileRes.json();
+    if (!fileData?.result?.file_path) return null;
+
+    return `https://api.telegram.org/file/bot${botToken}/${fileData.result.file_path}`;
+  } catch (e) {
+    console.error("fetchTelegramAvatar error:", e);
+    return null;
+  }
+}
+
+async function downloadAndUploadAvatar(
+  supabase: any,
+  photoUrl: string,
+  userId: string
+): Promise<string | null> {
+  try {
+    const response = await fetch(photoUrl);
+    if (!response.ok) return null;
+
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const filePath = `avatars/${userId}.jpg`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(filePath, uint8Array, {
+        contentType: "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Avatar upload error:", uploadError);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(filePath);
+
+    return urlData?.publicUrl || null;
+  } catch (e) {
+    console.error("downloadAndUploadAvatar error:", e);
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -57,17 +121,15 @@ Deno.serve(async (req: Request) => {
     const email = `telegram_${telegramId}@bot.local`;
     const name = loginCode.first_name || loginCode.username || "User";
 
-    // Deterministic password for telegram users (only usable via this edge function)
+    // Deterministic password for telegram users
     const stablePassword = `tg_${telegramId}_${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(-12)}`;
 
     // Try to find existing user
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    let user = existingUsers?.users?.find(
-      (u: any) => u.email === email
-    );
+    let user = existingUsers?.users?.find((u: any) => u.email === email);
+    let isNewUser = false;
 
     if (!user) {
-      // Create new user
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email,
         password: stablePassword,
@@ -80,8 +142,8 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: "Failed to create user" }, 500);
       }
       user = newUser.user;
+      isNewUser = true;
     } else {
-      // Update password to ensure it matches
       await supabase.auth.admin.updateUserById(user.id, { password: stablePassword });
     }
 
@@ -92,27 +154,65 @@ Deno.serve(async (req: Request) => {
       .eq("telegram_id", telegramId)
       .maybeSingle();
 
+    // Fetch Telegram profile photo and upload
+    const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+    let avatarUrl: string | null = null;
+    if (botToken) {
+      const photoUrl = await fetchTelegramAvatar(botToken, telegramId);
+      if (photoUrl) {
+        avatarUrl = await downloadAndUploadAvatar(supabase, photoUrl, user.id);
+      }
+    }
+
+    // Calculate blue tick expiry (3 days from now for new users)
+    const blueTick = isNewUser;
+    const blueTickExpiry = isNewUser
+      ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
     // Upsert profile
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, has_blue_check, avatar_url")
       .eq("id", user.id)
       .maybeSingle();
+
+    const profileUpdate: any = {
+      name,
+      wallet_balance: telegramWallet?.balance || 0,
+      total_deposit: telegramWallet?.total_earned || 0,
+    };
+
+    // Always update avatar if we got one from Telegram
+    if (avatarUrl) {
+      profileUpdate.avatar_url = avatarUrl;
+    }
+
+    // Grant 3-day blue tick for new users
+    if (isNewUser) {
+      profileUpdate.has_blue_check = true;
+    }
 
     if (!existingProfile) {
       await supabase.from("profiles").insert({
         id: user.id,
         email,
-        name,
-        wallet_balance: telegramWallet?.balance || 0,
-        total_deposit: telegramWallet?.total_earned || 0,
+        ...profileUpdate,
       });
     } else {
-      await supabase.from("profiles").update({
-        name,
-        wallet_balance: telegramWallet?.balance || 0,
-        total_deposit: telegramWallet?.total_earned || 0,
-      }).eq("id", user.id);
+      await supabase.from("profiles").update(profileUpdate).eq("id", user.id);
+    }
+
+    // Schedule blue tick removal after 3 days (store expiry in user metadata)
+    if (isNewUser && blueTickExpiry) {
+      await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          telegram_id: telegramId,
+          username: loginCode.username,
+          name,
+          blue_tick_expiry: blueTickExpiry,
+        },
+      });
     }
 
     // Sign in to get a real session
@@ -135,6 +235,8 @@ Deno.serve(async (req: Request) => {
       user_id: user.id,
       email,
       name,
+      avatar_url: avatarUrl,
+      is_new_user: isNewUser,
     });
   } catch (error) {
     console.error("Error:", error);

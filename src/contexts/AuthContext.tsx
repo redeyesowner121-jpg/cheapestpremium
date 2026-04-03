@@ -69,6 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .maybeSingle();
 
     if (data) {
+      // Check if blue tick has expired (stored in user metadata)
+      if (data.has_blue_check) {
+        const { data: userData } = await supabase.auth.getUser();
+        const blueTickExpiry = userData?.user?.user_metadata?.blue_tick_expiry;
+        if (blueTickExpiry && new Date(blueTickExpiry) < new Date()) {
+          // Blue tick expired, remove it
+          await supabase.from('profiles').update({ has_blue_check: false }).eq('id', userId);
+          data.has_blue_check = false;
+        }
+      }
       setProfile(data as UserProfile);
     }
     return data;
