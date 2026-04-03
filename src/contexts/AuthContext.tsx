@@ -113,6 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setLoading(false);
+    }).catch((err) => {
+      console.error('Failed to get session:', err);
+      setLoading(false);
     });
 
     // Set up auth state listener - skip if initial session already handled same user
