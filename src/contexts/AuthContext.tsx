@@ -101,9 +101,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let initialSessionHandled = false;
 
+    // Safety timeout: ensure loading clears even if Supabase hangs
+    const timeout = setTimeout(() => {
+      if (!initialSessionHandled) {
+        console.warn('Auth session fetch timed out, clearing loading state');
+        setLoading(false);
+      }
+    }, 5000);
+
     // Check for existing session first
     supabase.auth.getSession().then(({ data: { session } }) => {
       initialSessionHandled = true;
+      clearTimeout(timeout);
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -115,6 +124,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }).catch((err) => {
       console.error('Failed to get session:', err);
+      initialSessionHandled = true;
+      clearTimeout(timeout);
       setLoading(false);
     });
 
