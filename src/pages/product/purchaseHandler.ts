@@ -15,7 +15,7 @@ interface HandleBuyParams {
   navigate: (path: string) => void;
   setLoading: (v: boolean) => void;
   setCurrentStock: (v: number | null) => void;
-  setSuccessOrderData: (v: { productName: string; totalPrice: number }) => void;
+  setSuccessOrderData: (v: { productName: string; totalPrice: number; accessLink?: string | null }) => void;
   setShowPurchaseModal: (v: boolean) => void;
   setShowSuccessModal: (v: boolean) => void;
 }

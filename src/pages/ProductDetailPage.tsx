@@ -129,7 +129,7 @@ const ProductDetailPage: React.FC = () => {
         <ResellModal open={showResellModal} onOpenChange={setShowResellModal} product={displayProduct} selectedVariation={selectedVariation} resellerPrice={applicableResellerPrice || basePrice} userId={user.id} />
       )}
 
-      <OrderSuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} productName={successOrderData.productName} totalPrice={successOrderData.totalPrice} />
+      <OrderSuccessModal isOpen={showSuccessModal} onClose={() => setShowSuccessModal(false)} productName={successOrderData.productName} totalPrice={successOrderData.totalPrice} accessLink={successOrderData.accessLink} />
       <BottomNav />
     </div>
   );

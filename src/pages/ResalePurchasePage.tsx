@@ -162,6 +162,7 @@ const ResalePurchasePage: React.FC = () => {
         onClose={() => { setShowSuccessModal(false); navigate('/orders'); }}
         productName={successOrderData.productName}
         totalPrice={successOrderData.totalPrice}
+        accessLink={successOrderData.accessLink}
       />
       <BottomNav />
     </div>
