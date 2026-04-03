@@ -178,8 +178,124 @@ export async function showBinancePayment(
   });
 }
 
-// Step 2b: UPI payment flow (existing logic)
+// Step 2b: UPI choice - Auto (Razorpay) or Manual
 export async function showUpiPayment(
+  token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
+) {
+  const userId = telegramUser.id;
+  const settings = await getSettings(supabase);
+  const currency = settings.currency_symbol || "₹";
+  const { productName, finalAmount } = purchaseData;
+
+  // Keep state for sub-choice
+  await setConversationState(supabase, userId, "choose_upi_method", purchaseData);
+
+  let text = `<b>UPI Payment - ${productName}</b>\n`;
+  text += `Amount: <b>${currency}${finalAmount}</b>\n\n`;
+  text += `Choose UPI payment method:`;
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "⚡ Automatic (Razorpay)", callback_data: "upi_auto" },
+        ],
+        [
+          { text: "📋 Manual (Screenshot)", callback_data: "upi_manual" },
+        ],
+      ],
+    },
+  });
+}
+
+// Step 2b-i: Auto UPI via Razorpay Payment Link
+export async function showRazorpayUpiPayment(
+  token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
+) {
+  const userId = telegramUser.id;
+  const settings = await getSettings(supabase);
+  const currency = settings.currency_symbol || "₹";
+  const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
+
+  await sendMessage(token, chatId, "Creating payment link...");
+
+  try {
+    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      await sendMessage(token, chatId, "Auto payment is not configured. Please use manual method.");
+      return;
+    }
+
+    const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+
+    // Create Razorpay Payment Link
+    const linkRes = await fetch("https://api.razorpay.com/v1/payment_links", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${authHeader}`,
+      },
+      body: JSON.stringify({
+        amount: Math.round(finalAmount * 100), // paise
+        currency: "INR",
+        description: `Purchase: ${productName}`,
+        customer: {
+          name: telegramUser.first_name || "Customer",
+        },
+        notify: { sms: false, email: false },
+        callback_method: "get",
+        expire_by: Math.floor(Date.now() / 1000) + 1800, // 30 min expiry
+        notes: {
+          telegram_user_id: userId.toString(),
+          product_id: productId,
+          product_name: productName,
+        },
+      }),
+    });
+
+    if (!linkRes.ok) {
+      const errText = await linkRes.text();
+      console.error("Razorpay payment link error:", errText);
+      await sendMessage(token, chatId, "Failed to create payment link. Please use manual method.");
+      return;
+    }
+
+    const linkData = await linkRes.json();
+    const paymentLinkId = linkData.id;
+    const shortUrl = linkData.short_url;
+
+    // Store in conversation state
+    await setConversationState(supabase, userId, "razorpay_payment_pending", {
+      productName, price, finalAmount, productId, variationId, walletDeduction,
+      paymentLinkId, shortUrl,
+    });
+
+    let text = `<b>⚡ Auto UPI Payment</b>\n\n`;
+    text += `Product: <b>${productName}</b>\n`;
+    text += `Amount: <b>${currency}${finalAmount}</b>\n\n`;
+    text += `Click the button below to pay:\n`;
+    text += `${shortUrl}\n\n`;
+    text += `After payment, click <b>Verify Payment</b>.`;
+
+    await sendMessage(token, chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "💳 Pay Now", url: shortUrl }],
+          [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
+          [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
+        ],
+      },
+    });
+  } catch (err) {
+    console.error("Razorpay error:", err);
+    await sendMessage(token, chatId, "Payment error. Please try manual method.");
+  }
+}
+
+// Step 2b-ii: Manual UPI (existing screenshot flow)
+export async function showManualUpiPayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
   const userId = telegramUser.id;
@@ -224,6 +340,93 @@ export async function showUpiPayment(
 
   await sendMessage(token, chatId, `UPI Link:\n<code>${escapedUpiIntentUrl}</code>`);
   await sendMessage(token, chatId, "After payment, send the <b>screenshot</b>.");
+}
+
+// Verify Razorpay payment
+export async function handleRazorpayVerify(
+  token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
+) {
+  const { paymentLinkId, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
+
+  await sendMessage(token, chatId, "Verifying payment...");
+
+  try {
+    const razorpayKeyId = Deno.env.get("RAZORPAY_KEY_ID");
+    const razorpayKeySecret = Deno.env.get("RAZORPAY_KEY_SECRET");
+
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      await sendMessage(token, chatId, "Payment verification not configured.");
+      return;
+    }
+
+    const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
+
+    // Check payment link status
+    const statusRes = await fetch(`https://api.razorpay.com/v1/payment_links/${paymentLinkId}`, {
+      headers: { "Authorization": `Basic ${authHeader}` },
+    });
+
+    const statusData = await statusRes.json();
+
+    if (statusData.status === "paid") {
+      // Payment confirmed!
+      const { processReferralBonus } = await import("./wallet-pay.ts");
+
+      // Deduct wallet if applicable
+      if (walletDeduction > 0) {
+        const wallet = await supabase.from("telegram_wallets").select("balance").eq("telegram_id", telegramUser.id).single();
+        if (wallet.data) {
+          await supabase.from("telegram_wallets")
+            .update({ balance: Math.max(0, wallet.data.balance - walletDeduction) })
+            .eq("telegram_id", telegramUser.id);
+        }
+      }
+
+      // Create telegram order
+      await supabase.from("telegram_orders").insert({
+        telegram_user_id: telegramUser.id,
+        product_name: productName,
+        product_id: productId,
+        amount: price,
+        status: "confirmed",
+        username: telegramUser.username || telegramUser.first_name,
+      });
+
+      // Get access link
+      const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
+
+      let successText = `<b>✅ Payment Verified!</b>\n\n`;
+      successText += `Product: <b>${productName}</b>\n`;
+      successText += `Amount: <b>₹${finalAmount}</b>\n`;
+      if (product?.access_link) {
+        successText += `\nAccess Link:\n${product.access_link}`;
+      }
+
+      await sendMessage(token, chatId, successText);
+      await setConversationState(supabase, telegramUser.id, "idle", {});
+
+      await processReferralBonus(token, supabase, telegramUser.id, price, "en");
+    } else {
+      await sendMessage(token, chatId, `Payment not yet completed (Status: ${statusData.status}).\n\nPlease complete payment and try again.`, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "💳 Pay Now", url: stateData.shortUrl }],
+            [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
+            [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
+          ],
+        },
+      });
+    }
+  } catch (err) {
+    console.error("Razorpay verify error:", err);
+    await sendMessage(token, chatId, "Verification error. Please try again.", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
+        ],
+      },
+    });
+  }
 }
 
 // Verify Binance payment

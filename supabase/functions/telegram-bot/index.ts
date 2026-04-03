@@ -19,7 +19,7 @@ import {
 } from "./menu-handlers.ts";
 import {
   handleBuyProduct, handleBuyVariation, handleWalletPay, handleAdminAction,
-  showBinancePayment, showUpiPayment, handleBinanceVerify,
+  showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment, handleBinanceVerify, handleRazorpayVerify,
 } from "./payment-handlers.ts";
 import {
   handleResaleStart, handleResaleVariationStart, handleStartWithRef,
@@ -467,11 +467,33 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Payment method choice: UPI
+      // Payment method choice: UPI - show Auto/Manual sub-choice
       if (data === "paymethod_upi") {
         const convState = await getConversationState(supabase, userId);
         if (convState?.step === "choose_payment_method") {
           await showUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+        }
+        return jsonOk();
+      }
+
+      // UPI Auto (Razorpay)
+      if (data === "upi_auto") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "choose_upi_method") {
+          await showRazorpayUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+        }
+        return jsonOk();
+      }
+
+      // UPI Manual (Screenshot)
+      if (data === "upi_manual") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "choose_upi_method") {
+          await showManualUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
         } else {
           await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
         }
@@ -486,6 +508,25 @@ Deno.serve(async (req) => {
         } else {
           await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
         }
+        return jsonOk();
+      }
+
+      // Razorpay verify payment
+      if (data === "razorpay_verify") {
+        const convState = await getConversationState(supabase, userId);
+        if (convState?.step === "razorpay_payment_pending") {
+          await handleRazorpayVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+        } else {
+          await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+        }
+        return jsonOk();
+      }
+
+      // Razorpay cancel
+      if (data === "razorpay_cancel") {
+        await deleteConversationState(supabase, userId);
+        await sendMessage(BOT_TOKEN, chatId, "Payment cancelled.");
+        await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
         return jsonOk();
       }
 
