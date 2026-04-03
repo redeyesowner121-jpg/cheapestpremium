@@ -141,6 +141,7 @@ const STORE_SETTINGS: SettingDef[] = [
   { key: "app_name", label: "App/Store Name", emoji: "🏪", description: "অ্যাপ/স্টোরের নাম", defaultValue: "RKR Premium Store" },
   { key: "app_tagline", label: "App Tagline", emoji: "✨", description: "স্প্ল্যাশ স্ক্রিন সাবটাইটেল", defaultValue: "" },
   { key: "app_url", label: "App URL", emoji: "🌐", description: "ওয়েবসাইট URL (শেয়ারিং/রেফারেলের জন্য)", defaultValue: "" },
+  { key: "bot_username", label: "Bot Username", emoji: "🤖", description: "টেলিগ্রাম বটের ইউজারনেম (@ ছাড়া)", defaultValue: "Air1_Premium_bot" },
   { key: "currency_symbol", label: "Currency Symbol", emoji: "💱", description: "মূল্যের প্রতীক (₹, $, ৳)", defaultValue: "₹" },
   { key: "support_contact", label: "Support Contact", emoji: "📞", description: "সাপোর্ট কন্টাক্ট (Telegram/Phone)", defaultValue: "" },
   { key: "no_return_policy", label: "Return Policy Text", emoji: "📜", description: "No Return Policy টেক্সট", defaultValue: "All sales are final. No returns." },
