@@ -60,6 +60,7 @@ const AuthPage: React.FC = () => {
     try {
       if (isLogin) {
         await login(formData.email, formData.password);
+        navigate('/');
       } else {
         await register(
           formData.email, 
@@ -68,8 +69,9 @@ const AuthPage: React.FC = () => {
           formData.phone,
           formData.referralCode
         );
+        // Don't navigate - register shows verification toast if email confirmation needed
+        // If auto-confirmed, user state change will trigger navigation via useEffect
       }
-      navigate('/');
     } catch (error) {
       // Error handled in context
     } finally {
