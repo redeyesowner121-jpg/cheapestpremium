@@ -210,13 +210,28 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     const userLang = questionLang || "en";
     await sendMessage(token, targetUserId,
       userLang === "bn"
-        ? `📩 <b>অ্যাডমিনের উত্তর:</b>\n\n${text}`
-        : `📩 <b>Admin's Answer:</b>\n\n${text}`
+        ? `📩 <b>উত্তর:</b>\n\n${text}`
+        : `📩 <b>Answer:</b>\n\n${text}`
     );
 
     await sendMessage(token, chatId,
       `✅ <b>Done!</b>\n\n📩 Answer sent to user <code>${targetUserId}</code>\n🧠 AI has learned this answer for future use.\n\n❓ <b>Q:</b> ${originalQuestion}\n✅ <b>A:</b> ${text}`
     );
+    return;
+  }
+
+  // AI Training - Question input
+  if (state.step === "ai_training_question") {
+    const { handleTrainingQuestion } = await import("./admin/admin-ai-training.ts");
+    await handleTrainingQuestion(token, supabase, chatId, userId, text, state.data.category);
+    return;
+  }
+
+  // AI Training - Answer input
+  if (state.step === "ai_training_answer") {
+    await deleteConversationState(supabase, userId);
+    const { handleTrainingAnswer } = await import("./admin/admin-ai-training.ts");
+    await handleTrainingAnswer(token, supabase, chatId, userId, text, state.data.question, state.data.category);
     return;
   }
 

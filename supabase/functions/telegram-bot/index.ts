@@ -33,6 +33,8 @@ import {
   handleAdminProductsMenu, handleAdminUsersMenu, handleAdminWalletMenu,
   handleAdminChannelsMenu, handleAdminOwnerMenu,
   handleAdminSettingsMenu, handleSettingsCategory, promptSettingEdit, saveSetting,
+  handleAITrainingMenu, startTrainingCategory, handleViewKnowledge,
+  startDeleteKnowledge, executeDeleteKnowledge,
 } from "./admin-handlers.ts";
 import { handleConversationStep } from "./conversation-handlers.ts";
 import { handleAIQuery } from "./ai-handler.ts";
@@ -297,6 +299,9 @@ Deno.serve(async (req) => {
           return jsonOk();
         }
 
+        // AI Training
+        if (data === "adm_ai_training") { await handleAITrainingMenu(BOT_TOKEN, supabase, chatId); return jsonOk(); }
+
         return jsonOk();
       }
 
@@ -355,7 +360,7 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // AI Teach
+      // AI Teach (from unanswered question)
       if (data.startsWith("ai_teach_")) {
         if (!await isAdminBot(supabase, userId)) return jsonOk();
         const targetUserId = parseInt(data.replace("ai_teach_", ""));
@@ -371,6 +376,40 @@ Deno.serve(async (req) => {
         await sendMessage(BOT_TOKEN, chatId,
           `📝 <b>Teach AI Mode</b>\n\n❓ User's Question: <b>${originalQuestion || "Unknown"}</b>\n\n✍️ Type your answer. This will:\n1. Be sent to the user\n2. Be saved so AI can answer similar questions in future\n\nSend /cancel to cancel.`
         );
+        return jsonOk();
+      }
+
+      // AI Training callbacks
+      if (data.startsWith("aitrain_")) {
+        if (!await isAdminBot(supabase, userId)) return jsonOk();
+        
+        // Delete knowledge entry
+        if (data.startsWith("aitrain_del_")) {
+          const entryId = data.replace("aitrain_del_", "");
+          await executeDeleteKnowledge(BOT_TOKEN, supabase, chatId, entryId);
+          return jsonOk();
+        }
+        
+        // View knowledge with pagination
+        if (data.startsWith("aitrain_view_")) {
+          const page = parseInt(data.replace("aitrain_view_", "")) || 0;
+          await handleViewKnowledge(BOT_TOKEN, supabase, chatId, page);
+          return jsonOk();
+        }
+        if (data === "aitrain_view") {
+          await handleViewKnowledge(BOT_TOKEN, supabase, chatId, 0);
+          return jsonOk();
+        }
+        
+        // Delete menu
+        if (data === "aitrain_delete") {
+          await startDeleteKnowledge(BOT_TOKEN, supabase, chatId, userId);
+          return jsonOk();
+        }
+        
+        // Start training for a category
+        const category = data.replace("aitrain_", "");
+        await startTrainingCategory(BOT_TOKEN, supabase, chatId, userId, category);
         return jsonOk();
       }
 
