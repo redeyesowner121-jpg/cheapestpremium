@@ -494,6 +494,8 @@ Deno.serve(async (req) => {
         await deleteConversationState(supabase, userId);
         await sendMessage(BOT_TOKEN, chatId, "Payment cancelled.");
         await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+        return jsonOk();
+      }
 
       // My orders
       if (data === "my_orders") { await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
