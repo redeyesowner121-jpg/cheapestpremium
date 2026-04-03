@@ -1,0 +1,167 @@
+// ===== PAYMENT & DEPOSIT CALLBACK ROUTING =====
+import { sendMessage } from "../telegram-api.ts";
+import { getConversationState, deleteConversationState } from "../db-helpers.ts";
+import {
+  handleWalletPay, handleAdminAction,
+  showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment,
+  handleBinanceVerify, handleRazorpayVerify,
+} from "../payment-handlers.ts";
+import { handleMyWallet } from "../menu-handlers.ts";
+import { showMainMenu } from "../menu/menu-navigation.ts";
+
+export async function handlePaymentCallbacks(
+  BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, lang: string
+): Promise<boolean> {
+
+  // Wallet pay confirm
+  if (data === "walletpay_confirm") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "wallet_pay_confirm") {
+      await deleteConversationState(supabase, userId);
+      await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId);
+    } else {
+      await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
+    }
+    return true;
+  }
+
+  // Payment method choices
+  if (data === "paymethod_binance") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "choose_payment_method") {
+      await showBinancePayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    return true;
+  }
+
+  if (data === "paymethod_upi") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "choose_payment_method") {
+      await showUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    return true;
+  }
+
+  if (data === "upi_auto") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "choose_upi_method") {
+      await showRazorpayUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    return true;
+  }
+
+  if (data === "upi_manual") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "choose_upi_method") {
+      await showManualUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    return true;
+  }
+
+  // Verify payments
+  if (data === "binance_verify") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "binance_payment_pending") {
+      await handleBinanceVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    return true;
+  }
+
+  if (data === "razorpay_verify") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "razorpay_payment_pending") {
+      await handleRazorpayVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    return true;
+  }
+
+  // Cancel payments
+  if (data === "razorpay_cancel" || data === "binance_cancel") {
+    await deleteConversationState(supabase, userId);
+    await sendMessage(BOT_TOKEN, chatId, "Payment cancelled.");
+    await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+    return true;
+  }
+
+  // ===== DEPOSIT FLOW =====
+  if (data.startsWith("deposit_amt_")) {
+    const amt = parseInt(data.replace("deposit_amt_", ""));
+    if (amt > 0) {
+      const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
+      await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, amt, lang);
+    }
+    return true;
+  }
+
+  if (data === "deposit_binance") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.data?.amount) {
+      const { showDepositBinance } = await import("../payment/deposit-handlers.ts");
+      await showDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  if (data === "deposit_upi") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.data?.amount) {
+      const { showDepositUpi } = await import("../payment/deposit-handlers.ts");
+      await showDepositUpi(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  if (data === "deposit_upi_auto") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.data?.amount) {
+      const { showDepositRazorpay } = await import("../payment/deposit-handlers.ts");
+      await showDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  if (data === "deposit_upi_manual") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.data?.amount) {
+      const { showDepositManualUpi } = await import("../payment/deposit-handlers.ts");
+      await showDepositManualUpi(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  if (data === "deposit_binance_verify") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "deposit_binance_pending") {
+      const { verifyDepositBinance } = await import("../payment/deposit-handlers.ts");
+      await verifyDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  if (data === "deposit_razorpay_verify") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "deposit_razorpay_pending") {
+      const { verifyDepositRazorpay } = await import("../payment/deposit-handlers.ts");
+      await verifyDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  if (data === "deposit_cancel") {
+    await deleteConversationState(supabase, userId);
+    await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ ডিপোজিট বাতিল হয়েছে।" : "❌ Deposit cancelled.");
+    await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang);
+    return true;
+  }
+
+  if (data === "deposit_choose_method") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.data?.amount) {
+      const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
+      await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
+    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    return true;
+  }
+
+  return false;
+}

@@ -1,64 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Search, 
-  SlidersHorizontal,
-  Star,
-  Share2,
-  ShoppingCart,
-  Filter,
-  Download,
-  Tag,
-  Lightbulb,
-  GraduationCap,
-  ChevronRight
-} from 'lucide-react';
+import { Search, SlidersHorizontal, Filter, Lightbulb, GraduationCap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
-import { RankBadgeInline } from '@/components/RankBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  original_price?: number;
-  image_url: string;
-  rating: number;
-  sold_count: number;
-  category: string;
-  access_link?: string;
-  reseller_price?: number;
-  seo_tags?: string;
-}
-
-interface ProductVariation {
-  id: string;
-  name: string;
-  price: number;
-}
-
-interface CategoryItem {
-  id: string;
-  name: string;
-}
+import { useProductsData } from './products/useProductsData';
+import { Product, ProductVariation } from './products/types';
+import ProductCard from './products/ProductCard';
+import CategorySection from './products/CategorySection';
+import ProductsBuyModal from './products/ProductsBuyModal';
 
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
@@ -67,60 +24,24 @@ const ProductsPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const flashSale = location.state?.flashSale;
-  const initialCategory = location.state?.category?.toLowerCase() || 'all';
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+
+  const {
+    searchQuery, setSearchQuery,
+    selectedCategory, setSelectedCategory,
+    categories, loading,
+    filteredProducts, methodsProducts, coursesProducts,
+    loadProducts,
+  } = useProductsData();
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successOrderData, setSuccessOrderData] = useState({ productName: '', totalPrice: 0 });
   const [quantity, setQuantity] = useState(1);
   const [orderNote, setOrderNote] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([{ id: 'all', name: 'All' }]);
-  const [loading, setLoading] = useState(true);
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
   const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
-  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    loadProducts();
-    loadCategories();
-  }, []);
-  
-  // Handle category from navigation state
-  useEffect(() => {
-    if (location.state?.category) {
-      setSelectedCategory(location.state.category.toLowerCase());
-    }
-  }, [location.state?.category]);
-
-  // Log search queries (debounced)
-  useEffect(() => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    
-    if (searchQuery.trim().length >= 2) {
-      const timeout = setTimeout(async () => {
-        const resultsCount = products.filter(p => 
-          p.name.toLowerCase().includes(searchQuery.toLowerCase())
-        ).length;
-        
-        await supabase.from('search_logs').insert({
-          user_id: user?.id || null,
-          search_term: searchQuery.trim().toLowerCase(),
-          results_count: resultsCount
-        });
-      }, 1000); // Log after 1 second of no typing
-      
-      setSearchTimeout(timeout);
-    }
-    
-    return () => {
-      if (searchTimeout) clearTimeout(searchTimeout);
-    };
-  }, [searchQuery, products, user]);
 
   // Handle flash sale click
   useEffect(() => {
@@ -143,83 +64,19 @@ const ProductsPage: React.FC = () => {
     }
   }, [flashSale]);
 
-  const loadProducts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, product_variations(*)')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      // Use first variation price as display price if product price is 0
-      const enriched = data.map(p => {
-        const vars = (p.product_variations || [])
-          .filter((v: any) => v.is_active !== false)
-          .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        const firstVar = vars[0];
-        return {
-          ...p,
-          price: firstVar ? firstVar.price : p.price,
-          product_variations: undefined
-        };
-      });
-      setProducts(enriched);
-    }
-    setLoading(false);
-  };
-
-  const loadCategories = async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-    
-    if (data) {
-      setCategories([
-        { id: 'all', name: 'All' },
-        ...data.map(c => ({ id: c.name.toLowerCase(), name: c.name }))
-      ]);
-    }
-  };
-
-  const filteredProducts = useMemo(() => products.filter((product) => {
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = !query || 
-      product.name.toLowerCase().includes(query) ||
-      (product.description && product.description.toLowerCase().includes(query)) ||
-      (product.seo_tags && product.seo_tags.toLowerCase().includes(query));
-    const matchesCategory = selectedCategory === 'all' || 
-      product.category?.toLowerCase() === selectedCategory.toLowerCase();
-    return matchesSearch && matchesCategory;
-  }), [products, searchQuery, selectedCategory]);
-  
-  // Get Methods and Courses products for dedicated sections
-  const methodsProducts = useMemo(() => 
-    products.filter(p => p.category?.toLowerCase() === 'methods').slice(0, 6),
-    [products]
-  );
-  
-  const coursesProducts = useMemo(() => 
-    products.filter(p => p.category?.toLowerCase() === 'courses').slice(0, 6),
-    [products]
-  );
-
   const handleBuy = async (product: Product, salePrice?: number) => {
     setSelectedProduct(product);
     setFlashSalePrice(salePrice || null);
     setSelectedVariation(null);
     setQuantity(1);
     setOrderNote('');
-    
-    // Load variations for this product
+
     const { data } = await supabase
       .from('product_variations')
       .select('*')
       .eq('product_id', product.id)
       .eq('is_active', true);
-    
+
     setProductVariations(data || []);
     setShowBuyModal(true);
   };
@@ -236,7 +93,6 @@ const ProductsPage: React.FC = () => {
       return;
     }
 
-    // Fresh stock check to prevent overselling
     const { data: freshProduct } = await supabase
       .from('products')
       .select('stock')
@@ -248,44 +104,32 @@ const ProductsPage: React.FC = () => {
       return;
     }
 
-    // Calculate rank-based price
     const userRank = getUserRank(profile.rank_balance || 0);
     const isReseller = profile.is_reseller || false;
     const basePrice = selectedVariation?.price || flashSalePrice || selectedProduct.price;
-    
-    // Only apply rank discount if not flash sale
-    const { finalPrice } = flashSalePrice 
+
+    const { finalPrice } = flashSalePrice
       ? { finalPrice: flashSalePrice }
-      : calculateFinalPrice(
-          basePrice,
-          selectedProduct.reseller_price || null,
-          userRank,
-          isReseller
-        );
-    
+      : calculateFinalPrice(basePrice, selectedProduct.reseller_price || null, userRank, isReseller);
+
     const priceToUse = Math.round(finalPrice * 100) / 100;
     const totalPrice = priceToUse * quantity;
-    
+
     if ((profile.wallet_balance || 0) < totalPrice) {
       toast.error('Insufficient wallet balance. Please add money first.');
       return;
     }
 
     try {
-      // Deduct from wallet
       const newBalance = (profile.wallet_balance || 0) - totalPrice;
       const { error: balanceError } = await supabase
         .from('profiles')
-        .update({ 
-          wallet_balance: newBalance,
-          total_orders: (profile.total_orders || 0) + 1
-        })
+        .update({ wallet_balance: newBalance, total_orders: (profile.total_orders || 0) + 1 })
         .eq('id', user.id);
 
       if (balanceError) throw balanceError;
 
-      // Create order
-      const productNameWithVariation = selectedVariation 
+      const productNameWithVariation = selectedVariation
         ? `${selectedProduct.name} (${selectedVariation.name})`
         : selectedProduct.name;
 
@@ -304,56 +148,26 @@ const ProductsPage: React.FC = () => {
 
       if (orderError) throw orderError;
 
-      // Use atomic increment for sold_count and stock update
       const hasStock = freshProduct?.stock !== null && freshProduct?.stock !== undefined;
-      await supabase.rpc('increment_product_sold_count', { 
-        product_id: selectedProduct.id, 
-        qty: quantity,
-        has_stock: hasStock
-      });
+      await supabase.rpc('increment_product_sold_count', { product_id: selectedProduct.id, qty: quantity, has_stock: hasStock });
 
-      // Record transaction
       await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'purchase',
-        amount: -totalPrice,
-        status: 'completed',
+        user_id: user.id, type: 'purchase', amount: -totalPrice, status: 'completed',
         description: `Purchased ${productNameWithVariation} x${quantity}`
       });
 
-      // Send notification
       await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: 'Order Placed Successfully',
-        message: `Your order for ${productNameWithVariation} has been placed.`,
-        type: 'order'
+        user_id: user.id, title: 'Order Placed Successfully',
+        message: `Your order for ${productNameWithVariation} has been placed.`, type: 'order'
       });
 
-      // Show success modal
       setSuccessOrderData({ productName: productNameWithVariation, totalPrice });
       setShowBuyModal(false);
       setShowSuccessModal(true);
       refreshProfile();
-      loadProducts(); // Refresh products to update stock
+      loadProducts();
     } catch (error: any) {
       toast.error(error.message || 'Failed to place order');
-    }
-  };
-
-  const handleShare = (product: Product) => {
-    const appDomain = settings.app_url;
-    const shareUrl = `${appDomain}/product/${(product as any).slug || product.id}`;
-    const shareText = `Check out ${product.name} at ${settings.app_name} for just ${formatPrice(product.price)}!`;
-    
-    if (navigator.share) {
-      navigator.share({
-        title: product.name,
-        text: shareText,
-        url: shareUrl,
-      });
-    } else {
-      navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-      toast.success('Link copied to clipboard!');
     }
   };
 
@@ -402,393 +216,63 @@ const ProductsPage: React.FC = () => {
             ))}
           </div>
         </div>
-        
+
         {/* Methods Section */}
-        {selectedCategory === 'all' && methodsProducts.length > 0 && (
-          <div className="rounded-2xl p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-white/80 text-orange-600">
-                  <Lightbulb className="w-5 h-5" />
-                </div>
-                <h2 className="text-lg font-bold text-foreground">Methods</h2>
-              </div>
-              <button 
-                onClick={() => setSelectedCategory('methods')}
-                className="flex items-center gap-1 text-sm font-medium text-orange-600"
-              >
-                View All
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
-              {methodsProducts.map((product) => {
-                const productForDetail = {
-                  ...product,
-                  image: product.image_url,
-                  soldCount: product.sold_count || 0,
-                  originalPrice: product.original_price
-                };
-                return (
-                  <div
-                    key={product.id}
-                    onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
-                    className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
-                  >
-                    <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
-                    <div className="p-2">
-                      <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Star className="w-2.5 h-2.5 text-accent fill-accent" />
-                        <span className="text-[10px] text-muted-foreground">{product.rating}</span>
-                      </div>
-                      <span className="text-primary font-bold text-sm">{formatPrice(product.price)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {selectedCategory === 'all' && (
+          <CategorySection
+            title="Methods"
+            icon={Lightbulb}
+            iconColorClass="text-orange-600"
+            gradientClass="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+            categoryId="methods"
+            products={methodsProducts}
+            onCategorySelect={setSelectedCategory}
+          />
         )}
-        
+
         {/* Courses Section */}
-        {selectedCategory === 'all' && coursesProducts.length > 0 && (
-          <div className="rounded-2xl p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-white/80 text-indigo-600">
-                  <GraduationCap className="w-5 h-5" />
-                </div>
-                <h2 className="text-lg font-bold text-foreground">Courses</h2>
-              </div>
-              <button 
-                onClick={() => setSelectedCategory('courses')}
-                className="flex items-center gap-1 text-sm font-medium text-indigo-600"
-              >
-                View All
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
-              {coursesProducts.map((product) => {
-                const productForDetail = {
-                  ...product,
-                  image: product.image_url,
-                  soldCount: product.sold_count || 0,
-                  originalPrice: product.original_price
-                };
-                return (
-                  <div
-                    key={product.id}
-                    onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
-                    className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
-                  >
-                    <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />
-                    <div className="p-2">
-                      <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Star className="w-2.5 h-2.5 text-accent fill-accent" />
-                        <span className="text-[10px] text-muted-foreground">{product.rating}</span>
-                      </div>
-                      <span className="text-primary font-bold text-sm">{formatPrice(product.price)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {selectedCategory === 'all' && (
+          <CategorySection
+            title="Courses"
+            icon={GraduationCap}
+            iconColorClass="text-indigo-600"
+            gradientClass="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30"
+            categoryId="courses"
+            products={coursesProducts}
+            onCategorySelect={setSelectedCategory}
+          />
         )}
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 gap-3">
-          {filteredProducts.map((product) => {
-            // Transform product to match homepage format
-            const productForDetail = {
-              id: product.id,
-              name: product.name,
-              description: product.description,
-              price: product.price,
-              originalPrice: product.original_price,
-              image: product.image_url,
-              image_url: product.image_url,
-              rating: product.rating || 4.5,
-              soldCount: product.sold_count || 0,
-              sold_count: product.sold_count || 0,
-              category: product.category,
-              access_link: product.access_link,
-              reseller_price: product.reseller_price,
-              stock: (product as any).stock
-            };
-            
-            return (
-              <div
-                key={product.id}
-                onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
-                className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
-              >
-                <div className="relative">
-                  <img
-                    src={product.image_url || 'https://via.placeholder.com/200'}
-                    alt={product.name}
-                    className="w-full h-28 object-cover"
-                    loading="lazy"
-                  />
-                  {product.original_price && product.original_price > product.price && (
-                    <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
-                      <span className="text-[10px] font-bold text-accent-foreground">
-                        -{Math.round(((product.original_price - product.price) / product.original_price) * 100)}%
-                      </span>
-                    </div>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleShare(product); }}
-                    className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"
-                  >
-                    <Share2 className="w-3.5 h-3.5 text-foreground" />
-                  </button>
-                  {product.price === 0 && (
-                    <div className="absolute bottom-2 left-2 gradient-success px-2 py-0.5 rounded-full">
-                      <span className="text-[10px] font-bold text-success-foreground">FREE</span>
-                    </div>
-                  )}
-                  {product.access_link && (
-                    <div className="absolute bottom-2 right-2 bg-success/90 px-2 py-0.5 rounded-full">
-                      <span className="text-[10px] font-bold text-success-foreground flex items-center gap-0.5">
-                        <Download className="w-3 h-3" />
-                        Instant
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-3">
-                  <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{product.description}</p>
-
-                  <div className="flex items-center gap-1 mt-1.5">
-                    <Star className="w-3 h-3 text-accent fill-accent" />
-                    <span className="text-xs text-foreground font-medium">{product.rating || 4.5}</span>
-                    <span className="text-xs text-muted-foreground">({product.sold_count || 0})</span>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-2">
-                    <div>
-                      {product.price === 0 ? (
-                        <span className="text-success font-bold">Free</span>
-                      ) : (
-                        (() => {
-                          const userRank = getUserRank(profile?.rank_balance || 0);
-                          const isReseller = profile?.is_reseller || false;
-                          const { finalPrice, savings } = calculateFinalPrice(
-                            product.price,
-                            product.reseller_price || null,
-                            userRank,
-                            isReseller
-                          );
-                          const hasRankDiscount = savings > 0;
-                          return (
-                            <>
-                              <span className="text-primary font-bold">{formatPrice(finalPrice)}</span>
-                              {(hasRankDiscount || (product.original_price && product.original_price > product.price)) && (
-                                <span className="text-xs text-muted-foreground line-through ml-1">
-                                  {formatPrice(hasRankDiscount ? product.price : (product.original_price || 0))}
-                                </span>
-                              )}
-                              {hasRankDiscount && (
-                                <div className="flex items-center gap-0.5 mt-0.5">
-                                  <Tag className="w-2.5 h-2.5 text-green-600" />
-                                  <span className="text-[9px] text-green-600">{userRank.icon}</span>
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredProducts.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
         </div>
 
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">
             <Filter className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium text-foreground">No products found</p>
-            <p className="text-sm text-muted-foreground">
-              Try adjusting your search or filters
-            </p>
+            <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
           </div>
         )}
       </main>
 
-      {/* Buy Modal */}
-      <Dialog open={showBuyModal} onOpenChange={setShowBuyModal}>
-        <DialogContent className="max-w-sm mx-auto rounded-3xl">
-          <DialogHeader>
-            <DialogTitle>Confirm Order</DialogTitle>
-            <DialogDescription>
-              Review your order before placing
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedProduct && (
-            <div className="mt-4 space-y-4">
-              <div className="flex items-center gap-4">
-                <img
-                  src={selectedProduct.image_url || 'https://via.placeholder.com/80'}
-                  alt={selectedProduct.name}
-                  className="w-20 h-20 rounded-xl object-cover"
-                />
-                <div>
-                  <h3 className="font-semibold text-foreground">{selectedProduct.name}</h3>
-                  <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
-                  <div className="mt-1">
-                    {flashSalePrice ? (
-                      <div className="flex items-center gap-2">
-                        <p className="text-primary font-bold">{formatPrice(flashSalePrice)} each</p>
-                        <span className="text-xs text-muted-foreground line-through">{formatPrice(selectedProduct.original_price || selectedProduct.price)}</span>
-                        <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded">FLASH SALE</span>
-                      </div>
-                    ) : (
-                      (() => {
-                        const userRank = getUserRank(profile?.rank_balance || 0);
-                        const isReseller = profile?.is_reseller || false;
-                        const { finalPrice, savings, discountType } = calculateFinalPrice(
-                          selectedProduct.price,
-                          selectedProduct.reseller_price || null,
-                          userRank,
-                          isReseller
-                        );
-                        return (
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-primary font-bold">{formatPrice(finalPrice)} each</p>
-                              {savings > 0 && (
-                                <span className="text-xs text-muted-foreground line-through">{formatPrice(selectedProduct.price)}</span>
-                              )}
-                            </div>
-                            {savings > 0 && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Tag className="w-3 h-3 text-green-600" />
-                                <span className="text-xs text-green-600">{discountType}</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()
-                    )}
-                  </div>
-                  {selectedProduct.access_link && (
-                    <p className="text-xs text-success flex items-center gap-1 mt-1">
-                      <Download className="w-3 h-3" />
-                      Instant access after purchase
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Product Variations */}
-              {productVariations.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">
-                    Select Variation
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setSelectedVariation(null)}
-                      className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                        !selectedVariation
-                          ? 'gradient-primary text-primary-foreground'
-                          : 'bg-muted text-foreground hover:bg-muted/80'
-                      }`}
-                    >
-                      Default - {formatPrice(flashSalePrice || selectedProduct.price)}
-                    </button>
-                    {productVariations.map((variation) => (
-                      <button
-                        key={variation.id}
-                        onClick={() => setSelectedVariation(variation)}
-                        className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                          selectedVariation?.id === variation.id
-                            ? 'gradient-primary text-primary-foreground'
-                            : 'bg-muted text-foreground hover:bg-muted/80'
-                        }`}
-                      >
-                        {variation.name} - {formatPrice(variation.price)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Quantity */}
-              <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
-                <span className="font-medium text-foreground">Quantity</span>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-8 h-8 rounded-lg bg-card flex items-center justify-center font-bold"
-                  >
-                    -
-                  </button>
-                  <span className="font-bold text-foreground w-8 text-center">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-8 h-8 rounded-lg bg-card flex items-center justify-center font-bold"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Order Note */}
-              <div>
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Note for Admin (Optional)
-                </label>
-                <Textarea
-                  placeholder="Any special instructions, email for delivery, etc..."
-                  value={orderNote}
-                  onChange={(e) => setOrderNote(e.target.value)}
-                  className="rounded-xl"
-                  rows={3}
-                />
-              </div>
-
-              {/* Wallet Balance */}
-              <div className="flex items-center justify-between p-3 bg-muted rounded-xl">
-                <span className="text-sm text-muted-foreground">Your Balance</span>
-                <span className="font-bold text-foreground">{formatPrice(profile?.wallet_balance || 0)}</span>
-              </div>
-
-              {/* Total */}
-              <div className="flex items-center justify-between p-4 gradient-primary rounded-xl">
-                <span className="font-medium text-primary-foreground">Total</span>
-                <span className="text-2xl font-bold text-primary-foreground">
-                  {formatPrice((selectedVariation?.price || flashSalePrice || selectedProduct.price) * quantity)}
-                </span>
-              </div>
-
-              <p className="text-xs text-muted-foreground text-center">
-                {selectedProduct.access_link 
-                  ? '✓ Instant access will be available after purchase'
-                  : '⏱ Processing may take up to 24 hours'
-                }
-              </p>
-
-              <Button
-                className="w-full h-12 btn-gradient rounded-xl"
-                onClick={handleConfirmOrder}
-              >
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Place Order
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ProductsBuyModal
+        open={showBuyModal}
+        onOpenChange={setShowBuyModal}
+        selectedProduct={selectedProduct}
+        flashSalePrice={flashSalePrice}
+        productVariations={productVariations}
+        selectedVariation={selectedVariation}
+        onVariationSelect={setSelectedVariation}
+        quantity={quantity}
+        onQuantityChange={setQuantity}
+        orderNote={orderNote}
+        onOrderNoteChange={setOrderNote}
+        onConfirmOrder={handleConfirmOrder}
+      />
 
       <OrderSuccessModal
         isOpen={showSuccessModal}
