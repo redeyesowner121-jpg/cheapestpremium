@@ -3,6 +3,7 @@
 import { t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getSettings, getWallet, notifyAllAdmins } from "../db-helpers.ts";
+import { syncPurchaseToProfile } from "./sync-helpers.ts";
 
 export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string) {
   const wallet = await getWallet(supabase, userId);
