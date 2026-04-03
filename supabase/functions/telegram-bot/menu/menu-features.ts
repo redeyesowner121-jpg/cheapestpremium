@@ -198,14 +198,20 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
       expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     });
 
-    const boltLink = `https://bolt.new?telegramLogin=${code}`;
-    const lovableLink = `https://lovable.dev?telegramLogin=${code}`;
+    const websiteUrl = "https://cheapest-premiums.lovable.app";
 
     const text = lang === "bn"
-      ? `🔐 <b>ওয়েবসাইট লগইন কোড</b>\n\n📋 আপনার কোড: <code>${code}</code>\n\n✅ এই কোডটি এখন সক্রিয়। ৫ মিনিটের মধ্যে লগইন করুন।\n\n🔗 লিংক:\n• Bolt: ${boltLink}\n• Lovable: ${lovableLink}\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
-      : `🔐 <b>Website Login Code</b>\n\n📋 Your code: <code>${code}</code>\n\n✅ Code is active for 5 minutes.\n\n🔗 Links:\n• Bolt: ${boltLink}\n• Lovable: ${lovableLink}\n\n⚠️ Do not share this code with anyone.`;
+      ? `🔐 <b>ওয়েবসাইট লগইন</b>\n\n📋 আপনার লগইন কোড:\n<code>${code}</code>\n(ট্যাপ করলে কপি হবে)\n\n⏰ কোডটি ৫ মিনিট সক্রিয় থাকবে।\n\n📖 <b>কিভাবে লগইন করবেন:</b>\n1️⃣ নিচের লিংকে ক্লিক করুন\n2️⃣ "Telegram Login" অপশনে ক্লিক করুন\n3️⃣ উপরের কোডটি পেস্ট করুন\n4️⃣ Login বাটনে ক্লিক করুন\n\n✅ আপনার ওয়ালেট, অর্ডার সব অটোমেটিক সিঙ্ক হয়ে যাবে!\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
+      : `🔐 <b>Website Login</b>\n\n📋 Your login code:\n<code>${code}</code>\n(Tap to copy)\n\n⏰ Code is active for 5 minutes.\n\n📖 <b>How to login:</b>\n1️⃣ Click the link below\n2️⃣ Click "Telegram Login" option\n3️⃣ Paste the code above\n4️⃣ Click the Login button\n\n✅ Your wallet, orders will auto-sync!\n\n⚠️ Do not share this code with anyone.`;
 
-    await sendMessage(token, chatId, text);
+    await sendMessage(token, chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: lang === "bn" ? "Open Website" : "Open Website", url: websiteUrl }],
+          [{ text: t("back_main", lang), callback_data: "back_main" }],
+        ],
+      },
+    });
   } catch (e) {
     console.error("Login code error:", e);
     const text = lang === "bn"

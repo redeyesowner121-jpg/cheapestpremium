@@ -55,6 +55,7 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
           { text: t("support", lang), callback_data: "support" },
         ],
         [{ text: t("get_offers", lang), callback_data: "get_offers" }],
+        [{ text: lang === "bn" ? "Website Login" : "Website Login", callback_data: "website_login" }],
       ],
     },
   });

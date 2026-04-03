@@ -631,6 +631,8 @@ Deno.serve(async (req) => {
       if (data === "support") { await handleSupport(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
       // Offers
       if (data === "get_offers") { await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
+      // Website Login
+      if (data === "website_login") { await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); return jsonOk(); }
       // Back to main
       if (data === "back_main") { await showMainMenu(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
       if (data === "back_products") { await handleViewCategories(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
