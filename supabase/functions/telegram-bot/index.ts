@@ -299,6 +299,9 @@ Deno.serve(async (req) => {
           return jsonOk();
         }
 
+        // AI Training
+        if (data === "adm_ai_training") { await handleAITrainingMenu(BOT_TOKEN, supabase, chatId); return jsonOk(); }
+
         return jsonOk();
       }
 
