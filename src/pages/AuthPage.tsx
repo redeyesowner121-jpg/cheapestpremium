@@ -98,7 +98,7 @@ const AuthPage: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ code: telegramCode.trim() }),
       });
@@ -110,27 +110,15 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      const { user_id, email, name } = data;
-
-      const { data: session, error: sessionError } = await supabase.auth.signInWithPassword({
-        email: `telegram_${user_id}@bot.local`,
-        password: Math.random().toString(36).slice(-20),
+      // Set the session returned by the edge function
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
       });
 
       if (sessionError) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: `telegram_${user_id}@bot.local`,
-          password: Math.random().toString(36).slice(-20),
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: { name, telegram_id: user_id }
-          }
-        });
-
-        if (signUpError) {
-          toast.error('Failed to create account');
-          return;
-        }
+        toast.error('Failed to set session');
+        return;
       }
 
       toast.success('Logged in successfully!');
