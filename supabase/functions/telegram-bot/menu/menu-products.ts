@@ -7,7 +7,7 @@ import { getSettings, getWallet } from "../db-helpers.ts";
 export async function handleViewCategories(token: string, supabase: any, chatId: number, lang: string) {
   const { data: categories, error } = await supabase
     .from("categories")
-    .select("name, slug, icon")
+    .select("id, name, icon_url")
     .eq("is_active", true)
     .order("sort_order", { ascending: true });
 
@@ -28,10 +28,10 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
     const emoji1 = categoryEmojis[i % categoryEmojis.length];
-    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].slug)}` }];
+    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
     if (categories[i + 1]) {
       const emoji2 = categoryEmojis[(i + 1) % categoryEmojis.length];
-      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].slug)}` });
+      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
     }
     buttons.push(row);
   }
@@ -40,15 +40,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   await sendMessage(token, chatId, header, { reply_markup: { inline_keyboard: buttons } });
 }
 
-export async function handleCategoryProducts(token: string, supabase: any, chatId: number, category: string, lang: string) {
-  const { data: catData } = await supabase
-    .from("categories")
-    .select("name")
-    .eq("slug", category)
-    .maybeSingle();
-
-  const categoryName = catData?.name || category;
-
+export async function handleCategoryProducts(token: string, supabase: any, chatId: number, categoryName: string, lang: string) {
   const { data: products, error } = await supabase
     .from("products")
     .select("id, name, price, original_price, image_url")
@@ -70,7 +62,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const header = `📂 <b>${category}</b>\n\n`;
+  const header = `📂 <b>${categoryName}</b>\n\n`;
   let text = header;
 
   products.forEach((p: any) => {
@@ -119,11 +111,23 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     .eq("is_active", true)
     .order("price", { ascending: true });
 
+  // Parse image_url (could be JSON array or single URL)
+  let primaryImage = product.image_url;
+  if (primaryImage) {
+    try {
+      const parsed = JSON.parse(primaryImage);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        primaryImage = parsed[0];
+      }
+    } catch { /* single URL, use as-is */ }
+  }
+
   const buttons: any[][] = [];
 
   if (variations?.length) {
-    let text = `📦 <b>${product.name}</b>\n\n`;
-    text += `${lang === "bn" ? "📋 ভেরিয়েশন নির্বাচন করুন:" : "📋 Choose a variation:"}\n\n`;
+    let text = `📦 <b>${product.name}</b>\n`;
+    if (product.description) text += `\n📝 ${product.description}\n`;
+    text += `\n${lang === "bn" ? "📋 ভেরিয়েশন নির্বাচন করুন:" : "📋 Choose a variation:"}\n\n`;
 
     variations.forEach((v: any) => {
       const displayPrice = isReseller ? (v.reseller_price || v.price) : v.price;
@@ -150,8 +154,8 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     }
     buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
-    if (product.image_url) {
-      await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
+    if (primaryImage) {
+      await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
     } else {
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
@@ -162,7 +166,13 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
         : `${currency}${product.price}`
     );
-    let text = `📦 <b>${product.name}</b>\n💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
+    let text = `📦 <b>${product.name}</b>\n`;
+    if (product.description) text += `📝 ${product.description}\n`;
+    text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
+
+    if (product.stock !== null && product.stock <= 0) {
+      text += `\n\n❌ ${lang === "bn" ? "স্টক শেষ" : "Out of Stock"}`;
+    }
 
     if (product.stock === null || product.stock > 0) {
       if (isReseller) {
@@ -177,8 +187,8 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
 
     buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
-    if (product.image_url) {
-      await sendPhoto(token, chatId, product.image_url, text, { inline_keyboard: buttons });
+    if (primaryImage) {
+      await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
     } else {
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
