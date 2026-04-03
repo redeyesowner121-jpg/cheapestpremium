@@ -52,6 +52,14 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
+  // Sync purchase to website profile
+  let accessLink: string | undefined;
+  if (productId) {
+    const { data: prod } = await supabase.from("products").select("access_link").eq("id", productId).single();
+    accessLink = prod?.access_link || undefined;
+  }
+  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, accessLink);
+
   await processReferralBonus(supabase, userId, token, amount);
 }
 

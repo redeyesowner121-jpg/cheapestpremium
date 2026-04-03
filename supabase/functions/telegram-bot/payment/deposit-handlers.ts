@@ -432,4 +432,8 @@ async function creditWallet(supabase: any, userId: number, amount: number, metho
     amount,
     description: `Deposit via ${method} (Note: ${note})`,
   });
+
+  // Sync to website profile
+  const { syncDepositToProfile } = await import("./sync-helpers.ts");
+  await syncDepositToProfile(supabase, userId, amount, method);
 }
