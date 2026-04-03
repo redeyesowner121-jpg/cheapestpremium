@@ -602,8 +602,8 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Bot is unavailable - send single message to all users
-      await sendMessage(BOT_TOKEN, chatId, "The bot is unavailable now. Message @r_kr2007 or @air1xott");
+      // Non-command text → route to AI assistant
+      await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
       return jsonOk();
     }
 
