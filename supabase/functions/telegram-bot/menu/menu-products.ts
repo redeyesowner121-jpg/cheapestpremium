@@ -24,14 +24,11 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 
   const header = lang === "bn" ? "📂 <b>ক্যাটাগরি নির্বাচন করুন:</b>" : "📂 <b>Choose a Category:</b>";
 
-  const categoryEmojis = ["🎬", "🎵", "🛠️", "🎮", "🔐", "📚"];
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
-    const emoji1 = categoryEmojis[i % categoryEmojis.length];
-    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
+    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
     if (categories[i + 1]) {
-      const emoji2 = categoryEmojis[(i + 1) % categoryEmojis.length];
-      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
+      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
     }
     buttons.push(row);
   }
@@ -62,20 +59,17 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const header = `📂 <b>${categoryName}</b>\n\n`;
-  let text = header;
+  let text = `📂 <b>${categoryName}</b>\n\n`;
 
   products.forEach((p: any) => {
     const priceText = p.original_price && p.original_price > p.price
       ? `<s>${currency}${p.original_price}</s> ${currency}${p.price}`
       : `${currency}${p.price}`;
-    text += `📦 <b>${p.name}</b> — ${priceText}\n`;
+    text += `• <b>${p.name}</b> — ${priceText}\n`;
   });
 
-  const productEmojis = ["🔵", "🟢", "🟡", "🟠", "🔴", "🟣", "🟤", "⚫"];
-  const buttons: any[][] = products.map((p: any, index: number) => {
-    const emoji = productEmojis[index % productEmojis.length];
-    return [{ text: `${emoji} ${p.name}`, callback_data: `product_${p.id}` }];
+  const buttons: any[][] = products.map((p: any) => {
+    return [{ text: p.name, callback_data: `product_${p.id}` }];
   });
   buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
@@ -125,9 +119,9 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
   const buttons: any[][] = [];
 
   if (variations?.length) {
-    let text = `📦 <b>${product.name}</b>\n`;
-    if (product.description) text += `\n📝 ${product.description}\n`;
-    text += `\n${lang === "bn" ? "📋 ভেরিয়েশন নির্বাচন করুন:" : "📋 Choose a variation:"}\n\n`;
+    let text = `<b>${product.name}</b>\n`;
+    if (product.description) text += `\n${product.description}\n`;
+    text += `\n${lang === "bn" ? "ভেরিয়েশন নির্বাচন করুন:" : "Choose a variation:"}\n\n`;
 
     variations.forEach((v: any) => {
       const displayPrice = isReseller ? (v.reseller_price || v.price) : v.price;
@@ -139,17 +133,15 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
-    const variationColors = ["🟢", "🔵", "🟡", "🟣", "🟠", "🔴"];
     for (let idx = 0; idx < variations.length; idx++) {
       const v = variations[idx];
-      const colorEmoji = variationColors[idx % variationColors.length];
       if (isReseller) {
         buttons.push([
-          { text: `${colorEmoji} ${v.name}`, callback_data: `buyvar_${v.id}` },
-          { text: `🔄 Resale`, callback_data: `resalevar_${v.id}` },
+          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` },
+          { text: `Resale`, callback_data: `resalevar_${v.id}` },
         ]);
       } else {
-        buttons.push([{ text: `${colorEmoji} ${v.name}`, callback_data: `buyvar_${v.id}` }]);
+        buttons.push([{ text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
       }
     }
     buttons.push([{ text: `🔙 ${t("back_products", lang)}`, callback_data: "back_products" }]);
@@ -166,9 +158,9 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
         : `${currency}${product.price}`
     );
-    let text = `📦 <b>${product.name}</b>\n`;
-    if (product.description) text += `📝 ${product.description}\n`;
-    text += `💰 ${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
+    let text = `<b>${product.name}</b>\n`;
+    if (product.description) text += `${product.description}\n`;
+    text += `\n${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
 
     if (product.stock !== null && product.stock <= 0) {
       text += `\n\n❌ ${lang === "bn" ? "স্টক শেষ" : "Out of Stock"}`;
@@ -177,11 +169,11 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     if (product.stock === null || product.stock > 0) {
       if (isReseller) {
         buttons.push([
-          { text: `🟢 ${t("buy_now", lang)}`, callback_data: `buy_${productId}` },
-          { text: `🔄 ${lang === "bn" ? "রিসেল" : "Resale"}`, callback_data: `resale_${productId}` },
+          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
+          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}` },
         ]);
       } else {
-        buttons.push([{ text: `🟢 ${t("buy_now", lang)}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
       }
     }
 
