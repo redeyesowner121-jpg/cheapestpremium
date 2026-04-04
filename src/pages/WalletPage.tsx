@@ -8,6 +8,7 @@ import SuccessModal from '@/components/SuccessModal';
 import DepositModal from '@/components/wallet/DepositModal';
 import TransferModal from '@/components/wallet/TransferModal';
 import RedeemModal from '@/components/wallet/RedeemModal';
+import WithdrawModal from '@/components/wallet/WithdrawModal';
 import CurrencyConverter from '@/components/wallet/CurrencyConverter';
 import WalletBalanceCard from '@/components/wallet/WalletBalanceCard';
 import QuickActions from '@/components/wallet/QuickActions';
