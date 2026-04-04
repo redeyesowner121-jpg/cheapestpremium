@@ -14,6 +14,94 @@ import {
 export async function handleAdminCallbacks(
   BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string
 ): Promise<boolean> {
+
+  // ===== WITHDRAWAL ACTION BUTTONS =====
+  if (data.startsWith("wd_accept_") || data.startsWith("wd_reject_") || data.startsWith("wd_delivered_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const action = data.startsWith("wd_accept_") ? "accepted" : data.startsWith("wd_reject_") ? "rejected" : "delivered";
+    const wdId = data.replace(/^wd_(accept|reject|delivered)_/, "");
+
+    const { data: wd } = await supabase.from("withdrawal_requests").select("*").eq("id", wdId).single();
+    if (!wd) { await sendMessage(BOT_TOKEN, chatId, "❌ Withdrawal request not found."); return true; }
+
+    if (wd.status !== "pending" && action !== "delivered") {
+      await sendMessage(BOT_TOKEN, chatId, `⚠️ Already ${wd.status}.`);
+      return true;
+    }
+    if (action === "delivered" && wd.status !== "accepted") {
+      if (wd.status === "pending") {
+        await sendMessage(BOT_TOKEN, chatId, "⚠️ Please Accept first before marking Delivered.");
+        return true;
+      }
+      await sendMessage(BOT_TOKEN, chatId, `⚠️ Already ${wd.status}.`);
+      return true;
+    }
+
+    if (action === "accepted") {
+      // Deduct wallet balance from telegram wallet
+      const { data: wallet } = await supabase.from("telegram_wallets").select("balance").eq("telegram_id", wd.telegram_id).single();
+      if (!wallet || wallet.balance < wd.amount) {
+        await sendMessage(BOT_TOKEN, chatId, `⚠️ User has insufficient wallet balance (₹${wallet?.balance || 0}).`);
+        return true;
+      }
+      await supabase.from("telegram_wallets").update({
+        balance: Math.max(0, wallet.balance - wd.amount),
+        updated_at: new Date().toISOString(),
+      }).eq("telegram_id", wd.telegram_id);
+
+      await supabase.from("telegram_wallet_transactions").insert({
+        telegram_id: wd.telegram_id,
+        type: "withdrawal",
+        amount: -wd.amount,
+        description: `Withdrawal via ${wd.method.toUpperCase()} to ${wd.account_details}`,
+      });
+
+      await supabase.from("withdrawal_requests").update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", wdId);
+
+      // Notify user
+      await sendMessage(BOT_TOKEN, wd.telegram_id,
+        `✅ <b>Withdrawal Accepted!</b>\n\n💰 Amount: <b>₹${wd.amount}</b>\n💳 ${wd.method.toUpperCase()}: <code>${wd.account_details}</code>\n\n⏳ Payment will be sent shortly.`
+      );
+
+      await sendMessage(BOT_TOKEN, chatId,
+        `✅ <b>Withdrawal Accepted</b>\n\n👤 <code>${wd.telegram_id}</code>\n💰 ₹${wd.amount} deducted\n💳 ${wd.method.toUpperCase()}: <code>${wd.account_details}</code>`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "📦 Mark Delivered", callback_data: `wd_delivered_${wdId}` }],
+            ],
+          },
+        }
+      );
+
+      // Notify other admins
+      const { notifyAllAdmins } = await import("../db-helpers.ts");
+      try {
+        await notifyAllAdmins(BOT_TOKEN, supabase,
+          `💸 Withdrawal <b>Accepted</b> by admin <code>${userId}</code>\n👤 User: <code>${wd.telegram_id}</code> | ₹${wd.amount}`,
+          undefined, userId
+        );
+      } catch {}
+    } else if (action === "rejected") {
+      await supabase.from("withdrawal_requests").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", wdId);
+
+      await sendMessage(BOT_TOKEN, wd.telegram_id,
+        `❌ <b>Withdrawal Rejected</b>\n\n💰 Amount: <b>₹${wd.amount}</b>\n💳 ${wd.method.toUpperCase()}: <code>${wd.account_details}</code>\n\nPlease contact support if you have questions.`
+      );
+
+      await sendMessage(BOT_TOKEN, chatId, `❌ Withdrawal ₹${wd.amount} for user <code>${wd.telegram_id}</code> rejected.`);
+    } else if (action === "delivered") {
+      await supabase.from("withdrawal_requests").update({ status: "delivered", updated_at: new Date().toISOString() }).eq("id", wdId);
+
+      await sendMessage(BOT_TOKEN, wd.telegram_id,
+        `📦 <b>Withdrawal Delivered!</b>\n\n💰 Amount: <b>₹${wd.amount}</b>\n💳 Sent to: <code>${wd.account_details}</code> (${wd.method.toUpperCase()})\n\n✅ Payment has been completed!`
+      );
+
+      await sendMessage(BOT_TOKEN, chatId, `📦 Withdrawal ₹${wd.amount} for user <code>${wd.telegram_id}</code> marked as delivered.`);
+    }
+    return true;
+  }
+
   if (!data.startsWith("adm_")) return false;
   if (!await isAdminBot(supabase, userId)) return true;
 

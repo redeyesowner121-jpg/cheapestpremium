@@ -164,10 +164,10 @@ export async function handleMenuCallbacks(
       return true;
     }
 
-    await supabase.from("withdrawal_requests").insert({
+    const { data: wdReq } = await supabase.from("withdrawal_requests").insert({
       telegram_id: userId, amount, method: convState.data.method,
       account_details: convState.data.accountDetails, status: "pending",
-    });
+    }).select("id").single();
     await dcs(supabase, userId);
 
     const methodLabel = convState.data.method === "upi" ? "UPI" : "Binance";
@@ -178,8 +178,20 @@ export async function handleMenuCallbacks(
       { reply_markup: { inline_keyboard: [[{ text: ulang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }]] } }
     );
     const { notifyAllAdmins: naa } = await import("../db-helpers.ts");
+    const wdId = wdReq?.id?.slice(0, 8) || "N/A";
     await naa(BOT_TOKEN, supabase,
-      `💸 <b>Withdrawal Request</b>\n\n👤 <code>${userId}</code>\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>`
+      `💸 <b>New Withdrawal Request</b>\n\n👤 <code>${userId}</code>\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>\n🆔 <code>${wdId}</code>`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}` },
+              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}` },
+            ],
+            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}` }],
+          ],
+        },
+      }
     );
     return true;
   }

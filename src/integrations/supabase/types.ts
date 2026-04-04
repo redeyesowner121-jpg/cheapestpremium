@@ -1584,7 +1584,7 @@ export type Database = {
           status: string
           telegram_id: number | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           account_details: string
@@ -1596,7 +1596,7 @@ export type Database = {
           status?: string
           telegram_id?: number | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           account_details?: string
@@ -1608,7 +1608,7 @@ export type Database = {
           status?: string
           telegram_id?: number | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
