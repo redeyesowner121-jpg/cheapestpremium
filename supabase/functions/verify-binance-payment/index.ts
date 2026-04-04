@@ -133,31 +133,53 @@ Deno.serve(async (req) => {
       throw new Error("Invalid Binance response");
     }
 
-    console.log("Binance response:", JSON.stringify({
+    const debugInfo: any = {
       httpStatus: binanceRes.status,
       status: binanceData?.status,
       code: binanceData?.code,
       errorMessage: binanceData?.errorMessage,
       billCount: Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0,
-    }));
+      expectedNote: normalizeText(note),
+      expectedAmount: Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount))),
+      searchWindow: { startTime, endTime },
+    };
+
+    console.log("Binance verify request:", JSON.stringify(debugInfo));
 
     let verified = false;
+    let matchDetails: any = null;
 
     if (binanceData.status === "SUCCESS" && binanceData.data?.billList) {
-      const expectedAmount = Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount)));
-      const expectedNote = normalizeText(note);
+      const expectedAmount = debugInfo.expectedAmount;
+      const expectedNote = debugInfo.expectedNote;
       
+      const billSummaries: any[] = [];
+
       for (const bill of binanceData.data.billList) {
-        const noteMatch = getCandidateNotes(bill).some((candidate) => (
+        const candidateNotes = getCandidateNotes(bill);
+        const candidateAmounts = getCandidateAmounts(bill);
+        const noteMatch = candidateNotes.some((candidate) => (
           candidate === expectedNote || candidate.includes(expectedNote) || expectedNote.includes(candidate)
         ));
-        const amountMatch = getCandidateAmounts(bill).some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
+        const amountMatch = candidateAmounts.some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
+
+        billSummaries.push({
+          billType: bill.billType,
+          bizType: bill.bizType,
+          candidateNotes,
+          candidateAmounts,
+          noteMatch,
+          amountMatch,
+        });
 
         if (noteMatch && amountMatch) {
           verified = true;
+          matchDetails = { candidateNotes, candidateAmounts };
           break;
         }
       }
+
+      console.log("Bill matching details:", JSON.stringify(billSummaries));
     }
 
     if (verified) {
