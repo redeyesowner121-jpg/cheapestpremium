@@ -133,41 +133,77 @@ Deno.serve(async (req) => {
       throw new Error("Invalid Binance response");
     }
 
-    console.log("Binance response:", JSON.stringify({
+    const debugInfo: any = {
       httpStatus: binanceRes.status,
       status: binanceData?.status,
       code: binanceData?.code,
       errorMessage: binanceData?.errorMessage,
       billCount: Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0,
-    }));
+      expectedNote: normalizeText(note),
+      expectedAmount: Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount))),
+      searchWindow: { startTime, endTime },
+    };
+
+    console.log("Binance verify request:", JSON.stringify(debugInfo));
 
     let verified = false;
+    let matchDetails: any = null;
 
     if (binanceData.status === "SUCCESS" && binanceData.data?.billList) {
-      const expectedAmount = Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount)));
-      const expectedNote = normalizeText(note);
+      const expectedAmount = debugInfo.expectedAmount;
+      const expectedNote = debugInfo.expectedNote;
       
+      const billSummaries: any[] = [];
+
       for (const bill of binanceData.data.billList) {
-        const noteMatch = getCandidateNotes(bill).some((candidate) => (
+        const candidateNotes = getCandidateNotes(bill);
+        const candidateAmounts = getCandidateAmounts(bill);
+        const noteMatch = candidateNotes.some((candidate) => (
           candidate === expectedNote || candidate.includes(expectedNote) || expectedNote.includes(candidate)
         ));
-        const amountMatch = getCandidateAmounts(bill).some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
+        const amountMatch = candidateAmounts.some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
+
+        billSummaries.push({
+          billType: bill.billType,
+          bizType: bill.bizType,
+          candidateNotes,
+          candidateAmounts,
+          noteMatch,
+          amountMatch,
+        });
 
         if (noteMatch && amountMatch) {
           verified = true;
+          matchDetails = { candidateNotes, candidateAmounts };
           break;
         }
       }
+
+      console.log("Bill matching details:", JSON.stringify(billSummaries));
     }
 
     if (verified) {
+      console.log("✅ Payment VERIFIED:", JSON.stringify({ paymentId, matchDetails }));
       await supabase.from("payments").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", paymentId);
       return new Response(JSON.stringify({ success: true, message: "Payment verified" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: false, message: "Payment not found in Binance records. Please wait and try again." }), {
+    const billCount = Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0;
+    const failReason = binanceData.status !== "SUCCESS"
+      ? `Binance API error: ${binanceData.errorMessage || binanceData.code || "unknown"}`
+      : billCount === 0
+        ? "No transactions found in the time window."
+        : `Checked ${billCount} transactions — no note/amount match.`;
+
+    console.log("❌ Payment NOT verified:", failReason);
+
+    return new Response(JSON.stringify({
+      success: false,
+      message: `Payment not yet found. ${failReason} Please wait 1-2 minutes after paying and try again.`,
+      debug: { billCount, expectedNote: normalizeText(note), expectedAmount: Math.abs(Number.parseFloat(String(amount))) },
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
