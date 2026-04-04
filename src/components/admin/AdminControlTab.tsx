@@ -11,6 +11,7 @@ import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminPaymentSettings from '@/components/AdminPaymentSettings';
 import AdminSettingsTab from './AdminSettingsTab';
 import DepositRequestsSection from './DepositRequestsSection';
+import WithdrawalRequestsSection from './WithdrawalRequestsSection';
 import AdminCouponManager from './AdminCouponManager';
 import AdminRedeemCodeManager from './AdminRedeemCodeManager';
 import AdminCategoryManager from '@/components/AdminCategoryManager';
