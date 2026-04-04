@@ -44,6 +44,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const parseNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const parseBoolean = (value: unknown, fallback = false): boolean => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value === 'true';
+  return fallback;
+};
+
+const parseString = (value: unknown, fallback = ''): string => {
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+};
+
+const normalizeProfile = (data: any): UserProfile => ({
+  id: parseString(data?.id),
+  email: parseString(data?.email),
+  name: parseString(data?.name, 'User'),
+  phone: typeof data?.phone === 'string' ? data.phone : undefined,
+  avatar_url: typeof data?.avatar_url === 'string' ? data.avatar_url : undefined,
+  wallet_balance: parseNumber(data?.wallet_balance),
+  total_deposit: parseNumber(data?.total_deposit),
+  total_orders: parseNumber(data?.total_orders),
+  has_blue_check: parseBoolean(data?.has_blue_check),
+  referral_code: parseString(data?.referral_code),
+  referred_by: typeof data?.referred_by === 'string' ? data.referred_by : undefined,
+  notifications_enabled: parseBoolean(data?.notifications_enabled, true),
+  last_daily_bonus: typeof data?.last_daily_bonus === 'string' ? data.last_daily_bonus : undefined,
+  created_at: parseString(data?.created_at),
+  rank_balance: parseNumber(data?.rank_balance),
+  is_reseller: parseBoolean(data?.is_reseller),
+  last_rank_decay: typeof data?.last_rank_decay === 'string' ? data.last_rank_decay : undefined,
+});
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -68,20 +107,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq('id', userId)
       .maybeSingle();
 
+    if (error) {
+      console.error('Failed to load profile:', error);
+      setProfile(null);
+      return null;
+    }
+
     if (data) {
+      const normalizedProfile = normalizeProfile(data);
+
       // Check if blue tick has expired (stored in user metadata)
-      if (data.has_blue_check) {
+      if (normalizedProfile.has_blue_check) {
         const { data: userData } = await supabase.auth.getUser();
         const blueTickExpiry = userData?.user?.user_metadata?.blue_tick_expiry;
         if (blueTickExpiry && new Date(blueTickExpiry) < new Date()) {
           // Blue tick expired, remove it
           await supabase.from('profiles').update({ has_blue_check: false }).eq('id', userId);
-          data.has_blue_check = false;
+          normalizedProfile.has_blue_check = false;
         }
       }
-      setProfile(data as UserProfile);
+
+      setProfile(normalizedProfile);
+      return normalizedProfile;
     }
-    return data;
+
+    setProfile(null);
+    return null;
   };
 
   const checkAdminRole = async (userId: string) => {

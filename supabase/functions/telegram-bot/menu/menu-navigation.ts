@@ -42,19 +42,19 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
   await sendMessage(token, chatId, welcomeText, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "🟦 " + t("view_products", lang), callback_data: "view_products" }],
+        [{ text: t("view_products", lang), callback_data: "view_products" }],
         [
-          { text: "🟧 " + t("my_orders", lang), callback_data: "my_orders" },
-          { text: "🟩 " + t("my_wallet", lang), callback_data: "my_wallet" },
+          { text: t("my_orders", lang), callback_data: "my_orders" },
+          { text: t("my_wallet", lang), callback_data: "my_wallet" },
         ],
         [
-          { text: "🟪 " + t("refer_earn", lang), callback_data: "refer_earn" },
+          { text: t("refer_earn", lang), callback_data: "refer_earn" },
         ],
         [
-          { text: "⭐ " + (lang === "bn" ? "রিভিউ" : "Reviews"), url: "https://t.me/RKRxProofs" },
-          { text: "🟥 " + t("support", lang), callback_data: "support" },
+          { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs" },
+          { text: t("support", lang), callback_data: "support" },
         ],
-        [{ text: "🌐 Website Login", callback_data: "website_login" }],
+        [{ text: "Website Login", callback_data: "website_login" }],
       ],
     },
   });
