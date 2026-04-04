@@ -463,49 +463,68 @@ export async function handleBinanceVerify(
     const result = await verifyRes.json();
 
     if (result.success) {
-      // Process the order like wallet pay does
       const { processReferralBonus } = await import("./wallet-pay.ts");
+      const { notifyAllAdmins } = await import("../db-helpers.ts");
+      const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
 
       // Deduct wallet if applicable
       if (walletDeduction > 0) {
-        await supabase.from("telegram_wallets")
-          .update({ balance: supabase.rpc ? undefined : 0 })
-          .eq("telegram_id", telegramUser.id);
-        
-        // Actually deduct properly
         const wallet = await supabase.from("telegram_wallets").select("balance").eq("telegram_id", telegramUser.id).single();
         if (wallet.data) {
           await supabase.from("telegram_wallets")
-            .update({ balance: Math.max(0, wallet.data.balance - walletDeduction) })
+            .update({ balance: Math.max(0, wallet.data.balance - walletDeduction), updated_at: new Date().toISOString() })
             .eq("telegram_id", telegramUser.id);
+
+          await supabase.from("telegram_wallet_transactions").insert({
+            telegram_id: telegramUser.id,
+            type: "purchase_deduction",
+            amount: -walletDeduction,
+            description: `Partial wallet pay: ${productName}`,
+          });
         }
       }
 
       // Create telegram order
-      await supabase.from("telegram_orders").insert({
+      const { data: order } = await supabase.from("telegram_orders").insert({
         telegram_user_id: telegramUser.id,
         product_name: productName,
         product_id: productId,
         amount: price,
         status: "confirmed",
         username: telegramUser.username || telegramUser.first_name,
-      });
+      }).select("id").single();
 
       // Get access link
       const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
 
-      let successText = `<b>Payment Verified!</b>\n\n`;
-      successText += `Product: <b>${productName}</b>\n`;
-      successText += `Amount: <b>$${amountUsd}</b>\n`;
+      let successText = `✅ <b>Order Successful!</b>\n\n`;
+      successText += `📦 Product: <b>${productName}</b>\n`;
+      successText += `💵 Amount: <b>$${amountUsd}</b> (₹${price})\n`;
+      successText += `🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
+      if (walletDeduction > 0) {
+        successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
+      }
       if (product?.access_link) {
-        successText += `\nAccess Link:\n${product.access_link}`;
+        successText += `\n🔗 <b>Access Link:</b>\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`;
       }
 
       await sendMessage(token, chatId, successText);
       await setConversationState(supabase, telegramUser.id, "idle", {});
 
+      // Notify admins
+      try {
+        await notifyAllAdmins(token, supabase,
+          `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+        );
+      } catch (e) { console.error("Admin notify error:", e); }
+
+      // Sync purchase to website profile
+      try {
+        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, product?.access_link || undefined);
+      } catch (e) { console.error("Sync error:", e); }
+
       // Process referral bonus
-      await processReferralBonus(token, supabase, telegramUser.id, price, "en");
+      await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
       await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\nTry again after completing payment.`, {
         reply_markup: {
