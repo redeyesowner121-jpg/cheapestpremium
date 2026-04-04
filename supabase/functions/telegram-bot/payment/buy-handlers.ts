@@ -526,21 +526,37 @@ export async function handleBinanceVerify(
       // Process referral bonus
       await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
-      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\nTry again after completing payment.`, {
+      const debugNote = result.debug?.expectedNote || paymentNote;
+      const debugAmt = result.debug?.expectedAmount || amountUsd;
+      const billCount = result.debug?.billCount ?? "?";
+
+      let retryMsg = `❌ <b>Payment not verified yet</b>\n\n`;
+      retryMsg += `${result.message || "No matching transaction found."}\n\n`;
+      retryMsg += `🔍 <b>What we searched for:</b>\n`;
+      retryMsg += `• Note: <code>${debugNote}</code>\n`;
+      retryMsg += `• Amount: <b>$${debugAmt}</b>\n`;
+      retryMsg += `• Transactions checked: ${billCount}\n\n`;
+      retryMsg += `💡 <b>Tips:</b>\n`;
+      retryMsg += `• Make sure you included the note <code>${paymentNote}</code> in your Binance Pay remark\n`;
+      retryMsg += `• Wait 1-2 minutes after payment before verifying\n`;
+      retryMsg += `• Ensure the exact amount <b>$${amountUsd}</b> was sent`;
+
+      await sendMessage(token, chatId, retryMsg, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "Verify Payment", callback_data: "binance_verify" }],
-            [{ text: "Cancel", callback_data: "binance_cancel" }],
+            [{ text: "🔄 Verify Again", callback_data: "binance_verify" }],
+            [{ text: "❌ Cancel", callback_data: "binance_cancel" }],
           ],
         },
       });
     }
   } catch (err) {
     console.error("Binance verify error:", err);
-    await sendMessage(token, chatId, "Verification error. Please try again.", {
+    await sendMessage(token, chatId, "⚠️ Verification error. Please try again in a moment.", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Verify Payment", callback_data: "binance_verify" }],
+          [{ text: "🔄 Retry", callback_data: "binance_verify" }],
+          [{ text: "❌ Cancel", callback_data: "binance_cancel" }],
         ],
       },
     });

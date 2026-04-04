@@ -183,13 +183,27 @@ Deno.serve(async (req) => {
     }
 
     if (verified) {
+      console.log("✅ Payment VERIFIED:", JSON.stringify({ paymentId, matchDetails }));
       await supabase.from("payments").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", paymentId);
       return new Response(JSON.stringify({ success: true, message: "Payment verified" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: false, message: "Payment not found in Binance records. Please wait and try again." }), {
+    const billCount = Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0;
+    const failReason = binanceData.status !== "SUCCESS"
+      ? `Binance API error: ${binanceData.errorMessage || binanceData.code || "unknown"}`
+      : billCount === 0
+        ? "No transactions found in the time window."
+        : `Checked ${billCount} transactions — no note/amount match.`;
+
+    console.log("❌ Payment NOT verified:", failReason);
+
+    return new Response(JSON.stringify({
+      success: false,
+      message: `Payment not yet found. ${failReason} Please wait 1-2 minutes after paying and try again.`,
+      debug: { billCount, expectedNote: normalizeText(note), expectedAmount: Math.abs(Number.parseFloat(String(amount))) },
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
