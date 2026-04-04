@@ -69,6 +69,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const transactionGroup = [
     { id: 'orders' as ControlSection, icon: ShoppingBag, label: 'Orders', description: `${pendingOrders} pending`, color: 'bg-gradient-to-br from-orange-500 to-amber-500', badge: pendingOrders > 0 ? pendingOrders : null },
     { id: 'deposits' as ControlSection, icon: Wallet, label: 'Deposit Requests', description: `${pendingDeposits} pending`, color: 'bg-gradient-to-br from-emerald-500 to-green-500', badge: pendingDeposits > 0 ? pendingDeposits : null },
+    { id: 'withdrawals' as ControlSection, icon: Wallet, label: 'Withdrawals', description: 'Withdrawal requests', color: 'bg-gradient-to-br from-red-500 to-orange-500', badge: null },
     { id: 'payments' as ControlSection, icon: CreditCard, label: 'Payments', description: 'Payment settings', color: 'bg-gradient-to-br from-indigo-500 to-violet-500', badge: null },
   ];
 
