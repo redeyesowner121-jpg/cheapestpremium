@@ -19,6 +19,8 @@ export async function handlePaymentCallbacks(
     if (convState?.step === "wallet_pay_confirm") {
       await deleteConversationState(supabase, userId);
       await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else {
       await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
     }
@@ -63,6 +65,8 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "binance_payment_pending") {
       await handleBinanceVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
     return true;
   }
@@ -71,6 +75,8 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "razorpay_payment_pending") {
       await handleRazorpayVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
     return true;
   }
@@ -134,6 +140,8 @@ export async function handlePaymentCallbacks(
     if (convState?.step === "deposit_binance_pending") {
       const { verifyDepositBinance } = await import("../payment/deposit-handlers.ts");
       await verifyDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
     return true;
   }
@@ -143,6 +151,8 @@ export async function handlePaymentCallbacks(
     if (convState?.step === "deposit_razorpay_pending") {
       const { verifyDepositRazorpay } = await import("../payment/deposit-handlers.ts");
       await verifyDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
     return true;
   }
