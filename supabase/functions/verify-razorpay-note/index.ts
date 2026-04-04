@@ -9,9 +9,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { note, amount, paymentId } = await req.json();
-    if (!note || !amount || !paymentId) {
-      return new Response(JSON.stringify({ error: "Missing note, amount, or paymentId" }), {
+    const { note, amount, paymentId, userId, depositRequestId } = await req.json();
+    if (!note || !amount) {
+      return new Response(JSON.stringify({ error: "Missing note or amount" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -29,23 +29,34 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Check payment record
-    const { data: payment } = await supabase
-      .from("payments")
-      .select("*")
-      .eq("id", paymentId)
-      .single();
+    // If paymentId provided (bot flow), check payment record
+    if (paymentId) {
+      const { data: payment } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("id", paymentId)
+        .single();
 
-    if (!payment) {
-      return new Response(JSON.stringify({ error: "Payment not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (payment?.status === "success") {
+        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    if (payment.status === "success") {
-      return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // If depositRequestId provided (website flow), check if already approved
+    if (depositRequestId) {
+      const { data: depReq } = await supabase
+        .from("manual_deposit_requests")
+        .select("status")
+        .eq("id", depositRequestId)
+        .single();
+
+      if (depReq?.status === "approved") {
+        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
@@ -78,10 +89,75 @@ Deno.serve(async (req) => {
     });
 
     if (matchingPayment) {
-      await supabase.from("payments").update({
-        status: "success",
-        updated_at: new Date().toISOString(),
-      }).eq("id", paymentId);
+      // Update payment record if exists (bot flow)
+      if (paymentId) {
+        await supabase.from("payments").update({
+          status: "success",
+          updated_at: new Date().toISOString(),
+        }).eq("id", paymentId);
+      }
+
+      // Website flow: credit wallet and update deposit request
+      if (userId && depositRequestId) {
+        // Get current profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("wallet_balance, rank_balance, total_deposit, name")
+          .eq("id", userId)
+          .single();
+
+        if (profile) {
+          const newBalance = (profile.wallet_balance || 0) + amount;
+          const newRankBalance = (profile.rank_balance || 0) + amount;
+          const newTotalDeposit = (profile.total_deposit || 0) + amount;
+
+          // Check for bonus (Rs1000+ deposit)
+          let bonusAmount = 0;
+          if (amount >= 1000) bonusAmount = 100;
+
+          const finalBalance = newBalance + bonusAmount;
+
+          await supabase.from("profiles").update({
+            wallet_balance: finalBalance,
+            rank_balance: newRankBalance,
+            total_deposit: newTotalDeposit,
+            has_blue_check: amount >= 1000 ? true : undefined,
+          }).eq("id", userId);
+
+          // Record transaction
+          await supabase.from("transactions").insert({
+            user_id: userId,
+            type: "deposit",
+            amount: amount,
+            status: "completed",
+            description: `Razorpay Auto Deposit (Code: ${note})`,
+          });
+
+          if (bonusAmount > 0) {
+            await supabase.from("transactions").insert({
+              user_id: userId,
+              type: "bonus",
+              amount: bonusAmount,
+              status: "completed",
+              description: "Deposit bonus (₹1000+ deposit)",
+            });
+          }
+
+          // Update deposit request
+          await supabase.from("manual_deposit_requests").update({
+            status: "approved",
+            admin_note: "Auto-verified via Razorpay",
+          }).eq("id", depositRequestId);
+
+          // Notification
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title: "Deposit Successful! 💰",
+            message: `₹${amount} has been added to your wallet${bonusAmount > 0 ? ` + ₹${bonusAmount} bonus!` : '.'}`,
+            type: "wallet",
+          });
+        }
+      }
 
       return new Response(JSON.stringify({ success: true, message: "Payment verified" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
