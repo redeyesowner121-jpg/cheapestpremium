@@ -160,12 +160,12 @@ export async function showDepositUpi(token: string, supabase: any, chatId: numbe
   });
 }
 
-// Step 3b-i: Auto UPI (Razorpay) deposit
+// Step 3b-i: Auto UPI (Razorpay) deposit with custom link + QR + special code
 export async function showDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
   const paymentNote = generatePaymentNote();
-  const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
+  const razorpayMeUrl = settings.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
 
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
@@ -181,24 +181,52 @@ export async function showDepositRazorpay(token: string, supabase: any, chatId: 
     amount, paymentNote, paymentId: payment?.id,
   });
 
-  let text = `<b>⚡ Auto UPI ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
-  text += `${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${amount}</b>\n\n`;
-  text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
-  text += `1. Click <b>Pay Now</b> below\n`;
-  text += `2. Pay exactly <b>${currency}${amount}</b>\n`;
-  text += `3. In note/description paste: <code>${paymentNote}</code>\n`;
-  text += `4. Complete & click <b>Verify</b>\n\n`;
-  text += `<i>⚠️ You MUST add the note for auto-verification.</i>`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(razorpayMeUrl)}`;
 
-  await sendMessage(token, chatId, text, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "💳 Pay Now", url: razorpayMeUrl }],
-        [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
-        [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
-      ],
-    },
-  });
+  let text = `<b>⚡ Razorpay ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
+  text += `${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${amount}</b>\n\n`;
+  text += `📋 <b>Special Code:</b> <code>${paymentNote}</code>\n\n`;
+  text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
+  text += `1. ${lang === "bn" ? "নিচের" : "Click"} <b>Pay Now</b> ${lang === "bn" ? "বাটনে ক্লিক করুন বা QR স্ক্যান করুন" : "below or scan QR"}\n`;
+  text += `2. ${lang === "bn" ? "ঠিক" : "Pay exactly"} <b>${currency}${amount}</b> ${lang === "bn" ? "পে করুন" : ""}\n`;
+  text += `3. ${lang === "bn" ? "নোট/বিবরণে পেস্ট করুন" : "In note/description paste"}: <code>${paymentNote}</code>\n`;
+  text += `4. ${lang === "bn" ? "পেমেন্ট শেষে" : "After payment click"} <b>Verify</b> ${lang === "bn" ? "ক্লিক করুন" : ""}\n\n`;
+  text += `<i>⚠️ ${lang === "bn" ? "অটো ভেরিফিকেশনের জন্য নোট অবশ্যই সঠিক হতে হবে!" : "Note MUST match exactly for auto-verification!"}</i>`;
+
+  // Try to send with QR photo
+  let sent = false;
+  const fallbackQrUrl = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(razorpayMeUrl)}`;
+  for (const url of [qrUrl, fallbackQrUrl]) {
+    try {
+      const res = await fetch(`${getTelegramApiUrl(token)}/sendPhoto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId, photo: url, caption: text, parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "💳 Pay Now", url: razorpayMeUrl }],
+              [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
+              [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
+            ],
+          },
+        }),
+      });
+      if ((await res.json()).ok) { sent = true; break; }
+    } catch { /* fallback */ }
+  }
+
+  if (!sent) {
+    await sendMessage(token, chatId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "💳 Pay Now", url: razorpayMeUrl }],
+          [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
+          [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
+        ],
+      },
+    });
+  }
 }
 
 // Step 3b-ii: Manual UPI deposit (screenshot)
