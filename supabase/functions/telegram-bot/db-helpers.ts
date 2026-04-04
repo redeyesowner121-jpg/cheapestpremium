@@ -26,9 +26,10 @@ export async function getAllAdminIds(supabase: any): Promise<number[]> {
   return ids;
 }
 
-export async function notifyAllAdmins(token: string, supabase: any, text: string, opts?: { reply_markup?: any }) {
+export async function notifyAllAdmins(token: string, supabase: any, text: string, opts?: { reply_markup?: any }, excludeId?: number) {
   const adminIds = await getAllAdminIds(supabase);
   for (const adminId of adminIds) {
+    if (excludeId && adminId === excludeId) continue;
     try { await sendMessage(token, adminId, text, opts); } catch { /* admin may have blocked bot */ }
   }
 }
