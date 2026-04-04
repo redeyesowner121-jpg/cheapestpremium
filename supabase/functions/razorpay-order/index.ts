@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -24,18 +23,18 @@ serve(async (req) => {
 
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID');
     const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!razorpayKeyId || !razorpayKeySecret) {
-      console.error('Razorpay credentials not configured');
       return new Response(
         JSON.stringify({ error: 'Payment gateway not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create Razorpay order
     const orderData = {
-      amount: Math.round(amount * 100), // Razorpay expects paise
+      amount: Math.round(amount * 100),
       currency: 'INR',
       receipt: `rcpt_${Date.now()}`,
       notes: {
@@ -66,6 +65,17 @@ serve(async (req) => {
 
     const order = await razorpayResponse.json();
     console.log('Razorpay order created:', order.id);
+
+    // Save pending deposit record so webhook can credit wallet even if browser closes
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      await supabase.from('pending_razorpay_deposits').insert({
+        user_id: userId,
+        razorpay_order_id: order.id,
+        amount: amount,
+        status: 'pending'
+      });
+    }
 
     return new Response(
       JSON.stringify({
