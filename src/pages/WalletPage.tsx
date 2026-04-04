@@ -61,7 +61,7 @@ const WalletPage: React.FC = () => {
           walletBalance={profile?.wallet_balance || 0}
           totalDeposit={profile?.total_deposit || 0}
           onAddMoney={() => { setDepositInitialTab('card'); setShowDepositModal(true); }}
-          onWithdraw={() => toast.info('Withdrawal feature coming soon! Contact admin for withdrawals.')}
+          onWithdraw={() => setShowWithdrawModal(true)}
         />
 
         <QuickActions
