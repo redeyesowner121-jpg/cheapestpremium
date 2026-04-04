@@ -122,6 +122,29 @@ export async function handleMenuCallbacks(
   if (data === "my_wallet") { await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
   if (data === "wallet_deposit") { await handleWalletDeposit(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
   if (data === "wallet_withdraw") { await handleWalletWithdraw(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
+
+  // Withdrawal method selection
+  if (data === "withdraw_upi" || data === "withdraw_binance") {
+    const method = data === "withdraw_upi" ? "upi" : "binance";
+    const { getWallet } = await import("../db-helpers.ts");
+    const wallet = await getWallet(supabase, userId);
+    const balance = wallet?.balance || 0;
+
+    await setConversationState(supabase, userId, "withdraw_enter_details", { method });
+
+    const prompt = method === "upi"
+      ? (lang === "bn"
+        ? `📱 <b>UPI উইথড্র</b>\n\n💵 ব্যালেন্স: <b>₹${balance}</b>\n\n✏️ আপনার UPI ID লিখুন (যেমন: <code>example@paytm</code>)`
+        : `📱 <b>UPI Withdrawal</b>\n\n💵 Balance: <b>₹${balance}</b>\n\n✏️ Enter your UPI ID (e.g. <code>example@paytm</code>)`)
+      : (lang === "bn"
+        ? `💎 <b>Binance উইথড্র</b>\n\n💵 ব্যালেন্স: <b>₹${balance}</b>\n\n✏️ আপনার Binance Pay ID লিখুন`
+        : `💎 <b>Binance Withdrawal</b>\n\n💵 Balance: <b>₹${balance}</b>\n\n✏️ Enter your Binance Pay ID`);
+
+    await sendMessage(BOT_TOKEN, chatId, prompt, {
+      reply_markup: { inline_keyboard: [[{ text: lang === "bn" ? "বাতিল" : "Cancel", callback_data: "wallet_withdraw" }]] },
+    });
+    return true;
+  }
   if (data === "refer_earn") { await handleReferEarn(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
   if (data === "support") { await handleSupport(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "get_offers") { await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); return true; }
