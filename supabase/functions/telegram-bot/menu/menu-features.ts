@@ -230,22 +230,30 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
   const wallet = await getWallet(supabase, userId);
   const balance = wallet?.balance || 0;
 
-  if (balance <= 0) {
+  if (balance < 50) {
     const text = lang === "bn"
-      ? `❌ আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹1 প্রয়োজন।`
-      : `❌ Your balance is insufficient. Minimum ₹1 required.`;
-    await sendMessage(token, chatId, text);
+      ? `❌ আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹50 প্রয়োজন।\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>`
+      : `❌ Insufficient balance. Minimum ₹50 required.\n\n💵 Current Balance: <b>₹${balance}</b>`;
+    await sendMessage(token, chatId, text, {
+      reply_markup: { inline_keyboard: [[{ text: t("back", lang), callback_data: "my_wallet" }]] },
+    });
     return;
   }
 
+  const { setConversationState } = await import("../db-helpers.ts");
+  await setConversationState(supabase, userId, "withdraw_choose_method", {});
+
   const text = lang === "bn"
-    ? `➖ <b>ওয়ালেট উইথড</b>\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>\n\n🏦 পেমেন্ট পদ্ধতি:\n• ব্যাংক ট্রান্সফার\n• নগদ (ঢাকা)\n• বিকাশ/নগদ\n\n💬 সাপোর্টে অনুরোধ জানান।`
-    : `➖ <b>Wallet Withdrawal</b>\n\n💵 Current Balance: <b>₹${balance}</b>\n\n🏦 Payment Methods:\n• Bank Transfer\n• Cash (Dhaka)\n• Bkash/Nagad\n\n💬 Contact support to request.`;
+    ? `➖ <b>ওয়ালেট উইথড্র</b>\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>\n\n💳 পেমেন্ট পদ্ধতি বেছে নিন:`
+    : `➖ <b>Wallet Withdrawal</b>\n\n💵 Current Balance: <b>₹${balance}</b>\n\n💳 Choose payment method:`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: t("support", lang), callback_data: "support" }],
+        [
+          { text: "📱 UPI", callback_data: "withdraw_upi" },
+          { text: "💎 Binance", callback_data: "withdraw_binance" },
+        ],
         [{ text: t("back", lang), callback_data: "my_wallet" }],
       ],
     },

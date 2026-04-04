@@ -8,6 +8,7 @@ import SuccessModal from '@/components/SuccessModal';
 import DepositModal from '@/components/wallet/DepositModal';
 import TransferModal from '@/components/wallet/TransferModal';
 import RedeemModal from '@/components/wallet/RedeemModal';
+import WithdrawModal from '@/components/wallet/WithdrawModal';
 import CurrencyConverter from '@/components/wallet/CurrencyConverter';
 import WalletBalanceCard from '@/components/wallet/WalletBalanceCard';
 import QuickActions from '@/components/wallet/QuickActions';
@@ -27,6 +28,7 @@ const WalletPage: React.FC = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   if (!user) {
     return (
@@ -59,7 +61,7 @@ const WalletPage: React.FC = () => {
           walletBalance={profile?.wallet_balance || 0}
           totalDeposit={profile?.total_deposit || 0}
           onAddMoney={() => { setDepositInitialTab('card'); setShowDepositModal(true); }}
-          onWithdraw={() => toast.info('Withdrawal feature coming soon! Contact admin for withdrawals.')}
+          onWithdraw={() => setShowWithdrawModal(true)}
         />
 
         <QuickActions
@@ -102,6 +104,14 @@ const WalletPage: React.FC = () => {
       <RedeemModal open={showRedeemModal} onOpenChange={setShowRedeemModal}
         redeemCode={wallet.redeemCode} onRedeemCodeChange={wallet.setRedeemCode}
         redeeming={wallet.redeemingCode} onRedeem={() => { wallet.handleRedeemCode(); setShowRedeemModal(false); }}
+      />
+
+      <WithdrawModal
+        open={showWithdrawModal}
+        onOpenChange={setShowWithdrawModal}
+        userId={user.id}
+        walletBalance={profile?.wallet_balance || 0}
+        onSuccess={() => { wallet.loadTransactions(); }}
       />
 
       <SuccessModal isOpen={wallet.showSuccessModal} onClose={() => wallet.setShowSuccessModal(false)}

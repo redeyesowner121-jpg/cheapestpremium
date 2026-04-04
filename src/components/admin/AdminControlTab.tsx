@@ -11,6 +11,7 @@ import AdminChatPanel from '@/components/AdminChatPanel';
 import AdminPaymentSettings from '@/components/AdminPaymentSettings';
 import AdminSettingsTab from './AdminSettingsTab';
 import DepositRequestsSection from './DepositRequestsSection';
+import WithdrawalRequestsSection from './WithdrawalRequestsSection';
 import AdminCouponManager from './AdminCouponManager';
 import AdminRedeemCodeManager from './AdminRedeemCodeManager';
 import AdminCategoryManager from '@/components/AdminCategoryManager';
@@ -45,7 +46,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | null;
+type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const {
@@ -68,6 +69,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const transactionGroup = [
     { id: 'orders' as ControlSection, icon: ShoppingBag, label: 'Orders', description: `${pendingOrders} pending`, color: 'bg-gradient-to-br from-orange-500 to-amber-500', badge: pendingOrders > 0 ? pendingOrders : null },
     { id: 'deposits' as ControlSection, icon: Wallet, label: 'Deposit Requests', description: `${pendingDeposits} pending`, color: 'bg-gradient-to-br from-emerald-500 to-green-500', badge: pendingDeposits > 0 ? pendingDeposits : null },
+    { id: 'withdrawals' as ControlSection, icon: Wallet, label: 'Withdrawals', description: 'Withdrawal requests', color: 'bg-gradient-to-br from-red-500 to-orange-500', badge: null },
     { id: 'payments' as ControlSection, icon: CreditCard, label: 'Payments', description: 'Payment settings', color: 'bg-gradient-to-br from-indigo-500 to-violet-500', badge: null },
   ];
 
@@ -103,6 +105,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminOrdersSection orders={data.orders} orderFilter={orderFilter} onOrderFilterChange={setOrderFilter} onSelectOrder={onSelectOrder} />;
       case 'deposits':
         return <DepositRequestsSection depositRequests={data.depositRequests || []} onDataChange={onDataChange} />;
+      case 'withdrawals':
+        return <WithdrawalRequestsSection onDataChange={onDataChange} />;
       case 'payments':
         return <AdminPaymentSettings />;
       case 'users':
