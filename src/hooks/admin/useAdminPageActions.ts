@@ -128,8 +128,14 @@ export const useAdminPageActions = (loadData: () => void) => {
       toast.error('Product Name ও Category অবশ্যই পূরণ করুন'); return;
     }
 
-    const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
-    const slugNum = (count || 0) + 1;
+    const baseSlug = productForm.name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 40) || 'product';
+    const slugSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const productSlug = `${baseSlug}-${slugSuffix}`;
 
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name, description: productForm.description,
@@ -139,7 +145,7 @@ export const useAdminPageActions = (loadData: () => void) => {
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active,
-      slug: `product-${slugNum}`
+      slug: productSlug
     }).select().single();
 
     if (error || !newProduct) { toast.error('Failed to add product'); return; }
