@@ -146,6 +146,43 @@ export async function handleMenuCallbacks(
     return true;
   }
   if (data === "refer_earn") { await handleReferEarn(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
+
+  // Withdrawal quick amount buttons
+  if (data.startsWith("withdraw_amt_")) {
+    const amount = parseInt(data.replace("withdraw_amt_", ""));
+    const { getWallet, getUserLang: gul, deleteConversationState: dcs, getConversationState: gcs } = await import("../db-helpers.ts");
+    const convState = await gcs(supabase, userId);
+    if (!convState || convState.step !== "withdraw_enter_amount") {
+      await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again.");
+      return true;
+    }
+    const wallet = await getWallet(supabase, userId);
+    const balance = wallet?.balance || 0;
+    const ulang = (await gul(supabase, userId)) || "en";
+    if (amount > balance) {
+      await sendMessage(BOT_TOKEN, chatId, ulang === "bn" ? `⚠️ অপর্যাপ্ত ব্যালেন্স। ব্যালেন্স: ₹${balance}` : `⚠️ Insufficient. Balance: ₹${balance}`);
+      return true;
+    }
+
+    await supabase.from("withdrawal_requests").insert({
+      telegram_id: userId, amount, method: convState.data.method,
+      account_details: convState.data.accountDetails, status: "pending",
+    });
+    await dcs(supabase, userId);
+
+    const methodLabel = convState.data.method === "upi" ? "UPI" : "Binance";
+    await sendMessage(BOT_TOKEN, chatId,
+      ulang === "bn"
+        ? `✅ <b>উইথড্র রিকোয়েস্ট জমা!</b>\n\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>\n\n⏳ অ্যাডমিন প্রসেস করবে।`
+        : `✅ <b>Withdrawal Submitted!</b>\n\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>\n\n⏳ Admin will process soon.`,
+      { reply_markup: { inline_keyboard: [[{ text: ulang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }]] } }
+    );
+    const { notifyAllAdmins: naa } = await import("../db-helpers.ts");
+    await naa(BOT_TOKEN, supabase,
+      `💸 <b>Withdrawal Request</b>\n\n👤 <code>${userId}</code>\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>`
+    );
+    return true;
+  }
   if (data === "support") { await handleSupport(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "get_offers") { await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "website_login") { await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
