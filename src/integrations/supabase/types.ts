@@ -1573,6 +1573,45 @@ export type Database = {
         }
         Relationships: []
       }
+      withdrawal_requests: {
+        Row: {
+          account_details: string
+          admin_note: string | null
+          amount: number
+          created_at: string
+          id: string
+          method: string
+          status: string
+          telegram_id: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_details: string
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          method?: string
+          status?: string
+          telegram_id?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_details?: string
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string
+          status?: string
+          telegram_id?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
