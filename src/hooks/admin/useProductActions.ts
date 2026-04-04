@@ -44,9 +44,15 @@ export async function handleAddProduct(
     return false;
   }
   
-  // Get next product number for slug
-  const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
-  const slugNum = (count || 0) + 1;
+  // Generate unique slug from product name
+  const baseSlug = productForm.name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 40) || 'product';
+  const slugSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const productSlug = `${baseSlug}-${slugSuffix}`;
 
   // Use first variation price as main product price
   const mainPrice = pendingVariations.length > 0 && pendingVariations[0].price
@@ -64,7 +70,7 @@ export async function handleAddProduct(
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,
-    slug: `product-${slugNum}`
+    slug: productSlug
   }).select().single();
   
   if (error || !newProduct) {
