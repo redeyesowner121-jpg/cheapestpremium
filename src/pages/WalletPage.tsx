@@ -106,6 +106,14 @@ const WalletPage: React.FC = () => {
         redeeming={wallet.redeemingCode} onRedeem={() => { wallet.handleRedeemCode(); setShowRedeemModal(false); }}
       />
 
+      <WithdrawModal
+        open={showWithdrawModal}
+        onOpenChange={setShowWithdrawModal}
+        userId={user.id}
+        walletBalance={profile?.wallet_balance || 0}
+        onSuccess={() => { wallet.loadTransactions(); }}
+      />
+
       <SuccessModal isOpen={wallet.showSuccessModal} onClose={() => wallet.setShowSuccessModal(false)}
         type={wallet.successData.type} title={wallet.successData.title} message={wallet.successData.message}
         details={wallet.successData.details} actionLabel="View Wallet" autoCloseDelay={4000}

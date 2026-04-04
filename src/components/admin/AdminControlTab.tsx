@@ -105,6 +105,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminOrdersSection orders={data.orders} orderFilter={orderFilter} onOrderFilterChange={setOrderFilter} onSelectOrder={onSelectOrder} />;
       case 'deposits':
         return <DepositRequestsSection depositRequests={data.depositRequests || []} onDataChange={onDataChange} />;
+      case 'withdrawals':
+        return <WithdrawalRequestsSection onDataChange={onDataChange} />;
       case 'payments':
         return <AdminPaymentSettings />;
       case 'users':
