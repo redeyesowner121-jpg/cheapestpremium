@@ -143,7 +143,7 @@ const ProductsPage: React.FC = () => {
         total_price: totalPrice,
         user_note: orderNote || null,
         access_link: selectedProduct.access_link || null,
-        status: selectedProduct.access_link ? 'completed' : 'pending'
+        status: selectedProduct.access_link ? 'confirmed' : 'pending'
       });
 
       if (orderError) throw orderError;

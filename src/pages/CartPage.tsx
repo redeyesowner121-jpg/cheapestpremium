@@ -91,13 +91,26 @@ const CartPage: React.FC = () => {
     setCheckingOut(true);
     try {
       // Create orders for all cart items
-      const orders = items.map(item => {
+      const orders = await Promise.all(items.map(async (item) => {
         const basePrice = item.variation?.price || item.product?.price || 0;
         const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
         const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
         const productName = item.variation
           ? `${item.product?.name} - ${item.variation.name}`
           : item.product?.name || 'Unknown';
+
+        // Check for access_link for instant delivery
+        let accessLink: string | null = null;
+        if (item.product_id) {
+          const { data: productData } = await supabase
+            .from('products')
+            .select('access_link')
+            .eq('id', item.product_id)
+            .single();
+          accessLink = productData?.access_link || null;
+        }
+
+        const isInstant = !!accessLink;
 
         return {
           user_id: user.id,
@@ -107,9 +120,10 @@ const CartPage: React.FC = () => {
           unit_price: finalPrice,
           total_price: finalPrice * item.quantity,
           quantity: item.quantity,
-          status: 'pending',
+          status: isInstant ? 'confirmed' : 'pending',
+          access_link: accessLink,
         };
-      });
+      }));
 
       const { error: orderError } = await supabase.from('orders').insert(orders);
       if (orderError) throw orderError;
@@ -177,10 +191,21 @@ const CartPage: React.FC = () => {
       }
 
       // Create notification
+      const instantCount = orders.filter(o => o.status === 'confirmed').length;
+      const pendingCount = orders.filter(o => o.status === 'pending').length;
+      const notifTitle = instantCount > 0 && pendingCount === 0
+        ? 'Orders Delivered! 🎉'
+        : instantCount > 0
+          ? 'Orders Placed! 🛒'
+          : 'Orders Placed! 🛒';
+      const notifMessage = instantCount > 0
+        ? `${instantCount} item(s) delivered instantly! ${pendingCount > 0 ? `${pendingCount} item(s) pending.` : ''} Total: ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`
+        : `You ordered ${items.length} item(s) for ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`;
+
       await supabase.from('notifications').insert({
         user_id: user.id,
-        title: 'Orders Placed! 🛒',
-        message: `You ordered ${items.length} item(s) for ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`,
+        title: notifTitle,
+        message: notifMessage,
         type: 'order',
       });
 
