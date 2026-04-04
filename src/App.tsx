@@ -7,6 +7,7 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettingsContext";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
+import AIChatWidget from "@/components/AIChatWidget";
 import Index from "./pages/Index";
 import { Construction, Settings } from "lucide-react";
 
@@ -110,6 +111,7 @@ const AppContent = () => {
           </Routes>
         </Suspense>
       </BrowserRouter>
+      <AIChatWidget />
     </>
   );
 };
