@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   CreditCard, QrCode, Smartphone, AlertCircle,
-  Copy, ExternalLink, Loader2, CheckCircle
+  Copy, ExternalLink, Loader2, CheckCircle, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,20 @@ interface IndiaPaymentScreenProps {
   onChangeCountry: () => void;
 }
 
+function generatePaymentNote(): string {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  let note = '';
+  for (let i = 0; i < 8; i++) {
+    if (i === 3 || i === 6) {
+      note += digits[Math.floor(Math.random() * digits.length)];
+    } else {
+      note += letters[Math.floor(Math.random() * letters.length)];
+    }
+  }
+  return note;
+}
+
 const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   open, onOpenChange, depositAmount, onDepositAmountChange,
   paymentSettings, loading, onAutoDeposit, onManualDeposit,
@@ -44,22 +58,88 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   const [submittingCard, setSubmittingCard] = useState(false);
   const [manualAttempted, setManualAttempted] = useState(false);
 
+  // Auto (Razorpay link) state
+  const [autoStep, setAutoStep] = useState<'amount' | 'pay'>('amount');
+  const [specialCode, setSpecialCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+
+  const paymentLink = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard');
   };
 
+  const handleStartAutoPay = async () => {
+    if (!user) return;
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount < (settings.min_deposit || 10)) {
+      toast.error(`Minimum deposit is ₹${settings.min_deposit || 10}`);
+      return;
+    }
+    const code = generatePaymentNote();
+    setSpecialCode(code);
+
+    // Create payment record
+    try {
+      const { data, error } = await supabase.from('manual_deposit_requests').insert({
+        user_id: user.id,
+        amount,
+        transaction_id: `RAZORPAY-${code}`,
+        sender_name: profile?.name || 'Razorpay Payment',
+        payment_method: 'razorpay_auto',
+        status: 'pending',
+      }).select('id').single();
+      if (error) throw error;
+      setPaymentId(data?.id || null);
+    } catch {
+      // Continue even if tracking insert fails
+    }
+
+    setAutoStep('pay');
+  };
+
+  const handleVerifyPayment = async () => {
+    if (!user || !specialCode) return;
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-razorpay-note', {
+        body: { note: specialCode, amount: parseFloat(depositAmount), userId: user.id, depositRequestId: paymentId }
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success('Payment verified! Wallet credited.');
+        setAutoStep('amount');
+        setSpecialCode('');
+        setPaymentId(null);
+        onDepositAmountChange('');
+        onOpenChange(false);
+      } else {
+        toast.error(data?.message || 'Payment not found yet. Make sure you entered the code as note.');
+      }
+    } catch {
+      toast.error('Verification failed. Try again after completing payment.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const qrUrl = depositAmount && parseFloat(depositAmount) > 0
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentLink)}`
+    : '';
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setAutoStep('amount'); setSpecialCode(''); } onOpenChange(v); }}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Money</DialogTitle>
           <DialogDescription>Deposit Rs1000+ at once to get Rs100 bonus + Blue Tick!</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={depositTab} onValueChange={(v) => { onTabChange(v as any); setShowCardConfirm(false); }} className="mt-4">
+        <Tabs value={depositTab} onValueChange={(v) => { onTabChange(v as any); setShowCardConfirm(false); setAutoStep('amount'); setSpecialCode(''); }} className="mt-4">
           <TabsList className="grid w-full grid-cols-3 rounded-xl">
-            <TabsTrigger value="auto" className="rounded-lg text-xs" disabled={!paymentSettings?.automatic_payment?.is_enabled}>
+            <TabsTrigger value="auto" className="rounded-lg text-xs">
               <Smartphone className="w-3.5 h-3.5 mr-1" />Auto
             </TabsTrigger>
             <TabsTrigger value="manual" className="rounded-lg text-xs">
@@ -70,14 +150,9 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
             </TabsTrigger>
           </TabsList>
 
-          {/* Auto Tab */}
+          {/* Auto Tab - Custom Link + QR + Special Code */}
           <TabsContent value="auto" className="mt-4 space-y-4">
-            {!paymentSettings?.automatic_payment?.is_enabled ? (
-              <div className="p-4 bg-destructive/10 rounded-xl flex items-center gap-3 text-destructive">
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                <p className="text-sm">Automatic payment is currently unavailable.</p>
-              </div>
-            ) : (
+            {autoStep === 'amount' ? (
               <>
                 <Input type="number" placeholder="Enter amount" value={depositAmount} onChange={(e) => onDepositAmountChange(e.target.value)} className="h-14 text-2xl text-center font-bold rounded-xl" />
                 <div className="flex flex-wrap gap-2">
@@ -85,10 +160,56 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                     <button key={amount} onClick={() => onDepositAmountChange(amount.toString())} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${depositAmount === amount.toString() ? 'gradient-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>₹{amount}</button>
                   ))}
                 </div>
-                <Button onClick={onAutoDeposit} className="w-full h-12 btn-gradient rounded-xl" disabled={loading || !depositAmount}>
-                  {loading ? 'Processing...' : `Pay ₹${depositAmount || '0'}`}
+                <Button onClick={handleStartAutoPay} className="w-full h-12 btn-gradient rounded-xl" disabled={!depositAmount}>
+                  Continue to Pay ₹{depositAmount || '0'}
                 </Button>
               </>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-center space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Amount to pay</p>
+                  <p className="text-2xl font-bold text-primary">₹{depositAmount}</p>
+                </div>
+
+                {/* Special Code */}
+                <div className="p-4 bg-accent/30 border border-accent rounded-2xl">
+                  <p className="text-xs text-muted-foreground text-center mb-1">📋 Special Code (paste in note)</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <code className="text-xl font-bold tracking-widest text-primary">{specialCode}</code>
+                    <Button size="sm" variant="ghost" onClick={() => copyToClipboard(specialCode)} className="h-8 w-8 p-0">
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                {qrUrl && (
+                  <div className="flex flex-col items-center p-3 bg-muted/50 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-2">Scan QR or click Pay Now</p>
+                    <img src={qrUrl} alt="Payment QR" className="w-40 h-40 object-contain rounded-xl border bg-white p-2" loading="lazy" />
+                  </div>
+                )}
+
+                {/* Pay Now button */}
+                <Button className="w-full h-12 btn-gradient rounded-xl" onClick={() => window.open(paymentLink, '_blank')}>
+                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now ₹{depositAmount}
+                </Button>
+
+                {/* Instructions */}
+                <div className="p-3 bg-muted/50 rounded-xl text-xs text-muted-foreground space-y-1">
+                  <p>1. Click <b>Pay Now</b> or scan QR</p>
+                  <p>2. Pay exactly <b>₹{depositAmount}</b></p>
+                  <p>3. In note/remark paste: <b>{specialCode}</b></p>
+                  <p>4. Click <b>Verify Payment</b> below</p>
+                  <p className="text-destructive font-medium mt-1">⚠️ Note must match exactly for auto-verification!</p>
+                </div>
+
+                {/* Verify & Cancel */}
+                <Button onClick={handleVerifyPayment} className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white" disabled={verifying}>
+                  {verifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <><RefreshCw className="w-4 h-4 mr-2" />Verify Payment</>}
+                </Button>
+                <Button variant="ghost" onClick={() => { setAutoStep('amount'); setSpecialCode(''); }} className="w-full rounded-xl">← Go Back</Button>
+              </div>
             )}
           </TabsContent>
 

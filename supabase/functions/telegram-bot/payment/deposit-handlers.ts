@@ -365,10 +365,12 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
         `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount}\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
     } else {
+      const settingsForLink = await getSettings(supabase);
+      const razorpayMeUrl = settingsForLink.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
       await sendMessage(token, chatId, `${lang === "bn" ? "পেমেন্ট পাওয়া যায়নি।" : "Payment not found yet."}\n\n${lang === "bn" ? "নিশ্চিত করুন" : "Make sure"}:\n1. Paid <b>₹${amount}</b>\n2. Note: <code>${paymentNote}</code>`, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💳 Pay Now", url: "https://razorpay.me/@asifikbalrubaiulislam" }],
+            [{ text: "💳 Pay Now", url: razorpayMeUrl }],
             [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
             [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
           ],
