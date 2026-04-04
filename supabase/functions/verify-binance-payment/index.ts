@@ -5,12 +5,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function hmacSha256(key: string, message: string): Promise<string> {
+function hmacSha512(key: string, message: string): Promise<string> {
   const encoder = new TextEncoder();
   return crypto.subtle.importKey(
-    "raw", encoder.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+    "raw", encoder.encode(key), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]
   ).then(k => crypto.subtle.sign("HMAC", k, encoder.encode(message)))
     .then(sig => Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join(""));
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function getCandidateNotes(bill: Record<string, any>): string[] {
+  const rawNotes = [
+    bill.remark,
+    bill.note,
+    bill.memo,
+    bill.payNote,
+    bill.bizMemo,
+    bill.receiverNote,
+    bill.payerInfo?.remark,
+    bill.payerInfo?.note,
+    bill.receiverInfo?.remark,
+    bill.receiverInfo?.note,
+  ];
+
+  return [...new Set(rawNotes.map(normalizeText).filter(Boolean))];
+}
+
+function getCandidateAmounts(bill: Record<string, any>): number[] {
+  const rawAmounts = [
+    bill.totalPayAmount,
+    bill.transAmount,
+    bill.amount,
+    ...(Array.isArray(bill.fundsDetail) ? bill.fundsDetail.map((item: any) => item?.amount) : []),
+  ];
+
+  return [...new Set(rawAmounts
+    .map((value) => Number.parseFloat(String(value)))
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Math.abs(value)))];
 }
 
 Deno.serve(async (req) => {
@@ -61,7 +96,10 @@ Deno.serve(async (req) => {
     const nonce = crypto.randomUUID().replace(/-/g, "").substring(0, 32);
     
     // Binance Pay API - query order list
-    const startTime = payment.created_at ? new Date(payment.created_at).getTime() : Date.now() - 3600000;
+    const createdAtMs = payment.created_at ? new Date(payment.created_at).getTime() : Number.NaN;
+    const startTime = Number.isFinite(createdAtMs)
+      ? Math.max(0, createdAtMs - 15 * 60 * 1000)
+      : Date.now() - 3600000;
     const endTime = Date.now();
 
     const body = JSON.stringify({
@@ -71,7 +109,7 @@ Deno.serve(async (req) => {
     });
 
     const payload = `${timestamp}\n${nonce}\n${body}\n`;
-    const signature = await hmacSha256(BINANCE_API_SECRET, payload);
+    const signature = await hmacSha512(BINANCE_API_SECRET, payload);
 
     const binanceRes = await fetch("https://bpay.binanceapi.com/binancepay/openapi/v3/bill/list", {
       method: "POST",
@@ -85,20 +123,37 @@ Deno.serve(async (req) => {
       body,
     });
 
-    const binanceData = await binanceRes.json();
-    console.log("Binance response status:", binanceData.status);
+    const binanceText = await binanceRes.text();
+    let binanceData: any = {};
+
+    try {
+      binanceData = binanceText ? JSON.parse(binanceText) : {};
+    } catch {
+      console.error("Failed to parse Binance response:", binanceText);
+      throw new Error("Invalid Binance response");
+    }
+
+    console.log("Binance response:", JSON.stringify({
+      httpStatus: binanceRes.status,
+      status: binanceData?.status,
+      code: binanceData?.code,
+      errorMessage: binanceData?.errorMessage,
+      billCount: Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0,
+    }));
 
     let verified = false;
 
     if (binanceData.status === "SUCCESS" && binanceData.data?.billList) {
-      const expectedAmount = parseFloat(payment.amount_usd || payment.amount);
+      const expectedAmount = Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount)));
+      const expectedNote = normalizeText(note);
       
       for (const bill of binanceData.data.billList) {
-        // Match by note/remark and amount
-        const billAmount = parseFloat(bill.totalPayAmount || bill.transAmount || "0");
-        const billNote = bill.remark || bill.payerInfo?.remark || "";
-        
-        if (billNote.includes(note) && Math.abs(billAmount - expectedAmount) < 0.02) {
+        const noteMatch = getCandidateNotes(bill).some((candidate) => (
+          candidate === expectedNote || candidate.includes(expectedNote) || expectedNote.includes(candidate)
+        ));
+        const amountMatch = getCandidateAmounts(bill).some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
+
+        if (noteMatch && amountMatch) {
           verified = true;
           break;
         }
