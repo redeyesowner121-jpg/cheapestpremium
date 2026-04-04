@@ -12,6 +12,7 @@ const Header: React.FC = React.memo(() => {
   const { user, profile, isAdmin, isTempAdmin } = useAuth();
   const { settings } = useAppSettingsContext();
   const [unreadCount, setUnreadCount] = useState(0);
+  const walletBalance = Number(profile?.wallet_balance ?? 0);
 
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
@@ -59,7 +60,7 @@ const Header: React.FC = React.memo(() => {
             </h1>
             {profile && (
               <p className="text-xs text-muted-foreground">
-                Balance: {settings.currency_symbol}{profile.wallet_balance?.toFixed(2) || '0.00'}
+                Balance: {settings.currency_symbol}{walletBalance.toFixed(2)}
               </p>
             )}
           </div>

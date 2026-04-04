@@ -46,6 +46,23 @@ const tourSteps: TourStep[] = [
   }
 ];
 
+const hasCompletedTour = () => {
+  try {
+    return localStorage.getItem(TOUR_STORAGE_KEY) === 'true';
+  } catch (error) {
+    console.warn('Tour storage unavailable, skipping onboarding tour:', error);
+    return true;
+  }
+};
+
+const markTourCompleted = () => {
+  try {
+    localStorage.setItem(TOUR_STORAGE_KEY, 'true');
+  } catch (error) {
+    console.warn('Failed to persist onboarding tour state:', error);
+  }
+};
+
 const OnboardingTour: React.FC = () => {
   const { profile, user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
@@ -53,13 +70,10 @@ const OnboardingTour: React.FC = () => {
 
   useEffect(() => {
     // Only show for logged-in users who haven't completed the tour
-    if (user && profile) {
-      const tourCompleted = localStorage.getItem(TOUR_STORAGE_KEY);
-      if (!tourCompleted) {
-        // Small delay to let the page load first
-        const timer = setTimeout(() => setIsVisible(true), 1000);
-        return () => clearTimeout(timer);
-      }
+    if (user && profile && !hasCompletedTour()) {
+      // Small delay to let the page load first
+      const timer = setTimeout(() => setIsVisible(true), 1000);
+      return () => clearTimeout(timer);
     }
   }, [user, profile]);
 
@@ -78,7 +92,7 @@ const OnboardingTour: React.FC = () => {
   };
 
   const completeTour = () => {
-    localStorage.setItem(TOUR_STORAGE_KEY, 'true');
+    markTourCompleted();
     setIsVisible(false);
   };
 

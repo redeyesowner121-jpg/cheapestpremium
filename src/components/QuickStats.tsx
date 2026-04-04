@@ -21,7 +21,11 @@ const QuickStats: React.FC = React.memo(() => {
   const [totalSavings, setTotalSavings] = useState<number | null>(null);
   const [savingsLoading, setSavingsLoading] = useState(false);
   const [showSavingsModal, setShowSavingsModal] = useState(false);
-  const rankBalance = profile?.rank_balance || 0;
+  const walletBalance = Number(profile?.wallet_balance ?? 0);
+  const totalDeposit = Number(profile?.total_deposit ?? 0);
+  const totalOrders = Number(profile?.total_orders ?? 0);
+  const rankBalance = Number(profile?.rank_balance ?? 0);
+  const blueTickProgress = Math.min(100, (totalDeposit / 1000) * 100);
 
   const fetchSavings = async () => {
     if (!user || savingsLoading || totalSavings !== null) return;
@@ -72,21 +76,21 @@ const QuickStats: React.FC = React.memo(() => {
     {
       icon: <Wallet className="w-5 h-5" />,
       label: 'Balance',
-      value: `₹${profile?.wallet_balance?.toFixed(2) || '0.00'}`,
+      value: `₹${walletBalance.toFixed(2)}`,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
       icon: <TrendingUp className="w-5 h-5" />,
       label: 'Total Deposit',
-      value: `₹${profile?.total_deposit?.toFixed(2) || '0.00'}`,
+      value: `₹${totalDeposit.toFixed(2)}`,
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
     {
       icon: <ShoppingBag className="w-5 h-5" />,
       label: 'Orders',
-      value: profile?.total_orders || 0,
+      value: totalOrders,
       color: 'text-accent',
       bgColor: 'bg-accent/10',
     },
@@ -202,14 +206,14 @@ const QuickStats: React.FC = React.memo(() => {
             <div className="text-right">
               <p className="text-xs text-muted-foreground">Progress</p>
               <p className="font-bold text-blue-500">
-                {Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100).toFixed(0)}%
+                {blueTickProgress.toFixed(0)}%
               </p>
             </div>
           </div>
           <div className="mt-3 h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-500 rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(100, ((profile?.total_deposit || 0) / 1000) * 100)}%` }}
+              style={{ width: `${blueTickProgress}%` }}
             />
           </div>
         </div>
