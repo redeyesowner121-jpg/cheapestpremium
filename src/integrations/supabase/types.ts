@@ -664,6 +664,36 @@ export type Database = {
           },
         ]
       }
+      pending_razorpay_deposits: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          razorpay_order_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          razorpay_order_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          razorpay_order_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           id: string

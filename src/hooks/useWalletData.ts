@@ -83,7 +83,7 @@ export const useWalletData = () => {
         key: orderData.keyId, amount: orderData.amount, currency: orderData.currency,
         name: 'RKR Premium Store', description: `Wallet Deposit - Rs ${amount}`, order_id: orderData.orderId,
         handler: async (response: any) => {
-          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-verify', {
+          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-webhook', {
             body: { razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature, userId: user.id, amount }
           });
           if (verifyError || !verifyData?.success) { toast.error('Payment verification failed'); return; }
