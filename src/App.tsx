@@ -111,6 +111,7 @@ const AppContent = () => {
           </Routes>
         </Suspense>
       </BrowserRouter>
+      <AIChatWidget />
     </>
   );
 };
