@@ -138,6 +138,8 @@ export async function handlePaymentCallbacks(
     if (convState?.step === "deposit_binance_pending") {
       const { verifyDepositBinance } = await import("../payment/deposit-handlers.ts");
       await verifyDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
     return true;
   }
