@@ -63,6 +63,8 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "binance_payment_pending") {
       await handleBinanceVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    } else if (!convState || convState.step === "idle") {
+      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
     return true;
   }
