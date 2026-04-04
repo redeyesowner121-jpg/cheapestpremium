@@ -78,13 +78,13 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     }
 
     // Submit withdrawal request
-    await supabase.from("withdrawal_requests").insert({
+    const { data: wdReq } = await supabase.from("withdrawal_requests").insert({
       telegram_id: userId,
       amount,
       method: state.data.method,
       account_details: state.data.accountDetails,
       status: "pending",
-    });
+    }).select("id").single();
 
     await deleteConversationState(supabase, userId);
 
@@ -98,9 +98,21 @@ export async function handleConversationStep(token: string, supabase: any, chatI
       }
     );
 
-    // Notify admins
+    // Notify admins with action buttons
+    const wdId = wdReq?.id?.slice(0, 8) || "N/A";
     await notifyAllAdmins(token, supabase,
-      `💸 <b>Withdrawal Request</b>\n\n👤 User: <code>${userId}</code>\n💰 Amount: <b>₹${amount}</b>\n💳 Method: <b>${methodLabel}</b>\n📋 ${methodLabel} ID: <code>${state.data.accountDetails}</code>\n⏳ Status: Pending`
+      `💸 <b>New Withdrawal Request</b>\n\n👤 User: <code>${userId}</code>\n💰 Amount: <b>₹${amount}</b>\n💳 Method: <b>${methodLabel}</b>\n📋 ${methodLabel} ID: <code>${state.data.accountDetails}</code>\n🆔 Request: <code>${wdId}</code>\n⏳ Status: Pending`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}` },
+              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}` },
+            ],
+            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}` }],
+          ],
+        },
+      }
     );
     return;
   }
