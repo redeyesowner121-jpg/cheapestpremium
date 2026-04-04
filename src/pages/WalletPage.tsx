@@ -28,6 +28,7 @@ const WalletPage: React.FC = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   if (!user) {
     return (
