@@ -101,7 +101,7 @@ export async function handlePaymentCallbacks(
     if (convState?.step === "razorpay_payment_pending") {
       await handleRazorpayVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
     } else if (!convState || convState.step === "idle") {
-      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
+      await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
     return true;
   }
