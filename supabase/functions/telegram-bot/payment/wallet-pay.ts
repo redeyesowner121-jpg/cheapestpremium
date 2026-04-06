@@ -40,11 +40,8 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   if (productId) {
     const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
     if (product?.access_link) {
-      await sendMessage(token, chatId,
-        lang === "bn"
-          ? `🔗 <b>আপনার প্রোডাক্ট লিংক:</b>\n\n${product.access_link}\n\n⚠️ এই লিংক শুধুমাত্র আপনার জন্য। শেয়ার করবেন না।`
-          : `🔗 <b>Your Product Access Link:</b>\n\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`
-      );
+      const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, product.access_link, productName, lang);
     }
   }
 

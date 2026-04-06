@@ -114,11 +114,8 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     if (order.product_id) {
       const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
       if (product?.access_link) {
-        await sendToUser(tokensToTry, order.telegram_user_id,
-          userLang === "bn"
-            ? `🔗 <b>আপনার প্রোডাক্ট লিংক:</b>\n\n${product.access_link}\n\n⚠️ এই লিংক শুধুমাত্র আপনার জন্য। শেয়ার করবেন না।`
-            : `🔗 <b>Your Product Access Link:</b>\n\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`
-        );
+        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+        await sendInstantDeliveryWithLoginCode(token, supabase, order.telegram_user_id, order.telegram_user_id, product.access_link, order.product_name || "Product", userLang);
       }
     }
 

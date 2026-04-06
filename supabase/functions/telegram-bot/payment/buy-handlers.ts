@@ -506,11 +506,13 @@ export async function handleBinanceVerify(
       if (walletDeduction > 0) {
         successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
       }
-      if (product?.access_link) {
-        successText += `\n🔗 <b>Access Link:</b>\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`;
-      }
 
       await sendMessage(token, chatId, successText);
+
+      if (product?.access_link) {
+        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+      }
       await setConversationState(supabase, telegramUser.id, "idle", {});
 
       // Notify admins
