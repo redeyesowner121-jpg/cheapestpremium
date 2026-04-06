@@ -45,7 +45,7 @@ export async function handlePaymentCallbacks(
       await deleteConversationState(supabase, userId);
       await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId);
     } else if (!convState || convState.step === "idle") {
-      await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
+      await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else {
       await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
     }
