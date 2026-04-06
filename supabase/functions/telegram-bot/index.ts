@@ -117,12 +117,19 @@ Deno.serve(async (req) => {
     return new Response("Not found", { status: 404, headers: corsHeaders });
   }
 
-  const { mainBotToken: BOT_TOKEN, tokenUsernames } = await resolveTelegramBotTokens({
-    configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
-    configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
-    expectedMainUsername: BOT_USERNAME,
-    expectedResaleUsername: RESALE_BOT_USERNAME,
-  });
+  // Parse JSON body and resolve token in parallel
+  const [updateRaw, tokenResult] = await Promise.all([
+    req.json(),
+    resolveTelegramBotTokens({
+      configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+      configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+      expectedMainUsername: BOT_USERNAME,
+      expectedResaleUsername: RESALE_BOT_USERNAME,
+    }),
+  ]);
+
+  const BOT_TOKEN = tokenResult.mainBotToken;
+  const tokenUsernames = tokenResult.tokenUsernames;
 
   if (!BOT_TOKEN) {
     return new Response("Bot token not configured", { status: 500 });
@@ -140,7 +147,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
-    const update = await req.json();
+    const update = updateRaw;
 
     // ===== CALLBACK QUERIES =====
     if (update.callback_query) {
@@ -150,6 +157,7 @@ Deno.serve(async (req) => {
       const telegramUser = cq.from;
       const userId = telegramUser.id;
 
+      // Fire all 3 in parallel - answerCallbackQuery is fire-and-forget
       const [userData] = await Promise.all([
         getUserData(supabase, userId),
         upsertTelegramUser(supabase, telegramUser),
