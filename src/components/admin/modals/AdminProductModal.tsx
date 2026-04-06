@@ -53,7 +53,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     if (!productForm.category.trim()) newErrors.category = true;
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
-      toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
+      toast.error('Product Name, Image ও Category অবশ্যই পূরণ করুন');
       return;
     }
     onSave();
