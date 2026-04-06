@@ -50,7 +50,7 @@ export async function sendInstantDeliveryWithLoginCode(
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   // Extract project ref to build website URL
   const projectRef = supabaseUrl.match(/https:\/\/(.+?)\.supabase\.co/)?.[1] || "";
-  const websiteUrl = "https://cheapest-premiums.lovable.app";
+  const websiteUrl = "https://cheapest-premiums.lovable.app/auth";
 
   // Access link is no longer sent directly — user views it on the website
 
