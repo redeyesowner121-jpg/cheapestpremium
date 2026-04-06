@@ -52,11 +52,7 @@ export async function sendInstantDeliveryWithLoginCode(
   const projectRef = supabaseUrl.match(/https:\/\/(.+?)\.supabase\.co/)?.[1] || "";
   const websiteUrl = "https://cheapest-premiums.lovable.app";
 
-  // Send access link message
-  const accessMsg = lang === "bn"
-    ? `🔗 <b>আপনার প্রোডাক্ট লিংক:</b>\n\n${accessLink}\n\n⚠️ এই লিংক শুধুমাত্র আপনার জন্য। শেয়ার করবেন না।`
-    : `🔗 <b>Your Product Access Link:</b>\n\n${accessLink}\n\n⚠️ This link is for you only. Do not share.`;
-  await sendMessage(token, chatId, accessMsg);
+  // Access link is no longer sent directly — user views it on the website
 
   // Send website login code message
   const loginMsg = lang === "bn"
