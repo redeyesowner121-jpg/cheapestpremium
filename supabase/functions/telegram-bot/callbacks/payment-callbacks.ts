@@ -1,6 +1,31 @@
 // ===== PAYMENT & DEPOSIT CALLBACK ROUTING =====
 import { sendMessage } from "../telegram-api.ts";
 import { getConversationState, deleteConversationState } from "../db-helpers.ts";
+
+// Helper: resend access link + login code for the user's last confirmed order
+async function resendLastDelivery(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  // Find last confirmed order with a product that has access_link
+  const { data: lastOrder } = await supabase
+    .from("telegram_orders")
+    .select("product_name, product_id")
+    .eq("telegram_user_id", userId)
+    .eq("status", "confirmed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastOrder?.product_id) {
+    const { data: product } = await supabase.from("products").select("access_link").eq("id", lastOrder.product_id).single();
+    if (product?.access_link) {
+      await sendMessage(token, chatId, "✅ Payment already processed. Resending your delivery info...");
+      const { sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, product.access_link, lastOrder.product_name || "Product", lang);
+      return;
+    }
+  }
+  await sendMessage(token, chatId, "✅ Payment already processed.");
+}
+import { getConversationState, deleteConversationState } from "../db-helpers.ts";
 import {
   handleWalletPay, handleAdminAction,
   showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment,
