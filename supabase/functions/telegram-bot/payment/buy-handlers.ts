@@ -409,11 +409,13 @@ export async function handleRazorpayVerify(
       let successText = `<b>✅ Payment Verified!</b>\n\n`;
       successText += `Product: <b>${productName}</b>\n`;
       successText += `Amount: <b>₹${finalAmount}</b>\n`;
-      if (product?.access_link) {
-        successText += `\nAccess Link:\n${product.access_link}`;
-      }
 
       await sendMessage(token, chatId, successText);
+
+      if (product?.access_link) {
+        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+      }
       await setConversationState(supabase, telegramUser.id, "idle", {});
       await processReferralBonus(token, supabase, telegramUser.id, price, "en");
     } else {
@@ -504,11 +506,13 @@ export async function handleBinanceVerify(
       if (walletDeduction > 0) {
         successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
       }
-      if (product?.access_link) {
-        successText += `\n🔗 <b>Access Link:</b>\n${product.access_link}\n\n⚠️ This link is for you only. Do not share.`;
-      }
 
       await sendMessage(token, chatId, successText);
+
+      if (product?.access_link) {
+        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+      }
       await setConversationState(supabase, telegramUser.id, "idle", {});
 
       // Notify admins
