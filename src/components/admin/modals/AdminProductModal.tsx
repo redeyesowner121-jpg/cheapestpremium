@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Package } from 'lucide-react';
+import ImageUpload from '@/components/ui/image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,7 +53,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     if (!productForm.category.trim()) newErrors.category = true;
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
-      toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
+      toast.error('Product Name, Image ও Category অবশ্যই পূরণ করুন');
       return;
     }
     onSave();
@@ -129,7 +130,17 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               {categories.map((cat) => (<SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>))}
             </SelectContent>
           </Select>
-          <Input placeholder="Image URL *" value={productForm.image_url} onChange={(e) => { setProductForm({ ...productForm, image_url: e.target.value }); if (e.target.value.trim()) setErrors(prev => ({ ...prev, image_url: false })); }} className={errors.image_url ? 'border-destructive ring-destructive/30 ring-2' : ''} />
+          <div className={errors.image_url ? '[&_div]:border-destructive [&_div]:ring-destructive/30 [&_div]:ring-2' : ''}>
+            <ImageUpload
+              value={productForm.image_url}
+              onChange={(url) => { setProductForm({ ...productForm, image_url: url }); if (url.trim()) setErrors(prev => ({ ...prev, image_url: false })); }}
+              useStorage
+              bucket="product-images"
+              folder="products"
+              placeholder="Click or drag to upload image *"
+              previewHeight="h-36"
+            />
+          </div>
           <Input placeholder="Access Link (Optional)" value={productForm.access_link} onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })} />
           <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
           <div className="flex items-center justify-between">
