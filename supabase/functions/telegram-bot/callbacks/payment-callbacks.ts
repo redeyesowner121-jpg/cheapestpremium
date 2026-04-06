@@ -1,10 +1,16 @@
 // ===== PAYMENT & DEPOSIT CALLBACK ROUTING =====
 import { sendMessage } from "../telegram-api.ts";
 import { getConversationState, deleteConversationState } from "../db-helpers.ts";
+import {
+  handleWalletPay, handleAdminAction,
+  showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment,
+  handleBinanceVerify, handleRazorpayVerify,
+} from "../payment-handlers.ts";
+import { handleMyWallet } from "../menu-handlers.ts";
+import { showMainMenu } from "../menu/menu-navigation.ts";
 
 // Helper: resend access link + login code for the user's last confirmed order
 async function resendLastDelivery(token: string, supabase: any, chatId: number, userId: number, lang: string) {
-  // Find last confirmed order with a product that has access_link
   const { data: lastOrder } = await supabase
     .from("telegram_orders")
     .select("product_name, product_id")
@@ -17,7 +23,6 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
   if (lastOrder?.product_id) {
     const { data: product } = await supabase.from("products").select("access_link").eq("id", lastOrder.product_id).single();
     if (product?.access_link) {
-      await sendMessage(token, chatId, "✅ Payment already processed. Resending your delivery info...");
       const { sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
       await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, product.access_link, lastOrder.product_name || "Product", lang);
       return;
@@ -25,14 +30,6 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
   }
   await sendMessage(token, chatId, "✅ Payment already processed.");
 }
-import { getConversationState, deleteConversationState } from "../db-helpers.ts";
-import {
-  handleWalletPay, handleAdminAction,
-  showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment,
-  handleBinanceVerify, handleRazorpayVerify,
-} from "../payment-handlers.ts";
-import { handleMyWallet } from "../menu-handlers.ts";
-import { showMainMenu } from "../menu/menu-navigation.ts";
 
 export async function handlePaymentCallbacks(
   BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, lang: string
