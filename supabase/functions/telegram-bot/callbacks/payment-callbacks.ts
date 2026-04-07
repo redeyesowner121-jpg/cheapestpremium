@@ -180,6 +180,15 @@ export async function handlePaymentCallbacks(
   }
 
   if (data === "deposit_cancel") {
+    // Clear any active reservations before cancelling
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.data?.reservationId) {
+      if (convState.step === "deposit_binance_pending") {
+        await supabase.from("binance_amount_reservations").update({ status: "cancelled" }).eq("id", convState.data.reservationId);
+      } else {
+        await supabase.from("razorpay_amount_reservations").update({ status: "cancelled" }).eq("id", convState.data.reservationId);
+      }
+    }
     await deleteConversationState(supabase, userId);
     await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ ডিপোজিট বাতিল হয়েছে।" : "❌ Deposit cancelled.");
     await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang);

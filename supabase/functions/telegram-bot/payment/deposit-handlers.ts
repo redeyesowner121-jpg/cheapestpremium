@@ -94,12 +94,41 @@ export async function showDepositMethodChoice(token: string, supabase: any, chat
   });
 }
 
-// Step 3a: Binance deposit — 20 min reservation, no extra charge
+// Step 3a: Binance deposit — 20 min reservation, same amount locked
 export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
   const currency = settings.currency_symbol || "₹";
   const amountUsd = inrToUsd(amount);
+
+  // Check if this USD amount is already reserved by another user (active, not expired)
+  const { data: existingReservation } = await supabase
+    .from("binance_amount_reservations")
+    .select("id, user_id")
+    .eq("amount_usd", amountUsd)
+    .eq("status", "reserved")
+    .gt("expires_at", new Date().toISOString())
+    .neq("user_id", userId.toString())
+    .maybeSingle();
+
+  if (existingReservation) {
+    // Amount is locked by another user
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? `⚠️ <b>$${amountUsd} (₹${amount}) এই অ্যামাউন্ট এখন অন্য একজন ইউজার ব্যবহার করছেন।</b>\n\nদয়া করে অন্য একটি অ্যামাউন্ট দিন।`
+        : `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "💰 অন্য অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
   const paymentNote = generatePaymentNote();
   const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
 
@@ -115,8 +144,19 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
     telegram_user_id: userId,
   }).select("id").single();
 
+  // Reserve the USD amount for 20 minutes
+  const { data: reservation } = await supabase.from("binance_amount_reservations").insert({
+    user_id: userId.toString(),
+    amount_usd: amountUsd,
+    amount_inr: amount,
+    payment_id: payment?.id,
+    status: "reserved",
+    expires_at: expiresAt,
+  }).select("id").single();
+
   await setConversationState(supabase, userId, "deposit_binance_pending", {
     amount, amountUsd, paymentNote, paymentId: payment?.id, expiresAt,
+    reservationId: reservation?.id,
   });
 
   let text = `<b>💎 Binance ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
@@ -296,14 +336,17 @@ export async function showDepositManualUpi(token: string, supabase: any, chatId:
 
 // ===== VERIFY DEPOSIT =====
 
-// Verify Binance deposit — with 20 min expiry check
+// Verify Binance deposit — with 20 min reservation expiry check
 export async function verifyDepositBinance(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { paymentNote, paymentId, amountUsd, amount, expiresAt } = stateData;
+  const { paymentNote, paymentId, amountUsd, amount, expiresAt, reservationId } = stateData;
 
-  // Check 20 min expiry
+  // Check 20 min expiry — clear reservation from DB
   if (expiresAt && new Date(expiresAt) < new Date()) {
     await deleteConversationState(supabase, userId);
     await supabase.from("payments").update({ status: "expired" }).eq("id", paymentId);
+    if (reservationId) {
+      await supabase.from("binance_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
+    }
     await sendMessage(token, chatId,
       lang === "bn"
         ? "⏰ <b>সময় শেষ!</b> ২০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
@@ -335,6 +378,10 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
     const result = await verifyRes.json();
 
     if (result.success) {
+      // Clear reservation from DB on success
+      if (reservationId) {
+        await supabase.from("binance_amount_reservations").update({ status: "completed" }).eq("id", reservationId);
+      }
       await creditWallet(supabase, userId, amount, "binance", paymentNote);
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
@@ -345,7 +392,6 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
     } else {
-      // Check remaining time
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
       await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${lang === "bn" ? `${remaining} মিনিট বাকি` : `${remaining} min remaining`}`, {
         reply_markup: {
