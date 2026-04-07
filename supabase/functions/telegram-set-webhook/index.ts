@@ -106,6 +106,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const giveawayBotToken = Deno.env.get("GIVEAWAY_BOT_TOKEN");
+    if (giveawayBotToken) {
+      const giveawayBotUsername = await getTelegramBotUsername(giveawayBotToken);
+      const giveawayWebhookUrl = `${SUPABASE_URL}/functions/v1/giveaway-bot`;
+      const giveawayResponse = await setWebhook(giveawayBotToken, giveawayWebhookUrl, 3);
+      console.log("Giveaway bot webhook result:", giveawayResponse);
+      results.push({
+        bot: "giveaway",
+        username: giveawayBotUsername,
+        webhook_url: giveawayWebhookUrl,
+        telegram_response: giveawayResponse,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
