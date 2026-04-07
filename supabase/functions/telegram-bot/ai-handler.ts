@@ -148,7 +148,8 @@ STRICT RULES:
 18. For order status questions, tell them to contact admin via Support button.`;
 
   try {
-    // Send initial "thinking" message and get its ID for editing
+    // Send typing action + initial "thinking" message
+    await sendChatAction(token, chatId, "typing");
     const thinkingMsgId = await sendMessageWithId(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
 
     // Fetch conversation history
@@ -187,29 +188,43 @@ STRICT RULES:
       throw new Error(`AI error: ${response.status}`);
     }
 
-    // Collect full response from stream
+    // TRUE real-time streaming: edit message as tokens arrive
     let fullAnswer = "";
-    for await (const chunk of parseSSEStream(response)) {
-      fullAnswer += chunk;
-    }
-    const answer = fullAnswer.trim();
+    let lastEditTime = 0;
+    const MIN_EDIT_INTERVAL = 600; // ms between edits (Telegram rate limit friendly)
+    let pendingEdit = false;
 
-    // Progressive reveal: word-by-word streaming for natural typing feel
-    if (thinkingMsgId && answer) {
-      const words = answer.split(/(\s+)/); // split keeping whitespace
-      const WORDS_PER_TICK = 5; // ~5 words per edit
-      const TICK_MS = 400; // edit every 400ms → ~12-13 words/sec
-      let revealed = "";
+    // Keep sending typing action periodically
+    const typingInterval = setInterval(() => {
+      sendChatAction(token, chatId, "typing");
+    }, 4000);
 
-      for (let i = 0; i < words.length; i += WORDS_PER_TICK) {
-        revealed += words.slice(i, i + WORDS_PER_TICK).join("");
-        // Skip edits for last batch (final edit happens below with buttons)
-        if (i + WORDS_PER_TICK < words.length) {
-          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${revealed}▍`);
-          await new Promise(r => setTimeout(r, TICK_MS));
+    try {
+      for await (const chunk of parseSSEStream(response)) {
+        fullAnswer += chunk;
+
+        const now = Date.now();
+        const elapsed = now - lastEditTime;
+
+        if (thinkingMsgId && elapsed >= MIN_EDIT_INTERVAL) {
+          // Edit immediately
+          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`, { parse_mode: "" });
+          lastEditTime = Date.now();
+          pendingEdit = false;
+        } else {
+          pendingEdit = true;
         }
       }
+
+      // Final pending edit if tokens arrived after last edit
+      if (pendingEdit && thinkingMsgId && fullAnswer) {
+        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`, { parse_mode: "" });
+      }
+    } finally {
+      clearInterval(typingInterval);
     }
+
+    const answer = fullAnswer.trim();
 
     // answer is already defined above
 
