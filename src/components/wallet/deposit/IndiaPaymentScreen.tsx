@@ -298,7 +298,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                 <Button onClick={handleVerifyPayment} className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground" disabled={verifying}>
                   {verifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <><RefreshCw className="w-4 h-4 mr-2" />Verify Payment</>}
                 </Button>
-                <Button variant="ghost" onClick={() => { setAutoStep('amount'); setPayClickedAt(null); }} className="w-full rounded-xl">← Go Back</Button>
+                <Button variant="ghost" onClick={() => { setAutoStep('amount'); setPayClickedAt(null); setUniqueAmount(null); }} className="w-full rounded-xl">← Go Back</Button>
               </div>
             )}
           </TabsContent>
