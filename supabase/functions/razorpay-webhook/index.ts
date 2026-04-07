@@ -82,6 +82,22 @@ async function creditWallet(supabase: any, userId: string, amount: number, razor
     .update({ status: 'completed', updated_at: new Date().toISOString() })
     .eq('razorpay_order_id', razorpayOrderId);
 
+  // Auto-approve the manual_deposit_requests entry for razorpay_auto
+  const { data: depReservation } = await supabase
+    .from('razorpay_amount_reservations')
+    .select('deposit_request_id')
+    .eq('status', 'reserved')
+    .limit(1);
+
+  // Find and approve the manual deposit request linked to this user+amount
+  await supabase
+    .from('manual_deposit_requests')
+    .update({ status: 'approved', admin_note: 'Auto-approved by Razorpay' })
+    .eq('user_id', userId)
+    .eq('payment_method', 'razorpay_auto')
+    .eq('status', 'pending')
+    .gte('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString());
+
   // Handle referral bonus on first deposit
   const { data: minRefSetting } = await supabase
     .from('app_settings')

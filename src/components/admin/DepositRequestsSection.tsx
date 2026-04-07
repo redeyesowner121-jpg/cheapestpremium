@@ -43,9 +43,45 @@ const DepositRequestsSection: React.FC<DepositRequestsSectionProps> = ({
   const [adminNote, setAdminNote] = useState('');
   const [processing, setProcessing] = useState(false);
 
+  const [rejectingAll, setRejectingAll] = useState(false);
+
   const filteredRequests = depositRequests.filter(r => 
     filter === 'all' || r.status === filter
   );
+
+  const pendingCount = depositRequests.filter(r => r.status === 'pending').length;
+
+  const handleRejectAll = async () => {
+    if (!confirm(`Are you sure you want to reject all ${pendingCount} pending requests?`)) return;
+    setRejectingAll(true);
+    try {
+      const pendingIds = depositRequests.filter(r => r.status === 'pending').map(r => r.id);
+      const pendingUserIds = depositRequests.filter(r => r.status === 'pending');
+      
+      await supabase
+        .from('manual_deposit_requests')
+        .update({ status: 'rejected', admin_note: 'Bulk rejected by admin' })
+        .in('id', pendingIds);
+
+      // Send notifications to all rejected users
+      const notifications = pendingUserIds.map(r => ({
+        user_id: r.user_id,
+        title: 'Deposit Rejected ❌',
+        message: `Your deposit request of ₹${r.amount} was rejected.`,
+        type: 'wallet'
+      }));
+      if (notifications.length > 0) {
+        await supabase.from('notifications').insert(notifications);
+      }
+
+      toast.success(`Rejected ${pendingIds.length} pending requests`);
+      onDataChange();
+    } catch (error) {
+      toast.error('Failed to reject all');
+    } finally {
+      setRejectingAll(false);
+    }
+  };
 
   const handleSelectRequest = (request: DepositRequest) => {
     setSelectedRequest(request);
@@ -194,6 +230,20 @@ const DepositRequestsSection: React.FC<DepositRequestsSectionProps> = ({
           </button>
         ))}
       </div>
+
+      {/* Reject All Button */}
+      {filter === 'pending' && pendingCount > 0 && (
+        <Button
+          onClick={handleRejectAll}
+          disabled={rejectingAll}
+          variant="destructive"
+          size="sm"
+          className="w-full"
+        >
+          <XCircle className="w-4 h-4 mr-2" />
+          {rejectingAll ? 'Rejecting...' : `Reject All (${pendingCount})`}
+        </Button>
+      )}
 
       {/* Requests List */}
       <div className="space-y-2 max-h-80 overflow-y-auto">
