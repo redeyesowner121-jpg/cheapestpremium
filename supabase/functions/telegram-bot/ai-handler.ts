@@ -1,12 +1,11 @@
-// ===== AI QUERY HANDLER =====
+// ===== AI QUERY HANDLER (Streaming) =====
 
 import { t, BOT_USERNAME } from "./constants.ts";
-import { sendMessage } from "./telegram-api.ts";
+import { sendMessage, sendMessageWithId, editMessageText } from "./telegram-api.ts";
 import { getSettings, getWallet, setConversationState, notifyAllAdmins } from "./db-helpers.ts";
 
 // Fetch knowledge base entries relevant to the question
-async function getKnowledgeContext(supabase: any, question: string): Promise<string> {
-  // Get all knowledge entries (small table, fast)
+async function getKnowledgeContext(supabase: any): Promise<string> {
   const { data } = await supabase
     .from("telegram_ai_knowledge")
     .select("question, answer, language")
@@ -20,6 +19,37 @@ async function getKnowledgeContext(supabase: any, question: string): Promise<str
   ).join("\n\n");
 
   return `\n\n📚 LEARNED KNOWLEDGE (from admin answers - USE THESE FIRST if relevant):\n${entries}`;
+}
+
+// Parse SSE stream and yield text chunks
+async function* parseSSEStream(response: Response): AsyncGenerator<string> {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let idx: number;
+    while ((idx = buffer.indexOf("\n")) !== -1) {
+      let line = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 1);
+      if (line.endsWith("\r")) line = line.slice(0, -1);
+      if (!line.startsWith("data: ")) continue;
+      const jsonStr = line.slice(6).trim();
+      if (jsonStr === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(jsonStr);
+        const content = parsed.choices?.[0]?.delta?.content;
+        if (content) yield content;
+      } catch {
+        buffer = line + "\n" + buffer;
+        break;
+      }
+    }
+  }
 }
 
 export async function handleAIQuery(token: string, supabase: any, chatId: number, userId: number, question: string, lang: string) {
@@ -36,7 +66,7 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
     supabase.from("flash_sales").select("sale_price, products(name, price)").eq("is_active", true).gt("end_time", new Date().toISOString()).limit(10),
     supabase.from("coupons").select("code, description, discount_type, discount_value").eq("is_active", true).limit(10),
     supabase.from("telegram_wallets").select("balance, referral_code").eq("telegram_id", userId).single(),
-    getKnowledgeContext(supabase, question),
+    getKnowledgeContext(supabase),
   ]);
 
   // Fetch variations for all products
@@ -118,9 +148,10 @@ STRICT RULES:
 18. For order status questions, tell them to contact admin via Support button.`;
 
   try {
-    await sendMessage(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
+    // Send initial "thinking" message and get its ID for editing
+    const thinkingMsgId = await sendMessageWithId(token, chatId, lang === "bn" ? "🤖 চিন্তা করছি..." : "🤖 Thinking...");
 
-    // Fetch last 10 messages for conversation history
+    // Fetch conversation history
     const { data: historyRows } = await supabase
       .from("telegram_ai_messages")
       .select("role, content")
@@ -148,6 +179,7 @@ STRICT RULES:
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: allMessages,
+        stream: true,
       }),
     });
 
@@ -155,8 +187,24 @@ STRICT RULES:
       throw new Error(`AI error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const answer = data?.choices?.[0]?.message?.content || "";
+    // Stream response with progressive message editing
+    let fullAnswer = "";
+    let lastEditTime = 0;
+    const EDIT_INTERVAL_MS = 800; // Edit every 800ms to avoid Telegram rate limits
+
+    for await (const chunk of parseSSEStream(response)) {
+      fullAnswer += chunk;
+      const now = Date.now();
+
+      // Throttle edits to avoid Telegram API rate limits (max ~30 edits/min per chat)
+      if (thinkingMsgId && now - lastEditTime >= EDIT_INTERVAL_MS) {
+        lastEditTime = now;
+        // Show partial answer with typing indicator
+        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`, { parse_mode: "" });
+      }
+    }
+
+    const answer = fullAnswer.trim();
 
     // Save user question and AI answer to history
     await supabase.from("telegram_ai_messages").insert([
@@ -179,17 +227,13 @@ STRICT RULES:
     const shouldForward = !answer || answer.startsWith("[FORWARD_TO_ADMIN]");
 
     if (shouldForward) {
-      // Auto-forward to admin with the question stored for learning
       const cleanAnswer = answer?.replace("[FORWARD_TO_ADMIN]", "").trim();
 
-      // Save the unanswered question for admin to answer
       await setConversationState(supabase, userId, "awaiting_admin_answer", {
         originalQuestion: question,
         questionLang: lang,
       });
 
-      // Notify admins with the question and a reply button
-      const username = `User ${userId}`;
       await notifyAllAdmins(token, supabase,
         `🤖❓ <b>AI couldn't answer</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>\n\n📝 Reply to teach AI this answer. Click "Answer" below:`,
         {
@@ -202,33 +246,56 @@ STRICT RULES:
         }
       );
 
-      // Tell user their question is forwarded
-      await sendMessage(token, chatId,
-        cleanAnswer || (lang === "bn"
-          ? "🤔 আমি এই প্রশ্নের উত্তর দিতে পারছি না। আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হচ্ছে। শীঘ্রই উত্তর পাবেন! ⏳"
-          : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳"),
-        {
+      // Final edit with forward message
+      const forwardMsg = cleanAnswer || (lang === "bn"
+        ? "🤔 আমি এই প্রশ্নের উত্তর দিতে পারছি না। আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হচ্ছে। শীঘ্রই উত্তর পাবেন! ⏳"
+        : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳");
+
+      if (thinkingMsgId) {
+        await editMessageText(token, chatId, thinkingMsgId, forwardMsg, {
+          parse_mode: "",
           reply_markup: {
             inline_keyboard: [
               [{ text: t("back_main", lang), callback_data: "back_main" }],
             ],
           },
-        }
-      );
+        });
+      } else {
+        await sendMessage(token, chatId, forwardMsg, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: t("back_main", lang), callback_data: "back_main" }],
+            ],
+          },
+        });
+      }
     } else {
-      await sendMessage(token, chatId, `🤖 ${answer}`, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
-            [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
-            [{ text: t("back_main", lang), callback_data: "back_main" }],
-          ],
-        },
-      });
+      // Final edit with complete answer + action buttons
+      if (thinkingMsgId) {
+        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${answer}`, {
+          parse_mode: "",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
+              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
+              [{ text: t("back_main", lang), callback_data: "back_main" }],
+            ],
+          },
+        });
+      } else {
+        await sendMessage(token, chatId, `🤖 ${answer}`, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
+              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
+              [{ text: t("back_main", lang), callback_data: "back_main" }],
+            ],
+          },
+        });
+      }
     }
   } catch (error) {
     console.error("AI query error:", error);
-    // On error, also forward to admin
     await notifyAllAdmins(token, supabase,
       `🤖❌ <b>AI Error - Question forwarded</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>`,
       {
