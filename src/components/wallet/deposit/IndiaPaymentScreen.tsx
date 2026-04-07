@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  CreditCard, QrCode, Smartphone, AlertCircle,
+  QrCode, Smartphone, AlertCircle,
   Copy, ExternalLink, Loader2, CheckCircle, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
