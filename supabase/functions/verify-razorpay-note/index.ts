@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (payment?.status === "success") {
-        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+        return new Response(JSON.stringify({ success: false, message: "This payment was already processed. Start a new deposit." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (depReq?.status === "approved") {
-        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+        return new Response(JSON.stringify({ success: false, message: "This deposit was already processed. Start a new deposit." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -84,45 +84,51 @@ Deno.serve(async (req) => {
 
     const amountPaise = Math.round(amount * 100);
     
-    // Match by exact amount (including unique paise) + captured/authorized status
-    const matchingPayment = payments.find((p: any) => {
+    // Match by exact amount + captured/authorized status, filtering out already-claimed payments
+    const candidatePayments = payments.filter((p: any) => {
       const amountMatch = p.amount === amountPaise;
       const statusMatch = p.status === "captured" || p.status === "authorized";
       return amountMatch && statusMatch;
     });
 
-    if (matchingPayment) {
-      const rzpPayId = matchingPayment.id;
+    // Find the first UNCLAIMED payment
+    let matchingPayment = null;
+    for (const candidate of candidatePayments) {
+      const rzpId = candidate.id;
 
-      // DOUBLE-CREDIT PREVENTION: Check if this Razorpay payment ID was already used
+      // Check if already claimed in manual_deposit_requests
       const { data: existingUsage } = await supabase
         .from("manual_deposit_requests")
         .select("id")
-        .eq("transaction_id", `RZP:${rzpPayId}`)
+        .eq("transaction_id", `RZP:${rzpId}`)
         .eq("status", "approved")
         .maybeSingle();
 
       if (existingUsage) {
-        console.log("Payment already used:", rzpPayId);
-        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        console.log("Skipping already-claimed payment:", rzpId);
+        continue;
       }
 
-      // Also check payments table for bot flow
+      // Check if already claimed in payments table (bot flow)
       const { data: existingBotPayment } = await supabase
         .from("payments")
         .select("id")
-        .eq("note", `RZP:${rzpPayId}`)
+        .eq("note", `RZP:${rzpId}`)
         .eq("status", "success")
         .maybeSingle();
 
       if (existingBotPayment) {
-        console.log("Payment already used (bot):", rzpPayId);
-        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        console.log("Skipping already-claimed payment (bot):", rzpId);
+        continue;
       }
+
+      // This payment is unclaimed — use it
+      matchingPayment = candidate;
+      break;
+    }
+
+    if (matchingPayment) {
+      const rzpPayId = matchingPayment.id;
 
       // Update payment record if exists (bot flow)
       if (paymentId) {
@@ -135,7 +141,6 @@ Deno.serve(async (req) => {
 
       // Website flow: credit wallet and update deposit request
       if (userId && depositRequestId) {
-        // Credit the base amount (without extra paise) to wallet
         const baseAmount = Math.floor(amount);
 
         const { data: profile } = await supabase
@@ -179,7 +184,6 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Store the Razorpay payment ID to prevent reuse
           await supabase.from("manual_deposit_requests").update({
             status: "approved",
             admin_note: `Auto-verified via Razorpay (${rzpPayId})`,
