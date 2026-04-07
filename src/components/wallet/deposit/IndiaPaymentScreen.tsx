@@ -266,8 +266,11 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
             ) : (
               <div className="space-y-4">
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-center space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Amount to pay</p>
-                  <p className="text-2xl font-bold text-primary">₹{depositAmount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Pay exactly this amount</p>
+                  <p className="text-2xl font-bold text-primary">₹{uniqueAmount || depositAmount}</p>
+                  {uniqueAmount && parseFloat(depositAmount) !== uniqueAmount && (
+                    <p className="text-xs text-muted-foreground">Base: ₹{depositAmount} + unique paise for verification</p>
+                  )}
                 </div>
 
                 {/* QR Code */}
@@ -280,13 +283,13 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
 
                 {/* Pay Now button */}
                 <Button className="w-full h-12 btn-gradient rounded-xl" onClick={handlePayNowClick}>
-                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now ₹{depositAmount}
+                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now ₹{uniqueAmount || depositAmount}
                 </Button>
 
                 {/* Instructions */}
                 <div className="p-3 bg-muted/50 rounded-xl text-xs text-muted-foreground space-y-1">
                   <p>1. Click <b>Pay Now</b> or scan QR</p>
-                  <p>2. Pay exactly <b>₹{depositAmount}</b></p>
+                  <p>2. Pay exactly <b>₹{uniqueAmount || depositAmount}</b></p>
                   <p>3. Payment will be <b>auto-verified</b> within seconds!</p>
                   <p className="text-primary font-medium mt-1">🔄 Auto-checking every 10 seconds...</p>
                 </div>
