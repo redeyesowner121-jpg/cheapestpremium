@@ -1,56 +1,57 @@
 
 
-## Plan: Separate Resale Bot for Secure Reseller Links
+## Plan: Reservation-Based Unique Amount Deposit System
 
 ### Problem
-Currently, resale links point to the main bot (`@Cheapest_Premiums_bot`). If a buyer clicks a resale link and then does `/start`, they see the full store with original prices, causing loss for resellers.
+Currently, unique `.xx` amounts are generated client-side with no reservation — two users could get the same amount, or a previously-verified payment could match again.
 
-### Solution
-Create a dedicated "Resale Bot" edge function that handles ONLY resale purchases. Resale links will redirect to the new bot (`8623792627:AAG6sfa0uyiu9IHOrpoEXbiIpk_7ICX80j8`) where buyers can only complete the purchase at the reseller's custom price -- no product browsing, no original prices visible.
+### New Flow
+1. User enters base amount → clicks **Continue**
+2. System shows **Confirm** screen with the unique amount (base + .xx paise)
+3. User clicks **Confirm** → edge function reserves that exact amount in DB for 10 minutes (no other user can get the same `.xx` amount during this window)
+4. User pays via Razorpay → auto-polling checks Razorpay API every 10 seconds
+5. If a matching unclaimed payment (exact amount with `.xx`) is found within 10 minutes → auto-credit wallet, delete reservation
+6. After 10 minutes or success → reservation expires/deletes
 
-### Changes
+### Technical Steps
 
-**1. Store the new bot token as a secret**
-- Add `RESALE_BOT_TOKEN` = `8623792627:AAG6sfa0uyiu9IHOrpoEXbiIpk_7ICX80j8`
+**1. New DB table: `razorpay_amount_reservations`**
+- `id` (uuid, PK)
+- `user_id` (uuid)
+- `amount` (numeric) — the full unique amount with .xx
+- `base_amount` (numeric) — the integer deposit amount
+- `status` (text, default 'reserved') — reserved / completed / expired
+- `deposit_request_id` (uuid, nullable)
+- `created_at`, `expires_at` (timestamps)
+- RLS: users can view own, service role manages all
 
-**2. Create new edge function: `supabase/functions/resale-bot/index.ts`**
-- A minimal Telegram bot handler that only processes:
-  - `/start buy_LINKCODE` -- looks up `telegram_resale_links`, shows product name + custom price, starts payment flow (UPI QR + link, wallet pay)
-  - `/start` (no payload) -- shows a simple message: "This bot is for purchasing via resale links only. Please use a valid link."
-  - Screenshot submission (conversation state `awaiting_screenshot`) -- same payment verification flow, forwards to admins on the MAIN bot
-  - No `/menu`, no product browsing, no categories, no original prices
-- Reuses the same DB tables (`telegram_resale_links`, `telegram_orders`, `telegram_wallets`, `telegram_conversation_state`, `telegram_bot_users`)
-- Uses the same UPI payment logic (`upi://pay?pa=8900684167@ibl&pn=Asif%20Ikbal%20Rubaiul%20Islam&am=[PRICE]&cu=INR`)
-- Admin actions (approve/reject/ship) still handled by main bot since `notifyAllAdmins` sends to main bot admins
+**2. New edge function: `reserve-razorpay-amount`**
+- Receives `{ userId, baseAmount }`
+- Generates random `.xx` paise (scaled by amount: smaller deposits get smaller paise range)
+- Checks DB for any existing unexpired reservation with the same full amount → if conflict, regenerates
+- Inserts reservation with 10-min expiry
+- Creates `manual_deposit_requests` record
+- Returns `{ uniqueAmount, reservationId, depositRequestId }`
 
-**3. Update resale link generation (both places)**
-- `conversation-handlers.ts` (line ~259): Change link from `https://t.me/Cheapest_Premiums_bot?start=buy_CODE` to `https://t.me/RESALE_BOT_USERNAME?start=buy_CODE`
-- `src/components/product/ResellModal.tsx` (line ~51): Change web resale link to point to the new bot: `https://t.me/RESALE_BOT_USERNAME?start=buy_CODE`
-- Add `RESALE_BOT_USERNAME` constant (need to know the bot's username -- will derive from the token or ask)
+**3. Update `verify-razorpay-note` edge function**
+- Accept `reservationId` instead of just `depositRequestId`
+- On match: update reservation status to `completed`, delete/expire it, credit wallet
+- Skip amounts that have active reservations belonging to OTHER users (prevents cross-user matching)
 
-**4. Set webhook for the new bot**
-- Create/update `supabase/functions/telegram-set-webhook/index.ts` to support setting webhook for the resale bot pointing to the `resale-bot` edge function URL
+**4. Update `IndiaPaymentScreen.tsx` UI**
+- **Step 1 (Amount)**: Enter amount → click "Continue"
+- **Step 2 (Confirm)**: Show unique amount with `.xx` breakdown → click "Confirm" calls `reserve-razorpay-amount`
+- **Step 3 (Pay)**: Show payment instructions, QR, Pay Now button, auto-polling
+- Move unique amount generation from client-side to server-side (edge function)
 
-**5. Update `constants.ts`**
-- Add `RESALE_BOT_USERNAME` constant
+**5. Paise scaling logic** (in edge function)
+- Amount < ₹100: `.01 - .20` range
+- Amount ₹100-499: `.01 - .50` range  
+- Amount ₹500+: `.01 - .99` range
 
-### Resale Bot Flow
-```text
-Buyer clicks link --> t.me/ResaleBot?start=buy_CODE
-  |
-  v
-Bot looks up telegram_resale_links by CODE
-  |
-  v
-Shows: Product name, custom price, UPI payment info
-  |
-  v
-Buyer sends screenshot --> forwarded to admins (main bot)
-  |
-  v
-Admin approves --> buyer gets access_link on resale bot
-```
-
-### Question Needed
-I need the username of the new bot (the one with token `8623792627:...`) to generate the correct `t.me/` links.
+### Files to Create/Edit
+- **Create**: Migration for `razorpay_amount_reservations` table
+- **Create**: `supabase/functions/reserve-razorpay-amount/index.ts`
+- **Edit**: `supabase/functions/verify-razorpay-note/index.ts` — use reservation system
+- **Edit**: `src/components/wallet/deposit/IndiaPaymentScreen.tsx` — 3-step flow (Amount → Confirm → Pay)
 
