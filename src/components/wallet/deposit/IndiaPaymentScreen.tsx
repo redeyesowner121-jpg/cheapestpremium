@@ -49,8 +49,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   const [verifying, setVerifying] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [payClickedAt, setPayClickedAt] = useState<string | null>(null);
+  const [uniqueAmount, setUniqueAmount] = useState<number | null>(null);
 
-  const paymentLink = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
+  const basePaymentLink = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
+
+  // Generate unique paise (01-99) to avoid collision when multiple users pay same amount
+  const generateUniqueAmount = (baseAmount: number): number => {
+    const extraPaise = Math.floor(Math.random() * 99) + 1; // 1-99 paise
+    return parseFloat((baseAmount + extraPaise / 100).toFixed(2));
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -65,11 +72,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       return;
     }
 
-    // Create payment record
+    // Generate unique amount with extra paise
+    const uAmount = generateUniqueAmount(amount);
+    setUniqueAmount(uAmount);
+
+    // Create payment record with unique amount
     try {
       const { data, error } = await supabase.from('manual_deposit_requests').insert({
         user_id: user.id,
-        amount,
+        amount: uAmount,
         transaction_id: `RAZORPAY-${Date.now()}`,
         sender_name: profile?.name || 'Razorpay Payment',
         payment_method: 'razorpay_auto',
@@ -87,11 +98,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   const handlePayNowClick = () => {
     const now = new Date().toISOString();
     setPayClickedAt(now);
+    const payAmount = uniqueAmount || parseFloat(depositAmount);
+    const amountPaise = Math.round(payAmount * 100);
+    const linkWithAmount = `${basePaymentLink}?amount=${amountPaise}`;
     // Persist to sessionStorage so it survives reload
     sessionStorage.setItem('razorpay_pay_clicked_at', now);
-    sessionStorage.setItem('razorpay_deposit_amount', depositAmount);
+    sessionStorage.setItem('razorpay_deposit_amount', payAmount.toString());
     sessionStorage.setItem('razorpay_deposit_id', paymentId || '');
-    window.open(paymentLink, '_blank');
+    sessionStorage.setItem('razorpay_unique_amount', payAmount.toString());
+    window.open(linkWithAmount, '_blank');
   };
 
   // Restore state from sessionStorage on mount (handles reload)
@@ -99,19 +114,20 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     const savedClickedAt = sessionStorage.getItem('razorpay_pay_clicked_at');
     const savedAmount = sessionStorage.getItem('razorpay_deposit_amount');
     const savedDepositId = sessionStorage.getItem('razorpay_deposit_id');
+    const savedUniqueAmount = sessionStorage.getItem('razorpay_unique_amount');
     if (savedClickedAt && savedAmount) {
-      // Check if within 10 minutes
       const elapsed = Date.now() - new Date(savedClickedAt).getTime();
       if (elapsed < 10 * 60 * 1000) {
         setPayClickedAt(savedClickedAt);
         onDepositAmountChange(savedAmount);
         if (savedDepositId) setPaymentId(savedDepositId);
+        if (savedUniqueAmount) setUniqueAmount(parseFloat(savedUniqueAmount));
         setAutoStep('pay');
       } else {
-        // Expired, clean up
         sessionStorage.removeItem('razorpay_pay_clicked_at');
         sessionStorage.removeItem('razorpay_deposit_amount');
         sessionStorage.removeItem('razorpay_deposit_id');
+        sessionStorage.removeItem('razorpay_unique_amount');
       }
     }
   }, []);
@@ -125,7 +141,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       if (cancelled || verifying) return;
       setVerifying(true);
       try {
-        const amt = parseFloat(sessionStorage.getItem('razorpay_deposit_amount') || depositAmount);
+        const amt = parseFloat(sessionStorage.getItem('razorpay_unique_amount') || sessionStorage.getItem('razorpay_deposit_amount') || depositAmount);
         const depId = sessionStorage.getItem('razorpay_deposit_id') || paymentId;
         const clickAt = sessionStorage.getItem('razorpay_pay_clicked_at') || payClickedAt;
         
@@ -138,10 +154,12 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
           setAutoStep('amount');
           setPaymentId(null);
           setPayClickedAt(null);
+          setUniqueAmount(null);
           onDepositAmountChange('');
           sessionStorage.removeItem('razorpay_pay_clicked_at');
           sessionStorage.removeItem('razorpay_deposit_amount');
           sessionStorage.removeItem('razorpay_deposit_id');
+          sessionStorage.removeItem('razorpay_unique_amount');
           onOpenChange(false);
           return; // Stop polling
         }
@@ -178,8 +196,9 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     if (!user) return;
     setVerifying(true);
     try {
+      const verifyAmount = uniqueAmount || parseFloat(depositAmount);
       const { data, error } = await supabase.functions.invoke('verify-razorpay-note', {
-        body: { amount: parseFloat(depositAmount), userId: user.id, depositRequestId: paymentId, payClickedAt }
+        body: { amount: verifyAmount, userId: user.id, depositRequestId: paymentId, payClickedAt }
       });
       if (error) throw error;
       if (data?.success) {
@@ -187,10 +206,12 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
         setAutoStep('amount');
         setPaymentId(null);
         setPayClickedAt(null);
+        setUniqueAmount(null);
         onDepositAmountChange('');
         sessionStorage.removeItem('razorpay_pay_clicked_at');
         sessionStorage.removeItem('razorpay_deposit_amount');
         sessionStorage.removeItem('razorpay_deposit_id');
+        sessionStorage.removeItem('razorpay_unique_amount');
         onOpenChange(false);
       } else {
         toast.error(data?.message || 'Payment not found yet. Complete payment and try again.');
@@ -202,12 +223,13 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     }
   };
 
-  const qrUrl = depositAmount && parseFloat(depositAmount) > 0
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentLink)}`
+  const displayAmount = uniqueAmount || (depositAmount ? parseFloat(depositAmount) : 0);
+  const qrUrl = displayAmount > 0
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${basePaymentLink}?amount=${Math.round(displayAmount * 100)}`)}`
     : '';
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setAutoStep('amount'); setPayClickedAt(null); } onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setAutoStep('amount'); setPayClickedAt(null); setUniqueAmount(null); } onOpenChange(v); }}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Money</DialogTitle>
@@ -244,8 +266,11 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
             ) : (
               <div className="space-y-4">
                 <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-center space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Amount to pay</p>
-                  <p className="text-2xl font-bold text-primary">₹{depositAmount}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Pay exactly this amount</p>
+                  <p className="text-2xl font-bold text-primary">₹{uniqueAmount || depositAmount}</p>
+                  {uniqueAmount && parseFloat(depositAmount) !== uniqueAmount && (
+                    <p className="text-xs text-muted-foreground">Base: ₹{depositAmount} + unique paise for verification</p>
+                  )}
                 </div>
 
                 {/* QR Code */}
@@ -258,13 +283,13 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
 
                 {/* Pay Now button */}
                 <Button className="w-full h-12 btn-gradient rounded-xl" onClick={handlePayNowClick}>
-                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now ₹{depositAmount}
+                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now ₹{uniqueAmount || depositAmount}
                 </Button>
 
                 {/* Instructions */}
                 <div className="p-3 bg-muted/50 rounded-xl text-xs text-muted-foreground space-y-1">
                   <p>1. Click <b>Pay Now</b> or scan QR</p>
-                  <p>2. Pay exactly <b>₹{depositAmount}</b></p>
+                  <p>2. Pay exactly <b>₹{uniqueAmount || depositAmount}</b></p>
                   <p>3. Payment will be <b>auto-verified</b> within seconds!</p>
                   <p className="text-primary font-medium mt-1">🔄 Auto-checking every 10 seconds...</p>
                 </div>
@@ -273,7 +298,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                 <Button onClick={handleVerifyPayment} className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground" disabled={verifying}>
                   {verifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <><RefreshCw className="w-4 h-4 mr-2" />Verify Payment</>}
                 </Button>
-                <Button variant="ghost" onClick={() => { setAutoStep('amount'); setPayClickedAt(null); }} className="w-full rounded-xl">← Go Back</Button>
+                <Button variant="ghost" onClick={() => { setAutoStep('amount'); setPayClickedAt(null); setUniqueAmount(null); }} className="w-full rounded-xl">← Go Back</Button>
               </div>
             )}
           </TabsContent>
