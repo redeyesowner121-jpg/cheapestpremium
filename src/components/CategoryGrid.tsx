@@ -91,16 +91,27 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
           <button
             key={category.id}
             onClick={() => onCategoryClick?.(category.name)}
-            className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-card shadow-card hover:shadow-lg transition-shadow active:scale-95"
+            className="relative flex flex-col items-center justify-center rounded-2xl bg-card shadow-card hover:shadow-lg transition-shadow active:scale-95 overflow-hidden aspect-square"
           >
-            <div className={`p-3 rounded-xl ${category.icon_url ? '' : category.bgColor}`}>
-              {category.icon_url ? (
-                <img src={category.icon_url} alt={category.name} className="w-10 h-10 object-contain rounded" />
-              ) : (
-                <div className={category.color}>{category.icon}</div>
-              )}
-            </div>
-            <span className="text-xs font-medium text-foreground">{category.name}</span>
+            {category.icon_url ? (
+              <>
+                <img
+                  src={category.icon_url}
+                  alt={category.name}
+                  className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+                />
+                <span className="relative z-10 mt-auto mb-1 px-1 text-[10px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] bg-black/40 rounded-md leading-tight py-0.5">
+                  {category.name}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className={`p-3 rounded-xl ${category.bgColor}`}>
+                  <div className={category.color}>{category.icon}</div>
+                </div>
+                <span className="text-xs font-medium text-foreground mt-1">{category.name}</span>
+              </>
+            )}
           </button>
         ))}
       </div>
