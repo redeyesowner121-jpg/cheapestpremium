@@ -41,7 +41,6 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   const { settings } = useAppSettingsContext();
   const { profile, user } = useAuth();
   const [manualAttempted, setManualAttempted] = useState(false);
-  const [manualAttempted, setManualAttempted] = useState(false);
 
   // Auto (Razorpay link) state - no code needed
   const [autoStep, setAutoStep] = useState<'amount' | 'pay'>('amount');
