@@ -29,6 +29,7 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingIconId, setUploadingIconId] = useState<string | null>(null);
+  const pendingUploadId = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
