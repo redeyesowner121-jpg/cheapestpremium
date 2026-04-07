@@ -218,9 +218,11 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
       .from('product-images')
       .getPublicUrl(filePath);
 
+    const iconUrlWithCacheBust = `${urlData.publicUrl}?t=${Date.now()}`;
+
     await supabase
       .from('categories')
-      .update({ icon_url: urlData.publicUrl })
+      .update({ icon_url: iconUrlWithCacheBust })
       .eq('id', categoryId);
 
     toast.success('Category icon updated');
