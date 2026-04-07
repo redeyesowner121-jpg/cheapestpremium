@@ -61,10 +61,11 @@ Deno.serve(async (req) => {
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Use payClickedAt as the start time window, or fallback to 2 minutes ago
-    const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
-    // Search from 30 seconds before click (for clock skew) to now
-    const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
+    // Search last 10 minutes of payments for reliable matching
+    const nowSec = Math.floor(Date.now() / 1000);
+    const fromTime = payClickedAt 
+      ? Math.floor(new Date(payClickedAt).getTime() / 1000) - 60  // 1 min before click
+      : nowSec - 600; // fallback: last 10 minutes
 
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
@@ -83,18 +84,11 @@ Deno.serve(async (req) => {
 
     const amountPaise = Math.round(amount * 100);
     
-    // Match by amount + status + time window (within 2 minutes of pay click)
+    // Match by exact amount + captured/authorized status within the time window
     const matchingPayment = payments.find((p: any) => {
       const amountMatch = p.amount === amountPaise;
       const statusMatch = p.status === "captured" || p.status === "authorized";
-      
-      // Check if payment was created within the 2-minute window after pay click
-      const paymentTime = p.created_at; // Unix timestamp
-      const withinWindow = payClickedAt 
-        ? (paymentTime >= clickTime - 30 && paymentTime <= clickTime + 150) // 2.5 min window with 30s buffer
-        : true; // fallback: any recent payment
-      
-      return amountMatch && statusMatch && withinWindow;
+      return amountMatch && statusMatch;
     });
 
     if (matchingPayment) {
