@@ -383,6 +383,167 @@ export type Database = {
           },
         ]
       }
+      giveaway_points: {
+        Row: {
+          created_at: string
+          id: string
+          points: number
+          telegram_id: number
+          total_referrals: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          points?: number
+          telegram_id: number
+          total_referrals?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          points?: number
+          telegram_id?: number
+          total_referrals?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      giveaway_products: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          points_required: number
+          product_id: string
+          stock: number | null
+          updated_at: string
+          variation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          points_required?: number
+          product_id: string
+          stock?: number | null
+          updated_at?: string
+          variation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          points_required?: number
+          product_id?: string
+          stock?: number | null
+          updated_at?: string
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giveaway_products_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      giveaway_redemptions: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          giveaway_product_id: string
+          id: string
+          points_spent: number
+          status: string
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          giveaway_product_id: string
+          id?: string
+          points_spent: number
+          status?: string
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          giveaway_product_id?: string
+          id?: string
+          points_spent?: number
+          status?: string
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giveaway_redemptions_giveaway_product_id_fkey"
+            columns: ["giveaway_product_id"]
+            isOneToOne: false
+            referencedRelation: "giveaway_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      giveaway_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          points_awarded: number
+          referred_telegram_id: number
+          referrer_telegram_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          points_awarded?: number
+          referred_telegram_id: number
+          referrer_telegram_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          points_awarded?: number
+          referred_telegram_id?: number
+          referrer_telegram_id?: number
+        }
+        Relationships: []
+      }
+      giveaway_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       manual_deposit_requests: {
         Row: {
           admin_note: string | null
