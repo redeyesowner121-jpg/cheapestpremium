@@ -92,6 +92,39 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_amount_reservations: {
+        Row: {
+          amount_inr: number
+          amount_usd: number
+          created_at: string
+          expires_at: string
+          id: string
+          payment_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount_inr: number
+          amount_usd: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payment_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount_inr?: number
+          amount_usd?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payment_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
