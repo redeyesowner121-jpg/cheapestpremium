@@ -424,11 +424,28 @@ export async function handleGiveawayCallbacks(
       reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
     });
 
-    // Notify admins
+    // Notify admins on bot
     const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
     await notifyAllAdmins(MAIN_TOKEN, supabase,
       `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
     );
+
+    // Notify admins on web (create notification for all admin users)
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["admin", "temp_admin"]);
+    
+    if (adminRoles?.length) {
+      const notifications = adminRoles.map((ar: any) => ({
+        user_id: ar.user_id,
+        title: "🎁 New Giveaway Redemption",
+        message: `${firstName} ${username ? `(@${username})` : ""} redeemed ${name}${varName} for ${product.points_required} pts`,
+        type: "order",
+      }));
+      await supabase.from("notifications").insert(notifications);
+    }
+
     return true;
   }
 
