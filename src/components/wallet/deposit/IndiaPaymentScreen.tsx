@@ -85,9 +85,94 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   };
 
   const handlePayNowClick = () => {
-    setPayClickedAt(new Date().toISOString());
+    const now = new Date().toISOString();
+    setPayClickedAt(now);
+    // Persist to sessionStorage so it survives reload
+    sessionStorage.setItem('razorpay_pay_clicked_at', now);
+    sessionStorage.setItem('razorpay_deposit_amount', depositAmount);
+    sessionStorage.setItem('razorpay_deposit_id', paymentId || '');
     window.open(paymentLink, '_blank');
   };
+
+  // Restore state from sessionStorage on mount (handles reload)
+  React.useEffect(() => {
+    const savedClickedAt = sessionStorage.getItem('razorpay_pay_clicked_at');
+    const savedAmount = sessionStorage.getItem('razorpay_deposit_amount');
+    const savedDepositId = sessionStorage.getItem('razorpay_deposit_id');
+    if (savedClickedAt && savedAmount) {
+      // Check if within 10 minutes
+      const elapsed = Date.now() - new Date(savedClickedAt).getTime();
+      if (elapsed < 10 * 60 * 1000) {
+        setPayClickedAt(savedClickedAt);
+        onDepositAmountChange(savedAmount);
+        if (savedDepositId) setPaymentId(savedDepositId);
+        setAutoStep('pay');
+      } else {
+        // Expired, clean up
+        sessionStorage.removeItem('razorpay_pay_clicked_at');
+        sessionStorage.removeItem('razorpay_deposit_amount');
+        sessionStorage.removeItem('razorpay_deposit_id');
+      }
+    }
+  }, []);
+
+  // Auto-polling: check every 10 seconds once payClickedAt is set
+  React.useEffect(() => {
+    if (!payClickedAt || !user || autoStep !== 'pay') return;
+    
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled || verifying) return;
+      setVerifying(true);
+      try {
+        const amt = parseFloat(sessionStorage.getItem('razorpay_deposit_amount') || depositAmount);
+        const depId = sessionStorage.getItem('razorpay_deposit_id') || paymentId;
+        const clickAt = sessionStorage.getItem('razorpay_pay_clicked_at') || payClickedAt;
+        
+        const { data, error } = await supabase.functions.invoke('verify-razorpay-note', {
+          body: { amount: amt, userId: user.id, depositRequestId: depId || undefined, payClickedAt: clickAt }
+        });
+        if (cancelled) return;
+        if (!error && data?.success) {
+          toast.success('Payment verified! Wallet credited. ✅');
+          setAutoStep('amount');
+          setPaymentId(null);
+          setPayClickedAt(null);
+          onDepositAmountChange('');
+          sessionStorage.removeItem('razorpay_pay_clicked_at');
+          sessionStorage.removeItem('razorpay_deposit_amount');
+          sessionStorage.removeItem('razorpay_deposit_id');
+          onOpenChange(false);
+          return; // Stop polling
+        }
+      } catch {
+        // Silently continue polling
+      } finally {
+        if (!cancelled) setVerifying(false);
+      }
+    };
+
+    // Start polling after 10 seconds, then every 10 seconds
+    const timerId = setTimeout(() => {
+      poll();
+      const intervalId = setInterval(poll, 10000);
+      // Stop after 10 minutes
+      const maxTimer = setTimeout(() => { clearInterval(intervalId); }, 10 * 60 * 1000);
+      // Cleanup
+      const cleanup = () => { clearInterval(intervalId); clearTimeout(maxTimer); };
+      // Store cleanup for the effect
+      (window as any).__razorpayPollCleanup = cleanup;
+    }, 10000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+      if ((window as any).__razorpayPollCleanup) {
+        (window as any).__razorpayPollCleanup();
+        delete (window as any).__razorpayPollCleanup;
+      }
+    };
+  }, [payClickedAt, user, autoStep]);
 
   const handleVerifyPayment = async () => {
     if (!user) return;
@@ -98,11 +183,14 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       });
       if (error) throw error;
       if (data?.success) {
-        toast.success('Payment verified! Wallet credited.');
+        toast.success('Payment verified! Wallet credited. ✅');
         setAutoStep('amount');
         setPaymentId(null);
         setPayClickedAt(null);
         onDepositAmountChange('');
+        sessionStorage.removeItem('razorpay_pay_clicked_at');
+        sessionStorage.removeItem('razorpay_deposit_amount');
+        sessionStorage.removeItem('razorpay_deposit_id');
         onOpenChange(false);
       } else {
         toast.error(data?.message || 'Payment not found yet. Complete payment and try again.');
