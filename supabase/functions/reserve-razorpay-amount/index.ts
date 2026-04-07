@@ -34,8 +34,8 @@ Deno.serve(async (req) => {
     let uniqueAmount = 0;
     let attempts = 0;
     while (attempts < 10) {
-      const paise = generatePaise(intBase);
-      uniqueAmount = parseFloat((intBase + paise / 100).toFixed(2));
+      const charge = calculateCharge(intBase);
+      uniqueAmount = parseFloat((intBase + charge).toFixed(2));
 
       // Check if this exact amount is already reserved (active, not expired)
       const { data: existing } = await supabase
