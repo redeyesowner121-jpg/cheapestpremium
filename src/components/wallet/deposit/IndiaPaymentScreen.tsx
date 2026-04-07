@@ -217,8 +217,9 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     }
   };
 
-  const qrUrl = depositAmount && parseFloat(depositAmount) > 0
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentLink)}`
+  const displayAmount = uniqueAmount || (depositAmount ? parseFloat(depositAmount) : 0);
+  const qrUrl = displayAmount > 0
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${basePaymentLink}?amount=${Math.round(displayAmount * 100)}`)}`
     : '';
 
   return (
