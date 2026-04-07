@@ -9,9 +9,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { note, amount, paymentId, userId, depositRequestId } = await req.json();
-    if (!note || !amount) {
-      return new Response(JSON.stringify({ error: "Missing note or amount" }), {
+    const { amount, paymentId, userId, depositRequestId, payClickedAt } = await req.json();
+    if (!amount) {
+      return new Response(JSON.stringify({ error: "Missing amount" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -61,8 +61,11 @@ Deno.serve(async (req) => {
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Fetch recent payments from Razorpay (last 2 hours)
-    const fromTime = Math.floor(Date.now() / 1000) - 7200;
+    // Use payClickedAt as the start time window, or fallback to 2 minutes ago
+    const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
+    // Search from 30 seconds before click (for clock skew) to now
+    const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
+
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
       { headers: { "Authorization": `Basic ${authHeader}` } }
@@ -79,13 +82,19 @@ Deno.serve(async (req) => {
     const payments = paymentsData.items || [];
 
     const amountPaise = Math.round(amount * 100);
+    
+    // Match by amount + status + time window (within 2 minutes of pay click)
     const matchingPayment = payments.find((p: any) => {
-      const noteMatch =
-        (p.notes && Object.values(p.notes).some((v: any) => String(v) === note)) ||
-        (p.description && p.description.includes(note));
       const amountMatch = p.amount === amountPaise;
       const statusMatch = p.status === "captured" || p.status === "authorized";
-      return noteMatch && amountMatch && statusMatch;
+      
+      // Check if payment was created within the 2-minute window after pay click
+      const paymentTime = p.created_at; // Unix timestamp
+      const withinWindow = payClickedAt 
+        ? (paymentTime >= clickTime - 30 && paymentTime <= clickTime + 150) // 2.5 min window with 30s buffer
+        : true; // fallback: any recent payment
+      
+      return amountMatch && statusMatch && withinWindow;
     });
 
     if (matchingPayment) {
@@ -99,7 +108,6 @@ Deno.serve(async (req) => {
 
       // Website flow: credit wallet and update deposit request
       if (userId && depositRequestId) {
-        // Get current profile
         const { data: profile } = await supabase
           .from("profiles")
           .select("wallet_balance, rank_balance, total_deposit, name")
@@ -111,7 +119,6 @@ Deno.serve(async (req) => {
           const newRankBalance = (profile.rank_balance || 0) + amount;
           const newTotalDeposit = (profile.total_deposit || 0) + amount;
 
-          // Check for bonus (Rs1000+ deposit)
           let bonusAmount = 0;
           if (amount >= 1000) bonusAmount = 100;
 
@@ -124,13 +131,12 @@ Deno.serve(async (req) => {
             has_blue_check: amount >= 1000 ? true : undefined,
           }).eq("id", userId);
 
-          // Record transaction
           await supabase.from("transactions").insert({
             user_id: userId,
             type: "deposit",
             amount: amount,
             status: "completed",
-            description: `Razorpay Auto Deposit (Code: ${note})`,
+            description: `Razorpay Auto Deposit`,
           });
 
           if (bonusAmount > 0) {
@@ -143,13 +149,11 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Update deposit request
           await supabase.from("manual_deposit_requests").update({
             status: "approved",
             admin_note: "Auto-verified via Razorpay",
           }).eq("id", depositRequestId);
 
-          // Notification
           await supabase.from("notifications").insert({
             user_id: userId,
             title: "Deposit Successful! 💰",
@@ -166,7 +170,7 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: false,
-      message: "Payment not found. Make sure you paid the exact amount and added the note.",
+      message: "Payment not found yet. Please complete payment and try verifying again.",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
