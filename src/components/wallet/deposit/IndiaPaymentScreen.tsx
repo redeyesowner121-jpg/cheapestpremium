@@ -27,8 +27,8 @@ interface IndiaPaymentScreenProps {
   onTransactionIdChange: (id: string) => void;
   senderName: string;
   onSenderNameChange: (name: string) => void;
-  depositTab: 'auto' | 'manual' | 'card';
-  onTabChange: (tab: 'auto' | 'manual' | 'card') => void;
+  depositTab: 'auto' | 'manual';
+  onTabChange: (tab: 'auto' | 'manual') => void;
   onChangeCountry: () => void;
 }
 
