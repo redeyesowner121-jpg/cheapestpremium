@@ -315,6 +315,7 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
                   {/* Category Icon */}
                   <button
                     onClick={() => {
+                      pendingUploadId.current = category.id;
                       setUploadingIconId(category.id);
                       fileInputRef.current?.click();
                     }}
