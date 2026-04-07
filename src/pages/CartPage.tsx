@@ -26,6 +26,26 @@ const CartPage: React.FC = () => {
   const { formatPrice, isForeignCurrency, displayCurrency } = useCurrencyFormat();
   const isAAX = displayCurrency?.code === AAX_CODE;
 
+  // Add Money modal state (triggered when balance is short)
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState('');
+  const [paymentSettings, setPaymentSettings] = useState<any>(null);
+  const [depositTab, setDepositTab] = useState<'auto' | 'manual' | 'card'>('auto');
+
+  // Fetch payment settings when add money modal opens
+  useEffect(() => {
+    if (!showAddMoney) return;
+    const fetchSettings = async () => {
+      const { data } = await supabase.from('payment_settings').select('*');
+      if (data) {
+        const map: any = {};
+        data.forEach((s: any) => { map[s.setting_key] = s; });
+        setPaymentSettings(map);
+      }
+    };
+    fetchSettings();
+  }, [showAddMoney]);
+
 
 
 
