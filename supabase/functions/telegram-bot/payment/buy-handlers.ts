@@ -320,11 +320,11 @@ export async function showManualUpiPayment(
   await sendMessage(token, chatId, "After payment, send the <b>screenshot</b>.");
 }
 
-// Verify Razorpay payment by searching for matching note
+// Verify Razorpay payment by checking for matching amount within time window
 export async function handleRazorpayVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
-  const { paymentNote, paymentId, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
+  const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -339,8 +339,10 @@ export async function handleRazorpayVerify(
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Fetch recent payments from Razorpay (last 1 hour)
-    const fromTime = Math.floor(Date.now() / 1000) - 3600;
+    // Use payClickedAt as the start of time window
+    const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
+    const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
+
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
       { headers: { "Authorization": `Basic ${authHeader}` } }
@@ -361,15 +363,15 @@ export async function handleRazorpayVerify(
     const paymentsData = await paymentsRes.json();
     const payments = paymentsData.items || [];
 
-    // Search for a captured/authorized payment matching the note and amount
     const amountPaise = Math.round(finalAmount * 100);
     const matchingPayment = payments.find((p: any) => {
-      const noteMatch =
-        (p.notes && Object.values(p.notes).some((v: any) => String(v) === paymentNote)) ||
-        (p.description && p.description.includes(paymentNote));
       const amountMatch = p.amount === amountPaise;
       const statusMatch = p.status === "captured" || p.status === "authorized";
-      return noteMatch && amountMatch && statusMatch;
+      const paymentTime = p.created_at;
+      const withinWindow = payClickedAt
+        ? (paymentTime >= clickTime - 30 && paymentTime <= clickTime + 150)
+        : true;
+      return amountMatch && statusMatch && withinWindow;
     });
 
     if (matchingPayment) {
@@ -415,9 +417,9 @@ export async function handleRazorpayVerify(
         await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
       }
       await setConversationState(supabase, telegramUser.id, "idle", {});
-      await processReferralBonus(token, supabase, telegramUser.id, price, "en");
+      await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
-      await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you:\n1. Paid exactly <b>₹${finalAmount}</b>\n2. Added note: <code>${paymentNote}</code>\n\nTry verifying again after completing payment.`, {
+      await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you paid exactly <b>₹${finalAmount}</b> and verify within 2 minutes of paying.`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "💳 Pay Now", url: "https://razorpay.me/@asifikbalrubaiulislam" }],
