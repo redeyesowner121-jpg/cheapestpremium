@@ -265,8 +265,8 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                 <div className="p-3 bg-muted/50 rounded-xl text-xs text-muted-foreground space-y-1">
                   <p>1. Click <b>Pay Now</b> or scan QR</p>
                   <p>2. Pay exactly <b>₹{depositAmount}</b></p>
-                  <p>3. Click <b>Verify Payment</b> below</p>
-                  <p className="text-destructive font-medium mt-1">⚠️ Verify within 2 minutes of paying!</p>
+                  <p>3. Payment will be <b>auto-verified</b> within seconds!</p>
+                  <p className="text-primary font-medium mt-1">🔄 Auto-checking every 10 seconds...</p>
                 </div>
 
                 {/* Verify & Cancel */}
