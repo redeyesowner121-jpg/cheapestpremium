@@ -45,7 +45,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const canWalletPay = isLoggedIn && finalTotal <= walletBalance;
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) { setPaymentStep('details'); setPaymentNote(''); setPaymentId(''); setVerifying(false); }
+    if (!open) { setPaymentStep('details'); setPaymentNote(''); setPaymentId(''); setVerifying(false); setPayClickedAt(null); }
     onOpenChange(open);
   };
 
