@@ -190,19 +190,25 @@ STRICT RULES:
     // Stream response with progressive message editing
     let fullAnswer = "";
     let lastEditTime = 0;
-    const EDIT_INTERVAL_MS = 800; // Edit every 800ms to avoid Telegram rate limits
+    let chunkCount = 0;
+    const EDIT_INTERVAL_MS = 800;
+
+    console.log("Starting SSE stream parsing...");
 
     for await (const chunk of parseSSEStream(response)) {
       fullAnswer += chunk;
+      chunkCount++;
       const now = Date.now();
 
-      // Throttle edits to avoid Telegram API rate limits (max ~30 edits/min per chat)
+      // Throttle edits to avoid Telegram API rate limits
       if (thinkingMsgId && now - lastEditTime >= EDIT_INTERVAL_MS) {
         lastEditTime = now;
-        // Show partial answer with typing indicator
-        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`, { parse_mode: "" });
+        console.log(`Streaming edit #${chunkCount}, length: ${fullAnswer.length}`);
+        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`);
       }
     }
+
+    console.log(`Stream done. Total chunks: ${chunkCount}, answer length: ${fullAnswer.length}`);
 
     const answer = fullAnswer.trim();
 
