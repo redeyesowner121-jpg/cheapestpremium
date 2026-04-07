@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lightbulb, GraduationCap, Search } from 'lucide-react';
+import { Lightbulb, Search, X } from 'lucide-react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
