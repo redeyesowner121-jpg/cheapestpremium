@@ -219,7 +219,7 @@ export async function showUpiPayment(
   });
 }
 
-// Step 2b-i: Auto UPI via Razorpay (Note-based verification)
+// Step 2b-i: Auto UPI via Razorpay (Amount + time-based verification, no code needed)
 export async function showRazorpayUpiPayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
@@ -228,14 +228,13 @@ export async function showRazorpayUpiPayment(
   const currency = settings.currency_symbol || "₹";
   const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
 
-  const paymentNote = generatePaymentNote();
   const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
 
   // Create payment record
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
     amount: finalAmount,
-    note: paymentNote,
+    note: `TIME-${Date.now()}`,
     status: "pending",
     payment_method: "razorpay_upi",
     product_id: productId,
@@ -244,24 +243,23 @@ export async function showRazorpayUpiPayment(
     telegram_user_id: userId,
   }).select("id").single();
 
+  const payClickedAt = new Date().toISOString();
+
   // Store in conversation state
   await setConversationState(supabase, userId, "razorpay_payment_pending", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    paymentNote,
+    payClickedAt,
   });
 
-  let text = `<b>⚡ Auto UPI Payment</b>\n\n`;
+  let text = `<b>⚡ UPI Payment</b>\n\n`;
   text += `Product: <b>${productName}</b>\n`;
   text += `Amount: <b>${currency}${finalAmount}</b>\n\n`;
   text += `<b>Instructions:</b>\n`;
   text += `1. Click <b>Pay Now</b> below\n`;
   text += `2. Pay exactly <b>${currency}${finalAmount}</b>\n`;
-  text += `3. In the <b>note/description</b> field, paste:\n`;
-  text += `   <code>${paymentNote}</code>\n`;
-  text += `4. Complete payment\n`;
-  text += `5. Click <b>Verify Payment</b>\n\n`;
-  text += `<i>⚠️ You MUST add the note for auto-verification.</i>`;
+  text += `3. Click <b>Verify Payment</b> within 2 minutes\n\n`;
+  text += `<i>⚠️ Verify within 2 minutes of paying!</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
@@ -322,11 +320,11 @@ export async function showManualUpiPayment(
   await sendMessage(token, chatId, "After payment, send the <b>screenshot</b>.");
 }
 
-// Verify Razorpay payment by searching for matching note
+// Verify Razorpay payment by checking for matching amount within time window
 export async function handleRazorpayVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
-  const { paymentNote, paymentId, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
+  const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -341,8 +339,10 @@ export async function handleRazorpayVerify(
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Fetch recent payments from Razorpay (last 1 hour)
-    const fromTime = Math.floor(Date.now() / 1000) - 3600;
+    // Use payClickedAt as the start of time window
+    const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
+    const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
+
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
       { headers: { "Authorization": `Basic ${authHeader}` } }
@@ -363,15 +363,15 @@ export async function handleRazorpayVerify(
     const paymentsData = await paymentsRes.json();
     const payments = paymentsData.items || [];
 
-    // Search for a captured/authorized payment matching the note and amount
     const amountPaise = Math.round(finalAmount * 100);
     const matchingPayment = payments.find((p: any) => {
-      const noteMatch =
-        (p.notes && Object.values(p.notes).some((v: any) => String(v) === paymentNote)) ||
-        (p.description && p.description.includes(paymentNote));
       const amountMatch = p.amount === amountPaise;
       const statusMatch = p.status === "captured" || p.status === "authorized";
-      return noteMatch && amountMatch && statusMatch;
+      const paymentTime = p.created_at;
+      const withinWindow = payClickedAt
+        ? (paymentTime >= clickTime - 30 && paymentTime <= clickTime + 150)
+        : true;
+      return amountMatch && statusMatch && withinWindow;
     });
 
     if (matchingPayment) {
@@ -417,9 +417,9 @@ export async function handleRazorpayVerify(
         await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
       }
       await setConversationState(supabase, telegramUser.id, "idle", {});
-      await processReferralBonus(token, supabase, telegramUser.id, price, "en");
+      await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
-      await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you:\n1. Paid exactly <b>₹${finalAmount}</b>\n2. Added note: <code>${paymentNote}</code>\n\nTry verifying again after completing payment.`, {
+      await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you paid exactly <b>₹${finalAmount}</b> and verify within 2 minutes of paying.`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "💳 Pay Now", url: "https://razorpay.me/@asifikbalrubaiulislam" }],

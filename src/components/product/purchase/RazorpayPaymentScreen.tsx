@@ -1,8 +1,7 @@
 import React from 'react';
-import { ArrowLeft, Copy, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { copyToClipboard } from './utils';
 
 interface RazorpayPaymentScreenProps {
   open: boolean;
@@ -12,11 +11,17 @@ interface RazorpayPaymentScreenProps {
   verifying: boolean;
   onBack: () => void;
   onVerify: () => void;
+  onPayClicked?: () => void;
 }
 
 const RazorpayPaymentScreen: React.FC<RazorpayPaymentScreenProps> = ({
-  open, onOpenChange, finalTotal, paymentNote, verifying, onBack, onVerify
+  open, onOpenChange, finalTotal, paymentNote, verifying, onBack, onVerify, onPayClicked
 }) => {
+  const handlePayNow = () => {
+    onPayClicked?.();
+    window.open('https://razorpay.me/@asifikbalrubaiulislam', '_blank');
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl">
@@ -34,27 +39,18 @@ const RazorpayPaymentScreen: React.FC<RazorpayPaymentScreenProps> = ({
               <p className="text-xs text-muted-foreground mb-1">Amount</p>
               <code className="block p-2 bg-background rounded-lg text-lg font-mono font-bold text-center">₹{finalTotal}</code>
             </div>
-            <div>
-              <p className="text-xs text-destructive mb-1 font-medium">⚠️ Payment Note (MUST add)</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 p-2 bg-background rounded-lg text-sm font-mono font-bold text-primary">{paymentNote}</code>
-                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(paymentNote)}>
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
           </div>
 
           <div className="text-xs text-muted-foreground space-y-1 p-3 bg-muted rounded-lg">
             <p>1. Click <b>Pay Now</b> to open payment page</p>
             <p>2. Pay exactly <b>₹{finalTotal}</b></p>
-            <p>3. In the note/description field, paste: <b>{paymentNote}</b></p>
-            <p>4. Complete payment & verify below</p>
+            <p>3. Complete payment & click <b>Verify</b> below</p>
+            <p className="text-destructive font-medium mt-1">⚠️ Verify within 2 minutes of paying!</p>
           </div>
 
           <Button
             className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => window.open('https://razorpay.me/@asifikbalrubaiulislam', '_blank')}
+            onClick={handlePayNow}
           >
             <ExternalLink className="w-4 h-4 mr-2" /> Pay Now
           </Button>

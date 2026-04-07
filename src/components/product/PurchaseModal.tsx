@@ -33,6 +33,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [payClickedAt, setPayClickedAt] = useState<string | null>(null);
 
   const donation = donationEnabled ? Math.max(1, parseFloat(donationAmount) || 0) : 0;
   const isBulkOrder = quantity >= BULK_THRESHOLD;
@@ -44,7 +45,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const canWalletPay = isLoggedIn && finalTotal <= walletBalance;
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) { setPaymentStep('details'); setPaymentNote(''); setPaymentId(''); setVerifying(false); }
+    if (!open) { setPaymentStep('details'); setPaymentNote(''); setPaymentId(''); setVerifying(false); setPayClickedAt(null); }
     onOpenChange(open);
   };
 
@@ -111,9 +112,10 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
     setVerifying(true);
     try {
       const functionName = method === 'binance' ? 'verify-binance-payment' : 'verify-razorpay-note';
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { note: paymentNote, amount: method === 'binance' ? amountUsd : finalTotal, paymentId },
-      });
+      const body = method === 'binance' 
+        ? { note: paymentNote, amount: amountUsd, paymentId }
+        : { amount: finalTotal, paymentId, payClickedAt };
+      const { data, error } = await supabase.functions.invoke(functionName, { body });
       if (error) throw error;
       if (data?.success) {
         toast.success('Payment verified! Processing order...');
@@ -154,6 +156,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
         open={open} onOpenChange={handleOpenChange}
         finalTotal={finalTotal} paymentNote={paymentNote} verifying={verifying}
         onBack={() => setPaymentStep('method')} onVerify={() => verifyPayment('razorpay')}
+        onPayClicked={() => setPayClickedAt(new Date().toISOString())}
       />
     );
   }

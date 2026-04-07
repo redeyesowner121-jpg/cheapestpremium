@@ -160,38 +160,37 @@ export async function showDepositUpi(token: string, supabase: any, chatId: numbe
   });
 }
 
-// Step 3b-i: Auto UPI (Razorpay) deposit with custom link + QR + special code
+// Step 3b-i: Auto UPI (Razorpay) deposit - no code needed, time-based verification
 export async function showDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const paymentNote = generatePaymentNote();
   const razorpayMeUrl = settings.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
 
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
     amount,
-    note: paymentNote,
+    note: `TIME-${Date.now()}`,
     status: "pending",
     payment_method: "razorpay_upi",
     product_name: "Wallet Deposit",
     telegram_user_id: userId,
   }).select("id").single();
 
+  const payClickedAt = new Date().toISOString();
+
   await setConversationState(supabase, userId, "deposit_razorpay_pending", {
-    amount, paymentNote, paymentId: payment?.id,
+    amount, payClickedAt, paymentId: payment?.id,
   });
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(razorpayMeUrl)}`;
 
   let text = `<b>⚡ Razorpay ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
   text += `${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${amount}</b>\n\n`;
-  text += `📋 <b>Special Code:</b> <code>${paymentNote}</code>\n\n`;
   text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
   text += `1. ${lang === "bn" ? "নিচের" : "Click"} <b>Pay Now</b> ${lang === "bn" ? "বাটনে ক্লিক করুন বা QR স্ক্যান করুন" : "below or scan QR"}\n`;
   text += `2. ${lang === "bn" ? "ঠিক" : "Pay exactly"} <b>${currency}${amount}</b> ${lang === "bn" ? "পে করুন" : ""}\n`;
-  text += `3. ${lang === "bn" ? "নোট/বিবরণে পেস্ট করুন" : "In note/description paste"}: <code>${paymentNote}</code>\n`;
-  text += `4. ${lang === "bn" ? "পেমেন্ট শেষে" : "After payment click"} <b>Verify</b> ${lang === "bn" ? "ক্লিক করুন" : ""}\n\n`;
-  text += `<i>⚠️ ${lang === "bn" ? "অটো ভেরিফিকেশনের জন্য নোট অবশ্যই সঠিক হতে হবে!" : "Note MUST match exactly for auto-verification!"}</i>`;
+  text += `3. ${lang === "bn" ? "পেমেন্ট শেষে ২ মিনিটের মধ্যে" : "Within 2 minutes click"} <b>Verify</b> ${lang === "bn" ? "ক্লিক করুন" : ""}\n\n`;
+  text += `<i>⚠️ ${lang === "bn" ? "পে করার ২ মিনিটের মধ্যে ভেরিফাই করুন!" : "Verify within 2 minutes of paying!"}</i>`;
 
   // Try to send with QR photo
   let sent = false;
@@ -314,9 +313,9 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
   }
 }
 
-// Verify Razorpay deposit
+// Verify Razorpay deposit - time-based matching, no code needed
 export async function verifyDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { paymentNote, paymentId, amount } = stateData;
+  const { payClickedAt, paymentId, amount } = stateData;
   await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
 
   try {
@@ -329,7 +328,9 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
     }
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
-    const fromTime = Math.floor(Date.now() / 1000) - 3600;
+    const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
+    const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
+
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
       { headers: { "Authorization": `Basic ${authHeader}` } }
@@ -347,27 +348,30 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
     const amountPaise = Math.round(amount * 100);
 
     const match = payments.find((p: any) => {
-      const noteMatch =
-        (p.notes && Object.values(p.notes).some((v: any) => String(v) === paymentNote)) ||
-        (p.description && p.description.includes(paymentNote));
-      return noteMatch && p.amount === amountPaise && (p.status === "captured" || p.status === "authorized");
+      const amountMatch = p.amount === amountPaise;
+      const statusMatch = p.status === "captured" || p.status === "authorized";
+      const paymentTime = p.created_at;
+      const withinWindow = payClickedAt
+        ? (paymentTime >= clickTime - 30 && paymentTime <= clickTime + 150)
+        : true;
+      return amountMatch && statusMatch && withinWindow;
     });
 
     if (match) {
       if (paymentId) await supabase.from("payments").update({ status: "success" }).eq("id", paymentId);
-      await creditWallet(supabase, userId, amount, "razorpay_upi", paymentNote);
+      await creditWallet(supabase, userId, amount, "razorpay_upi", `time-verified`);
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
       await sendMessage(token, chatId,
         `✅ <b>${lang === "bn" ? "পেমেন্ট সফল!" : "Payment Verified!"}</b>\n\n💰 ₹${amount} ${lang === "bn" ? "জমা হয়েছে" : "deposited"}\n💵 ${lang === "bn" ? "নতুন ব্যালেন্স" : "New Balance"}: <b>₹${wallet?.balance || 0}</b>`
       );
       await notifyAllAdmins(token, supabase,
-        `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount}\n📝 Note: ${paymentNote}\n✅ Auto-verified`
+        `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount}\n✅ Auto-verified (time-based)`
       );
     } else {
       const settingsForLink = await getSettings(supabase);
       const razorpayMeUrl = settingsForLink.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
-      await sendMessage(token, chatId, `${lang === "bn" ? "পেমেন্ট পাওয়া যায়নি।" : "Payment not found yet."}\n\n${lang === "bn" ? "নিশ্চিত করুন" : "Make sure"}:\n1. Paid <b>₹${amount}</b>\n2. Note: <code>${paymentNote}</code>`, {
+      await sendMessage(token, chatId, `${lang === "bn" ? "পেমেন্ট পাওয়া যায়নি।" : "Payment not found yet."}\n\n${lang === "bn" ? "নিশ্চিত করুন যে ঠিক" : "Make sure you paid exactly"} <b>₹${amount}</b> ${lang === "bn" ? "পে করেছেন এবং ২ মিনিটের মধ্যে ভেরিফাই করুন।" : "and verify within 2 minutes."}`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "💳 Pay Now", url: razorpayMeUrl }],
