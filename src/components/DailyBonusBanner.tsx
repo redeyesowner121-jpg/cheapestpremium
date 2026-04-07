@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gift, X, LogIn, UserPlus } from 'lucide-react';
+import { Gift, X, LogIn, UserPlus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,15 +31,9 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
   };
 
   const checkBonusEligibility = () => {
-    if (!profile) {
-      setCanClaimBonus(false);
-      return;
-    }
+    if (!profile) { setCanClaimBonus(false); return; }
     const lastBonus = profile.last_daily_bonus;
-    if (!lastBonus) {
-      setCanClaimBonus(true);
-      return;
-    }
+    if (!lastBonus) { setCanClaimBonus(true); return; }
     const today = getISTDate();
     setCanClaimBonus(lastBonus !== today);
   };
@@ -89,20 +83,20 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
   if (!user) {
     if (dismissed) return null;
     return (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-secondary to-accent p-4 shadow-lg animate-fade-in">
+      <div className="relative overflow-hidden rounded-2xl gradient-primary p-4 shadow-colored-primary animate-fade-in">
         <button
           onClick={() => setDismissed(true)}
-          className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors z-10"
         >
           <X className="w-4 h-4 text-white" />
         </button>
-        <div className="relative flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-            <UserPlus className="w-8 h-8 text-white" />
+        <div className="relative flex items-center gap-4 z-10">
+          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center animate-float">
+            <UserPlus className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-white font-bold text-lg">Join Us! 🎉</h3>
-            <p className="text-white/80 text-sm">Login for exclusive deals & daily bonus</p>
+            <h3 className="text-white font-bold text-lg font-display">Join Us! 🎉</h3>
+            <p className="text-white/85 text-sm">Login for exclusive deals & daily bonus</p>
           </div>
           <Button
             onClick={() => navigate('/auth')}
@@ -112,6 +106,8 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
             Login
           </Button>
         </div>
+        <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-white/10 rounded-full" />
+        <div className="absolute -top-6 -right-6 w-20 h-20 bg-white/10 rounded-full" />
       </div>
     );
   }
@@ -120,29 +116,34 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
 
   // Daily Bonus Banner
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 p-4 shadow-lg animate-fade-in">
+    <div className="relative overflow-hidden rounded-2xl gradient-warm p-4 shadow-colored-accent animate-fade-in">
       <button
         onClick={() => setDismissed(true)}
-        className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+        className="absolute top-2 right-2 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors z-10"
       >
         <X className="w-4 h-4 text-white" />
       </button>
-      <div className="relative flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-          <Gift className="w-8 h-8 text-white" />
+      <div className="relative flex items-center gap-4 z-10">
+        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center animate-float">
+          <Gift className="w-7 h-7 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="text-white font-bold text-lg">Daily Bonus Available! 🎁</h3>
-          <p className="text-white/80 text-sm">Claim your free bonus now!</p>
+          <h3 className="text-white font-bold text-lg font-display flex items-center gap-1.5">
+            Daily Bonus! 
+            <Sparkles className="w-4 h-4" />
+          </h3>
+          <p className="text-white/85 text-sm">Claim your free bonus now!</p>
         </div>
         <Button
           onClick={handleClaimBonus}
           disabled={claiming}
-          className="bg-white text-orange-600 hover:bg-white/90 font-bold px-6 rounded-xl shadow-lg"
+          className="bg-white text-accent hover:bg-white/90 font-bold px-6 rounded-xl shadow-lg"
         >
-          {claiming ? 'Claiming...' : 'Claim'}
+          {claiming ? '...' : 'Claim'}
         </Button>
       </div>
+      <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full" />
+      <div className="absolute -top-4 -left-4 w-16 h-16 bg-white/10 rounded-full" />
     </div>
   );
 });

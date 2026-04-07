@@ -290,7 +290,7 @@ const Index: React.FC = () => {
                   }
                 }}
                 placeholder="Search products..."
-                className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white placeholder-white/60 text-sm font-medium outline-none shadow-lg shadow-purple-500/30"
+                className="w-full pl-12 pr-12 py-3.5 rounded-2xl gradient-primary text-white placeholder-white/60 text-sm font-medium outline-none shadow-colored-primary"
               />
               <button
                 onClick={() => { setSearchOpen(false); setHomeSearchQuery(''); }}
@@ -305,7 +305,7 @@ const Index: React.FC = () => {
                 setSearchOpen(true);
                 setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-600 hover:via-purple-600 hover:to-cyan-600 transition-all active:scale-[0.98] shadow-lg shadow-purple-500/30"
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl gradient-primary hover:opacity-95 transition-all active:scale-[0.98] shadow-colored-primary"
             >
               <Search className="w-5 h-5 text-white" />
               <span className="text-white/90 text-sm font-medium">Search products...</span>

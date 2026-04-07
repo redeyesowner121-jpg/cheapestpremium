@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageCircle, Shield, LogIn } from 'lucide-react';
+import { Bell, MessageCircle, Shield, LogIn, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,31 +47,34 @@ const Header: React.FC = React.memo(() => {
     <header className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
         <div className="flex items-center gap-3">
-          <img
-            src={appLogo}
-            alt={settings.app_name}
-            className="w-10 h-10 rounded-xl object-cover shadow-card cursor-pointer active:scale-95 transition-transform"
-            onClick={() => navigate('/')}
-          />
+          <div className="relative">
+            <img
+              src={appLogo}
+              alt={settings.app_name}
+              className="w-11 h-11 rounded-2xl object-cover shadow-colored-primary cursor-pointer active:scale-95 transition-transform ring-2 ring-primary/20"
+              onClick={() => navigate('/')}
+            />
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 gradient-primary rounded-full border-2 border-background" />
+          </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-1">
+            <h1 className="text-lg font-bold text-foreground flex items-center gap-1.5 font-display">
               {settings.app_name}
               {profile?.has_blue_check && <BlueTick size="sm" />}
             </h1>
             {profile && (
-              <p className="text-xs text-muted-foreground">
-                Balance: {settings.currency_symbol}{walletBalance.toFixed(2)}
+              <p className="text-xs font-medium">
+                <span className="text-muted-foreground">Balance: </span>
+                <span className="text-gradient font-bold">{settings.currency_symbol}{walletBalance.toFixed(2)}</span>
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-
+        <div className="flex items-center gap-1.5">
           {!user && (
             <button
               onClick={() => navigate('/auth')}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-gradient text-primary-foreground text-sm font-semibold active:scale-95 transition-transform"
             >
               <LogIn className="w-4 h-4" />
               Login
@@ -81,19 +84,19 @@ const Header: React.FC = React.memo(() => {
           {showAdminButton && (
             <button
               onClick={() => navigate('/admin')}
-              className="p-2 rounded-xl bg-accent/10 text-accent active:scale-90 transition-transform"
+              className="p-2.5 rounded-2xl gradient-warm text-accent-foreground active:scale-90 transition-transform shadow-colored-accent"
             >
-              <Shield className="w-5 h-5" />
+              <Shield className="w-4.5 h-4.5" />
             </button>
           )}
           
           <button
             onClick={() => navigate('/notifications')}
-            className="p-2 rounded-xl bg-muted hover:bg-muted/80 transition-colors relative active:scale-90"
+            className="p-2.5 rounded-2xl bg-primary/8 hover:bg-primary/15 transition-all relative active:scale-90"
           >
-            <Bell className="w-5 h-5 text-muted-foreground" />
+            <Bell className="w-5 h-5 text-primary" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 gradient-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground font-bold">
+              <span className="absolute -top-1 -right-1 w-5 h-5 gradient-accent rounded-full flex items-center justify-center text-[10px] text-accent-foreground font-bold shadow-colored-accent animate-bounce-in">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -101,9 +104,9 @@ const Header: React.FC = React.memo(() => {
 
           <button
             onClick={() => navigate('/chat')}
-            className="p-2 rounded-xl bg-muted hover:bg-muted/80 transition-colors active:scale-90"
+            className="p-2.5 rounded-2xl bg-secondary/8 hover:bg-secondary/15 transition-all active:scale-90"
           >
-            <MessageCircle className="w-5 h-5 text-muted-foreground" />
+            <MessageCircle className="w-5 h-5 text-secondary" />
           </button>
         </div>
       </div>

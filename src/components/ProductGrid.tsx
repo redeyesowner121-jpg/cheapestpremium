@@ -81,24 +81,25 @@ const ProductCard = memo<{
   return (
     <div
       onClick={() => onProductClick?.(product)}
-      className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
+      className="bg-card rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover active:scale-[0.97] transition-all duration-300 cursor-pointer group"
     >
       <div className="relative">
         <img
           src={product.image}
           alt={product.name}
-          className="w-full h-28 object-cover"
+          className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
         {(() => {
           const newLabel = getNewTagLabel(product.created_at);
           return newLabel ? (
-            <div className="absolute top-2 left-2 bg-emerald-500 px-2 py-0.5 rounded-full flex items-center gap-0.5 animate-pulse">
+            <div className="absolute top-2 left-2 bg-gradient-to-r from-emerald-500 to-teal-500 px-2.5 py-1 rounded-full flex items-center gap-1 shadow-colored-success">
               <Sparkles className="w-2.5 h-2.5 text-white" />
               <span className="text-[9px] font-bold text-white">{newLabel}</span>
             </div>
           ) : product.originalPrice ? (
-            <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
+            <div className="absolute top-2 left-2 gradient-accent px-2.5 py-1 rounded-full shadow-colored-accent">
               <span className="text-[10px] font-bold text-accent-foreground">
                 -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
               </span>
@@ -107,25 +108,24 @@ const ProductCard = memo<{
         })()}
         <button
           onClick={handleShare}
-          className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"
+          className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors"
         >
           <Share2 className="w-3.5 h-3.5 text-foreground" />
         </button>
       </div>
       
       <div className="p-3">
-        <h3 className="font-semibold text-sm text-foreground truncate">{product.name}</h3>
-        <p className="text-xs text-muted-foreground truncate">{product.description}</p>
+        <h3 className="font-semibold text-sm text-foreground truncate font-display">{product.name}</h3>
         
         <div className="flex items-center gap-1 mt-1.5">
-          <Star className="w-3 h-3 text-accent fill-accent" />
-          <span className="text-xs text-foreground font-medium">{product.rating}</span>
+          <Star className="w-3.5 h-3.5 text-accent fill-accent" />
+          <span className="text-xs text-foreground font-semibold">{product.rating}</span>
           <span className="text-xs text-muted-foreground">({product.soldCount})</span>
         </div>
         
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center justify-between mt-2.5">
           <div>
-            <span className="text-primary font-bold">{formatPrice(priceInfo.finalPrice)}</span>
+            <span className="text-primary font-bold text-base font-display">{formatPrice(priceInfo.finalPrice)}</span>
             {(priceInfo.hasRankDiscount || product.originalPrice) && (
               <span className="text-xs text-muted-foreground line-through ml-1">
                 {formatPrice(priceInfo.hasRankDiscount ? product.price : (product.originalPrice || 0))}
@@ -133,14 +133,14 @@ const ProductCard = memo<{
             )}
             {priceInfo.hasRankDiscount && (
               <div className="flex items-center gap-0.5 mt-0.5">
-                <Tag className="w-2.5 h-2.5 text-green-600" />
-                <span className="text-[9px] text-green-600">{userRank.icon}</span>
+                <Tag className="w-2.5 h-2.5 text-success" />
+                <span className="text-[9px] text-success font-medium">{userRank.icon}</span>
               </div>
             )}
           </div>
           <Button
             size="sm"
-            className="h-7 px-3 text-xs btn-gradient rounded-lg"
+            className="h-8 px-4 text-xs btn-gradient rounded-xl font-semibold"
             onClick={(e) => {
               e.stopPropagation();
               onBuyClick?.(product);
@@ -172,7 +172,7 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
   if (!products || products.length === 0) {
     return (
       <div className="w-full">
-        <h2 className="text-lg font-bold text-foreground mb-4">Popular Products</h2>
+        <h2 className="text-lg font-bold text-foreground mb-4 font-display">Popular Products</h2>
         <div className="bg-card rounded-2xl h-48 flex flex-col items-center justify-center text-muted-foreground">
           <Package className="w-12 h-12 mb-3 opacity-50" />
           <p className="text-sm font-medium">No products available</p>
@@ -184,7 +184,9 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
 
   return (
     <div className="w-full">
-      <h2 className="text-lg font-bold text-foreground mb-4">Popular Products</h2>
+      <h2 className="text-lg font-bold text-foreground mb-4 font-display flex items-center gap-2">
+        <span className="text-gradient">Popular</span> Products
+      </h2>
       
       <div className="grid grid-cols-2 gap-3">
         {products.map((product) => (
