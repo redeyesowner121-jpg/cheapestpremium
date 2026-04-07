@@ -293,7 +293,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                   </button>
                   {uniqueAmount && (
                     <p className="text-xs text-muted-foreground bg-muted/60 rounded-lg px-2 py-1 inline-block">
-                      ₹{Math.floor(uniqueAmount)} + ₹{(uniqueAmount - Math.floor(uniqueAmount)).toFixed(2)} (verification fee)
+                      ₹{Math.floor(uniqueAmount)} + ₹{(uniqueAmount - Math.floor(uniqueAmount)).toFixed(2)} (2% + verification fee)
                     </p>
                   )}
                 </div>
