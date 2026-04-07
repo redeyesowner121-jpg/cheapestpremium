@@ -32,7 +32,10 @@ const Index: React.FC = () => {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadData();
@@ -47,6 +50,45 @@ const Index: React.FC = () => {
     const timer = setTimeout(() => setShowRecommendations(true), 500);
     return () => clearTimeout(timer);
   }, [user, permission]);
+
+  // Live search from database
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    
+    if (!homeSearchQuery.trim() || homeSearchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const query = homeSearchQuery.trim().toLowerCase();
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, price, image_url, original_price, reseller_price, sold_count, rating, seo_tags')
+        .eq('is_active', true)
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%,seo_tags.ilike.%${query}%`)
+        .limit(8);
+
+      if (data) {
+        setSearchResults(data.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          image: p.image_url || 'https://via.placeholder.com/200',
+          originalPrice: p.original_price,
+          reseller_price: p.reseller_price,
+          soldCount: p.sold_count || 0,
+          rating: p.rating || 4.5,
+        })));
+      }
+      setSearchLoading(false);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [homeSearchQuery]);
 
   const loadData = async () => {
     try {
@@ -248,14 +290,14 @@ const Index: React.FC = () => {
         </div>
 
         {/* Search Results */}
-        {searchOpen && homeSearchQuery.trim() && (
+        {searchOpen && homeSearchQuery.trim().length >= 2 && (
           <div className="space-y-2">
-            {products
-              .filter(p => 
-                p.name.toLowerCase().includes(homeSearchQuery.toLowerCase())
-              )
-              .slice(0, 6)
-              .map(product => (
+            {searchLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : searchResults.length > 0 ? (
+              searchResults.map(product => (
                 <button
                   key={product.id}
                   onClick={() => handleProductClick(product)}
@@ -267,8 +309,8 @@ const Index: React.FC = () => {
                     <p className="text-xs text-primary font-semibold">₹{product.price}</p>
                   </div>
                 </button>
-              ))}
-            {products.filter(p => p.name.toLowerCase().includes(homeSearchQuery.toLowerCase())).length === 0 && (
+              ))
+            ) : (
               <p className="text-center text-sm text-muted-foreground py-4">No products found</p>
             )}
           </div>
