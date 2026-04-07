@@ -1,17 +1,7 @@
 import React, { useMemo } from 'react';
 import { 
-  Tv, 
-  Music, 
-  GamepadIcon, 
-  Cloud, 
-  BookOpen, 
-  Briefcase,
-  Gift,
-  Coins,
-  Lightbulb,
-  GraduationCap,
-  Wrench,
-  LucideIcon
+  Tv, Music, GamepadIcon, Cloud, BookOpen, Briefcase,
+  Gift, Coins, Lightbulb, GraduationCap, Wrench, LucideIcon
 } from 'lucide-react';
 
 interface Category {
@@ -22,23 +12,21 @@ interface Category {
   icon_url: string | null;
 }
 
-// Icon mapping for categories
-const categoryIcons: Record<string, { icon: LucideIcon; color: string; bgColor: string }> = {
-  'ott': { icon: Tv, color: 'text-red-500', bgColor: 'bg-red-100' },
-  'music': { icon: Music, color: 'text-green-500', bgColor: 'bg-green-100' },
-  'gaming': { icon: GamepadIcon, color: 'text-purple-500', bgColor: 'bg-purple-100' },
-  'games': { icon: GamepadIcon, color: 'text-purple-500', bgColor: 'bg-purple-100' },
-  'cloud': { icon: Cloud, color: 'text-blue-500', bgColor: 'bg-blue-100' },
-  'education': { icon: BookOpen, color: 'text-amber-500', bgColor: 'bg-amber-100' },
-  'tools': { icon: Wrench, color: 'text-slate-500', bgColor: 'bg-slate-100' },
-  'free': { icon: Gift, color: 'text-pink-500', bgColor: 'bg-pink-100' },
-  'earning': { icon: Coins, color: 'text-emerald-500', bgColor: 'bg-emerald-100' },
-  'methods': { icon: Lightbulb, color: 'text-orange-500', bgColor: 'bg-orange-100' },
-  'courses': { icon: GraduationCap, color: 'text-indigo-500', bgColor: 'bg-indigo-100' },
+const categoryIcons: Record<string, { icon: LucideIcon; gradient: string }> = {
+  'ott': { icon: Tv, gradient: 'from-red-500 to-pink-500' },
+  'music': { icon: Music, gradient: 'from-emerald-500 to-teal-500' },
+  'gaming': { icon: GamepadIcon, gradient: 'from-violet-500 to-purple-500' },
+  'games': { icon: GamepadIcon, gradient: 'from-violet-500 to-purple-500' },
+  'cloud': { icon: Cloud, gradient: 'from-sky-500 to-blue-500' },
+  'education': { icon: BookOpen, gradient: 'from-amber-500 to-orange-500' },
+  'tools': { icon: Wrench, gradient: 'from-slate-500 to-gray-600' },
+  'free': { icon: Gift, gradient: 'from-pink-500 to-rose-500' },
+  'earning': { icon: Coins, gradient: 'from-emerald-500 to-green-500' },
+  'methods': { icon: Lightbulb, gradient: 'from-orange-500 to-red-500' },
+  'courses': { icon: GraduationCap, gradient: 'from-indigo-500 to-violet-500' },
 };
 
-// Default icon for unknown categories
-const defaultIcon = { icon: Briefcase, color: 'text-gray-500', bgColor: 'bg-gray-100' };
+const defaultIcon = { icon: Briefcase, gradient: 'from-gray-500 to-gray-600' };
 
 interface CategoryGridProps {
   categories?: Category[];
@@ -59,9 +47,8 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
         id: cat.id,
         name: cat.name,
         icon_url: cat.icon_url,
-        icon: <IconComponent className="w-8 h-8" />,
-        color: iconData.color,
-        bgColor: iconData.bgColor,
+        icon: <IconComponent className="w-7 h-7 text-white" />,
+        gradient: iconData.gradient,
       };
     });
   }, [categories]);
@@ -69,11 +56,11 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
   if (loading) {
     return (
       <div className="w-full">
-        <h2 className="text-lg font-bold text-foreground mb-4">Categories</h2>
+        <h2 className="text-lg font-bold text-foreground mb-4 font-display">Categories</h2>
         <div className="grid grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-card animate-pulse">
-              <div className="w-12 h-12 rounded-xl bg-muted" />
+              <div className="w-12 h-12 rounded-2xl bg-muted" />
               <div className="w-12 h-3 rounded bg-muted" />
             </div>
           ))}
@@ -84,14 +71,14 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
 
   return (
     <div className="w-full">
-      <h2 className="text-lg font-bold text-foreground mb-4">Categories</h2>
+      <h2 className="text-lg font-bold text-foreground mb-4 font-display">Categories</h2>
       
       <div className="grid grid-cols-4 gap-3">
         {categoryItems.map((category) => (
           <button
             key={category.id}
             onClick={() => onCategoryClick?.(category.name)}
-            className="relative flex flex-col items-center justify-center rounded-2xl bg-card shadow-card hover:shadow-lg transition-shadow active:scale-95 overflow-hidden w-full h-20"
+            className="relative flex flex-col items-center justify-center rounded-2xl bg-card shadow-card hover:shadow-card-hover transition-all duration-300 active:scale-95 overflow-hidden w-full h-[84px]"
           >
             {category.icon_url ? (
               <>
@@ -100,16 +87,17 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
                   alt={category.name}
                   className="absolute inset-0 w-full h-full object-cover rounded-2xl"
                 />
-                <span className="relative z-10 mt-auto mb-1 px-1 text-[10px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] bg-black/40 rounded-md leading-tight py-0.5">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-2xl" />
+                <span className="relative z-10 mt-auto mb-2 px-1.5 text-[10px] font-bold text-white drop-shadow-lg leading-tight">
                   {category.name}
                 </span>
               </>
             ) : (
               <>
-                <div className={`p-3 rounded-xl ${category.bgColor}`}>
-                  <div className={category.color}>{category.icon}</div>
+                <div className={`p-3 rounded-2xl bg-gradient-to-br ${category.gradient} shadow-lg`}>
+                  {category.icon}
                 </div>
-                <span className="text-xs font-medium text-foreground mt-1">{category.name}</span>
+                <span className="text-[11px] font-semibold text-foreground mt-1.5">{category.name}</span>
               </>
             )}
           </button>
