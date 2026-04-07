@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Phone, Eye, EyeOff, Gift, ArrowLeft, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import appLogo from '@/assets/app-logo.jpg';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, register, loginWithTelegram, user } = useAuth();
   
@@ -45,7 +46,12 @@ const AuthPage: React.FC = () => {
       setTelegramCode(telegramCode);
       setShowTelegramCodeModal(true);
     }
-  }, [searchParams]);
+
+    // Auto-open Telegram login modal when visiting /auth/tele
+    if (location.pathname === '/auth/tele') {
+      setShowTelegramCodeModal(true);
+    }
+  }, [searchParams, location.pathname]);
 
   useEffect(() => {
     if (user) {
