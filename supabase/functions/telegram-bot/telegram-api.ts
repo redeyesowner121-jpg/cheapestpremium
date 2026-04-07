@@ -94,6 +94,43 @@ export async function getUserProfilePhotos(token: string, userId: number): Promi
   }
 }
 
+export async function sendMessageWithId(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }): Promise<number | null> {
+  try {
+    const res = await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: opts?.parse_mode || "HTML",
+        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
+      }),
+    });
+    const result = await res.json();
+    return result?.result?.message_id || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function editMessageText(token: string, chatId: number, messageId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
+  try {
+    await fetch(`${TELEGRAM_API(token)}/editMessageText`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: opts?.parse_mode || "HTML",
+        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
+      }),
+    });
+  } catch (e) {
+    console.error("editMessageText error:", e);
+  }
+}
+
 export function getTelegramApiUrl(token: string): string {
   return TELEGRAM_API(token);
 }
