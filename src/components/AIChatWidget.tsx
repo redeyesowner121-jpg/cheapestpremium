@@ -146,7 +146,7 @@ const AIChatWidget: React.FC = () => {
                 <Bot className="w-5 h-5" />
                 <span className="font-semibold text-sm">AI Assistant</span>
               </div>
-              <button onClick={() => setOpen(false)} className="p-1 rounded-full hover:bg-primary-foreground/20 transition-colors">
+              <button onClick={() => { setOpen(false); setDismissed(false); }} className="p-1 rounded-full hover:bg-primary-foreground/20 transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
