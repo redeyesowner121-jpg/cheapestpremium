@@ -126,7 +126,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
       case 'chat':
         return <AdminChatPanel />;
       case 'telegram_bot':
-        return <AdminTelegramBot />;
+        return <AdminBotTabs />;
       default:
         return null;
     }
