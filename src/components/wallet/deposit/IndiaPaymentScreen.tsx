@@ -234,16 +234,13 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
           <DialogDescription>Add money to your wallet securely.</DialogDescription>
         </DialogHeader>
 
-        <Tabs value={depositTab} onValueChange={(v) => { onTabChange(v as any); setShowCardConfirm(false); setAutoStep('amount'); setPayClickedAt(null); }} className="mt-4">
-          <TabsList className="grid w-full grid-cols-3 rounded-xl">
+        <Tabs value={depositTab} onValueChange={(v) => { onTabChange(v as any); setAutoStep('amount'); setPayClickedAt(null); }} className="mt-4">
+          <TabsList className="grid w-full grid-cols-2 rounded-xl">
             <TabsTrigger value="auto" className="rounded-lg text-xs">
               <Smartphone className="w-3.5 h-3.5 mr-1" />Auto
             </TabsTrigger>
             <TabsTrigger value="manual" className="rounded-lg text-xs">
               <QrCode className="w-3.5 h-3.5 mr-1" />Manual
-            </TabsTrigger>
-            <TabsTrigger value="card" className="rounded-lg text-xs">
-              <CreditCard className="w-3.5 h-3.5 mr-1" />Card
             </TabsTrigger>
           </TabsList>
 

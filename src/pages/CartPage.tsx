@@ -30,7 +30,7 @@ const CartPage: React.FC = () => {
   const [showAddMoney, setShowAddMoney] = useState(false);
   const [addMoneyAmount, setAddMoneyAmount] = useState('');
   const [paymentSettings, setPaymentSettings] = useState<any>(null);
-  const [depositTab, setDepositTab] = useState<'auto' | 'manual' | 'card'>('auto');
+  const [depositTab, setDepositTab] = useState<'auto' | 'manual'>('auto');
 
   // Fetch payment settings when add money modal opens
   useEffect(() => {
