@@ -156,11 +156,11 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
     reservationId: reservation?.id,
   });
 
-  let text = `<b>💎 Binance ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
-  text += `${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${amount}</b> = <b>$${amountUsd}</b>\n\n`;
+  let text = `<b>💎 Binance Deposit</b>\n\n`;
+  text += `Amount: <b>${currency}${amount}</b> = <b>$${amountUsd}</b>\n\n`;
   text += `Binance Pay ID: <code>${binanceId}</code>\n`;
   text += `Payment Note: <code>${paymentNote}</code>\n\n`;
-  text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
+  text += `<b>Instructions:</b>\n`;
   text += `1. Open Binance App\n`;
   text += `2. Go to Pay > Send\n`;
   text += `3. Pay ID: <code>${binanceId}</code>\n`;
@@ -168,7 +168,7 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
   text += `5. Note: <code>${paymentNote}</code>\n`;
   text += `6. Complete & click Verify\n\n`;
   text += `<i>⚠️ Note must match exactly!</i>\n`;
-  text += `<i>⏰ ${lang === "bn" ? "২০ মিনিটের মধ্যে পেমেন্ট করুন" : "Pay within 20 minutes"}</i>`;
+  text += `<i>⏰ Pay within 20 minutes</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
