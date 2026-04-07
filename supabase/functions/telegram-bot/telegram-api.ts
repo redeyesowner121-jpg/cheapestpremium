@@ -115,17 +115,24 @@ export async function sendMessageWithId(token: string, chatId: number, text: str
 
 export async function editMessageText(token: string, chatId: number, messageId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
   try {
-    await fetch(`${TELEGRAM_API(token)}/editMessageText`, {
+    const body: any = {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+    };
+    // Only add parse_mode if it's a valid non-empty value
+    if (opts?.parse_mode) body.parse_mode = opts.parse_mode;
+    if (opts?.reply_markup) body.reply_markup = opts.reply_markup;
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId,
-        text,
-        parse_mode: opts?.parse_mode || "HTML",
-        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
-      }),
+      body: JSON.stringify(body),
     });
+    const result = await res.json();
+    if (!result.ok) {
+      console.error("editMessageText failed:", JSON.stringify(result));
+    }
   } catch (e) {
     console.error("editMessageText error:", e);
   }
