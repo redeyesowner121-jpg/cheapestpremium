@@ -95,7 +95,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
           >
             <div className={`p-3 rounded-xl ${category.icon_url ? '' : category.bgColor}`}>
               {category.icon_url ? (
-                <img src={category.icon_url} alt={category.name} className="w-6 h-6 object-contain rounded" />
+                <img src={category.icon_url} alt={category.name} className="w-8 h-8 object-contain rounded" />
               ) : (
                 <div className={category.color}>{category.icon}</div>
               )}
