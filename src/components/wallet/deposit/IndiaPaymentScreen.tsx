@@ -98,11 +98,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   const handlePayNowClick = () => {
     const now = new Date().toISOString();
     setPayClickedAt(now);
+    const payAmount = uniqueAmount || parseFloat(depositAmount);
+    const amountPaise = Math.round(payAmount * 100);
+    const linkWithAmount = `${basePaymentLink}?amount=${amountPaise}`;
     // Persist to sessionStorage so it survives reload
     sessionStorage.setItem('razorpay_pay_clicked_at', now);
-    sessionStorage.setItem('razorpay_deposit_amount', depositAmount);
+    sessionStorage.setItem('razorpay_deposit_amount', payAmount.toString());
     sessionStorage.setItem('razorpay_deposit_id', paymentId || '');
-    window.open(paymentLink, '_blank');
+    sessionStorage.setItem('razorpay_unique_amount', payAmount.toString());
+    window.open(linkWithAmount, '_blank');
   };
 
   // Restore state from sessionStorage on mount (handles reload)
