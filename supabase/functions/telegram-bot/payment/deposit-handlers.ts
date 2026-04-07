@@ -381,14 +381,14 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
       await sendMessage(token, chatId,
-        `✅ <b>${lang === "bn" ? "পেমেন্ট সফল!" : "Payment Verified!"}</b>\n\n💰 ₹${amount} ${lang === "bn" ? "জমা হয়েছে" : "deposited"}\n💵 ${lang === "bn" ? "নতুন ব্যালেন্স" : "New Balance"}: <b>₹${wallet?.balance || 0}</b>`
+        `✅ <b>Payment Verified!</b>\n\n💰 ₹${amount} deposited\n💵 New Balance: <b>₹${wallet?.balance || 0}</b>`
       );
       await notifyAllAdmins(token, supabase,
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
     } else {
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
-      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${lang === "bn" ? `${remaining} মিনিট বাকি` : `${remaining} min remaining`}`, {
+      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${remaining} min remaining`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "✅ Verify Payment", callback_data: "deposit_binance_verify" }],
