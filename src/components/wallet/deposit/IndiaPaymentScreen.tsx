@@ -114,19 +114,20 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     const savedClickedAt = sessionStorage.getItem('razorpay_pay_clicked_at');
     const savedAmount = sessionStorage.getItem('razorpay_deposit_amount');
     const savedDepositId = sessionStorage.getItem('razorpay_deposit_id');
+    const savedUniqueAmount = sessionStorage.getItem('razorpay_unique_amount');
     if (savedClickedAt && savedAmount) {
-      // Check if within 10 minutes
       const elapsed = Date.now() - new Date(savedClickedAt).getTime();
       if (elapsed < 10 * 60 * 1000) {
         setPayClickedAt(savedClickedAt);
         onDepositAmountChange(savedAmount);
         if (savedDepositId) setPaymentId(savedDepositId);
+        if (savedUniqueAmount) setUniqueAmount(parseFloat(savedUniqueAmount));
         setAutoStep('pay');
       } else {
-        // Expired, clean up
         sessionStorage.removeItem('razorpay_pay_clicked_at');
         sessionStorage.removeItem('razorpay_deposit_amount');
         sessionStorage.removeItem('razorpay_deposit_id');
+        sessionStorage.removeItem('razorpay_unique_amount');
       }
     }
   }, []);
