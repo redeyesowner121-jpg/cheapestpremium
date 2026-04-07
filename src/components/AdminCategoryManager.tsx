@@ -372,9 +372,11 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file && uploadingIconId) {
-            handleIconUpload(uploadingIconId, file);
+          const targetId = pendingUploadId.current;
+          if (file && targetId) {
+            handleIconUpload(targetId, file);
           }
+          pendingUploadId.current = null;
           e.target.value = '';
         }}
       />
