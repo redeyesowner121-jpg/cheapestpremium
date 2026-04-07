@@ -45,7 +45,7 @@ export async function checkGiveawayChannels(mainToken: string, userId: number): 
 
 // ===== GIVEAWAY MAIN MENU =====
 
-export async function showGiveawayMainMenu(token: string, supabase: any, chatId: number, lang: string, userId: number) {
+export async function showGiveawayMainMenu(token: string, supabase: any, chatId: number, _lang: string, userId: number) {
   const points = await getPoints(supabase, userId);
   const pts = points?.points || 0;
   const refs = points?.total_referrals || 0;
@@ -53,9 +53,7 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
   const settings = await getSettings(supabase);
   const storeName = settings.app_name || "RKR Premium Store";
 
-  const welcomeText = lang === "bn"
-    ? `🎁 <b>${storeName} গিভওয়ে বট!</b>\n\n💰 পয়েন্ট: <b>${pts}</b> | 👥 রেফারেল: <b>${refs}</b>\n\n✨ রেফার করো → পয়েন্ট অর্জন করো → ফ্রি প্রোডাক্ট জিতো!\n\nনিচে একটি অপশন বেছে নিন:`
-    : `🎁 <b>${storeName} Giveaway Bot!</b>\n\n💰 Points: <b>${pts}</b> | 👥 Referrals: <b>${refs}</b>\n\n✨ Refer friends → Earn points → Win free products!\n\nChoose an option below:`;
+  const welcomeText = `🎁 <b>${storeName} Giveaway Bot!</b>\n\n💰 Points: <b>${pts}</b> | 👥 Referrals: <b>${refs}</b>\n\n✨ Refer friends → Earn points → Win free products!\n\nChoose an option below:`;
 
   await sendMessage(token, chatId, welcomeText, {
     reply_markup: {
@@ -80,18 +78,15 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
 
 // ===== GIVEAWAY JOIN CHANNELS =====
 
-export async function showGiveawayJoinChannels(token: string, supabase: any, chatId: number, lang: string, userId: number) {
-  // Fixed channels: @rkrxott, @pocket_money27, and main bot ref link
+export async function showGiveawayJoinChannels(token: string, supabase: any, chatId: number, _lang: string, userId: number) {
   const buttons: any[][] = [
     [{ text: "Join @RKRxOTT", url: "https://t.me/RKRxOTT" }],
     [{ text: "Join @pocket_money27", url: "https://t.me/pocket_money27" }],
     [{ text: "🤖 Start Main Bot", url: MAIN_BOT_REF_LINK }],
-    [{ text: lang === "bn" ? "✅ যাচাই করুন" : "✅ Verify", callback_data: "gw_verify_join" }],
+    [{ text: "✅ Verify", callback_data: "gw_verify_join" }],
   ];
 
-  const text = lang === "bn"
-    ? `🔒 <b>প্রথমে নিচের ধাপগুলি সম্পূর্ণ করুন!</b>\n\n1️⃣ @RKRxOTT চ্যানেলে জয়েন করুন\n2️⃣ @pocket_money27 চ্যানেলে জয়েন করুন\n3️⃣ মেইন বট স্টার্ট করুন\n\nসম্পন্ন হলে "✅ যাচাই করুন" ক্লিক করুন।`
-    : `🔒 <b>Complete these steps first!</b>\n\n1️⃣ Join @RKRxOTT channel\n2️⃣ Join @pocket_money27 channel\n3️⃣ Start the Main Bot\n\nAfter completing, click "✅ Verify".`;
+  const text = `🔒 <b>Complete these steps first!</b>\n\n1️⃣ Join @RKRxOTT channel\n2️⃣ Join @pocket_money27 channel\n3️⃣ Start the Main Bot\n\nAfter completing, click "✅ Verify".`;
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -133,7 +128,7 @@ export async function handleGiveawayStart(
 
         try {
           await sendMessage(token, referrerId,
-            `🎉 <b>নতুন রেফারেল!</b>\n\n👤 <b>${firstName}</b> আপনার লিংক দিয়ে জয়েন করেছে!\n🎯 +${ppr} পয়েন্ট যোগ হয়েছে!`
+            `🎉 <b>New Referral!</b>\n\n👤 <b>${firstName}</b> joined using your link!\n🎯 +${ppr} points added!`
           );
         } catch {}
       }
@@ -146,7 +141,6 @@ export async function handleGiveawayStart(
 
   const { isAdminBot } = await import("./db-helpers.ts");
   const isUserAdmin = await isAdminBot(supabase, userId);
-  // Use MAIN bot token for channel checks since giveaway bot isn't admin of channels
   const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
   const joined = await checkGiveawayChannels(MAIN_TOKEN, userId);
   await ensureWallet(supabase, userId);
@@ -161,7 +155,7 @@ export async function handleGiveawayStart(
 
 // ===== GIVEAWAY STATS =====
 
-export async function showGiveawayStats(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+export async function showGiveawayStats(token: string, supabase: any, chatId: number, userId: number, _lang: string) {
   const [wallet, points] = await Promise.all([
     supabase.from("telegram_wallets").select("balance, total_earned, is_reseller, referral_code").eq("telegram_id", userId).single().then((r: any) => r.data),
     getPoints(supabase, userId),
@@ -172,17 +166,17 @@ export async function showGiveawayStats(token: string, supabase: any, chatId: nu
   const refCode = wallet?.referral_code || "N/A";
   const pts = points?.points || 0;
   const refs = points?.total_referrals || 0;
-  const statsText = lang === "bn"
-    ? `📊 <b>আপনার পরিসংখ্যান</b>\n\n💰 ব্যালেন্স: <b>₹${bal}</b>\n💵 মোট আয়: <b>₹${earned}</b>\n📦 মোট অর্ডার: <b>${orderCount || 0}</b>\n🎯 গিভওয়ে পয়েন্ট: <b>${pts}</b>\n👥 গিভওয়ে রেফারেল: <b>${refs}</b>\n🏷️ রেফারেল কোড: <code>${refCode}</code>`
-    : `📊 <b>Your Stats</b>\n\n💰 Balance: <b>₹${bal}</b>\n💵 Total Earned: <b>₹${earned}</b>\n📦 Total Orders: <b>${orderCount || 0}</b>\n🎯 Giveaway Points: <b>${pts}</b>\n👥 Giveaway Referrals: <b>${refs}</b>\n🏷️ Referral Code: <code>${refCode}</code>`;
+
+  const statsText = `📊 <b>Your Stats</b>\n\n💰 Balance: <b>₹${bal}</b>\n💵 Total Earned: <b>₹${earned}</b>\n📦 Total Orders: <b>${orderCount || 0}</b>\n🎯 Giveaway Points: <b>${pts}</b>\n👥 Giveaway Referrals: <b>${refs}</b>\n🏷️ Referral Code: <code>${refCode}</code>`;
+
   await sendMessage(token, chatId, statsText, {
-    reply_markup: { inline_keyboard: [[{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "gw_main" }]] }
+    reply_markup: { inline_keyboard: [[{ text: "Main Menu", callback_data: "gw_main" }]] }
   });
 }
 
 // ===== GIVEAWAY REFERRAL LINK =====
 
-export async function showGiveawayReferralLink(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+export async function showGiveawayReferralLink(token: string, supabase: any, chatId: number, userId: number, _lang: string) {
   const botInfo = await fetch(`https://api.telegram.org/bot${token}/getMe`).then(r => r.json());
   const botUsername = botInfo.result?.username || "giveaway_bot";
   const refLink = `https://t.me/${botUsername}?start=ref_${userId}`;
@@ -192,9 +186,7 @@ export async function showGiveawayReferralLink(token: string, supabase: any, cha
   const refs = points?.total_referrals || 0;
   const ppr = parseInt(await getGiveawaySetting(supabase, "points_per_referral") || "2");
 
-  const text = lang === "bn"
-    ? `📎 <b>রেফার & আর্ন</b>\n\n🔗 আপনার গিভওয়ে রেফারেল লিংক:\n<code>${refLink}</code>\n\n💰 পয়েন্ট: <b>${pts}</b>\n👥 মোট রেফারেল: <b>${refs}</b>\n🎯 প্রতি রেফারে: <b>${ppr} পয়েন্ট</b>\n\n✨ বন্ধুদের শেয়ার করো এবং ফ্রি প্রোডাক্ট জিতো!\n\n👆 লিংকে ক্লিক করে কপি করো!`
-    : `📎 <b>Refer & Earn</b>\n\n🔗 Your Giveaway Referral Link:\n<code>${refLink}</code>\n\n💰 Points: <b>${pts}</b>\n👥 Total Referrals: <b>${refs}</b>\n🎯 Per Referral: <b>${ppr} points</b>\n\n✨ Share with friends and win free products!\n\n👆 Click to copy!`;
+  const text = `📎 <b>Refer & Earn</b>\n\n🔗 Your Giveaway Referral Link:\n<code>${refLink}</code>\n\n💰 Points: <b>${pts}</b>\n👥 Total Referrals: <b>${refs}</b>\n🎯 Per Referral: <b>${ppr} points</b>\n\n✨ Share with friends and win free products!\n\n👆 Click to copy!`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: { inline_keyboard: [
@@ -207,20 +199,17 @@ export async function showGiveawayReferralLink(token: string, supabase: any, cha
 // ===== GIVEAWAY CALLBACK HANDLERS =====
 
 export async function handleGiveawayCallbacks(
-  token: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, lang: string
+  token: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, _lang: string
 ): Promise<boolean> {
 
   if (data === "gw_verify_join") {
-    // Use MAIN bot token for channel checks
     const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
     const joined = await checkGiveawayChannels(MAIN_TOKEN, userId);
     if (!joined) {
-      await sendMessage(token, chatId, t("not_joined", lang));
+      await sendMessage(token, chatId, "❌ You haven't joined all channels yet. Please join both channels and try again.");
     } else {
-      // Add ₹1 welcome bonus to wallet (only first time)
       const wallet = await ensureWallet(supabase, userId);
       
-      // Check if this user already got the welcome bonus
       const { data: existingBonus } = await supabase
         .from("telegram_wallet_transactions")
         .select("id")
@@ -229,7 +218,6 @@ export async function handleGiveawayCallbacks(
         .single();
 
       if (!existingBonus) {
-        // Add ₹1 to wallet
         const currentBal = wallet?.balance || 0;
         await supabase.from("telegram_wallets")
           .update({ balance: currentBal + 1, updated_at: new Date().toISOString() })
@@ -242,22 +230,20 @@ export async function handleGiveawayCallbacks(
           description: "Giveaway Bot Welcome Bonus",
         });
 
-        const successText = lang === "bn"
-          ? `✅ <b>সফলভাবে ভেরিফাই হয়েছে!</b>\n\n🎉 +₹1 আপনার ওয়ালেটে যোগ হয়েছে!\n\n💰 আপনি এটি উইথড্র করতে পারবেন, রেফার করে প্রিমিয়াম রিডিম করতে পারবেন অথবা টাকা আয় করতে পারবেন! 💸`
-          : `✅ <b>Verified Successfully!</b>\n\n🎉 +₹1 added to your wallet!\n\n💰 You can withdraw it, refer & redeem premium or earn money! 💸`;
-
-        await sendMessage(token, chatId, successText);
+        await sendMessage(token, chatId,
+          `✅ <b>Verified Successfully!</b>\n\n🎉 +₹1 added to your wallet!\n\n💰 You can withdraw it, refer & redeem premium or earn money! 💸`
+        );
       } else {
-        await sendMessage(token, chatId, t("verified", lang));
+        await sendMessage(token, chatId, "✅ Verified! Welcome aboard!");
       }
 
-      await showGiveawayMainMenu(token, supabase, chatId, lang, userId);
+      await showGiveawayMainMenu(token, supabase, chatId, "en", userId);
     }
     return true;
   }
 
   if (data === "gw_main") {
-    await showGiveawayMainMenu(token, supabase, chatId, lang, userId);
+    await showGiveawayMainMenu(token, supabase, chatId, "en", userId);
     return true;
   }
 
@@ -268,14 +254,12 @@ export async function handleGiveawayCallbacks(
       .eq("is_active", true);
 
     if (!products || products.length === 0) {
-      await sendMessage(token, chatId,
-        lang === "bn" ? "😔 <b>এখন কোনো গিভওয়ে প্রোডাক্ট নেই।</b>" : "😔 <b>No giveaway products available.</b>", {
+      await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", {
         reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main" }]] }
       });
       return true;
     }
 
-    // Group by product name to avoid duplicates
     const seen = new Set<string>();
     const buttons: any[][] = [];
     for (const p of products) {
@@ -287,10 +271,7 @@ export async function handleGiveawayCallbacks(
     }
     buttons.push([{ text: "🔙 Back", callback_data: "gw_main" }]);
 
-    const text = lang === "bn"
-      ? "🎁 <b>গিভওয়ে প্রোডাক্টস</b>\n\nএকটি প্রোডাক্ট বেছে নিন:"
-      : "🎁 <b>Giveaway Products</b>\n\nChoose a product:";
-    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+    await sendMessage(token, chatId, "🎁 <b>Giveaway Products</b>\n\nChoose a product:", { reply_markup: { inline_keyboard: buttons } });
     return true;
   }
 
@@ -328,9 +309,7 @@ export async function handleGiveawayCallbacks(
     }
     buttons.push([{ text: "🔙 Back", callback_data: "gw_products" }]);
 
-    const caption = lang === "bn"
-      ? `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nনিচে একটি ভেরিয়েশন বেছে রিডিম করুন:`
-      : `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nChoose a variation to redeem:`;
+    const caption = `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nChoose a variation to redeem:`;
 
     if (product.image_url) {
       const { sendPhoto } = await import("./telegram-api.ts");
@@ -356,7 +335,7 @@ export async function handleGiveawayCallbacks(
       return true;
     }
     if (product.stock !== null && product.stock <= 0) {
-      await sendMessage(token, chatId, lang === "bn" ? "❌ স্টকে নেই!" : "❌ Out of stock!");
+      await sendMessage(token, chatId, "❌ Out of stock!");
       return true;
     }
 
@@ -367,18 +346,14 @@ export async function handleGiveawayCallbacks(
     if (pts < product.points_required) {
       const needed = product.points_required - pts;
       await sendMessage(token, chatId,
-        lang === "bn"
-          ? `❌ <b>পর্যাপ্ত পয়েন্ট নেই!</b>\n\n🎯 প্রয়োজন: ${product.points_required} pts\n💰 আপনার: ${pts} pts\n📌 আরো ${needed} দরকার`
-          : `❌ <b>Not enough points!</b>\n\n🎯 Need: ${product.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
+        `❌ <b>Not enough points!</b>\n\n🎯 Need: ${product.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
         reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${product.product_id}` }]] }
       });
       return true;
     }
 
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? `🎁 <b>কনফার্ম রিডিম?</b>\n\n🏷️ ${name}${varName}\n🎯 খরচ: ${product.points_required} pts\n💰 ব্যালেন্স: ${pts} pts\nপরে: ${pts - product.points_required} pts`
-        : `🎁 <b>Confirm Redeem?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${product.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - product.points_required} pts`, {
+      `🎁 <b>Confirm Redeem?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${product.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - product.points_required} pts`, {
       reply_markup: { inline_keyboard: [
         [{ text: "✅ Confirm", callback_data: `gw_confirm_${gpId}` }],
         [{ text: "❌ Cancel", callback_data: `gw_pdetail_${product.product_id}` }],
@@ -425,9 +400,7 @@ export async function handleGiveawayCallbacks(
     const username = telegramUser.username || null;
 
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? `✅ <b>রিডেম্পশন জমা!</b>\n\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts খরচ\n💰 বাকি: ${pts - product.points_required} pts\n\n⏳ অ্যাডমিন শীঘ্রই ডেলিভার করবে!`
-        : `✅ <b>Redemption Submitted!</b>\n\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts spent\n💰 Remaining: ${pts - product.points_required} pts\n\n⏳ Admin will deliver soon!`, {
+      `✅ <b>Redemption Submitted!</b>\n\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts spent\n💰 Remaining: ${pts - product.points_required} pts\n\n⏳ Admin will deliver soon!`, {
       reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
     });
 
@@ -437,7 +410,7 @@ export async function handleGiveawayCallbacks(
       `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
     );
 
-    // Notify admins on web (create notification for all admin users)
+    // Notify admins on web
     const { data: adminRoles } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -457,7 +430,7 @@ export async function handleGiveawayCallbacks(
   }
 
   if (data === "gw_referral") {
-    await showGiveawayReferralLink(token, supabase, chatId, userId, lang);
+    await showGiveawayReferralLink(token, supabase, chatId, userId, "en");
     return true;
   }
 
@@ -465,9 +438,7 @@ export async function handleGiveawayCallbacks(
     const points = await getPoints(supabase, userId);
     const ppr = parseInt(await getGiveawaySetting(supabase, "points_per_referral") || "2");
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? `💰 <b>আপনার পয়েন্ট</b>\n\n🎯 পয়েন্ট: <b>${points?.points || 0}</b>\n👥 মোট রেফারেল: <b>${points?.total_referrals || 0}</b>\n\n📌 প্রতি রেফারে: <b>${ppr} পয়েন্ট</b>`
-        : `💰 <b>Your Points</b>\n\n🎯 Points: <b>${points?.points || 0}</b>\n👥 Total Referrals: <b>${points?.total_referrals || 0}</b>\n\n📌 Per Referral: <b>${ppr} points</b>`, {
+      `💰 <b>Your Points</b>\n\n🎯 Points: <b>${points?.points || 0}</b>\n👥 Total Referrals: <b>${points?.total_referrals || 0}</b>\n\n📌 Per Referral: <b>${ppr} points</b>`, {
       reply_markup: { inline_keyboard: [
         [{ text: "📎 Refer & Earn", callback_data: "gw_referral" }],
         [{ text: "🎁 Giveaway Products", callback_data: "gw_products" }],
@@ -485,9 +456,9 @@ export async function handleGiveawayCallbacks(
       .order("created_at", { ascending: false })
       .limit(10);
 
-    let histText = lang === "bn" ? "📜 <b>আমার রিডেম্পশনস:</b>\n\n" : "📜 <b>My Redemptions:</b>\n\n";
+    let histText = "📜 <b>My Redemptions:</b>\n\n";
     if (!redeems?.length) {
-      histText += lang === "bn" ? "কোনো রিডেম্পশন নেই।\n\n🎁 গিভওয়ে প্রোডাক্ট রিডিম করুন!" : "No redemptions yet.\n\n🎁 Redeem giveaway products!";
+      histText += "No redemptions yet.\n\n🎁 Redeem giveaway products!";
     } else {
       for (const r of redeems) {
         const name = (r as any).giveaway_product?.product?.name || "Unknown";
@@ -506,7 +477,6 @@ export async function handleGiveawayCallbacks(
   }
 
   if (data === "gw_reviews") {
-    // Show recent approved redemptions as social proof / reviews
     const { data: approvedRedeems } = await supabase
       .from("giveaway_redemptions")
       .select("*, giveaway_product:giveaway_products(product:products(name))")
@@ -514,9 +484,9 @@ export async function handleGiveawayCallbacks(
       .order("created_at", { ascending: false })
       .limit(10);
 
-    let reviewText = lang === "bn" ? "⭐ <b>রিভিউস / সফল রিডেম্পশন:</b>\n\n" : "⭐ <b>Reviews / Successful Redemptions:</b>\n\n";
+    let reviewText = "⭐ <b>Reviews / Successful Redemptions:</b>\n\n";
     if (!approvedRedeems?.length) {
-      reviewText += lang === "bn" ? "এখনো কোনো সফল রিডেম্পশন নেই।" : "No successful redemptions yet.";
+      reviewText += "No successful redemptions yet.";
     } else {
       for (const r of approvedRedeems) {
         const name = (r as any).giveaway_product?.product?.name || "Unknown";
@@ -524,7 +494,7 @@ export async function handleGiveawayCallbacks(
         reviewText += `✅ <b>${name}</b> — ${r.points_spent} pts\n   🆔 ${String(r.telegram_id).slice(0, 4)}**** | 📅 ${date}\n\n`;
       }
     }
-    reviewText += lang === "bn" ? "\n🎁 তুমিও রেফার করে ফ্রি প্রোডাক্ট জিতো!" : "\n🎁 You too can win free products by referring!";
+    reviewText += "\n🎁 You too can win free products by referring!";
 
     await sendMessage(token, chatId, reviewText, {
       reply_markup: { inline_keyboard: [
