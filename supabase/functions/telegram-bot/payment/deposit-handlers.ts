@@ -94,13 +94,14 @@ export async function showDepositMethodChoice(token: string, supabase: any, chat
   });
 }
 
-// Step 3a: Binance deposit
+// Step 3a: Binance deposit — 20 min reservation, no extra charge
 export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
   const currency = settings.currency_symbol || "₹";
   const amountUsd = inrToUsd(amount);
   const paymentNote = generatePaymentNote();
+  const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
 
   // Create payment record
   const { data: payment } = await supabase.from("payments").insert({
@@ -115,7 +116,7 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
   }).select("id").single();
 
   await setConversationState(supabase, userId, "deposit_binance_pending", {
-    amount, amountUsd, paymentNote, paymentId: payment?.id,
+    amount, amountUsd, paymentNote, paymentId: payment?.id, expiresAt,
   });
 
   let text = `<b>💎 Binance ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
@@ -129,7 +130,8 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
   text += `4. Amount: <b>$${amountUsd}</b>\n`;
   text += `5. Note: <code>${paymentNote}</code>\n`;
   text += `6. Complete & click Verify\n\n`;
-  text += `<i>⚠️ Note must match exactly!</i>`;
+  text += `<i>⚠️ Note must match exactly!</i>\n`;
+  text += `<i>⏰ ${lang === "bn" ? "২০ মিনিটের মধ্যে পেমেন্ট করুন" : "Pay within 20 minutes"}</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
