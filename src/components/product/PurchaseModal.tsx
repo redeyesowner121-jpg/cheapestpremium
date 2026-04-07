@@ -156,6 +156,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
         open={open} onOpenChange={handleOpenChange}
         finalTotal={finalTotal} paymentNote={paymentNote} verifying={verifying}
         onBack={() => setPaymentStep('method')} onVerify={() => verifyPayment('razorpay')}
+        onPayClicked={() => setPayClickedAt(new Date().toISOString())}
       />
     );
   }
