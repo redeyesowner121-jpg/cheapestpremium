@@ -59,7 +59,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
         id: cat.id,
         name: cat.name,
         icon_url: cat.icon_url,
-        icon: <IconComponent className="w-10 h-10" />,
+        icon: <IconComponent className="w-8 h-8" />,
         color: iconData.color,
         bgColor: iconData.bgColor,
       };
