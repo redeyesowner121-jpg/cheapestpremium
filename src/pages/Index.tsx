@@ -32,7 +32,10 @@ const Index: React.FC = () => {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadData();
