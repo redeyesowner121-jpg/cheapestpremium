@@ -219,7 +219,7 @@ export async function showUpiPayment(
   });
 }
 
-// Step 2b-i: Auto UPI via Razorpay (Note-based verification)
+// Step 2b-i: Auto UPI via Razorpay (Amount + time-based verification, no code needed)
 export async function showRazorpayUpiPayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
@@ -228,14 +228,13 @@ export async function showRazorpayUpiPayment(
   const currency = settings.currency_symbol || "₹";
   const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
 
-  const paymentNote = generatePaymentNote();
   const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
 
   // Create payment record
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
     amount: finalAmount,
-    note: paymentNote,
+    note: `TIME-${Date.now()}`,
     status: "pending",
     payment_method: "razorpay_upi",
     product_id: productId,
@@ -244,24 +243,23 @@ export async function showRazorpayUpiPayment(
     telegram_user_id: userId,
   }).select("id").single();
 
+  const payClickedAt = new Date().toISOString();
+
   // Store in conversation state
   await setConversationState(supabase, userId, "razorpay_payment_pending", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    paymentNote,
+    payClickedAt,
   });
 
-  let text = `<b>⚡ Auto UPI Payment</b>\n\n`;
+  let text = `<b>⚡ UPI Payment</b>\n\n`;
   text += `Product: <b>${productName}</b>\n`;
   text += `Amount: <b>${currency}${finalAmount}</b>\n\n`;
   text += `<b>Instructions:</b>\n`;
   text += `1. Click <b>Pay Now</b> below\n`;
   text += `2. Pay exactly <b>${currency}${finalAmount}</b>\n`;
-  text += `3. In the <b>note/description</b> field, paste:\n`;
-  text += `   <code>${paymentNote}</code>\n`;
-  text += `4. Complete payment\n`;
-  text += `5. Click <b>Verify Payment</b>\n\n`;
-  text += `<i>⚠️ You MUST add the note for auto-verification.</i>`;
+  text += `3. Click <b>Verify Payment</b> within 2 minutes\n\n`;
+  text += `<i>⚠️ Verify within 2 minutes of paying!</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
