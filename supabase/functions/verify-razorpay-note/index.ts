@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (payment?.status === "success") {
-        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+        return new Response(JSON.stringify({ success: false, message: "This payment was already processed. Start a new deposit." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
