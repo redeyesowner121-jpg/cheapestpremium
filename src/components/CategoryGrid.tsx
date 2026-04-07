@@ -91,7 +91,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
           <button
             key={category.id}
             onClick={() => onCategoryClick?.(category.name)}
-            className="relative flex flex-col items-center justify-center rounded-2xl bg-card shadow-card hover:shadow-lg transition-shadow active:scale-95 overflow-hidden aspect-square"
+            className="relative flex flex-col items-center justify-center rounded-2xl bg-card shadow-card hover:shadow-lg transition-shadow active:scale-95 overflow-hidden w-full h-20"
           >
             {category.icon_url ? (
               <>
