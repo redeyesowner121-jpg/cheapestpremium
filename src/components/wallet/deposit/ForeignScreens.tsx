@@ -57,8 +57,8 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [amountConflict, setAmountConflict] = useState(false);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const feePercent = settings.foreign_deposit_fee_percent || 10;
   const binanceId = settings.binance_id || '1178303416';
