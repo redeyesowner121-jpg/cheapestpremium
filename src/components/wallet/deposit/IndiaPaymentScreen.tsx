@@ -273,9 +273,9 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                     <p className="text-3xl font-bold text-primary">₹{uniqueAmount || depositAmount}</p>
                     <p className="text-xs text-primary/70 mt-1">👆 Tap to copy amount</p>
                   </button>
-                  {uniqueAmount && parseFloat(depositAmount) !== uniqueAmount && (
+                  {uniqueAmount && (
                     <p className="text-xs text-muted-foreground bg-muted/60 rounded-lg px-2 py-1 inline-block">
-                      ₹{depositAmount} + ₹{(uniqueAmount - parseFloat(depositAmount)).toFixed(2)} paise (for secure verification)
+                      ₹{Math.floor(uniqueAmount)} + ₹{(uniqueAmount - Math.floor(uniqueAmount)).toFixed(2)} paise (for secure verification)
                     </p>
                   )}
                 </div>
