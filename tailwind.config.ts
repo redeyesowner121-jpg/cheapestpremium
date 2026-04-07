@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Poppins', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
+        display: ['Space Grotesk', 'Inter', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -69,6 +70,8 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "2xl": "1.25rem",
+        "3xl": "1.5rem",
       },
       keyframes: {
         "accordion-down": {
@@ -97,14 +100,19 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.3s ease-out",
-        "slide-up": "slide-up 0.4s ease-out",
+        "fade-in": "fade-in 0.4s ease-out",
+        "slide-up": "slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
         "bounce-in": "bounce-in 0.5s ease-out",
       },
       boxShadow: {
-        'glow': '0 0 40px hsla(239, 84%, 67%, 0.3)',
-        'card': '0 4px 16px hsla(239, 84%, 67%, 0.1)',
-        'card-hover': '0 8px 32px hsla(239, 84%, 67%, 0.2)',
+        'glow': '0 0 50px hsla(250, 89%, 63%, 0.25)',
+        'glow-sm': '0 0 20px hsla(250, 89%, 63%, 0.15)',
+        'card': '0 4px 20px hsla(250, 89%, 63%, 0.08)',
+        'card-hover': '0 8px 40px hsla(250, 89%, 63%, 0.15)',
+        'colored-primary': '0 8px 30px -5px hsla(250, 89%, 63%, 0.4)',
+        'colored-secondary': '0 8px 30px -5px hsla(320, 72%, 58%, 0.4)',
+        'colored-accent': '0 8px 30px -5px hsla(38, 95%, 54%, 0.4)',
+        'colored-success': '0 8px 30px -5px hsla(155, 72%, 46%, 0.4)',
       },
     },
   },
