@@ -238,16 +238,6 @@ const Index: React.FC = () => {
           accentColor="text-orange-600"
         />
         
-        {/* Courses Section */}
-        <CategorySection
-          title="Courses"
-          icon={<GraduationCap className="w-5 h-5" />}
-          products={coursesProducts}
-          onProductClick={handleProductClick}
-          onViewAll={() => navigate('/products', { state: { category: 'Courses' } })}
-          bgColor="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30"
-          accentColor="text-indigo-600"
-        />
         
         <ProductGrid 
           products={products}
