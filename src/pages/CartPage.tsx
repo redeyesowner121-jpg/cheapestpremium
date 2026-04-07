@@ -457,13 +457,33 @@ const CartPage: React.FC = () => {
                   : cartSummary.subtotal;
               return balance < needed ? (
                 <p className="text-xs text-destructive text-center">
-                  Insufficient balance. <button onClick={() => navigate('/wallet')} className="underline font-medium">Add Money</button>
+                  Insufficient balance. <button onClick={() => { setAddMoneyAmount(Math.ceil(needed - balance).toString()); setShowAddMoney(true); }} className="underline font-medium">Add Money</button>
                 </p>
               ) : null;
             })()}
           </div>
         </div>
       )}
+
+      {/* Add Money Modal - triggered on insufficient balance */}
+      <IndiaPaymentScreen
+        open={showAddMoney}
+        onOpenChange={(v) => { setShowAddMoney(v); if (!v) refreshProfile(); }}
+        depositAmount={addMoneyAmount}
+        onDepositAmountChange={setAddMoneyAmount}
+        paymentSettings={paymentSettings}
+        loading={false}
+        onAutoDeposit={() => {}}
+        onManualDeposit={() => {}}
+        submittingManual={false}
+        transactionId=""
+        onTransactionIdChange={() => {}}
+        senderName={profile?.name || ''}
+        onSenderNameChange={() => {}}
+        depositTab={depositTab}
+        onTabChange={setDepositTab}
+        onChangeCountry={() => {}}
+      />
 
       <BottomNav />
     </div>
