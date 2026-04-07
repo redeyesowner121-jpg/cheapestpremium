@@ -51,6 +51,45 @@ const Index: React.FC = () => {
     return () => clearTimeout(timer);
   }, [user, permission]);
 
+  // Live search from database
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    
+    if (!homeSearchQuery.trim() || homeSearchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const query = homeSearchQuery.trim().toLowerCase();
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, price, image_url, original_price, reseller_price, sold_count, rating, seo_tags')
+        .eq('is_active', true)
+        .or(`name.ilike.%${query}%,description.ilike.%${query}%,seo_tags.ilike.%${query}%`)
+        .limit(8);
+
+      if (data) {
+        setSearchResults(data.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          image: p.image_url || 'https://via.placeholder.com/200',
+          originalPrice: p.original_price,
+          reseller_price: p.reseller_price,
+          soldCount: p.sold_count || 0,
+          rating: p.rating || 4.5,
+        })));
+      }
+      setSearchLoading(false);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [homeSearchQuery]);
+
   const loadData = async () => {
     try {
       const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes, categoriesRes] = await Promise.all([
