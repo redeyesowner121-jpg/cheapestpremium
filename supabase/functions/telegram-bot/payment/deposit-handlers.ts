@@ -94,12 +94,41 @@ export async function showDepositMethodChoice(token: string, supabase: any, chat
   });
 }
 
-// Step 3a: Binance deposit — 20 min reservation, no extra charge
+// Step 3a: Binance deposit — 20 min reservation, same amount locked
 export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
   const currency = settings.currency_symbol || "₹";
   const amountUsd = inrToUsd(amount);
+
+  // Check if this USD amount is already reserved by another user (active, not expired)
+  const { data: existingReservation } = await supabase
+    .from("binance_amount_reservations")
+    .select("id, user_id")
+    .eq("amount_usd", amountUsd)
+    .eq("status", "reserved")
+    .gt("expires_at", new Date().toISOString())
+    .neq("user_id", userId.toString())
+    .maybeSingle();
+
+  if (existingReservation) {
+    // Amount is locked by another user
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? `⚠️ <b>$${amountUsd} (₹${amount}) এই অ্যামাউন্ট এখন অন্য একজন ইউজার ব্যবহার করছেন।</b>\n\nদয়া করে অন্য একটি অ্যামাউন্ট দিন।`
+        : `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "💰 অন্য অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
   const paymentNote = generatePaymentNote();
   const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
 
@@ -115,8 +144,19 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
     telegram_user_id: userId,
   }).select("id").single();
 
+  // Reserve the USD amount for 20 minutes
+  const { data: reservation } = await supabase.from("binance_amount_reservations").insert({
+    user_id: userId.toString(),
+    amount_usd: amountUsd,
+    amount_inr: amount,
+    payment_id: payment?.id,
+    status: "reserved",
+    expires_at: expiresAt,
+  }).select("id").single();
+
   await setConversationState(supabase, userId, "deposit_binance_pending", {
     amount, amountUsd, paymentNote, paymentId: payment?.id, expiresAt,
+    reservationId: reservation?.id,
   });
 
   let text = `<b>💎 Binance ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
