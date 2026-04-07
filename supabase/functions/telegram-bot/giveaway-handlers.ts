@@ -27,8 +27,8 @@ const MAIN_BOT_REF_LINK = "https://t.me/Air1_Premium_bot?start=ref_REFJFF7FC";
 
 // Giveaway-specific required channels (numeric IDs for reliable getChatMember)
 const GIVEAWAY_REQUIRED_CHANNELS = [
-  { id: "-1002835841744", name: "@rkrxott" },
-  { id: "-1003333508910", name: "@pocket_money27" },
+  { id: "@rkrxott", name: "@rkrxott" },
+  { id: "@pocket_money27", name: "@pocket_money27" },
 ];
 
 export async function checkGiveawayChannels(mainToken: string, userId: number): Promise<boolean> {
