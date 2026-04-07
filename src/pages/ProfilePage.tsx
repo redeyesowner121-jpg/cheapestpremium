@@ -45,6 +45,8 @@ const ProfilePage: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notifications_enabled || false);
   const [claimingBonus, setClaimingBonus] = useState(false);
   const [referralCount, setReferralCount] = useState(0);
+  const [showBonusSuccess, setShowBonusSuccess] = useState(false);
+  const [bonusSuccessAmount, setBonusSuccessAmount] = useState(0);
 
   // Fetch referral count
   useEffect(() => {
