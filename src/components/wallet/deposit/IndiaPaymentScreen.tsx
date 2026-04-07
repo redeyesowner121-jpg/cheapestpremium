@@ -141,7 +141,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       if (cancelled || verifying) return;
       setVerifying(true);
       try {
-        const amt = parseFloat(sessionStorage.getItem('razorpay_deposit_amount') || depositAmount);
+        const amt = parseFloat(sessionStorage.getItem('razorpay_unique_amount') || sessionStorage.getItem('razorpay_deposit_amount') || depositAmount);
         const depId = sessionStorage.getItem('razorpay_deposit_id') || paymentId;
         const clickAt = sessionStorage.getItem('razorpay_pay_clicked_at') || payClickedAt;
         
