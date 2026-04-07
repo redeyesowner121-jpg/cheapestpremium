@@ -25,6 +25,17 @@ async function getGiveawaySetting(supabase: any, key: string) {
 // Fixed referral link for main bot
 const MAIN_BOT_REF_LINK = "https://t.me/Air1_Premium_bot?start=ref_REFJFF7FC";
 
+// Giveaway-specific required channels (hardcoded)
+const GIVEAWAY_REQUIRED_CHANNELS = ["@rkrxott", "@pocket_money27"];
+
+export async function checkGiveawayChannels(mainToken: string, userId: number): Promise<boolean> {
+  const { getChatMember } = await import("./telegram-api.ts");
+  const results = await Promise.all(
+    GIVEAWAY_REQUIRED_CHANNELS.map(ch => getChatMember(mainToken, ch, userId))
+  );
+  return results.every(status => ["member", "administrator", "creator"].includes(status));
+}
+
 // ===== GIVEAWAY MAIN MENU =====
 
 export async function showGiveawayMainMenu(token: string, supabase: any, chatId: number, lang: string, userId: number) {
@@ -130,7 +141,7 @@ export async function handleGiveawayStart(
   const isUserAdmin = await isAdminBot(supabase, userId);
   // Use MAIN bot token for channel checks since giveaway bot isn't admin of channels
   const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
-  const joined = await checkChannelMembership(MAIN_TOKEN, userId, supabase);
+  const joined = await checkGiveawayChannels(MAIN_TOKEN, userId);
   await ensureWallet(supabase, userId);
 
   if (!isUserAdmin && !joined) {
@@ -195,7 +206,7 @@ export async function handleGiveawayCallbacks(
   if (data === "gw_verify_join") {
     // Use MAIN bot token for channel checks
     const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
-    const joined = await checkChannelMembership(MAIN_TOKEN, userId, supabase);
+    const joined = await checkGiveawayChannels(MAIN_TOKEN, userId);
     if (!joined) {
       await sendMessage(token, chatId, t("not_joined", lang));
     } else {
