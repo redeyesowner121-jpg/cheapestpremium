@@ -51,39 +51,63 @@ const Index: React.FC = () => {
     return () => clearTimeout(timer);
   }, [user, permission]);
 
-  // Live search from database
+  // AI-powered smart search
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     
     if (!homeSearchQuery.trim() || homeSearchQuery.trim().length < 2) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
 
     setSearchLoading(true);
     searchTimeoutRef.current = setTimeout(async () => {
-      const query = homeSearchQuery.trim().toLowerCase();
-      const { data } = await supabase
-        .from('products')
-        .select('id, name, price, image_url, original_price, reseller_price, sold_count, rating, seo_tags')
-        .eq('is_active', true)
-        .or(`name.ilike.%${query}%,description.ilike.%${query}%,seo_tags.ilike.%${query}%`)
-        .limit(8);
+      try {
+        const { data, error } = await supabase.functions.invoke('smart-search', {
+          body: { query: homeSearchQuery.trim() },
+        });
 
-      if (data) {
-        setSearchResults(data.map(p => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          image: p.image_url || 'https://via.placeholder.com/200',
-          originalPrice: p.original_price,
-          reseller_price: p.reseller_price,
-          soldCount: p.sold_count || 0,
-          rating: p.rating || 4.5,
-        })));
+        if (error) throw error;
+
+        if (data?.products) {
+          setSearchResults(data.products.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            image: p.image_url || 'https://via.placeholder.com/200',
+            originalPrice: p.original_price,
+            reseller_price: p.reseller_price,
+            soldCount: p.sold_count || 0,
+            rating: p.rating || 4.5,
+          })));
+        }
+      } catch (err) {
+        console.error('Smart search error:', err);
+        // Fallback to basic DB search
+        const query = homeSearchQuery.trim().toLowerCase();
+        const { data } = await supabase
+          .from('products')
+          .select('id, name, price, image_url, original_price, reseller_price, sold_count, rating')
+          .eq('is_active', true)
+          .or(`name.ilike.%${query}%,seo_tags.ilike.%${query}%`)
+          .limit(8);
+
+        if (data) {
+          setSearchResults(data.map(p => ({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            image: p.image_url || 'https://via.placeholder.com/200',
+            originalPrice: p.original_price,
+            reseller_price: p.reseller_price,
+            soldCount: p.sold_count || 0,
+            rating: p.rating || 4.5,
+          })));
+        }
       }
       setSearchLoading(false);
-    }, 300);
+    }, 500);
 
     return () => {
       if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
