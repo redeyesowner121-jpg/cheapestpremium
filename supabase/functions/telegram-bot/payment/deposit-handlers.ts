@@ -313,9 +313,9 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
   }
 }
 
-// Verify Razorpay deposit
+// Verify Razorpay deposit - time-based matching, no code needed
 export async function verifyDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { paymentNote, paymentId, amount } = stateData;
+  const { payClickedAt, paymentId, amount } = stateData;
   await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
 
   try {
@@ -328,7 +328,9 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
     }
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
-    const fromTime = Math.floor(Date.now() / 1000) - 3600;
+    const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
+    const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
+
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
       { headers: { "Authorization": `Basic ${authHeader}` } }
@@ -346,27 +348,30 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
     const amountPaise = Math.round(amount * 100);
 
     const match = payments.find((p: any) => {
-      const noteMatch =
-        (p.notes && Object.values(p.notes).some((v: any) => String(v) === paymentNote)) ||
-        (p.description && p.description.includes(paymentNote));
-      return noteMatch && p.amount === amountPaise && (p.status === "captured" || p.status === "authorized");
+      const amountMatch = p.amount === amountPaise;
+      const statusMatch = p.status === "captured" || p.status === "authorized";
+      const paymentTime = p.created_at;
+      const withinWindow = payClickedAt
+        ? (paymentTime >= clickTime - 30 && paymentTime <= clickTime + 150)
+        : true;
+      return amountMatch && statusMatch && withinWindow;
     });
 
     if (match) {
       if (paymentId) await supabase.from("payments").update({ status: "success" }).eq("id", paymentId);
-      await creditWallet(supabase, userId, amount, "razorpay_upi", paymentNote);
+      await creditWallet(supabase, userId, amount, "razorpay_upi", `time-verified`);
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
       await sendMessage(token, chatId,
         `✅ <b>${lang === "bn" ? "পেমেন্ট সফল!" : "Payment Verified!"}</b>\n\n💰 ₹${amount} ${lang === "bn" ? "জমা হয়েছে" : "deposited"}\n💵 ${lang === "bn" ? "নতুন ব্যালেন্স" : "New Balance"}: <b>₹${wallet?.balance || 0}</b>`
       );
       await notifyAllAdmins(token, supabase,
-        `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount}\n📝 Note: ${paymentNote}\n✅ Auto-verified`
+        `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount}\n✅ Auto-verified (time-based)`
       );
     } else {
       const settingsForLink = await getSettings(supabase);
       const razorpayMeUrl = settingsForLink.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
-      await sendMessage(token, chatId, `${lang === "bn" ? "পেমেন্ট পাওয়া যায়নি।" : "Payment not found yet."}\n\n${lang === "bn" ? "নিশ্চিত করুন" : "Make sure"}:\n1. Paid <b>₹${amount}</b>\n2. Note: <code>${paymentNote}</code>`, {
+      await sendMessage(token, chatId, `${lang === "bn" ? "পেমেন্ট পাওয়া যায়নি।" : "Payment not found yet."}\n\n${lang === "bn" ? "নিশ্চিত করুন যে ঠিক" : "Make sure you paid exactly"} <b>₹${amount}</b> ${lang === "bn" ? "পে করেছেন এবং ২ মিনিটের মধ্যে ভেরিফাই করুন।" : "and verify within 2 minutes."}`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "💳 Pay Now", url: razorpayMeUrl }],
