@@ -12,6 +12,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
 const AIChatWidget: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
