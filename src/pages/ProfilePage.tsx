@@ -32,6 +32,7 @@ import appLogo from '@/assets/app-logo.jpg';
 import BlueTick from '@/components/BlueTick';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
+import AnimatedSuccessModal from '@/components/AnimatedSuccessModal';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,6 +46,8 @@ const ProfilePage: React.FC = () => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile?.notifications_enabled || false);
   const [claimingBonus, setClaimingBonus] = useState(false);
   const [referralCount, setReferralCount] = useState(0);
+  const [showBonusSuccess, setShowBonusSuccess] = useState(false);
+  const [bonusSuccessAmount, setBonusSuccessAmount] = useState(0);
 
   // Fetch referral count
   useEffect(() => {
@@ -105,9 +108,10 @@ const ProfilePage: React.FC = () => {
         description: 'Daily sign-in bonus'
       });
 
-      toast.success(`🎉 You received Rs${bonusAmount} daily bonus!`);
       await refreshProfile();
       setShowDailyBonus(false);
+      setBonusSuccessAmount(bonusAmount);
+      setShowBonusSuccess(true);
     } catch (error) {
       toast.error('Failed to claim bonus');
     } finally {
@@ -257,7 +261,18 @@ const ProfilePage: React.FC = () => {
         onClaim={handleClaimDailyBonus}
       />
 
-      {/* Blue Tick Purchase Modal */}
+      <AnimatedSuccessModal
+        isOpen={showBonusSuccess}
+        onClose={() => setShowBonusSuccess(false)}
+        type="bonus_claimed"
+        title="Bonus Claimed! 🎁"
+        subtitle={`₹${bonusSuccessAmount} has been added to your wallet.`}
+        details={[{ label: 'Bonus Amount', value: `₹${bonusSuccessAmount}` }]}
+        actionLabel="Continue"
+        autoCloseDelay={3000}
+      />
+
+
       <Dialog open={showBlueTickModal} onOpenChange={setShowBlueTickModal}>
         <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader>

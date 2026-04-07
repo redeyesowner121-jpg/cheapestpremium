@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettingsContext";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import AIChatWidget from "@/components/AIChatWidget";
+import RecentOrderNotification from "@/components/RecentOrderNotification";
 import Index from "./pages/Index";
 import { Construction, Settings } from "lucide-react";
 
@@ -111,6 +112,7 @@ const AppContent = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        <RecentOrderNotification />
       </BrowserRouter>
       <AIChatWidget />
     </>
