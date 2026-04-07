@@ -22,7 +22,7 @@ import {
   AdminBlueTickSection,
   AdminContentSection,
 } from './sections';
-import AdminTelegramBot from './AdminTelegramBot';
+import AdminBotTabs from './AdminBotTabs';
 
 interface AdminControlTabProps {
   data: AdminData;
