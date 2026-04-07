@@ -49,8 +49,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
   const [verifying, setVerifying] = useState(false);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [payClickedAt, setPayClickedAt] = useState<string | null>(null);
+  const [uniqueAmount, setUniqueAmount] = useState<number | null>(null);
 
-  const paymentLink = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
+  const basePaymentLink = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
+
+  // Generate unique paise (01-99) to avoid collision when multiple users pay same amount
+  const generateUniqueAmount = (baseAmount: number): number => {
+    const extraPaise = Math.floor(Math.random() * 99) + 1; // 1-99 paise
+    return parseFloat((baseAmount + extraPaise / 100).toFixed(2));
+  };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
