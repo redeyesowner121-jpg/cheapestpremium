@@ -33,6 +33,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   const [paymentNote, setPaymentNote] = useState('');
   const [paymentId, setPaymentId] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [payClickedAt, setPayClickedAt] = useState<string | null>(null);
 
   const donation = donationEnabled ? Math.max(1, parseFloat(donationAmount) || 0) : 0;
   const isBulkOrder = quantity >= BULK_THRESHOLD;
