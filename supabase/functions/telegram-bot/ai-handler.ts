@@ -187,30 +187,27 @@ STRICT RULES:
       throw new Error(`AI error: ${response.status}`);
     }
 
-    // Stream response with progressive message editing
+    // Collect full response from stream
     let fullAnswer = "";
-    let lastEditTime = 0;
-    let chunkCount = 0;
-    const EDIT_INTERVAL_MS = 800;
-
-    console.log("Starting SSE stream parsing...");
-
     for await (const chunk of parseSSEStream(response)) {
       fullAnswer += chunk;
-      chunkCount++;
-      const now = Date.now();
+    }
+    const answer = fullAnswer.trim();
 
-      // Throttle edits to avoid Telegram API rate limits
-      if (thinkingMsgId && now - lastEditTime >= EDIT_INTERVAL_MS) {
-        lastEditTime = now;
-        console.log(`Streaming edit #${chunkCount}, length: ${fullAnswer.length}`);
-        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`);
+    // Progressive reveal: show ~3 lines per second for natural typing feel
+    if (thinkingMsgId && answer) {
+      const lines = answer.split("\n");
+      const LINES_PER_TICK = 3;
+      const TICK_MS = 1000;
+
+      for (let i = LINES_PER_TICK; i < lines.length; i += LINES_PER_TICK) {
+        const partial = lines.slice(0, i).join("\n");
+        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${partial}▍`);
+        await new Promise(r => setTimeout(r, TICK_MS));
       }
     }
 
-    console.log(`Stream done. Total chunks: ${chunkCount}, answer length: ${fullAnswer.length}`);
-
-    const answer = fullAnswer.trim();
+    // answer is already defined above
 
     // Save user question and AI answer to history
     await supabase.from("telegram_ai_messages").insert([
