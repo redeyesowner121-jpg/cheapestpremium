@@ -112,9 +112,10 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
     setVerifying(true);
     try {
       const functionName = method === 'binance' ? 'verify-binance-payment' : 'verify-razorpay-note';
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { note: paymentNote, amount: method === 'binance' ? amountUsd : finalTotal, paymentId },
-      });
+      const body = method === 'binance' 
+        ? { note: paymentNote, amount: amountUsd, paymentId }
+        : { amount: finalTotal, paymentId, payClickedAt };
+      const { data, error } = await supabase.functions.invoke(functionName, { body });
       if (error) throw error;
       if (data?.success) {
         toast.success('Payment verified! Processing order...');
