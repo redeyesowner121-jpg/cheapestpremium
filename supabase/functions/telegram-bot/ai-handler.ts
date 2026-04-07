@@ -194,16 +194,20 @@ STRICT RULES:
     }
     const answer = fullAnswer.trim();
 
-    // Progressive reveal: show ~3 lines per second for natural typing feel
+    // Progressive reveal: word-by-word streaming for natural typing feel
     if (thinkingMsgId && answer) {
-      const lines = answer.split("\n");
-      const LINES_PER_TICK = 3;
-      const TICK_MS = 1000;
+      const words = answer.split(/(\s+)/); // split keeping whitespace
+      const WORDS_PER_TICK = 5; // ~5 words per edit
+      const TICK_MS = 400; // edit every 400ms → ~12-13 words/sec
+      let revealed = "";
 
-      for (let i = LINES_PER_TICK; i < lines.length; i += LINES_PER_TICK) {
-        const partial = lines.slice(0, i).join("\n");
-        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${partial}▍`);
-        await new Promise(r => setTimeout(r, TICK_MS));
+      for (let i = 0; i < words.length; i += WORDS_PER_TICK) {
+        revealed += words.slice(i, i + WORDS_PER_TICK).join("");
+        // Skip edits for last batch (final edit happens below with buttons)
+        if (i + WORDS_PER_TICK < words.length) {
+          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${revealed}▍`);
+          await new Promise(r => setTimeout(r, TICK_MS));
+        }
       }
     }
 
