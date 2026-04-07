@@ -207,7 +207,7 @@ STRICT RULES:
       }
     }
 
-    const answer = fullAnswer.trim();
+    // answer is already defined above
 
     // Save user question and AI answer to history
     await supabase.from("telegram_ai_messages").insert([
