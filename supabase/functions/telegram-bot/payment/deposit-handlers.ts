@@ -296,9 +296,30 @@ export async function showDepositManualUpi(token: string, supabase: any, chatId:
 
 // ===== VERIFY DEPOSIT =====
 
-// Verify Binance deposit
+// Verify Binance deposit — with 20 min expiry check
 export async function verifyDepositBinance(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { paymentNote, paymentId, amountUsd, amount } = stateData;
+  const { paymentNote, paymentId, amountUsd, amount, expiresAt } = stateData;
+
+  // Check 20 min expiry
+  if (expiresAt && new Date(expiresAt) < new Date()) {
+    await deleteConversationState(supabase, userId);
+    await supabase.from("payments").update({ status: "expired" }).eq("id", paymentId);
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? "⏰ <b>সময় শেষ!</b> ২০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
+        : "⏰ <b>Time expired!</b> Payment was not completed within 20 minutes.\n\nStart a new deposit.",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
   await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
 
   try {
@@ -324,7 +345,9 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
     } else {
-      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n${lang === "bn" ? "আবার চেষ্টা করুন।" : "Try again after completing payment."}`, {
+      // Check remaining time
+      const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
+      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${lang === "bn" ? `${remaining} মিনিট বাকি` : `${remaining} min remaining`}`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "✅ Verify Payment", callback_data: "deposit_binance_verify" }],
