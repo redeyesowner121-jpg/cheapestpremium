@@ -1,9 +1,13 @@
 import React from 'react';
-import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ProductVariationSelector, ProductFeatures } from '@/components/product';
 import ShareButtons from '@/components/ShareButtons';
 import AddToCartButton from '@/components/AddToCartButton';
+import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface ProductDetailUIProps {
   displayProduct: any;
@@ -121,21 +125,49 @@ export const ProductInfo: React.FC<Pick<ProductDetailUIProps, 'displayProduct' |
 
 export const ProductBottomBar: React.FC<{ displayProduct: any; currentPrice: number; formatPrice: (p: number) => string; settings: any; selectedVariation: any; isOutOfStock: boolean; isReseller?: boolean; onResell?: () => void }> = ({
   displayProduct, currentPrice, formatPrice, settings, selectedVariation, isOutOfStock, isReseller, onResell
-}) => (
-  <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
-    <div className="max-w-lg mx-auto flex items-center gap-3">
-      <ShareButtons text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${formatPrice(currentPrice)}`} url={`${settings.app_url}/product/${displayProduct?.slug || displayProduct?.id}`} size="sm" />
-      {isReseller && onResell ? (
-        <button
-          onClick={onResell}
-          className="flex-1 h-12 bg-accent text-accent-foreground rounded-xl font-bold flex items-center justify-center gap-2"
-        >
-          <LinkIcon className="w-5 h-5" />
-          Resell
-        </button>
-      ) : (
-        <AddToCartButton productId={displayProduct.id} variationId={selectedVariation?.id} disabled={isOutOfStock} className="flex-1 h-12" />
-      )}
+}) => {
+  const { addToCart } = useCart();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [buyingNow, setBuyingNow] = React.useState(false);
+
+  const handleBuyNow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) { navigate('/auth'); return; }
+    setBuyingNow(true);
+    const success = await addToCart(displayProduct.id, selectedVariation?.id, 1);
+    setBuyingNow(false);
+    if (success) {
+      navigate('/cart?checkout=1');
+    }
+  };
+
+  return (
+    <div className="fixed bottom-16 left-0 right-0 glass border-t border-border p-4">
+      <div className="max-w-lg mx-auto flex items-center gap-2">
+        <ShareButtons text={`Check out ${displayProduct?.name} at ${settings.app_name}! Only ${formatPrice(currentPrice)}`} url={`${settings.app_url}/product/${displayProduct?.slug || displayProduct?.id}`} size="sm" />
+        {isReseller && onResell ? (
+          <button
+            onClick={onResell}
+            className="flex-1 h-12 bg-accent text-accent-foreground rounded-xl font-bold flex items-center justify-center gap-2"
+          >
+            <LinkIcon className="w-5 h-5" />
+            Resell
+          </button>
+        ) : (
+          <>
+            <AddToCartButton productId={displayProduct.id} variationId={selectedVariation?.id} disabled={isOutOfStock} className="flex-1 h-12" />
+            <Button
+              onClick={handleBuyNow}
+              disabled={isOutOfStock || buyingNow}
+              className="flex-1 h-12 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-bold"
+            >
+              <Zap className="w-5 h-5 mr-1" />
+              {isOutOfStock ? 'Out of Stock' : 'Buy Now'}
+            </Button>
+          </>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};

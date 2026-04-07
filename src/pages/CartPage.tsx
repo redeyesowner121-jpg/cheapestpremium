@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BottomNav from '@/components/BottomNav';
@@ -46,6 +46,16 @@ const CartPage: React.FC = () => {
     fetchSettings();
   }, [showAddMoney]);
 
+  // Auto-checkout when redirected from Buy Now (?checkout=1)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoCheckoutTriggered = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('checkout') === '1' && !loading && items.length > 0 && profile && !autoCheckoutTriggered.current) {
+      autoCheckoutTriggered.current = true;
+      setSearchParams({}, { replace: true });
+      setTimeout(() => handleCheckout(), 300);
+    }
+  }, [searchParams, loading, items, profile]);
 
 
 
