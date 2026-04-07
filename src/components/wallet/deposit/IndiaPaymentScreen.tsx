@@ -229,7 +229,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     : '';
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) { setAutoStep('amount'); setPayClickedAt(null); } onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setAutoStep('amount'); setPayClickedAt(null); setUniqueAmount(null); } onOpenChange(v); }}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Money</DialogTitle>
