@@ -237,6 +237,51 @@ Deno.serve(async (req) => {
             await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
             break;
           }
+          case "/menu":
+            await showMainMenu(BOT_TOKEN, supabase, chatId, lang); break;
+          case "/products":
+          case "/shop":
+            await handleViewCategories(BOT_TOKEN, supabase, chatId, lang); break;
+          case "/orders":
+            await handleMyOrders(BOT_TOKEN, supabase, chatId, userId, lang); break;
+          case "/wallet":
+            await handleMyWallet(BOT_TOKEN, supabase, chatId, userId, lang); break;
+          case "/deposit":
+            await handleWalletDeposit(BOT_TOKEN, supabase, chatId, userId, lang); break;
+          case "/withdraw":
+            await handleWalletWithdraw(BOT_TOKEN, supabase, chatId, userId, lang); break;
+          case "/support":
+          case "/help":
+            await handleSupport(BOT_TOKEN, supabase, chatId, lang); break;
+          case "/refer":
+          case "/referral":
+          case "/share":
+            await handleReferEarn(BOT_TOKEN, supabase, chatId, userId, lang); break;
+          case "/offers":
+            await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); break;
+          case "/login":
+            await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); break;
+          case "/users": {
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            await handleAllUsers(BOT_TOKEN, supabase, chatId, 0); break;
+          }
+          case "/stats": {
+            // Quick stats for any user
+            const { data: wallet } = await supabase.from("telegram_wallets").select("balance, total_earned, is_reseller, referral_code").eq("telegram_id", userId).single();
+            const { count: orderCount } = await supabase.from("telegram_orders").select("id", { count: "exact", head: true }).eq("telegram_user_id", userId);
+            const { count: referralCount } = await supabase.from("telegram_wallets").select("id", { count: "exact", head: true }).eq("referred_by", userId);
+            const bal = wallet?.balance || 0;
+            const earned = wallet?.total_earned || 0;
+            const refCode = wallet?.referral_code || "N/A";
+            const isReseller = wallet?.is_reseller ? "✅" : "❌";
+            const statsText = lang === "bn"
+              ? `📊 <b>আপনার পরিসংখ্যান</b>\n\n💰 ব্যালেন্স: <b>₹${bal}</b>\n💵 মোট আয়: <b>₹${earned}</b>\n📦 মোট অর্ডার: <b>${orderCount || 0}</b>\n👥 রেফারেল: <b>${referralCount || 0}</b>\n🏷️ রেফারেল কোড: <code>${refCode}</code>\n🔄 রিসেলার: ${isReseller}`
+              : `📊 <b>Your Stats</b>\n\n💰 Balance: <b>₹${bal}</b>\n💵 Total Earned: <b>₹${earned}</b>\n📦 Total Orders: <b>${orderCount || 0}</b>\n👥 Referrals: <b>${referralCount || 0}</b>\n🏷️ Referral Code: <code>${refCode}</code>\n🔄 Reseller: ${isReseller}`;
+            await sendMessage(BOT_TOKEN, chatId, statsText, {
+              reply_markup: { inline_keyboard: [[{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }]] }
+            });
+            break;
+          }
           case "/admin":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAdminMenu(BOT_TOKEN, supabase, chatId, userId); break;
