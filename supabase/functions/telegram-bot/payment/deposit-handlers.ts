@@ -160,38 +160,37 @@ export async function showDepositUpi(token: string, supabase: any, chatId: numbe
   });
 }
 
-// Step 3b-i: Auto UPI (Razorpay) deposit with custom link + QR + special code
+// Step 3b-i: Auto UPI (Razorpay) deposit - no code needed, time-based verification
 export async function showDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const paymentNote = generatePaymentNote();
   const razorpayMeUrl = settings.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
 
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
     amount,
-    note: paymentNote,
+    note: `TIME-${Date.now()}`,
     status: "pending",
     payment_method: "razorpay_upi",
     product_name: "Wallet Deposit",
     telegram_user_id: userId,
   }).select("id").single();
 
+  const payClickedAt = new Date().toISOString();
+
   await setConversationState(supabase, userId, "deposit_razorpay_pending", {
-    amount, paymentNote, paymentId: payment?.id,
+    amount, payClickedAt, paymentId: payment?.id,
   });
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(razorpayMeUrl)}`;
 
   let text = `<b>⚡ Razorpay ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
   text += `${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${amount}</b>\n\n`;
-  text += `📋 <b>Special Code:</b> <code>${paymentNote}</code>\n\n`;
   text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
   text += `1. ${lang === "bn" ? "নিচের" : "Click"} <b>Pay Now</b> ${lang === "bn" ? "বাটনে ক্লিক করুন বা QR স্ক্যান করুন" : "below or scan QR"}\n`;
   text += `2. ${lang === "bn" ? "ঠিক" : "Pay exactly"} <b>${currency}${amount}</b> ${lang === "bn" ? "পে করুন" : ""}\n`;
-  text += `3. ${lang === "bn" ? "নোট/বিবরণে পেস্ট করুন" : "In note/description paste"}: <code>${paymentNote}</code>\n`;
-  text += `4. ${lang === "bn" ? "পেমেন্ট শেষে" : "After payment click"} <b>Verify</b> ${lang === "bn" ? "ক্লিক করুন" : ""}\n\n`;
-  text += `<i>⚠️ ${lang === "bn" ? "অটো ভেরিফিকেশনের জন্য নোট অবশ্যই সঠিক হতে হবে!" : "Note MUST match exactly for auto-verification!"}</i>`;
+  text += `3. ${lang === "bn" ? "পেমেন্ট শেষে ২ মিনিটের মধ্যে" : "Within 2 minutes click"} <b>Verify</b> ${lang === "bn" ? "ক্লিক করুন" : ""}\n\n`;
+  text += `<i>⚠️ ${lang === "bn" ? "পে করার ২ মিনিটের মধ্যে ভেরিফাই করুন!" : "Verify within 2 minutes of paying!"}</i>`;
 
   // Try to send with QR photo
   let sent = false;
