@@ -72,8 +72,9 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       return;
     }
 
-    // Generate unique amount with extra paise
-    const uAmount = generateUniqueAmount(amount);
+    // If user already entered paise (e.g. 100.45), use as-is; otherwise add random paise
+    const hasDecimal = amount !== Math.floor(amount);
+    const uAmount = hasDecimal ? amount : generateUniqueAmount(amount);
     setUniqueAmount(uAmount);
 
     // Create payment record with unique amount
