@@ -46,6 +46,16 @@ const CartPage: React.FC = () => {
     fetchSettings();
   }, [showAddMoney]);
 
+  // Auto-checkout when redirected from Buy Now (?checkout=1)
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoCheckoutTriggered = useRef(false);
+  useEffect(() => {
+    if (searchParams.get('checkout') === '1' && !loading && items.length > 0 && profile && !autoCheckoutTriggered.current) {
+      autoCheckoutTriggered.current = true;
+      setSearchParams({}, { replace: true });
+      setTimeout(() => handleCheckout(), 300);
+    }
+  }, [searchParams, loading, items, profile]);
 
 
 
