@@ -219,20 +219,22 @@ const QuickStats: React.FC = React.memo(() => {
         </div>
       )}
 
-      {/* Special Offer */}
-      <div className="mt-4 gradient-accent rounded-2xl p-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-white/20 rounded-xl">
-            <Gift className="w-5 h-5 text-accent-foreground" />
-          </div>
-          <div>
-            <p className="font-bold text-accent-foreground text-sm">Special Offer!</p>
-            <p className="text-xs text-accent-foreground/80">
-              Deposit ₹1000 at once → Get ₹100 bonus + Blue Tick!
-            </p>
+      {/* Special Offer - hide for blue tick users */}
+      {!profile?.has_blue_check && (
+        <div className="mt-4 gradient-accent rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/20 rounded-xl">
+              <Gift className="w-5 h-5 text-accent-foreground" />
+            </div>
+            <div>
+              <p className="font-bold text-accent-foreground text-sm">Special Offer!</p>
+              <p className="text-xs text-accent-foreground/80">
+                Deposit ₹1000 at once → Get ₹100 bonus + Blue Tick!
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 });
