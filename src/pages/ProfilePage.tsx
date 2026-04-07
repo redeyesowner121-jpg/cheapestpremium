@@ -105,9 +105,10 @@ const ProfilePage: React.FC = () => {
         description: 'Daily sign-in bonus'
       });
 
-      toast.success(`🎉 You received Rs${bonusAmount} daily bonus!`);
       await refreshProfile();
       setShowDailyBonus(false);
+      setBonusSuccessAmount(bonusAmount);
+      setShowBonusSuccess(true);
     } catch (error) {
       toast.error('Failed to claim bonus');
     } finally {
