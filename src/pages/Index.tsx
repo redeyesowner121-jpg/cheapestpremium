@@ -290,14 +290,14 @@ const Index: React.FC = () => {
         </div>
 
         {/* Search Results */}
-        {searchOpen && homeSearchQuery.trim() && (
+        {searchOpen && homeSearchQuery.trim().length >= 2 && (
           <div className="space-y-2">
-            {products
-              .filter(p => 
-                p.name.toLowerCase().includes(homeSearchQuery.toLowerCase())
-              )
-              .slice(0, 6)
-              .map(product => (
+            {searchLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : searchResults.length > 0 ? (
+              searchResults.map(product => (
                 <button
                   key={product.id}
                   onClick={() => handleProductClick(product)}
@@ -309,8 +309,8 @@ const Index: React.FC = () => {
                     <p className="text-xs text-primary font-semibold">₹{product.price}</p>
                   </div>
                 </button>
-              ))}
-            {products.filter(p => p.name.toLowerCase().includes(homeSearchQuery.toLowerCase())).length === 0 && (
+              ))
+            ) : (
               <p className="text-center text-sm text-muted-foreground py-4">No products found</p>
             )}
           </div>
