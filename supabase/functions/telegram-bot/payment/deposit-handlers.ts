@@ -345,14 +345,12 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
       await supabase.from("binance_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
     }
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? "⏰ <b>সময় শেষ!</b> ২০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
-        : "⏰ <b>Time expired!</b> Payment was not completed within 20 minutes.\n\nStart a new deposit.",
+      "⏰ <b>Time expired!</b> Payment was not completed within 20 minutes.\n\nStart a new deposit.",
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
-            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: "Main Menu", callback_data: "back_main" }],
           ],
         },
       }
@@ -360,7 +358,7 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
     return;
   }
 
-  await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
+  await sendMessage(token, chatId, "🔍 Verifying payment...");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
