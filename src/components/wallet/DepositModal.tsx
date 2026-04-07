@@ -20,7 +20,7 @@ const DepositModal: React.FC<DepositModalProps> = (props) => {
 
   React.useEffect(() => {
     if (open && initialTab) {
-      setDepositTab(initialTab);
+      setDepositTab(initialTab === 'manual' ? 'manual' : 'auto');
     }
   }, [open, initialTab]);
 

@@ -358,50 +358,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
             </div>
           </TabsContent>
 
-          {/* Card Tab */}
-          <TabsContent value="card" className="mt-4 space-y-4">
-            {!showCardConfirm ? (
-              <>
-                <Input type="number" placeholder="Enter amount" value={depositAmount} onChange={(e) => onDepositAmountChange(e.target.value)} className="h-14 text-2xl text-center font-bold rounded-xl" />
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_AMOUNTS.map((amount) => (
-                    <button key={amount} onClick={() => onDepositAmountChange(amount.toString())} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${depositAmount === amount.toString() ? 'gradient-primary text-primary-foreground' : 'bg-muted text-foreground hover:bg-muted/80'}`}>₹{amount}</button>
-                  ))}
-                </div>
-                <Button onClick={() => { const amount = parseFloat(depositAmount); if (isNaN(amount) || amount < (settings.min_deposit || 10)) { toast.error(`Minimum deposit is ₹${settings.min_deposit || 10}`); return; } setShowCardConfirm(true); }} className="w-full h-12 btn-gradient rounded-xl" disabled={!depositAmount}>
-                  <CreditCard className="w-5 h-5 mr-2" />Pay ₹{depositAmount || '0'} via Card
-                </Button>
-                <p className="text-xs text-muted-foreground text-center">You'll be redirected to the payment page</p>
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-center space-y-2">
-                  <CheckCircle className="w-10 h-10 text-primary mx-auto" />
-                  <h3 className="text-lg font-bold text-foreground">Confirm Payment</h3>
-                  <p className="text-2xl font-bold text-primary">₹{depositAmount}</p>
-                  <p className="text-sm text-muted-foreground">You will be redirected to the payment page. After payment, your deposit request will be automatically submitted for admin approval.</p>
-                </div>
-                <Button onClick={async () => {
-                  if (!user || !profile) return;
-                  setSubmittingCard(true);
-                  try {
-                    const amount = parseFloat(depositAmount);
-                    const { error } = await supabase.from('manual_deposit_requests').insert({ user_id: user.id, amount, transaction_id: `CARD-${Date.now()}`, sender_name: profile.name || 'Card Payment', payment_method: 'card', status: 'pending' });
-                    if (error) throw error;
-                    const link = settings.payment_link || 'https://razorpay.me/@asifikbalrubaiulislam';
-                    window.open(link, '_blank');
-                    toast.success('Deposit request submitted! Complete payment on the redirected page.');
-                    setShowCardConfirm(false);
-                    onOpenChange(false);
-                    onDepositAmountChange('');
-                  } catch { toast.error('Failed to submit deposit request'); } finally { setSubmittingCard(false); }
-                }} className="w-full h-12 btn-gradient rounded-xl" disabled={submittingCard}>
-                  {submittingCard ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</> : <><CreditCard className="w-5 h-5 mr-2" />Confirm & Pay ₹{depositAmount}</>}
-                </Button>
-                <Button variant="ghost" onClick={() => setShowCardConfirm(false)} className="w-full rounded-xl">← Go Back</Button>
-              </div>
-            )}
-          </TabsContent>
+
         </Tabs>
 
         <Button variant="ghost" onClick={onChangeCountry} className="w-full mt-2 rounded-xl">← Change Country</Button>
