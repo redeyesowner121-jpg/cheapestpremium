@@ -9,7 +9,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { amount, paymentId, userId, depositRequestId, payClickedAt } = await req.json();
+    const { amount, paymentId, userId, depositRequestId, reservationId, payClickedAt } = await req.json();
     if (!amount) {
       return new Response(JSON.stringify({ error: "Missing amount" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -29,7 +29,30 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // If paymentId provided (bot flow), check payment record
+    // If reservationId provided, check reservation status
+    if (reservationId) {
+      const { data: reservation } = await supabase
+        .from("razorpay_amount_reservations")
+        .select("*")
+        .eq("id", reservationId)
+        .single();
+
+      if (reservation?.status === "completed") {
+        return new Response(JSON.stringify({ success: false, message: "This deposit was already processed." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if expired
+      if (reservation && new Date(reservation.expires_at) < new Date()) {
+        await supabase.from("razorpay_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
+        return new Response(JSON.stringify({ success: false, message: "Reservation expired. Please start a new deposit." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Bot flow: check payment record
     if (paymentId) {
       const { data: payment } = await supabase
         .from("payments")
@@ -38,14 +61,14 @@ Deno.serve(async (req) => {
         .single();
 
       if (payment?.status === "success") {
-        return new Response(JSON.stringify({ success: false, message: "This payment was already processed. Start a new deposit." }), {
+        return new Response(JSON.stringify({ success: false, message: "This payment was already processed." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
-    // If depositRequestId provided (website flow), check if already approved
-    if (depositRequestId) {
+    // Website flow without reservation: check deposit request
+    if (depositRequestId && !reservationId) {
       const { data: depReq } = await supabase
         .from("manual_deposit_requests")
         .select("status")
@@ -53,7 +76,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (depReq?.status === "approved") {
-        return new Response(JSON.stringify({ success: false, message: "This deposit was already processed. Start a new deposit." }), {
+        return new Response(JSON.stringify({ success: false, message: "This deposit was already processed." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -61,9 +84,9 @@ Deno.serve(async (req) => {
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Search last 10 minutes of payments
+    // Search recent payments
     const nowSec = Math.floor(Date.now() / 1000);
-    const fromTime = payClickedAt 
+    const fromTime = payClickedAt
       ? Math.floor(new Date(payClickedAt).getTime() / 1000) - 60
       : nowSec - 600;
 
@@ -83,12 +106,10 @@ Deno.serve(async (req) => {
     const payments = paymentsData.items || [];
 
     const amountPaise = Math.round(amount * 100);
-    
-    // Match by exact amount + captured/authorized status, filtering out already-claimed payments
+
+    // Match by exact amount + captured/authorized status
     const candidatePayments = payments.filter((p: any) => {
-      const amountMatch = p.amount === amountPaise;
-      const statusMatch = p.status === "captured" || p.status === "authorized";
-      return amountMatch && statusMatch;
+      return p.amount === amountPaise && (p.status === "captured" || p.status === "authorized");
     });
 
     // Find the first UNCLAIMED payment
@@ -104,10 +125,7 @@ Deno.serve(async (req) => {
         .eq("status", "approved")
         .maybeSingle();
 
-      if (existingUsage) {
-        console.log("Skipping already-claimed payment:", rzpId);
-        continue;
-      }
+      if (existingUsage) continue;
 
       // Check if already claimed in payments table (bot flow)
       const { data: existingBotPayment } = await supabase
@@ -117,18 +135,27 @@ Deno.serve(async (req) => {
         .eq("status", "success")
         .maybeSingle();
 
-      if (existingBotPayment) {
-        console.log("Skipping already-claimed payment (bot):", rzpId);
-        continue;
-      }
+      if (existingBotPayment) continue;
 
-      // This payment is unclaimed — use it
+      // Check if this amount belongs to a DIFFERENT user's active reservation
+      const { data: otherReservation } = await supabase
+        .from("razorpay_amount_reservations")
+        .select("id, user_id")
+        .eq("amount", amount)
+        .eq("status", "reserved")
+        .gt("expires_at", new Date().toISOString())
+        .neq("user_id", userId || "00000000-0000-0000-0000-000000000000")
+        .maybeSingle();
+
+      if (otherReservation) continue; // Reserved by another user
+
       matchingPayment = candidate;
       break;
     }
 
     if (matchingPayment) {
       const rzpPayId = matchingPayment.id;
+      const baseAmount = Math.floor(amount);
 
       // Update payment record if exists (bot flow)
       if (paymentId) {
@@ -139,10 +166,19 @@ Deno.serve(async (req) => {
         }).eq("id", paymentId);
       }
 
-      // Website flow: credit wallet and update deposit request
-      if (userId && depositRequestId) {
-        const baseAmount = Math.floor(amount);
+      // Mark reservation as completed
+      if (reservationId) {
+        await supabase.from("razorpay_amount_reservations").update({
+          status: "completed",
+        }).eq("id", reservationId);
+      }
 
+      // Website flow: credit wallet and update deposit request
+      const effectiveDepositId = depositRequestId || (reservationId ? (
+        await supabase.from("razorpay_amount_reservations").select("deposit_request_id").eq("id", reservationId).single()
+      ).data?.deposit_request_id : null);
+
+      if (userId && effectiveDepositId) {
         const { data: profile } = await supabase
           .from("profiles")
           .select("wallet_balance, rank_balance, total_deposit, name")
@@ -188,7 +224,7 @@ Deno.serve(async (req) => {
             status: "approved",
             admin_note: `Auto-verified via Razorpay (${rzpPayId})`,
             transaction_id: `RZP:${rzpPayId}`,
-          }).eq("id", depositRequestId);
+          }).eq("id", effectiveDepositId);
 
           await supabase.from("notifications").insert({
             user_id: userId,

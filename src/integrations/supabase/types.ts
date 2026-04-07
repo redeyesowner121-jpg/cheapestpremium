@@ -1118,6 +1118,39 @@ export type Database = {
         }
         Relationships: []
       }
+      razorpay_amount_reservations: {
+        Row: {
+          amount: number
+          base_amount: number
+          created_at: string
+          deposit_request_id: string | null
+          expires_at: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          base_amount: number
+          created_at?: string
+          deposit_request_id?: string | null
+          expires_at?: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          base_amount?: number
+          created_at?: string
+          deposit_request_id?: string | null
+          expires_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       redeem_code_usage: {
         Row: {
           code_id: string
