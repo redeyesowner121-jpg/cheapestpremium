@@ -265,11 +265,19 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
               </>
             ) : (
               <div className="space-y-4">
-                <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-center space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Pay exactly this amount</p>
-                  <p className="text-2xl font-bold text-primary">₹{uniqueAmount || depositAmount}</p>
+                <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl text-center space-y-2">
+                  <p className="text-sm font-medium text-muted-foreground">⚠️ Pay EXACTLY this amount</p>
+                  <button
+                    onClick={() => copyToClipboard((uniqueAmount || depositAmount).toString())}
+                    className="block w-full"
+                  >
+                    <p className="text-3xl font-bold text-primary">₹{uniqueAmount || depositAmount}</p>
+                    <p className="text-xs text-primary/70 mt-1">👆 Tap to copy amount</p>
+                  </button>
                   {uniqueAmount && parseFloat(depositAmount) !== uniqueAmount && (
-                    <p className="text-xs text-muted-foreground">Base: ₹{depositAmount} + unique paise for verification</p>
+                    <p className="text-xs text-muted-foreground bg-muted/60 rounded-lg px-2 py-1 inline-block">
+                      ₹{depositAmount} + ₹{(uniqueAmount - parseFloat(depositAmount)).toFixed(2)} paise (for secure verification)
+                    </p>
                   )}
                 </div>
 
@@ -283,14 +291,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
 
                 {/* Pay Now button */}
                 <Button className="w-full h-12 btn-gradient rounded-xl" onClick={handlePayNowClick}>
-                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now ₹{uniqueAmount || depositAmount}
+                  <ExternalLink className="w-4 h-4 mr-2" />Pay Now
                 </Button>
 
                 {/* Instructions */}
-                <div className="p-3 bg-muted/50 rounded-xl text-xs text-muted-foreground space-y-1">
-                  <p>1. Click <b>Pay Now</b> or scan QR</p>
-                  <p>2. Pay exactly <b>₹{uniqueAmount || depositAmount}</b></p>
-                  <p>3. Payment will be <b>auto-verified</b> within seconds!</p>
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-xs space-y-1">
+                  <p className="font-bold text-destructive">⚠️ IMPORTANT:</p>
+                  <p>1. Click <b>Pay Now</b> to open Razorpay</p>
+                  <p>2. Enter exactly <b>₹{uniqueAmount || depositAmount}</b> (copy above)</p>
+                  <p>3. Amount must match <b>exactly including paise</b></p>
                   <p className="text-primary font-medium mt-1">🔄 Auto-checking every 10 seconds...</p>
                 </div>
 
