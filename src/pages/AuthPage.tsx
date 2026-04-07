@@ -12,6 +12,7 @@ import appLogo from '@/assets/app-logo.jpg';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, register, loginWithTelegram, user } = useAuth();
   
