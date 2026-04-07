@@ -206,7 +206,7 @@ export async function handleGiveawayCallbacks(
   if (data === "gw_verify_join") {
     // Use MAIN bot token for channel checks
     const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
-    const joined = await checkChannelMembership(MAIN_TOKEN, userId, supabase);
+    const joined = await checkGiveawayChannels(MAIN_TOKEN, userId);
     if (!joined) {
       await sendMessage(token, chatId, t("not_joined", lang));
     } else {
