@@ -22,7 +22,7 @@ import {
   AdminBlueTickSection,
   AdminContentSection,
 } from './sections';
-import AdminTelegramBot from './AdminTelegramBot';
+import AdminBotTabs from './AdminBotTabs';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -126,7 +126,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
       case 'chat':
         return <AdminChatPanel />;
       case 'telegram_bot':
-        return <AdminTelegramBot />;
+        return <AdminBotTabs />;
       default:
         return null;
     }
