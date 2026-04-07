@@ -336,14 +336,17 @@ export async function showDepositManualUpi(token: string, supabase: any, chatId:
 
 // ===== VERIFY DEPOSIT =====
 
-// Verify Binance deposit — with 20 min expiry check
+// Verify Binance deposit — with 20 min reservation expiry check
 export async function verifyDepositBinance(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { paymentNote, paymentId, amountUsd, amount, expiresAt } = stateData;
+  const { paymentNote, paymentId, amountUsd, amount, expiresAt, reservationId } = stateData;
 
-  // Check 20 min expiry
+  // Check 20 min expiry — clear reservation from DB
   if (expiresAt && new Date(expiresAt) < new Date()) {
     await deleteConversationState(supabase, userId);
     await supabase.from("payments").update({ status: "expired" }).eq("id", paymentId);
+    if (reservationId) {
+      await supabase.from("binance_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
+    }
     await sendMessage(token, chatId,
       lang === "bn"
         ? "⏰ <b>সময় শেষ!</b> ২০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
@@ -375,6 +378,10 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
     const result = await verifyRes.json();
 
     if (result.success) {
+      // Clear reservation from DB on success
+      if (reservationId) {
+        await supabase.from("binance_amount_reservations").update({ status: "completed" }).eq("id", reservationId);
+      }
       await creditWallet(supabase, userId, amount, "binance", paymentNote);
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
@@ -385,7 +392,6 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
     } else {
-      // Check remaining time
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
       await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${lang === "bn" ? `${remaining} মিনিট বাকি` : `${remaining} min remaining`}`, {
         reply_markup: {
