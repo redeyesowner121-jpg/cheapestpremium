@@ -11,6 +11,7 @@ export interface Product {
   access_link?: string;
   reseller_price?: number;
   seo_tags?: string;
+  created_at?: string;
 }
 
 export interface ProductVariation {

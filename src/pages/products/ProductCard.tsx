@@ -1,12 +1,22 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Share2, Download, Tag } from 'lucide-react';
+import { Star, Share2, Download, Tag, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { toast } from 'sonner';
 import { Product } from './types';
+
+const getNewTagLabel = (createdAt?: string): string | null => {
+  if (!createdAt) return null;
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours > 72) return null;
+  if (diffHours < 1) return 'NEW • Just now';
+  if (diffHours < 24) return `NEW • ${Math.floor(diffHours)}h ago`;
+  return `NEW • ${Math.floor(diffHours / 24)}d ago`;
+};
 
 interface ProductCardProps {
   product: Product;
