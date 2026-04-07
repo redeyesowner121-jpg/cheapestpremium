@@ -215,7 +215,6 @@ const Index: React.FC = () => {
           </button>
         </div>
 
-        <BannerSlider banners={banners} />
         <FlashSaleSlider 
           items={flashSales} 
           onItemClick={(item) => {
