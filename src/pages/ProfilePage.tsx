@@ -32,6 +32,7 @@ import appLogo from '@/assets/app-logo.jpg';
 import BlueTick from '@/components/BlueTick';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
+import AnimatedSuccessModal from '@/components/AnimatedSuccessModal';
 
 const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
