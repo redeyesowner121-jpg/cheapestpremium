@@ -128,7 +128,9 @@ export async function handleGiveawayStart(
 
   const { isAdminBot } = await import("./db-helpers.ts");
   const isUserAdmin = await isAdminBot(supabase, userId);
-  const joined = await checkChannelMembership(token, userId, supabase);
+  // Use MAIN bot token for channel checks since giveaway bot isn't admin of channels
+  const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
+  const joined = await checkChannelMembership(MAIN_TOKEN, userId, supabase);
   await ensureWallet(supabase, userId);
 
   if (!isUserAdmin && !joined) {
