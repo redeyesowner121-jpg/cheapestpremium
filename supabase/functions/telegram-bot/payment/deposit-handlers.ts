@@ -364,10 +364,44 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
   }
 }
 
-// Verify Razorpay deposit - time-based matching, no code needed
+// Verify Razorpay deposit — uses reservation system
 export async function verifyDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { payClickedAt, paymentId, amount, uniqueAmount } = stateData;
+  const { payClickedAt, amount, uniqueAmount, reservationId, depositRequestId } = stateData;
   const verifyAmount = uniqueAmount || amount;
+
+  // Check reservation expiry
+  if (reservationId) {
+    const { data: reservation } = await supabase
+      .from("razorpay_amount_reservations")
+      .select("status, expires_at")
+      .eq("id", reservationId)
+      .single();
+
+    if (reservation?.status === "completed") {
+      await deleteConversationState(supabase, userId);
+      await sendMessage(token, chatId, "✅ Payment already processed.");
+      return;
+    }
+    if (reservation && new Date(reservation.expires_at) < new Date()) {
+      await supabase.from("razorpay_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
+      await deleteConversationState(supabase, userId);
+      await sendMessage(token, chatId,
+        lang === "bn"
+          ? "⏰ <b>সময় শেষ!</b> ১০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
+          : "⏰ <b>Time expired!</b> Payment was not completed within 10 minutes.\n\nStart a new deposit.",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
+              [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+  }
+
   await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
 
   try {
@@ -377,13 +411,12 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
     const verifyRes = await fetch(`${supabaseUrl}/functions/v1/verify-razorpay-note`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ amount: verifyAmount, paymentId, payClickedAt }),
+      body: JSON.stringify({ amount: verifyAmount, reservationId, depositRequestId, payClickedAt }),
     });
 
     const result = await verifyRes.json();
 
     if (result.success) {
-      // Credit the base amount (without extra paise)
       const baseAmount = Math.floor(verifyAmount);
       await creditWallet(supabase, userId, baseAmount, "razorpay_upi", `auto-verified`);
       await deleteConversationState(supabase, userId);
