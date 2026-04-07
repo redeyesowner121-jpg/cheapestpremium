@@ -29,6 +29,7 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingIconId, setUploadingIconId] = useState<string | null>(null);
+  const pendingUploadId = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -314,6 +315,7 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
                   {/* Category Icon */}
                   <button
                     onClick={() => {
+                      pendingUploadId.current = category.id;
                       setUploadingIconId(category.id);
                       fileInputRef.current?.click();
                     }}
@@ -370,9 +372,11 @@ const AdminCategoryManager: React.FC<AdminCategoryManagerProps> = ({ products, o
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file && uploadingIconId) {
-            handleIconUpload(uploadingIconId, file);
+          const targetId = pendingUploadId.current;
+          if (file && targetId) {
+            handleIconUpload(targetId, file);
           }
+          pendingUploadId.current = null;
           e.target.value = '';
         }}
       />
