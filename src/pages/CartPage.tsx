@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
+import IndiaPaymentScreen from '@/components/wallet/deposit/IndiaPaymentScreen';
 
 const FOREIGN_CONVERT_FEE_PERCENT = 30;
 const AAX_CODE = 'AAX';
@@ -24,6 +25,26 @@ const CartPage: React.FC = () => {
   const [checkingOut, setCheckingOut] = useState(false);
   const { formatPrice, isForeignCurrency, displayCurrency } = useCurrencyFormat();
   const isAAX = displayCurrency?.code === AAX_CODE;
+
+  // Add Money modal state (triggered when balance is short)
+  const [showAddMoney, setShowAddMoney] = useState(false);
+  const [addMoneyAmount, setAddMoneyAmount] = useState('');
+  const [paymentSettings, setPaymentSettings] = useState<any>(null);
+  const [depositTab, setDepositTab] = useState<'auto' | 'manual' | 'card'>('auto');
+
+  // Fetch payment settings when add money modal opens
+  useEffect(() => {
+    if (!showAddMoney) return;
+    const fetchSettings = async () => {
+      const { data } = await supabase.from('payment_settings').select('*');
+      if (data) {
+        const map: any = {};
+        data.forEach((s: any) => { map[s.setting_key] = s; });
+        setPaymentSettings(map);
+      }
+    };
+    fetchSettings();
+  }, [showAddMoney]);
 
 
 
@@ -66,26 +87,21 @@ const CartPage: React.FC = () => {
 
     const walletBalance = profile.wallet_balance || 0;
 
-    // AAX gets discount, other foreign currencies get fee
+    // Calculate needed amount
+    let neededAmount = cartSummary.subtotal;
     if (isAAX) {
-      if (walletBalance < cartSummary.subtotal) {
-        toast.error('Insufficient wallet balance');
-        navigate('/wallet');
-        return;
-      }
+      neededAmount = cartSummary.subtotal;
     } else if (isForeignCurrency && displayCurrency) {
-      const conversionFee = walletBalance * (FOREIGN_CONVERT_FEE_PERCENT / 100);
-      const effectiveBalanceInr = walletBalance - conversionFee;
-      if (effectiveBalanceInr < cartSummary.subtotal) {
-        toast.error(`Insufficient balance after ${FOREIGN_CONVERT_FEE_PERCENT}% conversion fee`);
-        return;
-      }
-    } else {
-      if (walletBalance < cartSummary.subtotal) {
-        toast.error('Insufficient wallet balance');
-        navigate('/wallet');
-        return;
-      }
+      const conversionFee = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+      neededAmount = cartSummary.subtotal + conversionFee;
+    }
+
+    if (walletBalance < neededAmount) {
+      const shortfall = Math.ceil(neededAmount - walletBalance);
+      setAddMoneyAmount(shortfall.toString());
+      setShowAddMoney(true);
+      toast.error(`₹${shortfall} short! Add money to continue.`);
+      return;
     }
 
     setCheckingOut(true);
@@ -441,13 +457,33 @@ const CartPage: React.FC = () => {
                   : cartSummary.subtotal;
               return balance < needed ? (
                 <p className="text-xs text-destructive text-center">
-                  Insufficient balance. <button onClick={() => navigate('/wallet')} className="underline font-medium">Add Money</button>
+                  Insufficient balance. <button onClick={() => { setAddMoneyAmount(Math.ceil(needed - balance).toString()); setShowAddMoney(true); }} className="underline font-medium">Add Money</button>
                 </p>
               ) : null;
             })()}
           </div>
         </div>
       )}
+
+      {/* Add Money Modal - triggered on insufficient balance */}
+      <IndiaPaymentScreen
+        open={showAddMoney}
+        onOpenChange={(v) => { setShowAddMoney(v); if (!v) refreshProfile(); }}
+        depositAmount={addMoneyAmount}
+        onDepositAmountChange={setAddMoneyAmount}
+        paymentSettings={paymentSettings}
+        loading={false}
+        onAutoDeposit={() => {}}
+        onManualDeposit={() => {}}
+        submittingManual={false}
+        transactionId=""
+        onTransactionIdChange={() => {}}
+        senderName={profile?.name || ''}
+        onSenderNameChange={() => {}}
+        depositTab={depositTab}
+        onTabChange={setDepositTab}
+        onChangeCountry={() => {}}
+      />
 
       <BottomNav />
     </div>
