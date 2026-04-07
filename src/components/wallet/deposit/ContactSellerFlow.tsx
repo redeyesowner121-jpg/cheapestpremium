@@ -95,7 +95,7 @@ export const ContactSellerFlow: React.FC<ContactSellerFlowProps> = ({ open, onOp
   };
 
   const whatsappNumber = settings.contact_whatsapp?.replace(/[^0-9]/g, '') || '';
-  const telegramUsername = settings.support_telegram || 'Air1_Premium_bot';
+  const telegramUsername = (settings as any).support_telegram || 'Air1_Premium_bot';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
