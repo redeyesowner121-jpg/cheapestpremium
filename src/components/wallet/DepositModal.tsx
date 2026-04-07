@@ -16,11 +16,11 @@ const DepositModal: React.FC<DepositModalProps> = (props) => {
   const [foreignCountry, setForeignCountry] = useState('');
   const [foreignFlag, setForeignFlag] = useState('');
   const [hasBinance, setHasBinance] = useState<boolean | null>(null);
-  const [depositTab, setDepositTab] = useState<'auto' | 'manual' | 'card'>(initialTab || 'card');
+  const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(initialTab === 'manual' ? 'manual' : 'auto');
 
   React.useEffect(() => {
     if (open && initialTab) {
-      setDepositTab(initialTab);
+      setDepositTab(initialTab === 'manual' ? 'manual' : 'auto');
     }
   }, [open, initialTab]);
 
