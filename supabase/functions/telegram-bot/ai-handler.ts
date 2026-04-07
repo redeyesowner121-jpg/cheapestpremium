@@ -191,7 +191,7 @@ STRICT RULES:
     // TRUE real-time streaming: edit message as tokens arrive
     let fullAnswer = "";
     let lastEditTime = 0;
-    const MIN_EDIT_INTERVAL = 600; // ms between edits (Telegram rate limit friendly)
+    const MIN_EDIT_INTERVAL = 300; // ms between edits — fast streaming like ChatGPT
     let pendingEdit = false;
 
     // Keep sending typing action periodically
