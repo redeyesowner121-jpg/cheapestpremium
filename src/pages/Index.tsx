@@ -126,7 +126,8 @@ const Index: React.FC = () => {
             image: p.image_url || 'https://via.placeholder.com/200',
             rating: p.rating || 4.5,
             soldCount: p.sold_count || 0,
-            reseller_price: p.reseller_price
+            reseller_price: p.reseller_price,
+            created_at: p.created_at
           };
         }));
       }
@@ -141,7 +142,8 @@ const Index: React.FC = () => {
             price: firstVar ? firstVar.price : p.price,
             originalPrice: p.original_price,
             image: p.image_url || 'https://via.placeholder.com/200',
-            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
+            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price,
+            created_at: p.created_at
           };
         }));
       }
@@ -156,7 +158,8 @@ const Index: React.FC = () => {
             price: firstVar ? firstVar.price : p.price,
             originalPrice: p.original_price,
             image: p.image_url || 'https://via.placeholder.com/200',
-            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price
+            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price,
+            created_at: p.created_at
           };
         }));
       }

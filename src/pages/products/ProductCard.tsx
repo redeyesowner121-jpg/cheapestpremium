@@ -1,12 +1,22 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Star, Share2, Download, Tag } from 'lucide-react';
+import { Star, Share2, Download, Tag, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { toast } from 'sonner';
 import { Product } from './types';
+
+const getNewTagLabel = (createdAt?: string): string | null => {
+  if (!createdAt) return null;
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours > 72) return null;
+  if (diffHours < 1) return 'NEW • Just now';
+  if (diffHours < 24) return `NEW • ${Math.floor(diffHours)}h ago`;
+  return `NEW • ${Math.floor(diffHours / 24)}d ago`;
+};
 
 interface ProductCardProps {
   product: Product;
@@ -61,13 +71,21 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           className="w-full h-28 object-cover"
           loading="lazy"
         />
-        {product.original_price && product.original_price > product.price && (
-          <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
-            <span className="text-[10px] font-bold text-accent-foreground">
-              -{Math.round(((product.original_price - product.price) / product.original_price) * 100)}%
-            </span>
-          </div>
-        )}
+        {(() => {
+          const newLabel = getNewTagLabel(product.created_at);
+          return newLabel ? (
+            <div className="absolute top-2 left-2 bg-emerald-500 px-2 py-0.5 rounded-full flex items-center gap-0.5 animate-pulse">
+              <Sparkles className="w-2.5 h-2.5 text-white" />
+              <span className="text-[9px] font-bold text-white">{newLabel}</span>
+            </div>
+          ) : product.original_price && product.original_price > product.price ? (
+            <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-accent-foreground">
+                -{Math.round(((product.original_price - product.price) / product.original_price) * 100)}%
+              </span>
+            </div>
+          ) : null;
+        })()}
         <button
           onClick={handleShare}
           className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"

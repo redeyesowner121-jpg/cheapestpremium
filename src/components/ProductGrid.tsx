@@ -1,11 +1,21 @@
 import React, { memo, useCallback, useMemo } from 'react';
-import { Star, Share2, Package, Tag } from 'lucide-react';
+import { Star, Share2, Package, Tag, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import AddToCartButton from '@/components/AddToCartButton';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
+
+const getNewTagLabel = (createdAt?: string): string | null => {
+  if (!createdAt) return null;
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours > 72) return null;
+  if (diffHours < 1) return 'NEW • Just now';
+  if (diffHours < 24) return `NEW • ${Math.floor(diffHours)}h ago`;
+  return `NEW • ${Math.floor(diffHours / 24)}d ago`;
+};
 
 interface Product {
   id: string;
@@ -19,6 +29,7 @@ interface Product {
   category?: string;
   hasAccessLink?: boolean;
   reseller_price?: number;
+  created_at?: string;
 }
 
 interface ProductGridProps {
@@ -79,13 +90,21 @@ const ProductCard = memo<{
           className="w-full h-28 object-cover"
           loading="lazy"
         />
-        {product.originalPrice && (
-          <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
-            <span className="text-[10px] font-bold text-accent-foreground">
-              -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
-            </span>
-          </div>
-        )}
+        {(() => {
+          const newLabel = getNewTagLabel(product.created_at);
+          return newLabel ? (
+            <div className="absolute top-2 left-2 bg-emerald-500 px-2 py-0.5 rounded-full flex items-center gap-0.5 animate-pulse">
+              <Sparkles className="w-2.5 h-2.5 text-white" />
+              <span className="text-[9px] font-bold text-white">{newLabel}</span>
+            </div>
+          ) : product.originalPrice ? (
+            <div className="absolute top-2 left-2 gradient-accent px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-accent-foreground">
+                -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
+              </span>
+            </div>
+          ) : null;
+        })()}
         <button
           onClick={handleShare}
           className="absolute top-2 right-2 p-1.5 bg-white/80 backdrop-blur-sm rounded-full"
