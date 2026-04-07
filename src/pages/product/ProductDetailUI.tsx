@@ -1,9 +1,13 @@
 import React from 'react';
 import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ProductVariationSelector, ProductFeatures } from '@/components/product';
 import ShareButtons from '@/components/ShareButtons';
 import AddToCartButton from '@/components/AddToCartButton';
+import { useCart } from '@/hooks/useCart';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface ProductDetailUIProps {
   displayProduct: any;
