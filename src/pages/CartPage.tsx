@@ -87,26 +87,21 @@ const CartPage: React.FC = () => {
 
     const walletBalance = profile.wallet_balance || 0;
 
-    // AAX gets discount, other foreign currencies get fee
+    // Calculate needed amount
+    let neededAmount = cartSummary.subtotal;
     if (isAAX) {
-      if (walletBalance < cartSummary.subtotal) {
-        toast.error('Insufficient wallet balance');
-        navigate('/wallet');
-        return;
-      }
+      neededAmount = cartSummary.subtotal;
     } else if (isForeignCurrency && displayCurrency) {
-      const conversionFee = walletBalance * (FOREIGN_CONVERT_FEE_PERCENT / 100);
-      const effectiveBalanceInr = walletBalance - conversionFee;
-      if (effectiveBalanceInr < cartSummary.subtotal) {
-        toast.error(`Insufficient balance after ${FOREIGN_CONVERT_FEE_PERCENT}% conversion fee`);
-        return;
-      }
-    } else {
-      if (walletBalance < cartSummary.subtotal) {
-        toast.error('Insufficient wallet balance');
-        navigate('/wallet');
-        return;
-      }
+      const conversionFee = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+      neededAmount = cartSummary.subtotal + conversionFee;
+    }
+
+    if (walletBalance < neededAmount) {
+      const shortfall = Math.ceil(neededAmount - walletBalance);
+      setAddMoneyAmount(shortfall.toString());
+      setShowAddMoney(true);
+      toast.error(`₹${shortfall} short! Add money to continue.`);
+      return;
     }
 
     setCheckingOut(true);
