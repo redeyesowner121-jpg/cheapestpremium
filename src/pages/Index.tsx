@@ -220,9 +220,9 @@ const Index: React.FC = () => {
         <div className="sticky top-16 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm">
           <button
             onClick={() => navigate('/products')}
-            className="w-full flex items-center gap-3 px-4 py-3.5 bg-muted rounded-2xl border border-border hover:border-primary/30 transition-colors active:scale-[0.98]"
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 hover:from-primary/20 hover:via-accent/20 hover:to-secondary/20 transition-all active:scale-[0.98] shadow-sm"
           >
-            <Search className="w-5 h-5 text-muted-foreground" />
+            <Search className="w-5 h-5 text-primary" />
             <span className="text-muted-foreground text-sm">Search products...</span>
           </button>
         </div>

@@ -234,18 +234,6 @@ const ProductsPage: React.FC = () => {
           />
         )}
 
-        {/* Courses Section */}
-        {selectedCategory === 'all' && (
-          <CategorySection
-            title="Courses"
-            icon={GraduationCap}
-            iconColorClass="text-indigo-600"
-            gradientClass="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30"
-            categoryId="courses"
-            products={coursesProducts}
-            onCategorySelect={setSelectedCategory}
-          />
-        )}
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 gap-3">
