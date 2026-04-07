@@ -231,6 +231,20 @@ const DepositRequestsSection: React.FC<DepositRequestsSectionProps> = ({
         ))}
       </div>
 
+      {/* Reject All Button */}
+      {filter === 'pending' && pendingCount > 0 && (
+        <Button
+          onClick={handleRejectAll}
+          disabled={rejectingAll}
+          variant="destructive"
+          size="sm"
+          className="w-full"
+        >
+          <XCircle className="w-4 h-4 mr-2" />
+          {rejectingAll ? 'Rejecting...' : `Reject All (${pendingCount})`}
+        </Button>
+      )}
+
       {/* Requests List */}
       <div className="space-y-2 max-h-80 overflow-y-auto">
         {filteredRequests.length === 0 ? (
