@@ -201,6 +201,9 @@ const Index: React.FC = () => {
         {/* Daily Bonus Banner - shows until claimed */}
         {user && <DailyBonusBanner />}
         
+        <BannerSlider banners={banners} />
+        {user && <QuickStats />}
+
         {/* Search Bar - right after stats */}
         <div className="-mx-4 px-4 py-1">
           <button
