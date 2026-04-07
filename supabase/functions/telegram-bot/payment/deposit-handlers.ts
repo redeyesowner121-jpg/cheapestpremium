@@ -21,6 +21,11 @@ function generatePaymentNote(): string {
   return note;
 }
 
+function generateExtraPaise(): number {
+  // Random extra ₹0.01 - ₹0.50 for unique amount verification
+  return Math.round((Math.random() * 49 + 1)) / 100;
+}
+
 function inrToUsd(inrAmount: number): number {
   const usd = inrAmount / INR_TO_USD_RATE;
   return Math.max(0.01, Math.round(usd * 100) / 100);
