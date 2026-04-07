@@ -72,11 +72,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       return;
     }
 
-    // Create payment record
+    // Generate unique amount with extra paise
+    const uAmount = generateUniqueAmount(amount);
+    setUniqueAmount(uAmount);
+
+    // Create payment record with unique amount
     try {
       const { data, error } = await supabase.from('manual_deposit_requests').insert({
         user_id: user.id,
-        amount,
+        amount: uAmount,
         transaction_id: `RAZORPAY-${Date.now()}`,
         sender_name: profile?.name || 'Razorpay Payment',
         payment_method: 'razorpay_auto',
