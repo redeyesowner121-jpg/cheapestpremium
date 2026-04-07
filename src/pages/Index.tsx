@@ -201,8 +201,18 @@ const Index: React.FC = () => {
         {/* Daily Bonus Banner - shows until claimed */}
         {user && <DailyBonusBanner />}
         
+        {/* Search Bar - right after stats */}
+        <div className="-mx-4 px-4 py-1">
+          <button
+            onClick={() => navigate('/products')}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-600 hover:via-purple-600 hover:to-cyan-600 transition-all active:scale-[0.98] shadow-lg shadow-purple-500/30"
+          >
+            <Search className="w-5 h-5 text-white" />
+            <span className="text-white/90 text-sm font-medium">Search products...</span>
+          </button>
+        </div>
+
         <BannerSlider banners={banners} />
-        {user && <QuickStats />}
         <FlashSaleSlider 
           items={flashSales} 
           onItemClick={(item) => {
@@ -215,17 +225,6 @@ const Index: React.FC = () => {
         {showRecommendations && <PersonalizedRecommendations />}
         
         <CategoryGrid categories={categories} onCategoryClick={() => navigate('/products')} />
-
-        {/* Search Bar - sticky on scroll */}
-        <div className="sticky top-16 z-40 -mx-4 px-4 py-3 bg-background/95 backdrop-blur-sm">
-          <button
-            onClick={() => navigate('/products')}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-border bg-gradient-to-r from-primary/10 via-accent/10 to-secondary/10 hover:from-primary/20 hover:via-accent/20 hover:to-secondary/20 transition-all active:scale-[0.98] shadow-sm"
-          >
-            <Search className="w-5 h-5 text-primary" />
-            <span className="text-muted-foreground text-sm">Search products...</span>
-          </button>
-        </div>
         
         {/* Methods Section */}
         <CategorySection
