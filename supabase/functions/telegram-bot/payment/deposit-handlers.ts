@@ -164,43 +164,61 @@ export async function showDepositUpi(token: string, supabase: any, chatId: numbe
   });
 }
 
-// Step 3b-i: Auto UPI (Razorpay) deposit - no code needed, time-based verification
+// Step 3b-i: Auto UPI (Razorpay) deposit — uses reservation system with 2% + ₹0.10-0.50 charge
 export async function showDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
   const razorpayMeUrl = settings.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
 
-  // Add random extra paise for unique verification
-  const extraPaise = generateExtraPaise();
-  const uniqueAmount = parseFloat((amount + extraPaise).toFixed(2));
+  // Call reserve-razorpay-amount edge function to get unique amount with 2% + ₹0.10-0.50
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  const { data: payment } = await supabase.from("payments").insert({
-    user_id: userId.toString(),
-    amount: uniqueAmount,
-    note: `RZP-BOT-${Date.now()}`,
-    status: "pending",
-    payment_method: "razorpay_upi",
-    product_name: "Wallet Deposit",
-    telegram_user_id: userId,
-  }).select("id").single();
+  let uniqueAmount: number;
+  let reservationId: string | null = null;
+  let depositRequestId: string | null = null;
 
+  try {
+    const reserveRes = await fetch(`${supabaseUrl}/functions/v1/reserve-razorpay-amount`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({ userId: userId.toString(), baseAmount: amount }),
+    });
+    const reserveData = await reserveRes.json();
+
+    if (reserveData.error) {
+      await sendMessage(token, chatId, lang === "bn" ? "❌ রিজার্ভেশন ব্যর্থ। আবার চেষ্টা করুন।" : "❌ Reservation failed. Try again.");
+      return;
+    }
+
+    uniqueAmount = reserveData.uniqueAmount;
+    reservationId = reserveData.reservationId;
+    depositRequestId = reserveData.depositRequestId;
+  } catch (err) {
+    console.error("Reserve amount error:", err);
+    await sendMessage(token, chatId, "❌ Error creating reservation. Try again.");
+    return;
+  }
+
+  const charge = parseFloat((uniqueAmount - amount).toFixed(2));
   const payClickedAt = new Date().toISOString();
 
   await setConversationState(supabase, userId, "deposit_razorpay_pending", {
-    amount, uniqueAmount, payClickedAt, paymentId: payment?.id,
+    amount, uniqueAmount, payClickedAt, reservationId, depositRequestId,
   });
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(razorpayMeUrl)}`;
 
   let text = `<b>⚡ Razorpay ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
   text += `${lang === "bn" ? "মূল পরিমাণ" : "Base Amount"}: <b>${currency}${amount}</b>\n`;
-  text += `${lang === "bn" ? "ভেরিফিকেশন চার্জ" : "Verification fee"}: <b>${currency}${extraPaise.toFixed(2)}</b>\n`;
+  text += `${lang === "bn" ? "ভেরিফিকেশন চার্জ (2%+)" : "Verification fee (2%+)"}: <b>${currency}${charge.toFixed(2)}</b>\n`;
   text += `${lang === "bn" ? "মোট পে করুন" : "Total to pay"}: <b>${currency}${uniqueAmount}</b>\n\n`;
   text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
   text += `1. ${lang === "bn" ? "নিচের" : "Click"} <b>Pay Now</b> ${lang === "bn" ? "বাটনে ক্লিক করুন বা QR স্ক্যান করুন" : "below or scan QR"}\n`;
   text += `2. ${lang === "bn" ? "ঠিক" : "Pay exactly"} <b>${currency}${uniqueAmount}</b> ${lang === "bn" ? "পে করুন" : ""}\n`;
   text += `3. ${lang === "bn" ? "পেমেন্ট শেষে" : "After payment click"} <b>Verify</b> ${lang === "bn" ? "ক্লিক করুন" : ""}\n\n`;
-  text += `<i>⚠️ ${lang === "bn" ? "ঠিক ₹" + uniqueAmount + " পে করুন, নাহলে ভেরিফাই হবে না!" : "Pay exactly ₹" + uniqueAmount + " or verification will fail!"}</i>`;
+  text += `<i>⚠️ ${lang === "bn" ? "ঠিক ₹" + uniqueAmount + " পে করুন, নাহলে ভেরিফাই হবে না!" : "Pay exactly ₹" + uniqueAmount + " or verification will fail!"}</i>\n`;
+  text += `<i>⏰ ${lang === "bn" ? "১০ মিনিটের মধ্যে পেমেন্ট করুন" : "Pay within 10 minutes"}</i>`;
 
   // Try to send with QR photo
   let sent = false;
