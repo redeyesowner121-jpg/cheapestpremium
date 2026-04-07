@@ -1,7 +1,7 @@
 // ===== AI QUERY HANDLER (Streaming) =====
 
 import { t, BOT_USERNAME } from "./constants.ts";
-import { sendMessage, sendMessageWithId, editMessageText } from "./telegram-api.ts";
+import { sendMessage, sendMessageWithId, editMessageText, sendChatAction } from "./telegram-api.ts";
 import { getSettings, getWallet, setConversationState, notifyAllAdmins } from "./db-helpers.ts";
 
 // Fetch knowledge base entries relevant to the question

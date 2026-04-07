@@ -141,3 +141,15 @@ export async function editMessageText(token: string, chatId: number, messageId: 
 export function getTelegramApiUrl(token: string): string {
   return TELEGRAM_API(token);
 }
+
+export async function sendChatAction(token: string, chatId: number, action: string = "typing") {
+  try {
+    await fetch(`${TELEGRAM_API(token)}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, action }),
+    });
+  } catch (e) {
+    console.error("sendChatAction error:", e);
+  }
+}
