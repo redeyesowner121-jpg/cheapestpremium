@@ -134,7 +134,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
       <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Money</DialogTitle>
-          <DialogDescription>Deposit Rs1000+ at once to get Rs100 bonus + Blue Tick!</DialogDescription>
+          <DialogDescription>Add money to your wallet securely.</DialogDescription>
         </DialogHeader>
 
         <Tabs value={depositTab} onValueChange={(v) => { onTabChange(v as any); setShowCardConfirm(false); setAutoStep('amount'); setSpecialCode(''); }} className="mt-4">
