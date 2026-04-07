@@ -61,11 +61,11 @@ Deno.serve(async (req) => {
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Search last 10 minutes of payments for reliable matching
+    // Search last 10 minutes of payments
     const nowSec = Math.floor(Date.now() / 1000);
     const fromTime = payClickedAt 
-      ? Math.floor(new Date(payClickedAt).getTime() / 1000) - 60  // 1 min before click
-      : nowSec - 600; // fallback: last 10 minutes
+      ? Math.floor(new Date(payClickedAt).getTime() / 1000) - 60
+      : nowSec - 600;
 
     const paymentsRes = await fetch(
       `https://api.razorpay.com/v1/payments?count=100&from=${fromTime}`,
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
 
     const amountPaise = Math.round(amount * 100);
     
-    // Match by exact amount + captured/authorized status within the time window
+    // Match by exact amount (including unique paise) + captured/authorized status
     const matchingPayment = payments.find((p: any) => {
       const amountMatch = p.amount === amountPaise;
       const statusMatch = p.status === "captured" || p.status === "authorized";
@@ -92,16 +92,52 @@ Deno.serve(async (req) => {
     });
 
     if (matchingPayment) {
+      const rzpPayId = matchingPayment.id;
+
+      // DOUBLE-CREDIT PREVENTION: Check if this Razorpay payment ID was already used
+      const { data: existingUsage } = await supabase
+        .from("manual_deposit_requests")
+        .select("id")
+        .eq("transaction_id", `RZP:${rzpPayId}`)
+        .eq("status", "approved")
+        .maybeSingle();
+
+      if (existingUsage) {
+        console.log("Payment already used:", rzpPayId);
+        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Also check payments table for bot flow
+      const { data: existingBotPayment } = await supabase
+        .from("payments")
+        .select("id")
+        .eq("note", `RZP:${rzpPayId}`)
+        .eq("status", "success")
+        .maybeSingle();
+
+      if (existingBotPayment) {
+        console.log("Payment already used (bot):", rzpPayId);
+        return new Response(JSON.stringify({ success: true, message: "Already verified" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Update payment record if exists (bot flow)
       if (paymentId) {
         await supabase.from("payments").update({
           status: "success",
+          note: `RZP:${rzpPayId}`,
           updated_at: new Date().toISOString(),
         }).eq("id", paymentId);
       }
 
       // Website flow: credit wallet and update deposit request
       if (userId && depositRequestId) {
+        // Credit the base amount (without extra paise) to wallet
+        const baseAmount = Math.floor(amount);
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("wallet_balance, rank_balance, total_deposit, name")
@@ -109,12 +145,12 @@ Deno.serve(async (req) => {
           .single();
 
         if (profile) {
-          const newBalance = (profile.wallet_balance || 0) + amount;
-          const newRankBalance = (profile.rank_balance || 0) + amount;
-          const newTotalDeposit = (profile.total_deposit || 0) + amount;
+          const newBalance = (profile.wallet_balance || 0) + baseAmount;
+          const newRankBalance = (profile.rank_balance || 0) + baseAmount;
+          const newTotalDeposit = (profile.total_deposit || 0) + baseAmount;
 
           let bonusAmount = 0;
-          if (amount >= 1000) bonusAmount = 100;
+          if (baseAmount >= 1000) bonusAmount = 100;
 
           const finalBalance = newBalance + bonusAmount;
 
@@ -122,13 +158,13 @@ Deno.serve(async (req) => {
             wallet_balance: finalBalance,
             rank_balance: newRankBalance,
             total_deposit: newTotalDeposit,
-            has_blue_check: amount >= 1000 ? true : undefined,
+            has_blue_check: baseAmount >= 1000 ? true : undefined,
           }).eq("id", userId);
 
           await supabase.from("transactions").insert({
             user_id: userId,
             type: "deposit",
-            amount: amount,
+            amount: baseAmount,
             status: "completed",
             description: `Razorpay Auto Deposit`,
           });
@@ -143,15 +179,17 @@ Deno.serve(async (req) => {
             });
           }
 
+          // Store the Razorpay payment ID to prevent reuse
           await supabase.from("manual_deposit_requests").update({
             status: "approved",
-            admin_note: "Auto-verified via Razorpay",
+            admin_note: `Auto-verified via Razorpay (${rzpPayId})`,
+            transaction_id: `RZP:${rzpPayId}`,
           }).eq("id", depositRequestId);
 
           await supabase.from("notifications").insert({
             user_id: userId,
             title: "Deposit Successful! 💰",
-            message: `₹${amount} has been added to your wallet${bonusAmount > 0 ? ` + ₹${bonusAmount} bonus!` : '.'}`,
+            message: `₹${baseAmount} has been added to your wallet${bonusAmount > 0 ? ` + ₹${bonusAmount} bonus!` : '.'}`,
             type: "wallet",
           });
         }
