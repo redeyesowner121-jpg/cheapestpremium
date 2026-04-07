@@ -30,6 +30,9 @@ const Index: React.FC = () => {
   const [selectedFlashSale, setSelectedFlashSale] = useState<any>(null);
   const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [homeSearchQuery, setHomeSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
