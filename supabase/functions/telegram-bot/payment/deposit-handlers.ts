@@ -112,16 +112,13 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
     .maybeSingle();
 
   if (existingReservation) {
-    // Amount is locked by another user
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? `⚠️ <b>$${amountUsd} (₹${amount}) এই অ্যামাউন্ট এখন অন্য একজন ইউজার ব্যবহার করছেন।</b>\n\nদয়া করে অন্য একটি অ্যামাউন্ট দিন।`
-        : `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
+      `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: lang === "bn" ? "💰 অন্য অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
-            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: "Main Menu", callback_data: "back_main" }],
           ],
         },
       }
@@ -159,11 +156,11 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
     reservationId: reservation?.id,
   });
 
-  let text = `<b>💎 Binance ${lang === "bn" ? "ডিপোজিট" : "Deposit"}</b>\n\n`;
-  text += `${lang === "bn" ? "পরিমাণ" : "Amount"}: <b>${currency}${amount}</b> = <b>$${amountUsd}</b>\n\n`;
+  let text = `<b>💎 Binance Deposit</b>\n\n`;
+  text += `Amount: <b>${currency}${amount}</b> = <b>$${amountUsd}</b>\n\n`;
   text += `Binance Pay ID: <code>${binanceId}</code>\n`;
   text += `Payment Note: <code>${paymentNote}</code>\n\n`;
-  text += `<b>${lang === "bn" ? "নির্দেশনা" : "Instructions"}:</b>\n`;
+  text += `<b>Instructions:</b>\n`;
   text += `1. Open Binance App\n`;
   text += `2. Go to Pay > Send\n`;
   text += `3. Pay ID: <code>${binanceId}</code>\n`;
@@ -171,7 +168,7 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
   text += `5. Note: <code>${paymentNote}</code>\n`;
   text += `6. Complete & click Verify\n\n`;
   text += `<i>⚠️ Note must match exactly!</i>\n`;
-  text += `<i>⏰ ${lang === "bn" ? "২০ মিনিটের মধ্যে পেমেন্ট করুন" : "Pay within 20 minutes"}</i>`;
+  text += `<i>⏰ Pay within 20 minutes</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
@@ -348,14 +345,12 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
       await supabase.from("binance_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
     }
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? "⏰ <b>সময় শেষ!</b> ২০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
-        : "⏰ <b>Time expired!</b> Payment was not completed within 20 minutes.\n\nStart a new deposit.",
+      "⏰ <b>Time expired!</b> Payment was not completed within 20 minutes.\n\nStart a new deposit.",
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
-            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: "Main Menu", callback_data: "back_main" }],
           ],
         },
       }
@@ -363,7 +358,7 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
     return;
   }
 
-  await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
+  await sendMessage(token, chatId, "🔍 Verifying payment...");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -386,14 +381,14 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
       await sendMessage(token, chatId,
-        `✅ <b>${lang === "bn" ? "পেমেন্ট সফল!" : "Payment Verified!"}</b>\n\n💰 ₹${amount} ${lang === "bn" ? "জমা হয়েছে" : "deposited"}\n💵 ${lang === "bn" ? "নতুন ব্যালেন্স" : "New Balance"}: <b>₹${wallet?.balance || 0}</b>`
+        `✅ <b>Payment Verified!</b>\n\n💰 ₹${amount} deposited\n💵 New Balance: <b>₹${wallet?.balance || 0}</b>`
       );
       await notifyAllAdmins(token, supabase,
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
     } else {
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
-      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${lang === "bn" ? `${remaining} মিনিট বাকি` : `${remaining} min remaining`}`, {
+      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${remaining} min remaining`, {
         reply_markup: {
           inline_keyboard: [
             [{ text: "✅ Verify Payment", callback_data: "deposit_binance_verify" }],
