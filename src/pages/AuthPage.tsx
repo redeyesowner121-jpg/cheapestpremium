@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Phone, Eye, EyeOff, Gift, ArrowLeft, Send, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
