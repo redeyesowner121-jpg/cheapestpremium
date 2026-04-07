@@ -196,8 +196,9 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
     if (!user) return;
     setVerifying(true);
     try {
+      const verifyAmount = uniqueAmount || parseFloat(depositAmount);
       const { data, error } = await supabase.functions.invoke('verify-razorpay-note', {
-        body: { amount: parseFloat(depositAmount), userId: user.id, depositRequestId: paymentId, payClickedAt }
+        body: { amount: verifyAmount, userId: user.id, depositRequestId: paymentId, payClickedAt }
       });
       if (error) throw error;
       if (data?.success) {
@@ -205,10 +206,12 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
         setAutoStep('amount');
         setPaymentId(null);
         setPayClickedAt(null);
+        setUniqueAmount(null);
         onDepositAmountChange('');
         sessionStorage.removeItem('razorpay_pay_clicked_at');
         sessionStorage.removeItem('razorpay_deposit_amount');
         sessionStorage.removeItem('razorpay_deposit_id');
+        sessionStorage.removeItem('razorpay_unique_amount');
         onOpenChange(false);
       } else {
         toast.error(data?.message || 'Payment not found yet. Complete payment and try again.');
