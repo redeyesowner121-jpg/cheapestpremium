@@ -112,16 +112,13 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
     .maybeSingle();
 
   if (existingReservation) {
-    // Amount is locked by another user
     await sendMessage(token, chatId,
-      lang === "bn"
-        ? `⚠️ <b>$${amountUsd} (₹${amount}) এই অ্যামাউন্ট এখন অন্য একজন ইউজার ব্যবহার করছেন।</b>\n\nদয়া করে অন্য একটি অ্যামাউন্ট দিন।`
-        : `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
+      `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: lang === "bn" ? "💰 অন্য অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
-            [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
+            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: "Main Menu", callback_data: "back_main" }],
           ],
         },
       }
