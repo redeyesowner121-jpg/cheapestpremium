@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon } from 'lucide-react';
+import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ProductVariationSelector, ProductFeatures } from '@/components/product';
 import ShareButtons from '@/components/ShareButtons';
