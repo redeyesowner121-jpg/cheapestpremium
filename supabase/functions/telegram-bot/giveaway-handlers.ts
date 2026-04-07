@@ -257,7 +257,7 @@ export async function handleGiveawayCallbacks(
   if (data === "gw_products") {
     const { data: products } = await supabase
       .from("giveaway_products")
-      .select("*, product:products(name, image_url), variation:product_variations(name)")
+      .select("*, product:products(id, name)")
       .eq("is_active", true);
 
     if (!products || products.length === 0) {
@@ -268,28 +268,81 @@ export async function handleGiveawayCallbacks(
       return true;
     }
 
-    let productText = lang === "bn" ? "🎁 <b>গিভওয়ে প্রোডাক্টস:</b>\n\n" : "🎁 <b>Giveaway Products:</b>\n\n";
+    // Group by product name to avoid duplicates
+    const seen = new Set<string>();
     const buttons: any[][] = [];
     for (const p of products) {
       const name = (p as any).product?.name || "Unknown";
-      const varName = (p as any).variation?.name ? ` (${(p as any).variation.name})` : "";
-      const stockText = p.stock !== null ? `📦 ${p.stock} left` : "📦 Unlimited";
-      productText += `🏷️ <b>${name}${varName}</b>\n   🎯 ${p.points_required} pts | ${stockText}\n\n`;
-      buttons.push([{ text: `🎁 ${name}${varName} (${p.points_required} pts)`, callback_data: `gw_redeem_${p.id}` }]);
+      const productId = (p as any).product?.id;
+      if (!productId || seen.has(productId)) continue;
+      seen.add(productId);
+      buttons.push([{ text: `🎁 ${name}`, callback_data: `gw_pdetail_${productId}` }]);
     }
     buttons.push([{ text: "🔙 Back", callback_data: "gw_main" }]);
-    await sendMessage(token, chatId, productText, { reply_markup: { inline_keyboard: buttons } });
+
+    const text = lang === "bn"
+      ? "🎁 <b>গিভওয়ে প্রোডাক্টস</b>\n\nএকটি প্রোডাক্ট বেছে নিন:"
+      : "🎁 <b>Giveaway Products</b>\n\nChoose a product:";
+    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+    return true;
+  }
+
+  // Product detail with photo + variations
+  if (data?.startsWith("gw_pdetail_")) {
+    const productId = data.replace("gw_pdetail_", "");
+    
+    const [productRes, gwProducts] = await Promise.all([
+      supabase.from("products").select("id, name, image_url, description").eq("id", productId).single(),
+      supabase.from("giveaway_products")
+        .select("*, variation:product_variations(id, name)")
+        .eq("product_id", productId).eq("is_active", true),
+    ]);
+
+    const product = productRes.data;
+    if (!product) {
+      await sendMessage(token, chatId, "❌ Product not found.");
+      return true;
+    }
+
+    const items = gwProducts.data || [];
+    if (items.length === 0) {
+      await sendMessage(token, chatId, "❌ No giveaway options available for this product.");
+      return true;
+    }
+
+    const buttons: any[][] = [];
+    for (const gp of items) {
+      const varName = (gp as any).variation?.name || "Standard";
+      const stockText = gp.stock !== null ? (gp.stock > 0 ? `📦${gp.stock}` : "❌Sold") : "∞";
+      buttons.push([{
+        text: `${varName} — ${gp.points_required} pts (${stockText})`,
+        callback_data: `gw_redeem_${gp.id}`,
+      }]);
+    }
+    buttons.push([{ text: "🔙 Back", callback_data: "gw_products" }]);
+
+    const caption = lang === "bn"
+      ? `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nনিচে একটি ভেরিয়েশন বেছে রিডিম করুন:`
+      : `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nChoose a variation to redeem:`;
+
+    if (product.image_url) {
+      const { sendPhoto } = await import("./telegram-api.ts");
+      await sendPhoto(token, chatId, product.image_url, caption, { inline_keyboard: buttons });
+    } else {
+      await sendMessage(token, chatId, caption, { reply_markup: { inline_keyboard: buttons } });
+    }
     return true;
   }
 
   if (data?.startsWith("gw_redeem_")) {
-    const productId = data.replace("gw_redeem_", "");
-    const [userPoints, product] = await Promise.all([
+    const gpId = data.replace("gw_redeem_", "");
+    const [userPoints, gpRes] = await Promise.all([
       getPoints(supabase, userId),
       supabase.from("giveaway_products")
-        .select("*, product:products(name), variation:product_variations(name)")
-        .eq("id", productId).single().then((r: any) => r.data),
+        .select("*, product:products(name, image_url), variation:product_variations(name)")
+        .eq("id", gpId).single(),
     ]);
+    const product = gpRes.data;
 
     if (!product || !product.is_active) {
       await sendMessage(token, chatId, "❌ Product no longer available.");
@@ -301,26 +354,27 @@ export async function handleGiveawayCallbacks(
     }
 
     const pts = userPoints?.points || 0;
+    const name = (product as any).product?.name || "Unknown";
+    const varName = (product as any).variation?.name ? ` (${(product as any).variation.name})` : "";
+
     if (pts < product.points_required) {
       const needed = product.points_required - pts;
       await sendMessage(token, chatId,
         lang === "bn"
           ? `❌ <b>পর্যাপ্ত পয়েন্ট নেই!</b>\n\n🎯 প্রয়োজন: ${product.points_required} pts\n💰 আপনার: ${pts} pts\n📌 আরো ${needed} দরকার`
           : `❌ <b>Not enough points!</b>\n\n🎯 Need: ${product.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
-        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: "gw_products" }]] }
+        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${product.product_id}` }]] }
       });
       return true;
     }
 
-    const name = (product as any).product?.name || "Unknown";
-    const varName = (product as any).variation?.name ? ` (${(product as any).variation.name})` : "";
     await sendMessage(token, chatId,
       lang === "bn"
-        ? `🎁 <b>কনফার্ম?</b>\n\n🏷️ ${name}${varName}\n🎯 খরচ: ${product.points_required} pts\n💰 ব্যালেন্স: ${pts} pts\nপরে: ${pts - product.points_required} pts`
-        : `🎁 <b>Confirm?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${product.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - product.points_required} pts`, {
+        ? `🎁 <b>কনফার্ম রিডিম?</b>\n\n🏷️ ${name}${varName}\n🎯 খরচ: ${product.points_required} pts\n💰 ব্যালেন্স: ${pts} pts\nপরে: ${pts - product.points_required} pts`
+        : `🎁 <b>Confirm Redeem?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${product.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - product.points_required} pts`, {
       reply_markup: { inline_keyboard: [
-        [{ text: "✅ Confirm", callback_data: `gw_confirm_${productId}` }],
-        [{ text: "❌ Cancel", callback_data: "gw_products" }],
+        [{ text: "✅ Confirm", callback_data: `gw_confirm_${gpId}` }],
+        [{ text: "❌ Cancel", callback_data: `gw_pdetail_${product.product_id}` }],
       ]}
     });
     return true;
@@ -370,11 +424,28 @@ export async function handleGiveawayCallbacks(
       reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
     });
 
-    // Notify admins
+    // Notify admins on bot
     const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
     await notifyAllAdmins(MAIN_TOKEN, supabase,
       `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
     );
+
+    // Notify admins on web (create notification for all admin users)
+    const { data: adminRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .in("role", ["admin", "temp_admin"]);
+    
+    if (adminRoles?.length) {
+      const notifications = adminRoles.map((ar: any) => ({
+        user_id: ar.user_id,
+        title: "🎁 New Giveaway Redemption",
+        message: `${firstName} ${username ? `(@${username})` : ""} redeemed ${name}${varName} for ${product.points_required} pts`,
+        type: "order",
+      }));
+      await supabase.from("notifications").insert(notifications);
+    }
+
     return true;
   }
 
