@@ -263,7 +263,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                   <p className="text-sm font-medium text-muted-foreground">Your Deposit</p>
                   <p className="text-3xl font-bold text-primary">₹{baseAmt}</p>
                   <div className="text-xs text-muted-foreground bg-muted/60 rounded-lg px-3 py-2">
-                    <p>A small verification fee (₹0.01 - ₹0.99) will be added</p>
+                    <p>A verification charge of <b>2% + ₹0.10-0.50</b> will be added</p>
                     <p className="mt-1">This ensures your payment is uniquely identified</p>
                   </div>
                 </div>
@@ -293,7 +293,7 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
                   </button>
                   {uniqueAmount && (
                     <p className="text-xs text-muted-foreground bg-muted/60 rounded-lg px-2 py-1 inline-block">
-                      ₹{Math.floor(uniqueAmount)} + ₹{(uniqueAmount - Math.floor(uniqueAmount)).toFixed(2)} (verification fee)
+                      ₹{Math.floor(uniqueAmount)} + ₹{(uniqueAmount - Math.floor(uniqueAmount)).toFixed(2)} (2% + verification fee)
                     </p>
                   )}
                 </div>

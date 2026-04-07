@@ -5,12 +5,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function generatePaise(baseAmount: number): number {
-  let max: number;
-  if (baseAmount < 100) max = 20;
-  else if (baseAmount < 500) max = 50;
-  else max = 99;
-  return Math.floor(Math.random() * max) + 1; // 1 to max
+function calculateCharge(baseAmount: number): number {
+  // 2% of base + random ₹0.10 - ₹0.50
+  const twoPct = baseAmount * 0.02;
+  const randomExtra = Math.floor(Math.random() * 41 + 10) / 100; // 0.10 to 0.50
+  return parseFloat((twoPct + randomExtra).toFixed(2));
 }
 
 Deno.serve(async (req) => {
@@ -35,8 +34,8 @@ Deno.serve(async (req) => {
     let uniqueAmount = 0;
     let attempts = 0;
     while (attempts < 10) {
-      const paise = generatePaise(intBase);
-      uniqueAmount = parseFloat((intBase + paise / 100).toFixed(2));
+      const charge = calculateCharge(intBase);
+      uniqueAmount = parseFloat((intBase + charge).toFixed(2));
 
       // Check if this exact amount is already reserved (active, not expired)
       const { data: existing } = await supabase
