@@ -28,7 +28,7 @@ const MAIN_BOT_REF_LINK = "https://t.me/Air1_Premium_bot?start=ref_REFJFF7FC";
 // Giveaway-specific required channels (hardcoded)
 const GIVEAWAY_REQUIRED_CHANNELS = ["@rkrxott", "@pocket_money27"];
 
-async function checkGiveawayChannels(mainToken: string, userId: number): Promise<boolean> {
+export async function checkGiveawayChannels(mainToken: string, userId: number): Promise<boolean> {
   const { getChatMember } = await import("./telegram-api.ts");
   const results = await Promise.all(
     GIVEAWAY_REQUIRED_CHANNELS.map(ch => getChatMember(mainToken, ch, userId))
