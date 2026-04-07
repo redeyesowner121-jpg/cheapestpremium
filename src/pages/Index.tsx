@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lightbulb, GraduationCap, Search } from 'lucide-react';
 import Header from '@/components/Header';
