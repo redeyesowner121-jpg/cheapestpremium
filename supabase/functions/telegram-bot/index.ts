@@ -185,7 +185,8 @@ Deno.serve(async (req) => {
         const selectedLang = data === "lang_en" ? "en" : "bn";
         await setUserLang(supabase, userId, selectedLang);
         await sendMessage(BOT_TOKEN, chatId, t("lang_saved", selectedLang));
-        const joined = await checkChannelMembership(BOT_TOKEN, userId, supabase);
+        const MAIN_TOKEN_FOR_CHECK = Deno.env.get("TELEGRAM_BOT_TOKEN") || BOT_TOKEN;
+        const joined = await checkChannelMembership(MAIN_TOKEN_FOR_CHECK, userId, supabase);
         if (!joined) {
           const { showGiveawayJoinChannels } = await import("./giveaway-handlers.ts");
           await showGiveawayJoinChannels(BOT_TOKEN, supabase, chatId, selectedLang, userId);
