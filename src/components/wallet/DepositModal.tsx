@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
+import { Smartphone, Bitcoin, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { type DepositModalProps } from './deposit/constants';
-import { CountrySelection, ForeignCountryPicker } from './deposit/CountryScreens';
-import { BinancePayScreen, NoBinanceScreen, BinanceQuestion } from './deposit/ForeignScreens';
+import { BinancePayScreen } from './deposit/ForeignScreens';
+import { ContactSellerFlow } from './deposit/ContactSellerFlow';
 import IndiaPaymentScreen from './deposit/IndiaPaymentScreen';
+
+type DepositMethod = null | 'upi' | 'binance' | 'contact';
 
 const DepositModal: React.FC<DepositModalProps> = (props) => {
   const {
@@ -12,53 +17,126 @@ const DepositModal: React.FC<DepositModalProps> = (props) => {
     senderName, onSenderNameChange, initialTab
   } = props;
 
-  const [selectedCountry, setSelectedCountry] = useState<'india' | 'foreign' | null>(null);
-  const [foreignCountry, setForeignCountry] = useState('');
-  const [foreignFlag, setForeignFlag] = useState('');
-  const [hasBinance, setHasBinance] = useState<boolean | null>(null);
+  const [method, setMethod] = useState<DepositMethod>(null);
   const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(initialTab === 'manual' ? 'manual' : 'auto');
 
   React.useEffect(() => {
     if (open && initialTab) {
       setDepositTab(initialTab === 'manual' ? 'manual' : 'auto');
     }
+    if (!open) {
+      setMethod(null);
+    }
   }, [open, initialTab]);
 
-  const handleBack = () => {
-    if (hasBinance !== null) setHasBinance(null);
-    else if (selectedCountry === 'foreign' && foreignCountry) { setForeignCountry(''); setForeignFlag(''); }
-    else { setSelectedCountry(null); setForeignCountry(''); setHasBinance(null); }
-  };
+  // Method selection screen
+  if (!method) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm mx-auto rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>💰 Add Money</DialogTitle>
+            <DialogDescription>Choose your preferred payment method</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 mt-4">
+            <button
+              onClick={() => setMethod('upi')}
+              className="w-full p-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl flex items-center gap-4 hover:bg-blue-500/20 transition-colors active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                <Smartphone className="w-6 h-6 text-blue-500" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-semibold text-foreground">UPI Payment</p>
+                <p className="text-xs text-muted-foreground">Automatic & Manual options</p>
+              </div>
+              <span className="text-2xl">🇮🇳</span>
+            </button>
 
-  const resetCountry = () => { setSelectedCountry(null); setForeignCountry(''); setForeignFlag(''); setHasBinance(null); };
+            <button
+              onClick={() => setMethod('binance')}
+              className="w-full p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-4 hover:bg-amber-500/20 transition-colors active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                <span className="text-xl font-bold text-amber-600">₿</span>
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-semibold text-foreground">Binance Pay</p>
+                <p className="text-xs text-muted-foreground">Automatic & Manual options</p>
+              </div>
+              <span className="text-2xl">💎</span>
+            </button>
 
-  // Step 1: Country selection
-  if (!selectedCountry) {
-    return <CountrySelection open={open} onOpenChange={onOpenChange} onSelectIndia={() => setSelectedCountry('india')} onSelectForeign={() => setSelectedCountry('foreign')} />;
+            <button
+              onClick={() => setMethod('contact')}
+              className="w-full p-4 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center gap-4 hover:bg-green-500/20 transition-colors active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 text-green-500" />
+              </div>
+              <div className="text-left flex-1">
+                <p className="font-semibold text-foreground">I don't have Binance</p>
+                <p className="text-xs text-muted-foreground">Contact seller for alternatives</p>
+              </div>
+              <span className="text-2xl">📞</span>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
-  // Step 2: Foreign country picker
-  if (selectedCountry === 'foreign' && !foreignCountry) {
-    return <ForeignCountryPicker open={open} onOpenChange={onOpenChange} onSelectCountry={(name, flag) => { setForeignCountry(name); setForeignFlag(flag); }} onBack={handleBack} />;
+  // UPI flow
+  if (method === 'upi') {
+    return (
+      <IndiaPaymentScreen
+        open={open}
+        onOpenChange={onOpenChange}
+        depositAmount={depositAmount}
+        onDepositAmountChange={onDepositAmountChange}
+        paymentSettings={paymentSettings}
+        loading={loading}
+        onAutoDeposit={onAutoDeposit}
+        onManualDeposit={onManualDeposit}
+        submittingManual={submittingManual}
+        transactionId={transactionId}
+        onTransactionIdChange={onTransactionIdChange}
+        senderName={senderName}
+        onSenderNameChange={onSenderNameChange}
+        depositTab={depositTab}
+        onTabChange={setDepositTab}
+        onChangeCountry={() => setMethod(null)}
+      />
+    );
   }
 
-  // Step 3: Binance question
-  if (selectedCountry === 'foreign' && foreignCountry && hasBinance === null) {
-    return <BinanceQuestion open={open} onOpenChange={onOpenChange} foreignCountry={foreignCountry} foreignFlag={foreignFlag} onHasBinance={() => setHasBinance(true)} onNoBinance={() => setHasBinance(false)} onBack={handleBack} />;
+  // Binance flow
+  if (method === 'binance') {
+    return (
+      <BinancePayScreen
+        open={open}
+        onOpenChange={onOpenChange}
+        depositAmount={depositAmount}
+        onDepositAmountChange={onDepositAmountChange}
+        senderName={senderName}
+        onSenderNameChange={onSenderNameChange}
+        transactionId={transactionId}
+        onTransactionIdChange={onTransactionIdChange}
+        onManualDeposit={onManualDeposit}
+        submittingManual={submittingManual}
+        onBack={() => setMethod(null)}
+      />
+    );
   }
 
-  // Step 4a: Has Binance
-  if (selectedCountry === 'foreign' && hasBinance === true) {
-    return <BinancePayScreen open={open} onOpenChange={onOpenChange} depositAmount={depositAmount} onDepositAmountChange={onDepositAmountChange} senderName={senderName} onSenderNameChange={onSenderNameChange} transactionId={transactionId} onTransactionIdChange={onTransactionIdChange} onManualDeposit={onManualDeposit} submittingManual={submittingManual} onBack={handleBack} />;
-  }
-
-  // Step 4b: No Binance
-  if (selectedCountry === 'foreign' && hasBinance === false) {
-    return <NoBinanceScreen open={open} onOpenChange={onOpenChange} foreignCountry={foreignCountry} foreignFlag={foreignFlag} onBack={handleBack} />;
-  }
-
-  // India payment flow
-  return <IndiaPaymentScreen open={open} onOpenChange={onOpenChange} depositAmount={depositAmount} onDepositAmountChange={onDepositAmountChange} paymentSettings={paymentSettings} loading={loading} onAutoDeposit={onAutoDeposit} onManualDeposit={onManualDeposit} submittingManual={submittingManual} transactionId={transactionId} onTransactionIdChange={onTransactionIdChange} senderName={senderName} onSenderNameChange={onSenderNameChange} depositTab={depositTab} onTabChange={setDepositTab} onChangeCountry={resetCountry} />;
+  // Contact seller flow
+  return (
+    <ContactSellerFlow
+      open={open}
+      onOpenChange={onOpenChange}
+      onBack={() => setMethod(null)}
+    />
+  );
 };
 
 export default DepositModal;
