@@ -154,10 +154,12 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
           setAutoStep('amount');
           setPaymentId(null);
           setPayClickedAt(null);
+          setUniqueAmount(null);
           onDepositAmountChange('');
           sessionStorage.removeItem('razorpay_pay_clicked_at');
           sessionStorage.removeItem('razorpay_deposit_amount');
           sessionStorage.removeItem('razorpay_deposit_id');
+          sessionStorage.removeItem('razorpay_unique_amount');
           onOpenChange(false);
           return; // Stop polling
         }
