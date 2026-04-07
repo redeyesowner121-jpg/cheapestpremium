@@ -207,16 +207,72 @@ const Index: React.FC = () => {
         <BannerSlider banners={banners} />
         {user && <QuickStats />}
 
-        {/* Search Bar - right after stats */}
+        {/* Search Bar - expandable */}
         <div className="-mx-4 px-4 py-1">
-          <button
-            onClick={() => navigate('/products')}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-600 hover:via-purple-600 hover:to-cyan-600 transition-all active:scale-[0.98] shadow-lg shadow-purple-500/30"
-          >
-            <Search className="w-5 h-5 text-white" />
-            <span className="text-white/90 text-sm font-medium">Search products...</span>
-          </button>
+          {searchOpen ? (
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                autoFocus
+                value={homeSearchQuery}
+                onChange={(e) => setHomeSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && homeSearchQuery.trim()) {
+                    navigate('/products', { state: { searchQuery: homeSearchQuery.trim() } });
+                  }
+                }}
+                placeholder="Search products..."
+                className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 text-white placeholder-white/60 text-sm font-medium outline-none shadow-lg shadow-purple-500/30"
+              />
+              <button
+                onClick={() => { setSearchOpen(false); setHomeSearchQuery(''); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+              >
+                <X className="w-5 h-5 text-white/70" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 100);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 hover:from-pink-600 hover:via-purple-600 hover:to-cyan-600 transition-all active:scale-[0.98] shadow-lg shadow-purple-500/30"
+            >
+              <Search className="w-5 h-5 text-white" />
+              <span className="text-white/90 text-sm font-medium">Search products...</span>
+            </button>
+          )}
         </div>
+
+        {/* Search Results */}
+        {searchOpen && homeSearchQuery.trim() && (
+          <div className="space-y-2">
+            {products
+              .filter(p => 
+                p.name.toLowerCase().includes(homeSearchQuery.toLowerCase())
+              )
+              .slice(0, 6)
+              .map(product => (
+                <button
+                  key={product.id}
+                  onClick={() => handleProductClick(product)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-card shadow-sm hover:shadow-md transition-shadow text-left"
+                >
+                  <img src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                    <p className="text-xs text-primary font-semibold">₹{product.price}</p>
+                  </div>
+                </button>
+              ))}
+            {products.filter(p => p.name.toLowerCase().includes(homeSearchQuery.toLowerCase())).length === 0 && (
+              <p className="text-center text-sm text-muted-foreground py-4">No products found</p>
+            )}
+          </div>
+        )}
 
         <FlashSaleSlider 
           items={flashSales} 
