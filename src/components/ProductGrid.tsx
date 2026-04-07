@@ -7,6 +7,16 @@ import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import AddToCartButton from '@/components/AddToCartButton';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 
+const getNewTagLabel = (createdAt?: string): string | null => {
+  if (!createdAt) return null;
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours > 72) return null;
+  if (diffHours < 1) return 'NEW • Just now';
+  if (diffHours < 24) return `NEW • ${Math.floor(diffHours)}h ago`;
+  return `NEW • ${Math.floor(diffHours / 24)}d ago`;
+};
+
 interface Product {
   id: string;
   name: string;
@@ -19,6 +29,7 @@ interface Product {
   category?: string;
   hasAccessLink?: boolean;
   reseller_price?: number;
+  created_at?: string;
 }
 
 interface ProductGridProps {
