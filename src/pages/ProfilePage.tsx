@@ -261,7 +261,18 @@ const ProfilePage: React.FC = () => {
         onClaim={handleClaimDailyBonus}
       />
 
-      {/* Blue Tick Purchase Modal */}
+      <AnimatedSuccessModal
+        isOpen={showBonusSuccess}
+        onClose={() => setShowBonusSuccess(false)}
+        type="bonus_claimed"
+        title="Bonus Claimed! 🎁"
+        subtitle={`₹${bonusSuccessAmount} has been added to your wallet.`}
+        details={[{ label: 'Bonus Amount', value: `₹${bonusSuccessAmount}` }]}
+        actionLabel="Continue"
+        autoCloseDelay={3000}
+      />
+
+
       <Dialog open={showBlueTickModal} onOpenChange={setShowBlueTickModal}>
         <DialogContent className="max-w-sm rounded-3xl">
           <DialogHeader>

@@ -112,6 +112,7 @@ const AppContent = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        <RecentOrderNotification />
       </BrowserRouter>
       <AIChatWidget />
     </>
