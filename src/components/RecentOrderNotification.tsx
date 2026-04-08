@@ -14,10 +14,6 @@ const RecentOrderNotification: React.FC = () => {
     if (!user) return;
 
     const checkRecentOrders = async () => {
-      // Check if we already showed this session
-      const sessionKey = `recent_order_shown_${user.id}`;
-      if (sessionStorage.getItem(sessionKey)) return;
-
       const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
 
       const { data: orders } = await supabase
@@ -31,6 +27,11 @@ const RecentOrderNotification: React.FC = () => {
       if (!orders || orders.length === 0) return;
 
       const order = orders[0];
+
+      // Use localStorage with order ID + status so each order/status combo shows only once
+      const shownKey = `order_notif_shown_${order.id}_${order.status}`;
+      if (localStorage.getItem(shownKey)) return;
+
       let type: SuccessType = 'order_placed';
       let title = 'Order Placed!';
       let subtitle = 'Your recent order is being processed.';
@@ -49,7 +50,6 @@ const RecentOrderNotification: React.FC = () => {
         subtitle = 'Your order is on the way!';
       }
 
-      // Only show for pending/confirmed/shipped/delivered within 2 days
       if (['pending', 'confirmed', 'shipped', 'delivered', 'completed'].includes(order.status || '')) {
         setOrderData({
           type,
@@ -61,7 +61,7 @@ const RecentOrderNotification: React.FC = () => {
           ],
         });
         setShow(true);
-        sessionStorage.setItem(sessionKey, 'true');
+        localStorage.setItem(shownKey, 'true');
       }
     };
 
