@@ -3,6 +3,7 @@
 import { t } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
+import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 
 const INR_TO_USD_RATE = 60; // ₹60 = $1
 
