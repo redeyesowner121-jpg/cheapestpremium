@@ -53,7 +53,7 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
   const settings = await getSettings(supabase);
   const storeName = settings.app_name || "RKR Premium Store";
 
-  const welcomeText = `🎁 <b>${storeName} Giveaway Bot!</b>\n\n💰 Points: <b>${pts}</b> | 👥 Referrals: <b>${refs}</b>\n\n✨ Refer friends → Earn points → Win free products!\n\nChoose an option below:`;
+  const welcomeText = `🎁 <b>${storeName} — Giveaway</b>\n\n💰 <b>${pts}</b> Points  ·  👥 <b>${refs}</b> Referrals\n\nRefer friends, earn points, win free products!`;
 
   await sendMessage(token, chatId, welcomeText, {
     reply_markup: {
