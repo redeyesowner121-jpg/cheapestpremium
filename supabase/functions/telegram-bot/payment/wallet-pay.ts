@@ -4,6 +4,7 @@ import { t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getSettings, getWallet, notifyAllAdmins } from "../db-helpers.ts";
 import { syncPurchaseToProfile } from "./sync-helpers.ts";
+import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 
 export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string) {
   const wallet = await getWallet(supabase, userId);
@@ -48,6 +49,9 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   await notifyAllAdmins(token, supabase,
     `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
+
+  // Log proof to channel
+  try { await logProof(token, formatOrderPlaced(userId, `wallet_pay`, productName, amount, "Wallet")); } catch {}
 
   // Sync purchase to website profile
   let accessLink: string | undefined;
