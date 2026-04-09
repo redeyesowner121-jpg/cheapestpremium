@@ -43,6 +43,8 @@ const GiveawayBotManager: React.FC = () => {
   const [selectedVariation, setSelectedVariation] = useState('');
   const [pointsRequired, setPointsRequired] = useState('10');
   const [stock, setStock] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
