@@ -173,10 +173,11 @@ const ProductGrid: React.FC<ProductGridProps> = memo(({
     return (
       <div className="w-full">
         <h2 className="text-lg font-bold text-foreground mb-4 font-display">Popular Products</h2>
-        <div className="bg-card rounded-2xl h-48 flex flex-col items-center justify-center text-muted-foreground">
-          <Package className="w-12 h-12 mb-3 opacity-50" />
-          <p className="text-sm font-medium">No products available</p>
-          <p className="text-xs mt-1">Check back later for new items</p>
+        <div className="rounded-2xl h-48 flex flex-col items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(250 89% 63% / 0.1) 0%, hsl(280 80% 58% / 0.1) 100%)' }}>
+          <div className="absolute -bottom-8 -right-8 w-28 h-28 rounded-full bg-primary/10 blur-2xl" />
+          <Package className="w-12 h-12 mb-3 text-primary/30" />
+          <p className="text-sm font-medium text-foreground">No products available</p>
+          <p className="text-xs mt-1 text-muted-foreground">Check back later for new items</p>
         </div>
       </div>
     );

@@ -263,10 +263,15 @@ const Index: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen pb-24 relative overflow-hidden" style={{ background: 'linear-gradient(180deg, hsl(var(--background)) 0%, hsl(250 30% 95%) 30%, hsl(280 20% 94%) 60%, hsl(320 15% 95%) 100%)' }}>
+      {/* Decorative background orbs */}
+      <div className="fixed top-20 -left-32 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
+      <div className="fixed top-1/3 -right-32 w-72 h-72 rounded-full bg-secondary/8 blur-3xl pointer-events-none" />
+      <div className="fixed bottom-1/4 -left-24 w-56 h-56 rounded-full bg-accent/6 blur-3xl pointer-events-none" />
+      
       <Header />
       
-      <main className="pt-20 px-4 max-w-lg mx-auto space-y-6">
+      <main className="pt-20 px-4 max-w-lg mx-auto space-y-6 relative z-10">
         {/* Daily Bonus Banner - shows until claimed */}
         {user && <DailyBonusBanner />}
         
