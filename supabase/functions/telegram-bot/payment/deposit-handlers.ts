@@ -387,6 +387,7 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
       await notifyAllAdmins(token, supabase,
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
       );
+      try { await logProof(token, formatDepositSuccess(userId, amount, "Binance Auto")); } catch {}
     } else {
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
       await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${remaining} min remaining`, {
@@ -469,6 +470,7 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
       await notifyAllAdmins(token, supabase,
         `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${baseAmount} (paid ₹${verifyAmount})\n✅ Auto-verified`
       );
+      try { await logProof(token, formatDepositSuccess(userId, baseAmount, "Razorpay Auto")); } catch {}
     } else {
       const settingsForLink = await getSettings(supabase);
       const razorpayMeUrl = settingsForLink.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
