@@ -4,6 +4,7 @@ import { t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getWallet, getUserLang, getAllAdminIds } from "../db-helpers.ts";
 import { processReferralBonus } from "./wallet-pay.ts";
+import { logProof, formatOrderConfirmed, formatOrderDelivered, formatDepositSuccess } from "../proof-logger.ts";
 
 // Try sending message via multiple bot tokens (for resale buyers who only talked to resale bot)
 async function sendToUser(tokens: string[], chatId: number, text: string) {
@@ -147,6 +148,19 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
   const emoji: Record<string, string> = { confirmed: "✅", rejected: "❌", shipped: "📦" };
   const statusLabel: Record<string, string> = { confirmed: "CONFIRMED", rejected: "REJECTED", shipped: "SHIPPED" };
   await sendMessage(token, adminChatId, `${emoji[newStatus] || "📋"} Order <b>${orderId.slice(0, 8)}</b> → <b>${statusLabel[newStatus] || newStatus.toUpperCase()}</b>`);
+
+  // Log proof to channel
+  try {
+    if (newStatus === "confirmed") {
+      if (order.product_name?.startsWith("Wallet Deposit")) {
+        await logProof(token, formatDepositSuccess(order.telegram_user_id, order.amount, "manual_upi"));
+      } else {
+        await logProof(token, formatOrderConfirmed(order.telegram_user_id, order.product_name || "N/A", order.amount));
+      }
+    } else if (newStatus === "shipped") {
+      await logProof(token, formatOrderDelivered(order.telegram_user_id, order.product_name || "N/A", order.amount));
+    }
+  } catch { /* proof log non-critical */ }
 
   // Notify other admins
   const allAdminIds = await getAllAdminIds(supabase);
