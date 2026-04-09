@@ -75,7 +75,17 @@ const GiveawayBotManager: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
-  useEffect(() => { if (selectedProduct) fetchVariations(selectedProduct); else setVariations([]); }, [selectedProduct]);
+  useEffect(() => { if (selectedProduct) { fetchVariations(selectedProduct); } else { setVariations([]); } }, [selectedProduct]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.toLowerCase();
+    return products.filter(p => p.name.toLowerCase().includes(q));
+  }, [products, productSearch]);
+
+  const selectedProductName = useMemo(() => {
+    return products.find(p => p.id === selectedProduct)?.name || '';
+  }, [products, selectedProduct]);
 
   const addGiveawayProduct = async () => {
     if (!selectedProduct) { toast.error('প্রোডাক্ট সিলেক্ট করুন'); return; }
