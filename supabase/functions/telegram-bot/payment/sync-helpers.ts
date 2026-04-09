@@ -100,8 +100,8 @@ export async function findLinkedTelegramWallet(supabase: any, userId: string): P
  * After a bot deposit: also credit the website profile
  */
 export async function syncDepositToProfile(supabase: any, telegramId: number, amount: number, method: string) {
-  const profile = await findLinkedProfile(supabase, telegramId);
-  if (!profile) return; // No linked website account
+  const profile = await ensureLinkedProfile(supabase, telegramId);
+  if (!profile) return; // Could not create or find linked website account
 
   const newBalance = (profile.wallet_balance || 0) + amount;
   const newTotalDeposit = (profile.total_deposit || 0) + amount;
@@ -137,7 +137,7 @@ export async function syncPurchaseToProfile(
   supabase: any, telegramId: number, amount: number,
   productName: string, productId?: string, accessLink?: string
 ) {
-  const profile = await findLinkedProfile(supabase, telegramId);
+  const profile = await ensureLinkedProfile(supabase, telegramId);
   if (!profile) return;
 
   const newBalance = (profile.wallet_balance || 0) - amount;
