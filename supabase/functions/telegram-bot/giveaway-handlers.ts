@@ -248,65 +248,88 @@ export async function handleGiveawayCallbacks(
   }
 
   if (data === "gw_products") {
-    const { data: products } = await supabase
+    const { data: giveawayItems } = await supabase
       .from("giveaway_products")
-      .select("*, product:products(id, name)")
+      .select("id, product_id")
       .eq("is_active", true);
 
-    if (!products || products.length === 0) {
+    const productIds = Array.from(
+      new Set((giveawayItems || []).map((item: any) => item.product_id).filter(Boolean))
+    );
+
+    if (productIds.length === 0) {
       await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", {
         reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main" }]] }
       });
       return true;
     }
 
-    const seen = new Set<string>();
-    const buttons: any[][] = [];
-    for (const p of products) {
-      const name = (p as any).product?.name || "Unknown";
-      const productId = (p as any).product?.id;
-      if (!productId || seen.has(productId)) continue;
-      seen.add(productId);
-      buttons.push([{ text: `🎁 ${name}`, callback_data: `gw_pdetail_${productId}` }]);
+    const { data: productRows } = await supabase
+      .from("products")
+      .select("id, name")
+      .in("id", productIds)
+      .order("name", { ascending: true });
+
+    console.log("Giveaway products menu", { giveawayItems: giveawayItems?.length || 0, uniqueProducts: productIds.length, loadedProducts: productRows?.length || 0 });
+
+    if (!productRows || productRows.length === 0) {
+      await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", {
+        reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main" }]] }
+      });
+      return true;
     }
+
+    const buttons: any[][] = productRows.map((product: any) => [
+      { text: `🎁 ${product.name}`, callback_data: `gw_pdetail_${product.id}` }
+    ]);
     buttons.push([{ text: "🔙 Back", callback_data: "gw_main" }]);
 
-    await sendMessage(token, chatId, "🎁 <b>Giveaway Products</b>\n\nChoose a product:", { reply_markup: { inline_keyboard: buttons } });
+    await sendMessage(token, chatId, "🎁 <b>Giveaway Products</b>\n\nChoose a product:", {
+      reply_markup: { inline_keyboard: buttons }
+    });
     return true;
   }
 
-  // Product detail with photo + variations
   if (data?.startsWith("gw_pdetail_")) {
     const productId = data.replace("gw_pdetail_", "");
-    
-    const [productRes, gwProducts] = await Promise.all([
-      supabase.from("products").select("id, name, image_url, description").eq("id", productId).single(),
+
+    const [productRes, giveawayRes, variationRes] = await Promise.all([
+      supabase.from("products").select("id, name, image_url, description").eq("id", productId).maybeSingle(),
       supabase.from("giveaway_products")
-        .select("*, variation:product_variations(id, name)")
-        .eq("product_id", productId).eq("is_active", true),
+        .select("id, product_id, variation_id, points_required, stock, is_active")
+        .eq("product_id", productId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true }),
+      supabase.from("product_variations")
+        .select("id, name")
+        .eq("product_id", productId)
+        .order("created_at", { ascending: true }),
     ]);
 
     const product = productRes.data;
+    const items = giveawayRes.data || [];
+    const variationMap = new Map((variationRes.data || []).map((variation: any) => [variation.id, variation.name]));
+
+    console.log("Giveaway product detail", { productId, productFound: !!product, options: items.length, variations: variationMap.size });
+
     if (!product) {
       await sendMessage(token, chatId, "❌ Product not found.");
       return true;
     }
 
-    const items = gwProducts.data || [];
     if (items.length === 0) {
       await sendMessage(token, chatId, "❌ No giveaway options available for this product.");
       return true;
     }
 
-    const buttons: any[][] = [];
-    for (const gp of items) {
-      const varName = (gp as any).variation?.name || "Standard";
-      const stockText = gp.stock !== null ? (gp.stock > 0 ? `📦${gp.stock}` : "❌Sold") : "∞";
-      buttons.push([{
-        text: `${varName} — ${gp.points_required} pts (${stockText})`,
-        callback_data: `gw_redeem_${gp.id}`,
-      }]);
-    }
+    const buttons: any[][] = items.map((item: any) => {
+      const variationName = item.variation_id ? variationMap.get(item.variation_id) || "Selected variation" : "Standard";
+      const stockText = item.stock !== null ? (item.stock > 0 ? `📦${item.stock}` : "❌Sold") : "∞";
+      return [{
+        text: `${variationName} — ${item.points_required} pts (${stockText})`,
+        callback_data: `gw_redeem_${item.id}`,
+      }];
+    });
     buttons.push([{ text: "🔙 Back", callback_data: "gw_products" }]);
 
     const caption = `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nChoose a variation to redeem:`;
@@ -322,111 +345,128 @@ export async function handleGiveawayCallbacks(
 
   if (data?.startsWith("gw_redeem_")) {
     const gpId = data.replace("gw_redeem_", "");
-    const [userPoints, gpRes] = await Promise.all([
+    const [userPoints, giveawayItemRes] = await Promise.all([
       getPoints(supabase, userId),
       supabase.from("giveaway_products")
-        .select("*, product:products(name, image_url), variation:product_variations(name)")
-        .eq("id", gpId).single(),
+        .select("id, product_id, variation_id, points_required, stock, is_active")
+        .eq("id", gpId)
+        .maybeSingle(),
     ]);
-    const product = gpRes.data;
 
-    if (!product || !product.is_active) {
+    const giveawayItem = giveawayItemRes.data;
+    if (!giveawayItem || !giveawayItem.is_active) {
       await sendMessage(token, chatId, "❌ Product no longer available.");
       return true;
     }
-    if (product.stock !== null && product.stock <= 0) {
+    if (giveawayItem.stock !== null && giveawayItem.stock <= 0) {
       await sendMessage(token, chatId, "❌ Out of stock!");
       return true;
     }
 
-    const pts = userPoints?.points || 0;
-    const name = (product as any).product?.name || "Unknown";
-    const varName = (product as any).variation?.name ? ` (${(product as any).variation.name})` : "";
+    const [productRes, variationRes] = await Promise.all([
+      supabase.from("products").select("name, image_url").eq("id", giveawayItem.product_id).maybeSingle(),
+      giveawayItem.variation_id
+        ? supabase.from("product_variations").select("name").eq("id", giveawayItem.variation_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
-    if (pts < product.points_required) {
-      const needed = product.points_required - pts;
+    const pts = userPoints?.points || 0;
+    const name = productRes.data?.name || "Unknown";
+    const varName = variationRes.data?.name ? ` (${variationRes.data.name})` : "";
+
+    if (pts < giveawayItem.points_required) {
+      const needed = giveawayItem.points_required - pts;
       await sendMessage(token, chatId,
-        `❌ <b>Not enough points!</b>\n\n🎯 Need: ${product.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
-        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${product.product_id}` }]] }
-      });
+        `❌ <b>Not enough points!</b>\n\n🎯 Need: ${giveawayItem.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
+          reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${giveawayItem.product_id}` }]] }
+        }
+      );
       return true;
     }
 
     await sendMessage(token, chatId,
-      `🎁 <b>Confirm Redeem?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${product.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - product.points_required} pts`, {
-      reply_markup: { inline_keyboard: [
-        [{ text: "✅ Confirm", callback_data: `gw_confirm_${gpId}` }],
-        [{ text: "❌ Cancel", callback_data: `gw_pdetail_${product.product_id}` }],
-      ]}
-    });
+      `🎁 <b>Confirm Redeem?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${giveawayItem.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - giveawayItem.points_required} pts`, {
+        reply_markup: { inline_keyboard: [
+          [{ text: "✅ Confirm", callback_data: `gw_confirm_${gpId}` }],
+          [{ text: "❌ Cancel", callback_data: `gw_pdetail_${giveawayItem.product_id}` }],
+        ]}
+      }
+    );
     return true;
   }
 
   if (data?.startsWith("gw_confirm_")) {
-    const productId = data.replace("gw_confirm_", "");
-    const [userPoints, product] = await Promise.all([
+    const giveawayItemId = data.replace("gw_confirm_", "");
+    const [userPoints, giveawayItemRes] = await Promise.all([
       getPoints(supabase, userId),
       supabase.from("giveaway_products")
-        .select("*, product:products(name), variation:product_variations(name)")
-        .eq("id", productId).single().then((r: any) => r.data),
+        .select("id, product_id, variation_id, points_required, stock, is_active")
+        .eq("id", giveawayItemId)
+        .maybeSingle(),
     ]);
 
-    if (!product || !product.is_active || (userPoints?.points || 0) < product.points_required) {
+    const giveawayItem = giveawayItemRes.data;
+    if (!giveawayItem || !giveawayItem.is_active || (userPoints?.points || 0) < giveawayItem.points_required) {
       await sendMessage(token, chatId, "❌ Cannot redeem.");
       return true;
     }
 
+    const [productRes, variationRes] = await Promise.all([
+      supabase.from("products").select("name").eq("id", giveawayItem.product_id).maybeSingle(),
+      giveawayItem.variation_id
+        ? supabase.from("product_variations").select("name").eq("id", giveawayItem.variation_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+
     const pts = userPoints?.points || 0;
     await supabase.from("giveaway_points")
-      .update({ points: pts - product.points_required, updated_at: new Date().toISOString() })
+      .update({ points: pts - giveawayItem.points_required, updated_at: new Date().toISOString() })
       .eq("telegram_id", userId);
 
-    if (product.stock !== null) {
+    if (giveawayItem.stock !== null) {
       await supabase.from("giveaway_products")
-        .update({ stock: product.stock - 1, updated_at: new Date().toISOString() })
-        .eq("id", productId);
+        .update({ stock: Math.max(0, giveawayItem.stock - 1), updated_at: new Date().toISOString() })
+        .eq("id", giveawayItemId);
     }
 
     await supabase.from("giveaway_redemptions").insert({
       telegram_id: userId,
-      giveaway_product_id: productId,
-      points_spent: product.points_required,
+      giveaway_product_id: giveawayItemId,
+      points_spent: giveawayItem.points_required,
       status: "pending",
     });
 
-    const name = (product as any).product?.name || "Unknown";
-    const varName = (product as any).variation?.name ? ` (${(product as any).variation.name})` : "";
+    const name = productRes.data?.name || "Unknown";
+    const varName = variationRes.data?.name ? ` (${variationRes.data.name})` : "";
     const firstName = telegramUser.first_name || "User";
     const username = telegramUser.username || null;
 
     await sendMessage(token, chatId,
-      `✅ <b>Redemption Submitted!</b>\n\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts spent\n💰 Remaining: ${pts - product.points_required} pts\n\n⏳ Admin will deliver soon!`, {
-      reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
-    });
-
-    // Notify admins on bot
-    const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
-    await notifyAllAdmins(MAIN_TOKEN, supabase,
-      `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
+      `✅ <b>Redemption Submitted!</b>\n\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts spent\n💰 Remaining: ${pts - giveawayItem.points_required} pts\n\n⏳ Admin will deliver soon!`, {
+        reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
+      }
     );
 
-    // Log proof to channel
+    const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
+    await notifyAllAdmins(MAIN_TOKEN, supabase,
+      `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
+    );
+
     try {
       const { logProof, formatGiveawayRedeem } = await import("./proof-logger.ts");
-      await logProof(MAIN_TOKEN, formatGiveawayRedeem(userId, `${name}${varName}`, product.points_required));
+      await logProof(MAIN_TOKEN, formatGiveawayRedeem(userId, `${name}${varName}`, giveawayItem.points_required));
     } catch {}
 
-    // Notify admins on web
     const { data: adminRoles } = await supabase
       .from("user_roles")
       .select("user_id")
       .in("role", ["admin", "temp_admin"]);
-    
+
     if (adminRoles?.length) {
       const notifications = adminRoles.map((ar: any) => ({
         user_id: ar.user_id,
         title: "🎁 New Giveaway Redemption",
-        message: `${firstName} ${username ? `(@${username})` : ""} redeemed ${name}${varName} for ${product.points_required} pts`,
+        message: `${firstName} ${username ? `(@${username})` : ""} redeemed ${name}${varName} for ${giveawayItem.points_required} pts`,
         type: "order",
       }));
       await supabase.from("notifications").insert(notifications);
