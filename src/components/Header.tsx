@@ -64,7 +64,7 @@ const Header: React.FC = React.memo(() => {
             {profile && (
               <p className="text-xs font-medium">
                 <span className="text-muted-foreground">Balance: </span>
-                <span className="text-gradient font-bold">{settings.currency_symbol}{walletBalance.toFixed(2)}</span>
+                <span className="text-primary font-bold">{settings.currency_symbol}{walletBalance.toFixed(2)}</span>
               </p>
             )}
           </div>
