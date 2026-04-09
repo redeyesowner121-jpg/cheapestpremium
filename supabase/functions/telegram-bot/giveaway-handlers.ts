@@ -410,6 +410,12 @@ export async function handleGiveawayCallbacks(
       `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${product.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
     );
 
+    // Log proof to channel
+    try {
+      const { logProof, formatGiveawayRedeem } = await import("./proof-logger.ts");
+      await logProof(MAIN_TOKEN, formatGiveawayRedeem(userId, `${name}${varName}`, product.points_required));
+    } catch {}
+
     // Notify admins on web
     const { data: adminRoles } = await supabase
       .from("user_roles")

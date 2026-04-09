@@ -3,6 +3,8 @@
 
 const PROOF_CHANNEL = "@RKRxProofs";
 
+const PROMO_FOOTER = `\n\n━━━━━━━━━━━━━━━━━\n🤖 <b>@Air1_Premium_bot</b>\n💎 Cheapest Premium Subscriptions\n🔒 100% Trusted · Instant Delivery\n🛒 Start Shopping → @Air1_Premium_bot`;
+
 export async function logProof(token: string, text: string) {
   try {
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
@@ -10,7 +12,7 @@ export async function logProof(token: string, text: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: PROOF_CHANNEL,
-        text,
+        text: text + PROMO_FOOTER,
         parse_mode: "HTML",
       }),
     });
@@ -29,7 +31,7 @@ export async function logProofPhoto(token: string, fileId: string, caption: stri
       body: JSON.stringify({
         chat_id: PROOF_CHANNEL,
         photo: fileId,
-        caption,
+        caption: caption + PROMO_FOOTER,
         parse_mode: "HTML",
       }),
     });
@@ -96,5 +98,14 @@ export function formatRedeemCode(userId: number, code: string, amount: number): 
     `👤 User: <code>${userId}</code>\n` +
     `🏷️ Code: <code>${code}</code>\n` +
     `💰 Amount: <b>₹${amount}</b>\n` +
+    `🕐 Time: ${now}`;
+}
+
+export function formatGiveawayRedeem(userId: number, productName: string, points: number): string {
+  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+  return `🎁 <b>Giveaway Redeemed</b>\n\n` +
+    `👤 User: <code>${userId}</code>\n` +
+    `🛒 Product: <b>${productName}</b>\n` +
+    `🎯 Points: <b>${points}</b>\n` +
     `🕐 Time: ${now}`;
 }
