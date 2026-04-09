@@ -1,6 +1,8 @@
 // ===== CROSS-PLATFORM SYNC HELPERS =====
 // Keeps telegram_wallets and profiles.wallet_balance in sync
 
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 /**
  * Find website profile linked to a telegram user.
  * Telegram users have email: telegram_{telegramId}@bot.local
@@ -13,6 +15,59 @@ export async function findLinkedProfile(supabase: any, telegramId: number): Prom
     .eq("email", email)
     .maybeSingle();
   return data;
+}
+
+/**
+ * Auto-create a website account for a telegram user if one doesn't exist.
+ * Uses the same deterministic password pattern as telegram-login.
+ */
+async function ensureLinkedProfile(supabase: any, telegramId: number): Promise<any | null> {
+  // First check if profile already exists
+  let profile = await findLinkedProfile(supabase, telegramId);
+  if (profile) return profile;
+
+  try {
+    const email = `telegram_${telegramId}@bot.local`;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const stablePassword = `tg_${telegramId}_${serviceKey.slice(-12)}`;
+
+    // Get telegram user info for name
+    const { data: botUser } = await supabase
+      .from("telegram_bot_users")
+      .select("first_name, username")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
+
+    const name = botUser?.first_name || botUser?.username || `User_${telegramId}`;
+
+    // Create auth user using admin API
+    const adminSupabase = createClient(
+      Deno.env.get("SUPABASE_URL") || "",
+      serviceKey
+    );
+
+    const { data: newUser, error: createError } = await adminSupabase.auth.admin.createUser({
+      email,
+      password: stablePassword,
+      email_confirm: true,
+      user_metadata: { telegram_id: telegramId, name },
+    });
+
+    if (createError) {
+      console.error("Auto-create user error:", createError);
+      return null;
+    }
+
+    // Wait briefly for the trigger to create the profile
+    await new Promise(r => setTimeout(r, 500));
+
+    // Fetch the newly created profile
+    profile = await findLinkedProfile(supabase, telegramId);
+    return profile;
+  } catch (e) {
+    console.error("ensureLinkedProfile error:", e);
+    return null;
+  }
 }
 
 /**
