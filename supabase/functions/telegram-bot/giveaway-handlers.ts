@@ -86,7 +86,7 @@ export async function showGiveawayJoinChannels(token: string, supabase: any, cha
     [{ text: "✅ Verify", callback_data: "gw_verify_join" }],
   ];
 
-  const text = `🔒 <b>Complete these steps first!</b>\n\n1️⃣ Join @RKRxOTT channel\n2️⃣ Join @pocket_money27 channel\n3️⃣ Start the Main Bot\n\nAfter completing, click "✅ Verify".`;
+  const text = `🔒 <b>Complete these steps to get started:</b>\n\n1. Join @RKRxOTT\n2. Join @pocket_money27\n3. Start the Main Bot\n\nThen tap ✅ Verify below.`;
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
