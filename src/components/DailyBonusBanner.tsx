@@ -95,12 +95,12 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
             <UserPlus className="w-7 h-7 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="text-white font-bold text-lg font-display">Join Us! 🎉</h3>
-            <p className="text-white/85 text-sm">Login for exclusive deals & daily bonus</p>
+            <h3 className="text-white font-extrabold text-lg font-display tracking-tight">Join Us! 🎉</h3>
+            <p className="text-white/80 text-[11px] font-medium">Login for exclusive deals & daily bonus</p>
           </div>
           <Button
             onClick={() => navigate('/auth')}
-            className="bg-white text-primary hover:bg-white/90 font-bold px-5 rounded-xl shadow-lg"
+            className="bg-white text-primary hover:bg-white/90 font-extrabold px-5 rounded-xl shadow-lg text-sm"
           >
             <LogIn className="w-4 h-4 mr-1.5" />
             Login
@@ -128,16 +128,16 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
           <Gift className="w-7 h-7 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="text-white font-bold text-lg font-display flex items-center gap-1.5">
+          <h3 className="text-white font-extrabold text-lg font-display tracking-tight flex items-center gap-1.5">
             Daily Bonus! 
             <Sparkles className="w-4 h-4" />
           </h3>
-          <p className="text-white/85 text-sm">Claim your free bonus now!</p>
+          <p className="text-white/80 text-[11px] font-medium">Claim your free bonus now!</p>
         </div>
         <Button
           onClick={handleClaimBonus}
           disabled={claiming}
-          className="bg-white text-accent hover:bg-white/90 font-bold px-6 rounded-xl shadow-lg"
+          className="bg-white text-accent hover:bg-white/90 font-extrabold px-6 rounded-xl shadow-lg"
         >
           {claiming ? '...' : 'Claim'}
         </Button>

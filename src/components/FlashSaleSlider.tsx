@@ -83,17 +83,20 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
     return (
       <div className="w-full">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 gradient-accent rounded-xl">
-              <Zap className="w-5 h-5 text-accent-foreground" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 gradient-accent rounded-lg shadow-colored-accent">
+              <Zap className="w-4 h-4 text-accent-foreground" />
             </div>
-            <h2 className="text-lg font-bold text-foreground">Flash Sale</h2>
+            <div>
+              <h2 className="text-lg font-extrabold text-foreground font-display tracking-tight">Flash Sale</h2>
+              <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">Limited Deals</p>
+            </div>
           </div>
         </div>
         <div className="rounded-2xl h-32 flex flex-col items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(38 95% 54% / 0.12) 0%, hsl(15 90% 56% / 0.12) 100%)' }}>
           <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-accent/10 blur-2xl" />
           <ShoppingBag className="w-10 h-10 mb-2 text-accent/40" />
-          <p className="text-sm text-muted-foreground font-medium">No flash sales right now</p>
+          <p className="text-sm text-muted-foreground font-bold">No flash sales right now</p>
         </div>
       </div>
     );
@@ -102,15 +105,18 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-2 gradient-accent rounded-xl">
-            <Zap className="w-5 h-5 text-accent-foreground" />
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 gradient-accent rounded-lg shadow-colored-accent">
+            <Zap className="w-4 h-4 text-accent-foreground" />
           </div>
-          <h2 className="text-lg font-bold text-foreground">Flash Sale</h2>
+          <div>
+            <h2 className="text-lg font-extrabold text-foreground font-display tracking-tight">Flash Sale</h2>
+            <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">Limited Deals</p>
+          </div>
         </div>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span>Limited Time</span>
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-destructive/10">
+          <Clock className="w-3.5 h-3.5 text-destructive" />
+          <span className="text-[11px] font-bold text-destructive tracking-wide">Limited Time</span>
         </div>
       </div>
 
@@ -137,21 +143,21 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
                     loading="lazy"
                   />
                   <div className="absolute top-2 right-2 gradient-accent px-2 py-0.5 rounded-full">
-                    <span className="text-xs font-bold text-accent-foreground">
+                    <span className="text-[10px] font-extrabold text-accent-foreground tracking-wide">
                       -{calculateDiscount(item.originalPrice, item.salePrice)}%
                     </span>
                   </div>
                 </div>
                 <div className="p-3">
-                  <h3 className="font-semibold text-sm text-foreground truncate">{item.name}</h3>
+                  <h3 className="font-bold text-sm text-foreground truncate font-display tracking-tight">{item.name}</h3>
                   {item.variationName && (
-                    <span className="inline-block mt-0.5 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">
+                    <span className="inline-block mt-0.5 text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-md">
                       {item.variationName}
                     </span>
                   )}
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-primary font-bold">{formatPrice(item.salePrice)}</span>
-                    <span className="text-xs text-muted-foreground line-through">
+                    <span className="text-primary font-extrabold font-display tracking-tight">{formatPrice(item.salePrice)}</span>
+                    <span className="text-[10px] text-muted-foreground line-through font-medium">
                       {formatPrice(item.originalPrice)}
                     </span>
                   </div>
@@ -163,12 +169,12 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
                     >
                       <div className="flex items-center gap-1">
                         <Ticket className="w-3 h-3 text-amber-500" />
-                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 tracking-wide">
                           {coupon.code}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-amber-600/80 dark:text-amber-400/80">
+                        <span className="text-[9px] font-bold text-amber-600/80 dark:text-amber-400/80">
                           {coupon.discount_type === 'percentage' 
                             ? `${coupon.discount_value}% OFF` 
                             : `${formatPrice(coupon.discount_value)} OFF`}

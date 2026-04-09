@@ -54,16 +54,16 @@ const CategoryProductCard = memo<{
         loading="lazy"
       />
       <div className="p-2">
-        <h4 className="font-medium text-xs text-foreground truncate">{product.name}</h4>
+        <h4 className="font-bold text-xs text-foreground truncate font-display tracking-tight">{product.name}</h4>
         <div className="flex items-center gap-1 mt-1">
           <Star className="w-2.5 h-2.5 text-accent fill-accent" />
-          <span className="text-[10px] text-muted-foreground">{product.rating}</span>
+          <span className="text-[10px] text-muted-foreground font-medium">{product.rating}</span>
         </div>
         <div className="flex items-center justify-between mt-1.5">
           <div>
-            <span className="text-primary font-bold text-sm">₹{Math.round(priceInfo.finalPrice)}</span>
+            <span className="text-primary font-extrabold text-sm font-display tracking-tight">₹{Math.round(priceInfo.finalPrice)}</span>
             {priceInfo.hasRankDiscount && (
-              <span className="text-[10px] text-muted-foreground line-through ml-1">₹{product.price}</span>
+              <span className="text-[10px] text-muted-foreground line-through ml-1 font-medium">₹{product.price}</span>
             )}
           </div>
         </div>
@@ -92,15 +92,15 @@ const CategorySection: React.FC<CategorySectionProps> = memo(({
   return (
     <div className={`w-full rounded-2xl p-4 ${bgColor}`}>
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`p-2 rounded-lg bg-white/80 ${accentColor}`}>
+        <div className="flex items-center gap-2.5">
+          <div className={`p-2 rounded-xl bg-white/80 ${accentColor}`}>
             {icon}
           </div>
-          <h2 className="text-lg font-bold text-foreground">{title}</h2>
+          <h2 className="text-lg font-extrabold text-foreground font-display tracking-tight">{title}</h2>
         </div>
         <button 
           onClick={onViewAll}
-          className={`flex items-center gap-1 text-sm font-medium ${accentColor}`}
+          className={`flex items-center gap-1 text-xs font-bold ${accentColor} tracking-wide`}
         >
           View All
           <ChevronRight className="w-4 h-4" />

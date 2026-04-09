@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MessageCircle, Shield, LogIn, Sparkles } from 'lucide-react';
+import { Bell, MessageCircle, Shield, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -57,14 +57,16 @@ const Header: React.FC = React.memo(() => {
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 gradient-primary rounded-full border-2 border-background" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-1.5 font-display">
+            <h1 className="text-lg font-extrabold text-foreground flex items-center gap-1.5 font-display tracking-tight">
               {settings.app_name}
               {profile?.has_blue_check && <BlueTick size="sm" />}
             </h1>
             {profile && (
-              <p className="text-xs font-medium">
-                <span className="text-muted-foreground">Balance: </span>
-                <span className="text-primary font-bold">{settings.currency_symbol}{walletBalance.toFixed(2)}</span>
+              <p className="text-[11px] font-semibold flex items-center gap-1">
+                <span className="text-muted-foreground">Balance</span>
+                <span className="text-primary font-extrabold font-display tracking-tight">
+                  {settings.currency_symbol}{walletBalance.toFixed(2)}
+                </span>
               </p>
             )}
           </div>
@@ -74,7 +76,7 @@ const Header: React.FC = React.memo(() => {
           {!user && (
             <button
               onClick={() => navigate('/auth')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-gradient text-primary-foreground text-sm font-semibold active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-2xl btn-gradient text-primary-foreground text-xs font-bold active:scale-95 transition-transform tracking-wide"
             >
               <LogIn className="w-4 h-4" />
               Login
