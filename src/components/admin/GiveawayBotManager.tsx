@@ -162,14 +162,41 @@ const GiveawayBotManager: React.FC = () => {
             <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Plus className="w-4 h-4 text-primary" /> Add Giveaway Product
             </h4>
-            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select Product" /></SelectTrigger>
-              <SelectContent>
-                {products.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={productDropdownOpen} onOpenChange={setProductDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full rounded-xl justify-between font-normal">
+                  {selectedProductName || 'Select Product'}
+                  <Search className="w-4 h-4 ml-2 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-2 max-h-72 overflow-hidden" align="start">
+                <Input
+                  placeholder="Search products..."
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  className="rounded-lg mb-2"
+                  autoFocus
+                />
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">No products found</p>
+                  ) : filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 ${selectedProduct === p.id ? 'bg-primary/10 text-primary font-medium' : ''}`}
+                      onClick={() => {
+                        setSelectedProduct(p.id);
+                        setProductDropdownOpen(false);
+                        setProductSearch('');
+                      }}
+                    >
+                      {p.image_url && <img src={p.image_url} className="w-6 h-6 rounded object-cover" alt="" />}
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
             {variations.length > 0 && (
               <Select value={selectedVariation} onValueChange={setSelectedVariation}>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select Variation (Optional)" /></SelectTrigger>
