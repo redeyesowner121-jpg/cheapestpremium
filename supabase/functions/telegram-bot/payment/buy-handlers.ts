@@ -418,6 +418,8 @@ export async function handleRazorpayVerify(
         await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
       }
       await setConversationState(supabase, telegramUser.id, "idle", {});
+      // Log proof
+      try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Razorpay UPI")); } catch {}
       await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
       await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you paid exactly <b>₹${finalAmount}</b> and verify within 2 minutes of paying.`, {
@@ -522,6 +524,9 @@ export async function handleBinanceVerify(
           `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
         );
       } catch (e) { console.error("Admin notify error:", e); }
+
+      // Log proof
+      try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Binance")); } catch {}
 
       // Sync purchase to website profile
       try {
