@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Gift, Plus, Trash2, RefreshCw, CheckCircle, XCircle, Clock, Package, Users, Award, Settings } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Gift, Plus, Trash2, RefreshCw, CheckCircle, XCircle, Clock, Package, Users, Award, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface GiveawayProduct {
   id: string;
