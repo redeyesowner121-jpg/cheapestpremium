@@ -128,7 +128,7 @@ export async function handleGiveawayStart(
 
         try {
           await sendMessage(token, referrerId,
-            `🎉 <b>New Referral!</b>\n\n👤 <b>${firstName}</b> joined using your link!\n🎯 +${ppr} points added!`
+            `🎉 <b>New Referral!</b>\n\n👤 ${firstName} joined via your link.\n🎯 +${ppr} points added.`
           );
         } catch {}
       }
@@ -167,7 +167,7 @@ export async function showGiveawayStats(token: string, supabase: any, chatId: nu
   const pts = points?.points || 0;
   const refs = points?.total_referrals || 0;
 
-  const statsText = `📊 <b>Your Stats</b>\n\n💰 Balance: <b>₹${bal}</b>\n💵 Total Earned: <b>₹${earned}</b>\n📦 Total Orders: <b>${orderCount || 0}</b>\n🎯 Giveaway Points: <b>${pts}</b>\n👥 Giveaway Referrals: <b>${refs}</b>\n🏷️ Referral Code: <code>${refCode}</code>`;
+  const statsText = `📊 <b>Your Stats</b>\n\n💰 Balance: ₹<b>${bal}</b>\n💵 Total Earned: ₹<b>${earned}</b>\n📦 Orders: <b>${orderCount || 0}</b>\n🎯 Giveaway Points: <b>${pts}</b>\n👥 Referrals: <b>${refs}</b>\n🏷️ Code: <code>${refCode}</code>`;
 
   await sendMessage(token, chatId, statsText, {
     reply_markup: { inline_keyboard: [[{ text: "Main Menu", callback_data: "gw_main" }]] }
@@ -186,7 +186,7 @@ export async function showGiveawayReferralLink(token: string, supabase: any, cha
   const refs = points?.total_referrals || 0;
   const ppr = parseInt(await getGiveawaySetting(supabase, "points_per_referral") || "2");
 
-  const text = `📎 <b>Refer & Earn</b>\n\n🔗 Your Giveaway Referral Link:\n<code>${refLink}</code>\n\n💰 Points: <b>${pts}</b>\n👥 Total Referrals: <b>${refs}</b>\n🎯 Per Referral: <b>${ppr} points</b>\n\n✨ Share with friends and win free products!\n\n👆 Click to copy!`;
+  const text = `📎 <b>Refer & Earn</b>\n\n🔗 Your link:\n<code>${refLink}</code>\n\n💰 Points: <b>${pts}</b>  ·  👥 Referrals: <b>${refs}</b>\n🎯 Per referral: <b>${ppr} pts</b>\n\nShare with friends to win free products!`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: { inline_keyboard: [
