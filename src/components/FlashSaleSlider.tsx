@@ -90,9 +90,10 @@ const FlashSaleSlider: React.FC<FlashSaleSliderProps> = memo(({
             <h2 className="text-lg font-bold text-foreground">Flash Sale</h2>
           </div>
         </div>
-        <div className="bg-card rounded-2xl h-32 flex flex-col items-center justify-center text-muted-foreground">
-          <ShoppingBag className="w-10 h-10 mb-2 opacity-50" />
-          <p className="text-sm">No flash sales right now</p>
+        <div className="rounded-2xl h-32 flex flex-col items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(38 95% 54% / 0.12) 0%, hsl(15 90% 56% / 0.12) 100%)' }}>
+          <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full bg-accent/10 blur-2xl" />
+          <ShoppingBag className="w-10 h-10 mb-2 text-accent/40" />
+          <p className="text-sm text-muted-foreground font-medium">No flash sales right now</p>
         </div>
       </div>
     );

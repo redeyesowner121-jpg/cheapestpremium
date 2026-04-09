@@ -126,8 +126,8 @@ const QuickStats: React.FC = React.memo(() => {
             <div className={`inline-flex p-2 rounded-xl ${stat.gradient} ${stat.shadow} mb-2`}>
               <div className="text-white">{stat.icon}</div>
             </div>
-            <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-            <p className="text-lg font-bold text-foreground font-display">{stat.value}</p>
+            <p className="text-xs text-muted-foreground font-semibold">{stat.label}</p>
+            <p className="text-lg font-bold text-foreground font-display drop-shadow-sm">{stat.value}</p>
             {/* Decorative corner */}
             <div className={`absolute -top-6 -right-6 w-16 h-16 ${stat.gradient} rounded-full opacity-10`} />
           </div>

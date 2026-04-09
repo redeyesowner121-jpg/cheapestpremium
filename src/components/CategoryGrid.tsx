@@ -57,11 +57,11 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
     return (
       <div className="w-full">
         <h2 className="text-lg font-bold text-foreground mb-4 font-display">Categories</h2>
-        <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-card animate-pulse">
-              <div className="w-12 h-12 rounded-2xl bg-muted" />
-              <div className="w-12 h-3 rounded bg-muted" />
+            <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-2xl animate-pulse" style={{ background: `linear-gradient(135deg, hsl(${250 + i * 15} 30% 95%) 0%, hsl(${260 + i * 15} 25% 93%) 100%)` }}>
+              <div className="w-12 h-12 rounded-2xl bg-primary/10" />
+              <div className="w-12 h-3 rounded bg-primary/10" />
             </div>
           ))}
         </div>

@@ -30,9 +30,11 @@ const BannerSlider: React.FC<BannerSliderProps> = memo(({ banners }) => {
   if (!banners || banners.length === 0) {
     return (
       <div className="w-full">
-        <div className="bg-card rounded-2xl h-40 md:h-52 flex flex-col items-center justify-center text-muted-foreground">
-          <ImageOff className="w-12 h-12 mb-2 opacity-50" />
-          <p className="text-sm">No banners available</p>
+      <div className="rounded-2xl h-40 md:h-52 flex flex-col items-center justify-center relative overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(250 89% 63% / 0.15) 0%, hsl(320 72% 58% / 0.15) 50%, hsl(38 95% 54% / 0.15) 100%)' }}>
+          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-primary/10 blur-2xl" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full bg-secondary/10 blur-2xl" />
+          <ImageOff className="w-12 h-12 mb-2 text-primary/40" />
+          <p className="text-sm text-muted-foreground font-medium">No banners available</p>
         </div>
       </div>
     );
