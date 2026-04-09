@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Gift, Plus, Trash2, RefreshCw, CheckCircle, XCircle, Clock, Package, Users, Award, Settings } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Gift, Plus, Trash2, RefreshCw, CheckCircle, XCircle, Clock, Package, Users, Award, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface GiveawayProduct {
   id: string;
@@ -42,12 +43,14 @@ const GiveawayBotManager: React.FC = () => {
   const [selectedVariation, setSelectedVariation] = useState('');
   const [pointsRequired, setPointsRequired] = useState('10');
   const [stock, setStock] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [prodRes, gpRes, redemRes, settingsRes] = await Promise.all([
-        supabase.from('products').select('id, name, image_url').eq('is_active', true).order('name'),
+        supabase.from('products').select('id, name, image_url').order('name'),
         supabase.from('giveaway_products' as any).select('*, product:products(name, image_url), variation:product_variations(name)').order('created_at', { ascending: false }),
         supabase.from('giveaway_redemptions' as any).select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('giveaway_settings' as any).select('*'),
@@ -72,7 +75,17 @@ const GiveawayBotManager: React.FC = () => {
   };
 
   useEffect(() => { fetchData(); }, []);
-  useEffect(() => { if (selectedProduct) fetchVariations(selectedProduct); else setVariations([]); }, [selectedProduct]);
+  useEffect(() => { if (selectedProduct) { fetchVariations(selectedProduct); } else { setVariations([]); } }, [selectedProduct]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.toLowerCase();
+    return products.filter(p => p.name.toLowerCase().includes(q));
+  }, [products, productSearch]);
+
+  const selectedProductName = useMemo(() => {
+    return products.find(p => p.id === selectedProduct)?.name || '';
+  }, [products, selectedProduct]);
 
   const addGiveawayProduct = async () => {
     if (!selectedProduct) { toast.error('প্রোডাক্ট সিলেক্ট করুন'); return; }
@@ -149,14 +162,41 @@ const GiveawayBotManager: React.FC = () => {
             <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Plus className="w-4 h-4 text-primary" /> Add Giveaway Product
             </h4>
-            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-              <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select Product" /></SelectTrigger>
-              <SelectContent>
-                {products.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={productDropdownOpen} onOpenChange={setProductDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full rounded-xl justify-between font-normal">
+                  {selectedProductName || 'Select Product'}
+                  <Search className="w-4 h-4 ml-2 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-2 max-h-72 overflow-hidden" align="start">
+                <Input
+                  placeholder="Search products..."
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  className="rounded-lg mb-2"
+                  autoFocus
+                />
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {filteredProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-2">No products found</p>
+                  ) : filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-accent transition-colors flex items-center gap-2 ${selectedProduct === p.id ? 'bg-primary/10 text-primary font-medium' : ''}`}
+                      onClick={() => {
+                        setSelectedProduct(p.id);
+                        setProductDropdownOpen(false);
+                        setProductSearch('');
+                      }}
+                    >
+                      {p.image_url && <img src={p.image_url} className="w-6 h-6 rounded object-cover" alt="" />}
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
             {variations.length > 0 && (
               <Select value={selectedVariation} onValueChange={setSelectedVariation}>
                 <SelectTrigger className="rounded-xl"><SelectValue placeholder="Select Variation (Optional)" /></SelectTrigger>
