@@ -7,7 +7,8 @@ import {
   ShoppingBag,
   Crown,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Flame
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import BlueTick from './BlueTick';
@@ -104,15 +105,23 @@ const QuickStats: React.FC = React.memo(() => {
 
   return (
     <div className="w-full animate-fade-in">
+      {/* Stylish section header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-foreground font-display flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          Your Stats
-        </h2>
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 gradient-primary rounded-lg shadow-colored-primary">
+            <Sparkles className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div>
+            <h2 className="text-lg font-extrabold text-foreground font-display tracking-tight">
+              Your Stats
+            </h2>
+            <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">Dashboard Overview</p>
+          </div>
+        </div>
         {profile?.has_blue_check && (
-          <div className="flex items-center gap-1 text-sm text-primary">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10">
             <BlueTick size="sm" />
-            <span className="font-medium">Verified</span>
+            <span className="text-xs font-bold text-primary">Verified</span>
           </div>
         )}
       </div>
@@ -121,15 +130,15 @@ const QuickStats: React.FC = React.memo(() => {
         {stats.map((stat) => (
           <div
             key={stat.label}
-            className="relative bg-card rounded-2xl p-4 shadow-card overflow-hidden"
+            className="relative bg-card rounded-2xl p-4 shadow-card overflow-hidden group hover:shadow-card-hover transition-shadow duration-300"
           >
-            <div className={`inline-flex p-2 rounded-xl ${stat.gradient} ${stat.shadow} mb-2`}>
+            <div className={`inline-flex p-2.5 rounded-xl ${stat.gradient} ${stat.shadow} mb-2.5`}>
               <div className="text-white">{stat.icon}</div>
             </div>
-            <p className="text-xs text-muted-foreground font-semibold">{stat.label}</p>
-            <p className="text-lg font-bold text-foreground font-display drop-shadow-sm">{stat.value}</p>
+            <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">{stat.label}</p>
+            <p className="text-xl font-extrabold text-foreground font-display tracking-tight mt-0.5">{stat.value}</p>
             {/* Decorative corner */}
-            <div className={`absolute -top-6 -right-6 w-16 h-16 ${stat.gradient} rounded-full opacity-10`} />
+            <div className={`absolute -top-6 -right-6 w-16 h-16 ${stat.gradient} rounded-full opacity-[0.07] group-hover:opacity-[0.12] transition-opacity`} />
           </div>
         ))}
       </div>
@@ -138,19 +147,19 @@ const QuickStats: React.FC = React.memo(() => {
       {nextRank && (
         <div className="mt-4 relative overflow-hidden rounded-2xl p-4 card-gradient-border">
           <div className="flex items-center gap-3">
-            <div className="p-2 gradient-primary rounded-xl shadow-colored-primary">
+            <div className="p-2.5 gradient-primary rounded-xl shadow-colored-primary">
               <Crown className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-foreground text-sm font-display">
+              <p className="font-extrabold text-foreground text-sm font-display tracking-tight">
                 Next: {nextRank.icon} {nextRank.name}
               </p>
-              <p className="text-xs text-muted-foreground">
-                Deposit ₹{remaining.toLocaleString()} more
+              <p className="text-[11px] text-muted-foreground font-medium">
+                Deposit <span className="font-bold text-primary">₹{remaining.toLocaleString()}</span> more
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-bold text-gradient font-display">
+              <p className="text-2xl font-black text-primary font-display tracking-tighter">
                 {Math.round(progress)}%
               </p>
             </div>
@@ -167,17 +176,17 @@ const QuickStats: React.FC = React.memo(() => {
         onClick={handleSavingsClick}
       >
         <div className="flex items-center gap-3 relative z-10">
-          <div className="p-2 bg-white/20 rounded-xl">
+          <div className="p-2.5 bg-white/20 rounded-xl">
             <TrendingUp className="w-5 h-5 text-success-foreground" />
           </div>
           <div className="flex-1">
-            <p className="font-bold text-success-foreground text-sm font-display">Total Savings 🎉</p>
-            <p className="text-xs text-success-foreground/80">
-              {savingsLoading ? 'Calculating...' : 'Tap to see!'}
+            <p className="font-extrabold text-success-foreground text-sm font-display tracking-tight">Total Savings 🎉</p>
+            <p className="text-[11px] text-success-foreground/75 font-medium">
+              {savingsLoading ? 'Calculating...' : 'Tap to see your savings!'}
             </p>
           </div>
           <div className="text-right flex items-center gap-1">
-            <p className="text-2xl font-bold text-success-foreground font-display">
+            <p className="text-2xl font-black text-success-foreground font-display tracking-tighter">
               {totalSavings !== null ? `₹${totalSavings.toFixed(0)}` : '—'}
             </p>
             <ChevronRight className="w-4 h-4 text-success-foreground/60" />
@@ -195,17 +204,17 @@ const QuickStats: React.FC = React.memo(() => {
       {!profile?.has_blue_check && (
         <div className="mt-4 relative overflow-hidden gradient-cool rounded-2xl p-4 shadow-colored-primary">
           <div className="flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-white/20 rounded-xl">
+            <div className="p-2.5 bg-white/20 rounded-xl">
               <Award className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-white text-sm font-display">Get Blue Tick!</p>
-              <p className="text-xs text-white/80">
-                Deposit ₹1000 total
+              <p className="font-extrabold text-white text-sm font-display tracking-tight">Get Blue Tick!</p>
+              <p className="text-[11px] text-white/75 font-medium">
+                Deposit ₹1000 total to unlock
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-bold text-white font-display">
+              <p className="text-xl font-black text-white font-display tracking-tighter">
                 {blueTickProgress.toFixed(0)}%
               </p>
             </div>
@@ -224,13 +233,13 @@ const QuickStats: React.FC = React.memo(() => {
       {!profile?.has_blue_check && (
         <div className="mt-4 gradient-sunset rounded-2xl p-4 shadow-colored-secondary relative overflow-hidden">
           <div className="flex items-center gap-3 relative z-10">
-            <div className="p-2 bg-white/20 rounded-xl animate-float">
-              <Gift className="w-5 h-5 text-white" />
+            <div className="p-2.5 bg-white/20 rounded-xl animate-float">
+              <Flame className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="font-bold text-white text-sm font-display">Special Offer! ✨</p>
-              <p className="text-xs text-white/85">
-                Deposit ₹1000 at once → ₹100 bonus + Blue Tick!
+              <p className="font-extrabold text-white text-sm font-display tracking-tight">Special Offer! ✨</p>
+              <p className="text-[11px] text-white/80 font-medium leading-relaxed">
+                Deposit ₹1000 at once → <span className="font-bold">₹100 bonus</span> + Blue Tick!
               </p>
             </div>
           </div>

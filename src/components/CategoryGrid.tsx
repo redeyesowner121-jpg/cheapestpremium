@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { 
   Tv, Music, GamepadIcon, Cloud, BookOpen, Briefcase,
-  Gift, Coins, Lightbulb, GraduationCap, Wrench, LucideIcon
+  Gift, Coins, Lightbulb, GraduationCap, Wrench, LucideIcon,
+  Grid3X3
 } from 'lucide-react';
 
 interface Category {
@@ -56,8 +57,16 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
   if (loading) {
     return (
       <div className="w-full">
-        <h2 className="text-lg font-bold text-foreground mb-4 font-display">Categories</h2>
-      <div className="grid grid-cols-4 gap-3">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="p-1.5 gradient-cool rounded-lg shadow-colored-primary">
+            <Grid3X3 className="w-4 h-4 text-primary-foreground" />
+          </div>
+          <div>
+            <h2 className="text-lg font-extrabold text-foreground font-display tracking-tight">Categories</h2>
+            <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">Browse by type</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-4 gap-3">
           {[...Array(8)].map((_, i) => (
             <div key={i} className="flex flex-col items-center gap-2 p-3 rounded-2xl animate-pulse" style={{ background: `linear-gradient(135deg, hsl(${250 + i * 15} 30% 95%) 0%, hsl(${260 + i * 15} 25% 93%) 100%)` }}>
               <div className="w-12 h-12 rounded-2xl bg-primary/10" />
@@ -71,7 +80,15 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
 
   return (
     <div className="w-full">
-      <h2 className="text-lg font-bold text-foreground mb-4 font-display">Categories</h2>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="p-1.5 gradient-cool rounded-lg shadow-colored-primary">
+          <Grid3X3 className="w-4 h-4 text-primary-foreground" />
+        </div>
+        <div>
+          <h2 className="text-lg font-extrabold text-foreground font-display tracking-tight">Categories</h2>
+          <p className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">Browse by type</p>
+        </div>
+      </div>
       
       <div className="grid grid-cols-4 gap-3">
         {categoryItems.map((category) => (
@@ -88,7 +105,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
                   className="absolute inset-0 w-full h-full object-cover rounded-2xl"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-2xl" />
-                <span className="relative z-10 mt-auto mb-2 px-1.5 text-[10px] font-bold text-white drop-shadow-lg leading-tight">
+                <span className="relative z-10 mt-auto mb-2 px-1.5 text-[10px] font-extrabold text-white drop-shadow-lg leading-tight tracking-wide">
                   {category.name}
                 </span>
               </>
@@ -97,7 +114,7 @@ const CategoryGrid: React.FC<CategoryGridProps> = ({ categories: propCategories,
                 <div className={`p-3 rounded-2xl bg-gradient-to-br ${category.gradient} shadow-lg`}>
                   {category.icon}
                 </div>
-                <span className="text-[11px] font-semibold text-foreground mt-1.5">{category.name}</span>
+                <span className="text-[11px] font-bold text-foreground mt-1.5 tracking-tight">{category.name}</span>
               </>
             )}
           </button>
