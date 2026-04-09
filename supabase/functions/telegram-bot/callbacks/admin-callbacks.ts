@@ -1,6 +1,7 @@
 // ===== ADMIN CALLBACK ROUTING =====
 import { sendMessage } from "../telegram-api.ts";
 import { isSuperAdmin, isAdminBot, setConversationState } from "../db-helpers.ts";
+import { logProof, formatWithdrawalUpdate } from "../proof-logger.ts";
 import {
   handleAdminMenu, handleReport,
   handleAdminProductsMenu, handleAdminUsersMenu, handleAdminWalletMenu,
@@ -74,6 +75,9 @@ export async function handleAdminCallbacks(
         }
       );
 
+      // Log proof
+      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "accepted", wd.account_details)); } catch {}
+
       // Notify other admins
       const { notifyAllAdmins } = await import("../db-helpers.ts");
       try {
@@ -98,6 +102,9 @@ export async function handleAdminCallbacks(
       );
 
       await sendMessage(BOT_TOKEN, chatId, `📦 Withdrawal ₹${wd.amount} for user <code>${wd.telegram_id}</code> marked as delivered.`);
+
+      // Log proof
+      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "delivered", wd.account_details)); } catch {}
     }
     return true;
   }
