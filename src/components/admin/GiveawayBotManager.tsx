@@ -50,7 +50,7 @@ const GiveawayBotManager: React.FC = () => {
     setLoading(true);
     try {
       const [prodRes, gpRes, redemRes, settingsRes] = await Promise.all([
-        supabase.from('products').select('id, name, image_url').eq('is_active', true).order('name'),
+        supabase.from('products').select('id, name, image_url').order('name'),
         supabase.from('giveaway_products' as any).select('*, product:products(name, image_url), variation:product_variations(name)').order('created_at', { ascending: false }),
         supabase.from('giveaway_redemptions' as any).select('*').order('created_at', { ascending: false }).limit(50),
         supabase.from('giveaway_settings' as any).select('*'),
