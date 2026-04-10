@@ -1,80 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingCart, Sparkles, Heart, Star, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ShoppingCart, Sparkles, Heart, Star, Zap, Hand } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
-const funnyMessages = [
+const fallbackMessages = [
   "Kis colour ke chaddi pehne ho? 🫠",
   "Cart khali hai bro… wallet bhi khali hai kya? 💀",
   "Arre shopping kar na, kya soch raha hai? 🤔",
-  "Tere dost sab premium use kar rahe, tu kya kar raha? 😏",
-  "Paise bachane se Netflix nahi milega bhai 😂",
-  "Cart mein kuch daal, life mein kuch kaam kar 🫡",
-  "Bina shopping ke life boring hai yaar 🥱",
-  "Sab log buy kar rahe, tu kab karega? 🛒",
-  "Tera cart rota hai bhai… kuch toh daal 🥺",
   "Premium lele, crush impress hoga 😎",
-  "Khali cart = khali life? 🤷‍♂️",
-  "Aaj ka offer miss karoge toh kal regret karoge 😤",
-  "Bhai kuch le na, itna sasta kahan milega? 🔥",
-  "Cart itna khali ki echo aa raha hai 📢",
-  "Shopping na karna is a crime, bro 🚔",
-  "Tujhe dekhke cart ro raha hai 😭",
-  "Abhi le, baad mein price badh jayega ⏰",
-  "Dost bolenge — 'tu toh smart hai!' 🧠",
-  "Ek baar try kar, phir dekhna magic ✨",
-  "Cart mein love daal, products daal 💕",
-  "Bhai free ka WiFi use karta hai, premium bhi free jaise hai 📶",
-  "Itna sochega toh Buddha ho jayega 👴",
-  "Cart khali = phone useless 📱",
-  "Tere baap ka paisa nahi lagta, chill kar 😂",
-  "Yahan sab sasta hai, Amazon se bhi zyada 🤑",
-  "Tu Netflix pe kya dekhta hai? Buffering? Premium le! 📺",
-  "Tera crush bhi premium use karta hai btw 👀",
-  "Ek click mein life change ho sakti hai bro 🖱️",
-  "Mummy ko bol — 'invest kar raha hoon' 🧐",
-  "Abhi nahi toh kabhi nahi, samjha? ⚡",
-  "Cart se zyada toh teri dating life khali hai 💔",
-  "Bhai khareed le, refund bhi toh hai 🔄",
-  "Soch mat, kar! — Nike wala attitude rakh 🏃",
-  "Premium = productivity = success = lambo 🏎️",
-  "Tere dost party kar rahe, tu cart khali dekh raha 🎉",
-  "Arre yaar, ek product toh daal de sympathy mein 🥹",
-  "Boss ne bola — 'khareed le warna fired' 👔",
-  "Cart khali rakhne wale log pizza bhi plain khaate hain 🍕",
-  "Bhai tu legend hai, legends shop karte hain 👑",
-  "Itna sasta milega nahi, Chor Bazaar mein bhi nahi 🏪",
-  "Tera phone bhi bol raha — 'kuch le na bhai' 📲",
-  "Cart khali = Monday morning vibes 😩",
-  "Ek premium le, personality 10x ho jayegi 💯",
-  "Tu wahi hai na jo free trial ke baad uninstall karta hai? 🤡",
-  "Bhai shopping therapy hai, doctor se puch 💊",
-  "Tera cart itna khali ki Sahara Desert jealous hai 🏜️",
-  "Aaj le, kal flex kar — simple formula 📐",
-  "Bhai premium lega toh babes attract hongi 😘",
-  "Cart khali rakhna = gym join karke na jaana 🏋️",
-  "Arre champion, champions shop karte hain! 🏆",
 ];
 
 const emojis = ['🛍️', '💸', '🎁', '🎉', '✨', '🔥', '💎', '🫶', '🤩', '😜', '🌈', '⭐', '🎀', '🦄', '🍭'];
 
 const EmptyCartFun: React.FC = () => {
   const navigate = useNavigate();
-  const [msgIndex, setMsgIndex] = useState(() => Math.floor(Math.random() * funnyMessages.length));
+  const [messages, setMessages] = useState<string[]>(fallbackMessages);
+  const [msgIndex, setMsgIndex] = useState(0);
   const [fadeKey, setFadeKey] = useState(0);
+  const [tapPulse, setTapPulse] = useState(false);
   const [floatingEmojis, setFloatingEmojis] = useState<{ id: number; emoji: string; left: number; delay: number; size: number }[]>([]);
 
+  // Load messages from DB
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMsgIndex(prev => {
-        let next;
-        do { next = Math.floor(Math.random() * funnyMessages.length); } while (next === prev);
-        return next;
-      });
-      setFadeKey(k => k + 1);
-    }, 6000);
-    return () => clearInterval(interval);
+    const load = async () => {
+      const { data } = await supabase
+        .from('empty_cart_messages')
+        .select('message')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      if (data && data.length > 0) {
+        setMessages(data.map(d => d.message));
+        setMsgIndex(Math.floor(Math.random() * data.length));
+      }
+    };
+    load();
   }, []);
+
+  const showNext = useCallback(() => {
+    setMsgIndex(prev => {
+      let next;
+      do { next = Math.floor(Math.random() * messages.length); } while (next === prev && messages.length > 1);
+      return next;
+    });
+    setFadeKey(k => k + 1);
+  }, [messages.length]);
+
+  // Auto-rotate every 6s
+  useEffect(() => {
+    const interval = setInterval(showNext, 6000);
+    return () => clearInterval(interval);
+  }, [showNext]);
+
+  // Tap to change
+  const handleTap = () => {
+    showNext();
+    setTapPulse(true);
+    setTimeout(() => setTapPulse(false), 400);
+  };
 
   useEffect(() => {
     const arr = Array.from({ length: 12 }, (_, i) => ({
@@ -98,52 +81,14 @@ const EmptyCartFun: React.FC = () => {
         }}
       />
       {/* Animated color blobs */}
-      <div
-        className="absolute w-32 h-32 rounded-full blur-3xl"
-        style={{
-          background: 'linear-gradient(135deg, #a855f7, #ec4899)',
-          top: '-10%', left: '-5%', opacity: 0.3,
-          animation: 'blobMove1 6s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute w-28 h-28 rounded-full blur-3xl"
-        style={{
-          background: 'linear-gradient(135deg, #f97316, #eab308)',
-          bottom: '-10%', right: '-5%', opacity: 0.3,
-          animation: 'blobMove2 7s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute w-24 h-24 rounded-full blur-3xl"
-        style={{
-          background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
-          top: '40%', right: '20%', opacity: 0.2,
-          animation: 'blobMove3 8s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute w-20 h-20 rounded-full blur-2xl"
-        style={{
-          background: 'linear-gradient(135deg, #10b981, #34d399)',
-          bottom: '20%', left: '15%', opacity: 0.25,
-          animation: 'blobMove1 9s ease-in-out infinite reverse',
-        }}
-      />
+      <div className="absolute w-32 h-32 rounded-full blur-3xl" style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)', top: '-10%', left: '-5%', opacity: 0.3, animation: 'blobMove1 6s ease-in-out infinite' }} />
+      <div className="absolute w-28 h-28 rounded-full blur-3xl" style={{ background: 'linear-gradient(135deg, #f97316, #eab308)', bottom: '-10%', right: '-5%', opacity: 0.3, animation: 'blobMove2 7s ease-in-out infinite' }} />
+      <div className="absolute w-24 h-24 rounded-full blur-3xl" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', top: '40%', right: '20%', opacity: 0.2, animation: 'blobMove3 8s ease-in-out infinite' }} />
+      <div className="absolute w-20 h-20 rounded-full blur-2xl" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', bottom: '20%', left: '15%', opacity: 0.25, animation: 'blobMove1 9s ease-in-out infinite reverse' }} />
 
       {/* Floating emojis */}
       {floatingEmojis.map(e => (
-        <span
-          key={e.id}
-          className="absolute pointer-events-none"
-          style={{
-            left: `${e.left}%`,
-            fontSize: `${e.size}px`,
-            animation: `floatUp ${4 + Math.random() * 3}s ease-in-out ${e.delay}s infinite`,
-            top: '85%',
-            opacity: 0.3,
-          }}
-        >
+        <span key={e.id} className="absolute pointer-events-none" style={{ left: `${e.left}%`, fontSize: `${e.size}px`, animation: `floatUp ${4 + Math.random() * 3}s ease-in-out ${e.delay}s infinite`, top: '85%', opacity: 0.3 }}>
           {e.emoji}
         </span>
       ))}
@@ -166,55 +111,23 @@ const EmptyCartFun: React.FC = () => {
       <div className="relative text-center py-10 px-4 z-10">
         {/* Cute bouncing cart with glow */}
         <div className="relative mx-auto w-32 h-32 mb-6">
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2), rgba(251,146,60,0.2))',
-              animation: 'pulse 2s ease-in-out infinite',
-            }}
-          />
-          <div
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(236,72,153,0.1))',
-              animation: 'pulse 2s ease-in-out 0.5s infinite',
-              transform: 'scale(1.2)',
-            }}
-          />
-          <div
-            className="absolute inset-3 rounded-full backdrop-blur-sm flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(236,72,153,0.1))',
-              animation: 'cartBounce 2s ease-in-out infinite',
-              boxShadow: '0 0 30px rgba(168,85,247,0.2)',
-            }}
-          >
+          <div className="absolute inset-0 rounded-full" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2), rgba(251,146,60,0.2))', animation: 'pulse 2s ease-in-out infinite' }} />
+          <div className="absolute inset-0 rounded-full" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(236,72,153,0.1))', animation: 'pulse 2s ease-in-out 0.5s infinite', transform: 'scale(1.2)' }} />
+          <div className="absolute inset-3 rounded-full backdrop-blur-sm flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(236,72,153,0.1))', animation: 'cartBounce 2s ease-in-out infinite', boxShadow: '0 0 30px rgba(168,85,247,0.2)' }}>
             <ShoppingCart className="w-14 h-14 text-purple-400/70" />
           </div>
-          <Sparkles
-            className="absolute -top-1 -right-1 w-6 h-6 text-yellow-400"
-            style={{ animation: 'sparkle 1.5s ease-in-out infinite' }}
-          />
-          <Sparkles
-            className="absolute -bottom-2 -left-2 w-5 h-5 text-pink-400"
-            style={{ animation: 'sparkle 1.8s ease-in-out 0.5s infinite' }}
-          />
-          <Star
-            className="absolute top-0 left-0 w-4 h-4 text-orange-400 fill-orange-400"
-            style={{ animation: 'sparkle 2s ease-in-out 1s infinite' }}
-          />
-          <Heart
-            className="absolute -bottom-1 right-2 w-4 h-4 text-red-400 fill-red-400"
-            style={{ animation: 'sparkle 1.6s ease-in-out 0.3s infinite' }}
-          />
-          <Zap
-            className="absolute top-2 -right-3 w-4 h-4 text-cyan-400"
-            style={{ animation: 'sparkle 2.2s ease-in-out 0.8s infinite' }}
-          />
+          <Sparkles className="absolute -top-1 -right-1 w-6 h-6 text-yellow-400" style={{ animation: 'sparkle 1.5s ease-in-out infinite' }} />
+          <Sparkles className="absolute -bottom-2 -left-2 w-5 h-5 text-pink-400" style={{ animation: 'sparkle 1.8s ease-in-out 0.5s infinite' }} />
+          <Star className="absolute top-0 left-0 w-4 h-4 text-orange-400 fill-orange-400" style={{ animation: 'sparkle 2s ease-in-out 1s infinite' }} />
+          <Heart className="absolute -bottom-1 right-2 w-4 h-4 text-red-400 fill-red-400" style={{ animation: 'sparkle 1.6s ease-in-out 0.3s infinite' }} />
+          <Zap className="absolute top-2 -right-3 w-4 h-4 text-cyan-400" style={{ animation: 'sparkle 2.2s ease-in-out 0.8s infinite' }} />
         </div>
 
-        {/* Rotating funny message */}
-        <div className="min-h-[5rem] flex items-center justify-center px-2">
+        {/* Rotating funny message - TAP TO CHANGE */}
+        <div
+          onClick={handleTap}
+          className={`min-h-[5rem] flex items-center justify-center px-2 cursor-pointer active:scale-95 transition-transform select-none rounded-xl ${tapPulse ? 'ring-2 ring-purple-400/50' : ''}`}
+        >
           <p
             key={fadeKey}
             className="text-lg font-bold max-w-[300px] drop-shadow-lg"
@@ -226,8 +139,14 @@ const EmptyCartFun: React.FC = () => {
               backgroundClip: 'text',
             }}
           >
-            {funnyMessages[msgIndex]}
+            {messages[msgIndex]}
           </p>
+        </div>
+
+        {/* Tap hint */}
+        <div className="flex items-center justify-center gap-1.5 mt-1 mb-1">
+          <Hand className="w-3.5 h-3.5 text-muted-foreground/60" style={{ animation: 'tapHint 2s ease-in-out infinite' }} />
+          <span className="text-xs text-muted-foreground/60">Tap for new message</span>
         </div>
 
         <p className="text-sm text-muted-foreground mt-1 mb-6 font-medium">
@@ -282,6 +201,10 @@ const EmptyCartFun: React.FC = () => {
         @keyframes sparkleParticle {
           0%, 100% { transform: scale(1); opacity: 0.3; }
           50% { transform: scale(2.5); opacity: 0.8; }
+        }
+        @keyframes tapHint {
+          0%, 100% { transform: translateY(0) rotate(-10deg); opacity: 0.5; }
+          50% { transform: translateY(-4px) rotate(5deg); opacity: 1; }
         }
       `}</style>
     </div>

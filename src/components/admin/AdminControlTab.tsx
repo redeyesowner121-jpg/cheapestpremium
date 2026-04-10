@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, UserPlus, ShoppingBag, MessageCircle,
   Image, CreditCard, Users, Package, Shield, ChevronDown,
-  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot
+  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
@@ -23,6 +23,7 @@ import {
   AdminContentSection,
 } from './sections';
 import AdminBotTabs from './AdminBotTabs';
+import AdminCartMessagesManager from './AdminCartMessagesManager';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -46,7 +47,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | null;
+type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const {
@@ -84,6 +85,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const marketingGroup = [
     { id: 'coupons' as ControlSection, icon: Ticket, label: 'Coupons', description: 'Discount coupons', color: 'bg-gradient-to-br from-pink-500 to-rose-500', badge: null },
     { id: 'redeem' as ControlSection, icon: Gift, label: 'Redeem Codes', description: 'Gift codes for wallet', color: 'bg-gradient-to-br from-amber-500 to-yellow-500', badge: null },
+    { id: 'cart_messages' as ControlSection, icon: SmilePlus, label: 'Cart Messages', description: 'Empty cart fun messages', color: 'bg-gradient-to-br from-fuchsia-500 to-purple-500', badge: null },
     { id: 'chat' as ControlSection, icon: MessageCircle, label: 'Messages', description: 'Customer support', color: 'bg-gradient-to-br from-teal-500 to-cyan-500', badge: null },
     { id: 'telegram_bot' as ControlSection, icon: Bot, label: 'Telegram Bot', description: 'Manage selling bot', color: 'bg-gradient-to-br from-blue-500 to-sky-500', badge: null },
   ];
@@ -125,6 +127,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminRedeemCodeManager />;
       case 'chat':
         return <AdminChatPanel />;
+      case 'cart_messages':
+        return <AdminCartMessagesManager />;
       case 'telegram_bot':
         return <AdminBotTabs />;
       default:
