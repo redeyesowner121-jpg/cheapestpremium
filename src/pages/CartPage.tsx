@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import IndiaPaymentScreen from '@/components/wallet/deposit/IndiaPaymentScreen';
+import EmptyCartFun from '@/components/EmptyCartFun';
 
 const FOREIGN_CONVERT_FEE_PERCENT = 30;
 const AAX_CODE = 'AAX';
