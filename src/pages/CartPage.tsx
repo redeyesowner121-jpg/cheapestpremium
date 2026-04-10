@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import IndiaPaymentScreen from '@/components/wallet/deposit/IndiaPaymentScreen';
+import EmptyCartFun from '@/components/EmptyCartFun';
 
 const FOREIGN_CONVERT_FEE_PERCENT = 30;
 const AAX_CODE = 'AAX';
@@ -303,12 +304,7 @@ const CartPage: React.FC = () => {
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-16">
-            <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
-            <h2 className="text-xl font-bold mb-2">Your cart is empty</h2>
-            <p className="text-muted-foreground mb-6">Browse products and add them to your cart</p>
-            <Button onClick={() => navigate('/products')} className="btn-gradient rounded-xl">Browse Products</Button>
-          </div>
+          <EmptyCartFun />
         ) : (
           <div className="space-y-3">
             {items.map(item => {
