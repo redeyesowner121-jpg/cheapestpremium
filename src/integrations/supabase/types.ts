@@ -365,6 +365,30 @@ export type Database = {
         }
         Relationships: []
       }
+      empty_cart_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          message: string
+          sort_order: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          message: string
+          sort_order?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          message?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
       flash_sales: {
         Row: {
           created_at: string | null
