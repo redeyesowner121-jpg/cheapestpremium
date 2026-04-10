@@ -72,7 +72,7 @@ const EmptyCartFun: React.FC = () => {
         return next;
       });
       setFadeKey(k => k + 1);
-    }, 3500);
+    }, 6000);
     return () => clearInterval(interval);
   }, []);
 
