@@ -57,7 +57,7 @@ const OrdersPage: React.FC = () => {
   const filteredOrders = orders.filter((order) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'pending') return ['pending', 'processing'].includes(order.status);
-    if (activeTab === 'completed') return ['completed', 'cancelled', 'refunded'].includes(order.status);
+    if (activeTab === 'completed') return ['completed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'].includes(order.status);
     return true;
   });
 

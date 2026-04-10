@@ -132,20 +132,27 @@ export async function syncDepositToProfile(supabase: any, telegramId: number, am
 
 /**
  * After a bot wallet purchase: also deduct from website profile and create order
+ * skipWalletDeduct: true when wallet was already deducted on bot side (admin confirmations)
  */
 export async function syncPurchaseToProfile(
   supabase: any, telegramId: number, amount: number,
-  productName: string, productId?: string, accessLink?: string
+  productName: string, productId?: string, accessLink?: string,
+  skipWalletDeduct?: boolean
 ) {
   const profile = await ensureLinkedProfile(supabase, telegramId);
   if (!profile) return;
 
-  const newBalance = (profile.wallet_balance || 0) - amount;
-
-  await supabase.from("profiles").update({
-    wallet_balance: Math.max(0, newBalance),
-    total_orders: (profile.total_orders || 0) + 1,
-  }).eq("id", profile.id);
+  if (!skipWalletDeduct) {
+    const newBalance = (profile.wallet_balance || 0) - amount;
+    await supabase.from("profiles").update({
+      wallet_balance: Math.max(0, newBalance),
+      total_orders: (profile.total_orders || 0) + 1,
+    }).eq("id", profile.id);
+  } else {
+    await supabase.from("profiles").update({
+      total_orders: (profile.total_orders || 0) + 1,
+    }).eq("id", profile.id);
+  }
 
   // Create website transaction
   await supabase.from("transactions").insert({
@@ -156,11 +163,19 @@ export async function syncPurchaseToProfile(
     description: `Purchased ${productName} (Bot)`,
   });
 
+  // Get product image if available
+  let productImage: string | null = null;
+  if (productId) {
+    const { data: prod } = await supabase.from("products").select("image_url").eq("id", productId).maybeSingle();
+    productImage = prod?.image_url || null;
+  }
+
   // Create website order
   await supabase.from("orders").insert({
     user_id: profile.id,
     product_id: productId || null,
     product_name: productName,
+    product_image: productImage,
     unit_price: amount,
     total_price: amount,
     quantity: 1,

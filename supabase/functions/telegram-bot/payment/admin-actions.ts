@@ -108,6 +108,18 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
         const { syncDepositToProfile } = await import("./sync-helpers.ts");
         await syncDepositToProfile(supabase, order.telegram_user_id, depositAmount, "manual_upi");
       }
+    } else {
+      // This is a product purchase — sync to website orders table
+      try {
+        const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
+        let accessLink: string | undefined;
+        if (order.product_id) {
+          const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
+          accessLink = product?.access_link || undefined;
+        }
+        // skipWalletDeduct=true because payment was via UPI, not wallet
+        await syncPurchaseToProfile(supabase, order.telegram_user_id, order.amount, order.product_name || "Product", order.product_id || undefined, accessLink, true);
+      } catch (e) { console.error("Sync purchase to profile error:", e); }
     }
 
     await processReferralBonus(supabase, order.telegram_user_id, token, order.amount);
