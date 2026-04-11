@@ -3,9 +3,14 @@
 
 import { sendMessage } from "../telegram-api.ts";
 
+function isDriveLink(url: string): boolean {
+  return /drive\.google\.com|docs\.google\.com|googleapis\.com/i.test(url);
+}
+
 /**
- * Generate a 6-digit login code, save to DB, and send website link + access link to user.
- * Call this whenever a product with access_link is delivered (wallet pay, binance, razorpay, admin confirm).
+ * Generate a 6-digit login code, save to DB, and send delivery to user.
+ * - Drive links: Only show "View on Website" button (no direct link)
+ * - Other links: Send directly in bot message
  */
 export async function sendInstantDeliveryWithLoginCode(
   token: string,
@@ -46,28 +51,62 @@ export async function sendInstantDeliveryWithLoginCode(
     console.error("Login code insert error:", e);
   }
 
-  // Get website URL from env or use default
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-  // Extract project ref to build website URL
-  const projectRef = supabaseUrl.match(/https:\/\/(.+?)\.supabase\.co/)?.[1] || "";
   const websiteUrl = "https://cheapest-premiums.lovable.app/auth";
 
-  // Access link is no longer sent directly — user views it on the website
+  if (isDriveLink(accessLink)) {
+    // Drive link → only show website button, don't send link directly
+    const driveMsg = lang === "bn"
+      ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n` +
+        `📁 আপনার ফাইল/লিঙ্ক ওয়েবসাইটে আপনার অর্ডার হিস্ট্রিতে পাবেন।\n\n` +
+        `🔑 লগইন কোড: <code>${code}</code>\n` +
+        `⏳ কোড ৩০ মিনিট পর্যন্ত কার্যকর।`
+      : `✅ <b>${productName} Delivered!</b>\n\n` +
+        `📁 Your file/link is available in your order history on the website.\n\n` +
+        `🔑 Login Code: <code>${code}</code>\n` +
+        `⏳ Code valid for 30 minutes.`;
 
-  // Send website login code message
-  const loginMsg = lang === "bn"
-    ? `🌐 <b>ওয়েবসাইটে লগইন করুন</b>\n\n` +
-      `আপনার অর্ডার হিস্টরি দেখতে ওয়েবসাইটে লগইন করুন:\n\n` +
-      `🔗 ওয়েবসাইট: ${websiteUrl}\n` +
-      `🔑 লগইন কোড: <code>${code}</code>\n\n` +
-      `📋 কোড কপি করে ওয়েবসাইটে "Telegram Login" এ পেস্ট করুন।\n` +
-      `⏳ কোড ৩০ মিনিট পর্যন্ত কার্যকর।`
-    : `🌐 <b>Login to Website</b>\n\n` +
-      `View your order history & delivered products on the website:\n\n` +
-      `🔗 Website: ${websiteUrl}\n` +
-      `🔑 Login Code: <code>${code}</code>\n\n` +
-      `📋 Copy the code and paste it in "Telegram Login" on the website.\n` +
-      `⏳ Code valid for 30 minutes.`;
+    // Send with inline button to website
+    const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
+    await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: driveMsg,
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "🌐 View on Website", url: websiteUrl }
+          ]]
+        }
+      }),
+    });
+  } else {
+    // Non-drive link → send directly
+    const directMsg = lang === "bn"
+      ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n` +
+        `🔗 <b>আপনার অ্যাক্সেস:</b>\n<code>${accessLink}</code>\n\n` +
+        `📋 ওয়েবসাইটেও দেখতে পারবেন:\n` +
+        `🔑 লগইন কোড: <code>${code}</code>`
+      : `✅ <b>${productName} Delivered!</b>\n\n` +
+        `🔗 <b>Your Access:</b>\n<code>${accessLink}</code>\n\n` +
+        `📋 Also available on the website:\n` +
+        `🔑 Login Code: <code>${code}</code>`;
 
-  await sendMessage(token, chatId, loginMsg);
+    const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
+    await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: directMsg,
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "🌐 View on Website", url: websiteUrl }
+          ]]
+        }
+      }),
+    });
+  }
 }
