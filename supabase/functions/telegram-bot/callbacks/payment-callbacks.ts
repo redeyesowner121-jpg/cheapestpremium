@@ -223,11 +223,9 @@ export async function handlePaymentCallbacks(
   }
 
   if (data === "deposit_choose_method") {
-    const convState = await getConversationState(supabase, userId);
-    if (convState?.data?.amount) {
-      const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
-      await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    // Go back to method selection (step 1)
+    const { handleDepositStart } = await import("../payment/deposit-handlers.ts");
+    await handleDepositStart(BOT_TOKEN, supabase, chatId, userId, lang);
     return true;
   }
 
