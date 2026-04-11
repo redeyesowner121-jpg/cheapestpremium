@@ -22,6 +22,7 @@ import {
 import {
   executeDeleteKnowledge, handleViewKnowledge,
   startDeleteKnowledge, startTrainingCategory, handleAllUsers,
+  handlePendingKnowledge,
 } from "../admin-handlers.ts";
 
 export async function handleMenuCallbacks(
