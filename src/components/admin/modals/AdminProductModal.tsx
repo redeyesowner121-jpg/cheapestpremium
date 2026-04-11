@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Package } from 'lucide-react';
+import { Plus, Trash2, Package, Link, Key } from 'lucide-react';
 import ImageUpload from '@/components/ui/image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,40 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   onSave, onReset
 }) => {
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [deliveryType, setDeliveryType] = useState<'link' | 'credentials'>('link');
+  const [credUsername, setCredUsername] = useState('');
+  const [credPassword, setCredPassword] = useState('');
+
+  // Auto-detect delivery type from existing access_link
+  React.useEffect(() => {
+    if (editingProduct?.access_link) {
+      const link = editingProduct.access_link;
+      if (link.includes('ID:') && link.includes('Password:')) {
+        setDeliveryType('credentials');
+        const idMatch = link.match(/ID:\s*(.+)/);
+        const pwMatch = link.match(/Password:\s*(.+)/);
+        setCredUsername(idMatch?.[1]?.trim() || '');
+        setCredPassword(pwMatch?.[1]?.trim() || '');
+      } else {
+        setDeliveryType('link');
+        setCredUsername('');
+        setCredPassword('');
+      }
+    } else {
+      setDeliveryType('link');
+      setCredUsername('');
+      setCredPassword('');
+    }
+  }, [editingProduct]);
+
+  // Sync credentials back to productForm.access_link
+  const updateAccessLink = (type: 'link' | 'credentials', link?: string, user?: string, pass?: string) => {
+    if (type === 'credentials') {
+      setProductForm({ ...productForm, access_link: `ID: ${user || credUsername}\nPassword: ${pass || credPassword}` });
+    } else {
+      setProductForm({ ...productForm, access_link: link ?? productForm.access_link });
+    }
+  };
 
   const handleSave = () => {
     const newErrors: Record<string, boolean> = {};
@@ -141,7 +175,58 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               previewHeight="h-36"
             />
           </div>
-          <Input placeholder="Access Link (Optional)" value={productForm.access_link} onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })} />
+          {/* Delivery Type for Access Link */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Auto-Delivery Type</label>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <Button
+                type="button"
+                variant={deliveryType === 'link' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setDeliveryType('link'); }}
+                className="gap-1.5"
+              >
+                <Link className="w-3.5 h-3.5" />
+                Direct Link
+              </Button>
+              <Button
+                type="button"
+                variant={deliveryType === 'credentials' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setDeliveryType('credentials'); updateAccessLink('credentials'); }}
+                className="gap-1.5"
+              >
+                <Key className="w-3.5 h-3.5" />
+                ID / Password
+              </Button>
+            </div>
+            {deliveryType === 'link' ? (
+              <Input
+                placeholder="Access Link (https://...)"
+                value={productForm.access_link}
+                onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
+              />
+            ) : (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
+                  <Input
+                    placeholder="user@example.com"
+                    value={credUsername}
+                    onChange={(e) => { setCredUsername(e.target.value); updateAccessLink('credentials', undefined, e.target.value, credPassword); }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
+                  <Input
+                    placeholder="••••••••"
+                    value={credPassword}
+                    onChange={(e) => { setCredPassword(e.target.value); updateAccessLink('credentials', undefined, credUsername, e.target.value); }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
           <div className="flex items-center justify-between">
             <span className="text-sm">Active</span>
