@@ -45,6 +45,40 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   onSave, onReset
 }) => {
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [deliveryType, setDeliveryType] = useState<'link' | 'credentials'>('link');
+  const [credUsername, setCredUsername] = useState('');
+  const [credPassword, setCredPassword] = useState('');
+
+  // Auto-detect delivery type from existing access_link
+  React.useEffect(() => {
+    if (editingProduct?.access_link) {
+      const link = editingProduct.access_link;
+      if (link.includes('ID:') && link.includes('Password:')) {
+        setDeliveryType('credentials');
+        const idMatch = link.match(/ID:\s*(.+)/);
+        const pwMatch = link.match(/Password:\s*(.+)/);
+        setCredUsername(idMatch?.[1]?.trim() || '');
+        setCredPassword(pwMatch?.[1]?.trim() || '');
+      } else {
+        setDeliveryType('link');
+        setCredUsername('');
+        setCredPassword('');
+      }
+    } else {
+      setDeliveryType('link');
+      setCredUsername('');
+      setCredPassword('');
+    }
+  }, [editingProduct]);
+
+  // Sync credentials back to productForm.access_link
+  const updateAccessLink = (type: 'link' | 'credentials', link?: string, user?: string, pass?: string) => {
+    if (type === 'credentials') {
+      setProductForm({ ...productForm, access_link: `ID: ${user || credUsername}\nPassword: ${pass || credPassword}` });
+    } else {
+      setProductForm({ ...productForm, access_link: link ?? productForm.access_link });
+    }
+  };
 
   const handleSave = () => {
     const newErrors: Record<string, boolean> = {};
