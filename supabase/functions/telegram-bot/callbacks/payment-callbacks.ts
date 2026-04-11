@@ -112,15 +112,42 @@ export async function handlePaymentCallbacks(
   }
 
   // ===== DEPOSIT FLOW =====
+
+  // Step 1: Method selection
+  if (data === "deposit_method_binance") {
+    const { showDepositAmountEntry } = await import("../payment/deposit-handlers.ts");
+    await showDepositAmountEntry(BOT_TOKEN, supabase, chatId, userId, "binance", lang);
+    return true;
+  }
+
+  if (data === "deposit_method_upi") {
+    const { showDepositAmountEntry } = await import("../payment/deposit-handlers.ts");
+    await showDepositAmountEntry(BOT_TOKEN, supabase, chatId, userId, "upi", lang);
+    return true;
+  }
+
+  // Step 2: Amount quick-select → route to payment based on method in state
   if (data.startsWith("deposit_amt_")) {
     const amt = parseInt(data.replace("deposit_amt_", ""));
     if (amt > 0) {
-      const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
-      await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, amt, lang);
+      const convState = await getConversationState(supabase, userId);
+      const method = convState?.data?.method;
+      if (method === "binance") {
+        const { showDepositBinance } = await import("../payment/deposit-handlers.ts");
+        await showDepositBinance(BOT_TOKEN, supabase, chatId, userId, amt, lang);
+      } else if (method === "upi") {
+        const { showDepositUpi } = await import("../payment/deposit-handlers.ts");
+        await showDepositUpi(BOT_TOKEN, supabase, chatId, userId, amt, lang);
+      } else {
+        // Fallback: old flow (amount first)
+        const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
+        await showDepositMethodChoice(BOT_TOKEN, supabase, chatId, userId, amt, lang);
+      }
     }
     return true;
   }
 
+  // Legacy callbacks (kept for backward compat)
   if (data === "deposit_binance") {
     const convState = await getConversationState(supabase, userId);
     if (convState?.data?.amount) {

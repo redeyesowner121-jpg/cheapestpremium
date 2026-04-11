@@ -9,7 +9,7 @@ import {
 export async function handleDepositSteps(token: string, supabase: any, chatId: number, userId: number, msg: any, state: { step: string; data: Record<string, any> }) {
   const text = msg.text || "";
 
-  // DEPOSIT: Enter amount
+  // DEPOSIT: Enter amount (method already selected)
   if (state.step === "deposit_enter_amount") {
     const amount = parseFloat(text);
     const lang2 = (await getUserLang(supabase, userId)) || "en";
@@ -17,8 +17,18 @@ export async function handleDepositSteps(token: string, supabase: any, chatId: n
       await sendMessage(token, chatId, lang2 === "bn" ? "⚠️ সঠিক পরিমাণ লিখুন।" : "⚠️ Please enter a valid amount.");
       return true;
     }
-    const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
-    await showDepositMethodChoice(token, supabase, chatId, userId, amount, lang2);
+    const method = state.data?.method;
+    if (method === "binance") {
+      const { showDepositBinance } = await import("../payment/deposit-handlers.ts");
+      await showDepositBinance(token, supabase, chatId, userId, amount, lang2);
+    } else if (method === "upi") {
+      const { showDepositUpi } = await import("../payment/deposit-handlers.ts");
+      await showDepositUpi(token, supabase, chatId, userId, amount, lang2);
+    } else {
+      // Fallback
+      const { showDepositMethodChoice } = await import("../payment/deposit-handlers.ts");
+      await showDepositMethodChoice(token, supabase, chatId, userId, amount, lang2);
+    }
     return true;
   }
 
