@@ -87,6 +87,28 @@ export async function handleMenuCallbacks(
     return true;
   }
 
+  // Knowledge approval callbacks
+  if (data.startsWith("knowledge_approve_") || data.startsWith("knowledge_reject_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const isApprove = data.startsWith("knowledge_approve_");
+    const knowledgeId = data.replace(/^knowledge_(approve|reject)_/, "");
+    
+    if (isApprove) {
+      await supabase.from("telegram_ai_knowledge").update({ status: "approved" }).eq("id", knowledgeId);
+      await sendMessage(BOT_TOKEN, chatId,
+        `✅ <b>Knowledge Approved!</b>\n\n🧠 AI এখন থেকে এই উত্তর ব্যবহার করবে।`,
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back" }]] } }
+      );
+    } else {
+      await supabase.from("telegram_ai_knowledge").delete().eq("id", knowledgeId);
+      await sendMessage(BOT_TOKEN, chatId,
+        `❌ <b>Knowledge Rejected & Deleted</b>\n\nএই উত্তর AI নলেজে যুক্ত হবে না।`,
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back" }]] } }
+      );
+    }
+    return true;
+  }
+
   // AI Training callbacks
   if (data.startsWith("aitrain_")) {
     if (!await isAdminBot(supabase, userId)) return true;
@@ -94,6 +116,7 @@ export async function handleMenuCallbacks(
     if (data.startsWith("aitrain_view_")) { await handleViewKnowledge(BOT_TOKEN, supabase, chatId, parseInt(data.replace("aitrain_view_", "")) || 0); return true; }
     if (data === "aitrain_view") { await handleViewKnowledge(BOT_TOKEN, supabase, chatId, 0); return true; }
     if (data === "aitrain_delete") { await startDeleteKnowledge(BOT_TOKEN, supabase, chatId, userId); return true; }
+    if (data === "aitrain_pending") { await handlePendingKnowledge(BOT_TOKEN, supabase, chatId); return true; }
     const category = data.replace("aitrain_", "");
     await startTrainingCategory(BOT_TOKEN, supabase, chatId, userId, category);
     return true;
