@@ -22,8 +22,25 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
     }
 
     const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
-    const tokensToTry = [token];
-    if (resaleToken && resaleToken !== token) tokensToTry.push(resaleToken);
+    
+    // Check if user has resale orders — if so, try resale bot first
+    let isResaleUser = false;
+    try {
+      const { count } = await supabase.from("telegram_orders")
+        .select("*", { count: "exact", head: true })
+        .eq("telegram_user_id", targetUserId)
+        .not("reseller_telegram_id", "is", null)
+        .limit(1);
+      isResaleUser = (count || 0) > 0;
+    } catch {}
+
+    let tokensToTry: string[];
+    if (isResaleUser && resaleToken && resaleToken !== token) {
+      tokensToTry = [resaleToken, token]; // Resale bot first for resale users
+    } else {
+      tokensToTry = [token];
+      if (resaleToken && resaleToken !== token) tokensToTry.push(resaleToken);
+    }
 
     let sent = false;
     for (const t of tokensToTry) {

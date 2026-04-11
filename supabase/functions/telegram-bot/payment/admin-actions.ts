@@ -33,12 +33,19 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   await supabase.from("telegram_orders").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", orderId);
 
-  // Build list of tokens to try (main first, then resale if it's a resale order)
-  const tokensToTry = [token];
+  // Build list of tokens to try
+  // For resale orders, use resale bot token FIRST so user gets messages in the same bot
   const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
-  if (resaleToken && resaleToken !== token && order.reseller_telegram_id) {
-    tokensToTry.push(resaleToken);
+  const isResaleOrder = !!order.reseller_telegram_id;
+  let tokensToTry: string[];
+  if (isResaleOrder && resaleToken && resaleToken !== token) {
+    tokensToTry = [resaleToken, token]; // Resale bot first
+  } else {
+    tokensToTry = [token];
+    if (resaleToken && resaleToken !== token) tokensToTry.push(resaleToken);
   }
+  // The primary token for this order (used for instant delivery etc.)
+  const userToken = isResaleOrder && resaleToken ? resaleToken : token;
 
   const msgKey: Record<string, string> = { confirmed: "order_confirmed", rejected: "order_rejected", shipped: "order_shipped" };
   await sendToUser(tokensToTry, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
@@ -128,7 +135,7 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
       const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
       if (product?.access_link) {
         const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        await sendInstantDeliveryWithLoginCode(token, supabase, order.telegram_user_id, order.telegram_user_id, product.access_link, order.product_name || "Product", userLang);
+        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, product.access_link, order.product_name || "Product", userLang);
       }
     }
 
