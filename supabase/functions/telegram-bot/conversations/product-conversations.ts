@@ -79,11 +79,7 @@ export async function handleProductAndResaleSteps(token: string, supabase: any, 
     }
     case "add_category": {
       await deleteConversationState(supabase, userId);
-      const baseSlug = state.data.name.toLowerCase().replace(/[^a-z0-9\s]+/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/(^-|-$)/g, "").slice(0, 50) || "product";
-      const { data: existingProducts } = await supabase.from("products").select("slug").like("slug", `${baseSlug}%`);
-      const existingSlugs = new Set((existingProducts || []).map((p: any) => p.slug));
-      let slug = baseSlug;
-      if (existingSlugs.has(slug)) { let c = 2; while (existingSlugs.has(`${baseSlug}-${c}`)) c++; slug = `${baseSlug}-${c}`; }
+      const slug = state.data.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") + "-" + Date.now();
       const { data: product, error } = await supabase.from("products").insert({
         name: state.data.name, price: state.data.price, category: text,
         slug, image_url: state.data.image_url || null, is_active: true,
