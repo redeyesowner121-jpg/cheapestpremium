@@ -1455,6 +1455,7 @@ export type Database = {
           language: string | null
           original_user_id: number | null
           question: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -1465,6 +1466,7 @@ export type Database = {
           language?: string | null
           original_user_id?: number | null
           question: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -1475,6 +1477,7 @@ export type Database = {
           language?: string | null
           original_user_id?: number | null
           question?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []

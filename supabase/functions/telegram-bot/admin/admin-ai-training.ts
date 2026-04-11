@@ -16,21 +16,29 @@ const TRAINING_CATEGORIES = [
 
 // ===== MAIN AI TRAINING MENU =====
 export async function handleAITrainingMenu(token: string, supabase: any, chatId: number) {
-  // Get knowledge count
-  const { count } = await supabase.from("telegram_ai_knowledge").select("*", { count: "exact", head: true });
+  const [{ count: totalCount }, { count: pendingCount }, { count: approvedCount }] = await Promise.all([
+    supabase.from("telegram_ai_knowledge").select("*", { count: "exact", head: true }),
+    supabase.from("telegram_ai_knowledge").select("*", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("telegram_ai_knowledge").select("*", { count: "exact", head: true }).eq("status", "approved"),
+  ]);
 
   const buttons = TRAINING_CATEGORIES.map(c => [{
     text: `${c.emoji} ${c.label}`,
     callback_data: `aitrain_${c.key}`,
   }]);
   
+  if ((pendingCount || 0) > 0) {
+    buttons.push([{ text: `⏳ Pending Approval (${pendingCount})`, callback_data: "aitrain_pending" }]);
+  }
   buttons.push([{ text: "📊 View All Knowledge", callback_data: "aitrain_view" }]);
   buttons.push([{ text: "🗑️ Delete Knowledge", callback_data: "aitrain_delete" }]);
   buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId,
     `🧠 <b>AI Training Center</b>\n\n` +
-    `📚 মোট শেখানো তথ্য: <b>${count || 0}</b>\n\n` +
+    `📚 মোট তথ্য: <b>${totalCount || 0}</b>\n` +
+    `✅ অ্যাপ্রুভড: <b>${approvedCount || 0}</b>\n` +
+    `⏳ পেন্ডিং: <b>${pendingCount || 0}</b>\n\n` +
     `নিচের ক্যাটেগরি সিলেক্ট করে AI কে নতুন তথ্য শেখান।\n` +
     `প্রতিটি ক্যাটেগরিতে প্রশ্ন এবং উত্তর দিন — AI পরবর্তীতে ইউজারদের এই উত্তর দেবে।`,
     { reply_markup: { inline_keyboard: buttons } }
@@ -78,37 +86,77 @@ export async function handleTrainingQuestion(token: string, supabase: any, chatI
 
 // ===== HANDLE TRAINING ANSWER INPUT =====
 export async function handleTrainingAnswer(token: string, supabase: any, chatId: number, userId: number, answer: string, question: string, category: string) {
-  // Save to knowledge base
-  const { error } = await supabase.from("telegram_ai_knowledge").insert({
+  // Save as PENDING — needs approval
+  const { data: inserted } = await supabase.from("telegram_ai_knowledge").insert({
     question: `[${category.toUpperCase()}] ${question}`,
     answer,
     added_by: userId,
     language: "auto",
-  });
+    status: "pending",
+  }).select("id").single();
 
-  if (error) {
-    await sendMessage(token, chatId, `❌ সংরক্ষণ ব্যর্থ: ${error.message}`);
+  if (!inserted) {
+    await sendMessage(token, chatId, `❌ সংরক্ষণ ব্যর্থ।`);
     return;
   }
 
   const cat = TRAINING_CATEGORIES.find(c => c.key === category);
 
   await sendMessage(token, chatId,
-    `✅ <b>AI সফলভাবে শিখেছে!</b>\n\n` +
+    `⏳ <b>পেন্ডিং অ্যাপ্রুভালে যোগ হয়েছে!</b>\n\n` +
     `${cat?.emoji || "🧠"} ক্যাটেগরি: <b>${cat?.label || category}</b>\n` +
     `❓ প্রশ্ন: <b>${question}</b>\n` +
     `✅ উত্তর: <b>${answer}</b>\n\n` +
-    `🤖 AI এখন থেকে এই ধরনের প্রশ্নে এই উত্তর দেবে।`,
+    `🧠 অ্যাপ্রুভ করলে AI এই উত্তর ব্যবহার করবে।`,
     {
       reply_markup: {
         inline_keyboard: [
+          [
+            { text: "✅ Approve Now", callback_data: `knowledge_approve_${inserted.id}` },
+            { text: "❌ Reject", callback_data: `knowledge_reject_${inserted.id}` },
+          ],
           [{ text: `${cat?.emoji || "📋"} আরো ${cat?.label || ""} যোগ করুন`, callback_data: `aitrain_${category}` }],
           [{ text: "🧠 AI Training Menu", callback_data: "adm_ai_training" }],
-          [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
         ],
       },
     }
   );
+}
+
+// ===== PENDING KNOWLEDGE QUEUE =====
+export async function handlePendingKnowledge(token: string, supabase: any, chatId: number) {
+  const { data } = await supabase
+    .from("telegram_ai_knowledge")
+    .select("id, question, answer, created_at, added_by")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!data?.length) {
+    await sendMessage(token, chatId,
+      "✅ <b>কোনো পেন্ডিং নলেজ নেই!</b>\n\nসব কিছু অ্যাপ্রুভড।",
+      { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]] } }
+    );
+    return;
+  }
+
+  let text = `⏳ <b>Pending Knowledge (${data.length})</b>\n\n`;
+  const buttons: any[][] = [];
+
+  data.forEach((k: any, i: number) => {
+    const q = k.question.length > 50 ? k.question.slice(0, 47) + "..." : k.question;
+    const a = k.answer.length > 60 ? k.answer.slice(0, 57) + "..." : k.answer;
+    text += `<b>${i + 1}.</b> ❓ ${q}\n✅ ${a}\n\n`;
+    buttons.push([
+      { text: `✅ #${i + 1} Approve`, callback_data: `knowledge_approve_${k.id}` },
+      { text: `❌ #${i + 1} Reject`, callback_data: `knowledge_reject_${k.id}` },
+    ]);
+  });
+
+  buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]);
+  buttons.push([{ text: "⬅️ Back", callback_data: "adm_back" }]);
+
+  await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
 // ===== VIEW ALL KNOWLEDGE =====

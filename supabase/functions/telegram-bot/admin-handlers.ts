@@ -17,4 +17,5 @@ export { handleListChannels, handleAddChannel, handleRemoveChannel } from "./adm
 export {
   handleAITrainingMenu, startTrainingCategory, handleTrainingQuestion,
   handleTrainingAnswer, handleViewKnowledge, startDeleteKnowledge, executeDeleteKnowledge,
+  handlePendingKnowledge,
 } from "./admin/admin-ai-training.ts";
