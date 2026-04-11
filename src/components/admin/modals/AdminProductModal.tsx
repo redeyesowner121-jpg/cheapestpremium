@@ -175,7 +175,58 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               previewHeight="h-36"
             />
           </div>
-          <Input placeholder="Access Link (Optional)" value={productForm.access_link} onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })} />
+          {/* Delivery Type for Access Link */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Auto-Delivery Type</label>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <Button
+                type="button"
+                variant={deliveryType === 'link' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setDeliveryType('link'); }}
+                className="gap-1.5"
+              >
+                <Link className="w-3.5 h-3.5" />
+                Direct Link
+              </Button>
+              <Button
+                type="button"
+                variant={deliveryType === 'credentials' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setDeliveryType('credentials'); updateAccessLink('credentials'); }}
+                className="gap-1.5"
+              >
+                <Key className="w-3.5 h-3.5" />
+                ID / Password
+              </Button>
+            </div>
+            {deliveryType === 'link' ? (
+              <Input
+                placeholder="Access Link (https://...)"
+                value={productForm.access_link}
+                onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
+              />
+            ) : (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
+                  <Input
+                    placeholder="user@example.com"
+                    value={credUsername}
+                    onChange={(e) => { setCredUsername(e.target.value); updateAccessLink('credentials', undefined, e.target.value, credPassword); }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
+                  <Input
+                    placeholder="••••••••"
+                    value={credPassword}
+                    onChange={(e) => { setCredPassword(e.target.value); updateAccessLink('credentials', undefined, credUsername, e.target.value); }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
           <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
           <div className="flex items-center justify-between">
             <span className="text-sm">Active</span>
