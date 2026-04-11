@@ -429,48 +429,60 @@ export async function handleGiveawayCallbacks(
         .eq("id", giveawayItemId);
     }
 
-    await supabase.from("giveaway_redemptions").insert({
-      telegram_id: userId,
-      giveaway_product_id: giveawayItemId,
-      points_spent: giveawayItem.points_required,
-      status: "pending",
-    });
-
     const name = productRes.data?.name || "Unknown";
     const varName = variationRes.data?.name ? ` (${variationRes.data.name})` : "";
     const firstName = telegramUser.first_name || "User";
     const username = telegramUser.username || null;
 
-    await sendMessage(token, chatId,
-      `✅ <b>Redemption Submitted!</b>\n\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts spent\n💰 Remaining: ${pts - giveawayItem.points_required} pts\n\n⏳ Admin will deliver soon!`, {
-        reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
+    // Auto-accept: fetch access_link for instant delivery
+    let accessLink: string | null = null;
+    if (giveawayItem.variation_id) {
+      const { data: varData } = await supabase.from("product_variations")
+        .select("name, price").eq("id", giveawayItem.variation_id).maybeSingle();
+      // Variations don't have access_link, use product's
+    }
+    const { data: productFull } = await supabase.from("products")
+      .select("access_link").eq("id", giveawayItem.product_id).maybeSingle();
+    accessLink = productFull?.access_link || null;
+
+    // Insert as already completed
+    await supabase.from("giveaway_redemptions").insert({
+      telegram_id: userId,
+      giveaway_product_id: giveawayItemId,
+      points_spent: giveawayItem.points_required,
+      status: "completed",
+    });
+
+    // Send delivery to user
+    if (accessLink) {
+      const isCredentials = accessLink.includes("ID:") && accessLink.includes("Password:");
+      if (isCredentials) {
+        await sendMessage(token, chatId,
+          `✅ <b>Redemption Complete!</b>\n\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts spent\n💰 Remaining: ${pts - giveawayItem.points_required} pts\n\n🔑 <b>Your Credentials:</b>\n<code>${accessLink}</code>`, {
+            reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
+          }
+        );
+      } else {
+        await sendMessage(token, chatId,
+          `✅ <b>Redemption Complete!</b>\n\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts spent\n💰 Remaining: ${pts - giveawayItem.points_required} pts\n\n🔗 <b>Your Access Link:</b>\n${accessLink}`, {
+            reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
+          }
+        );
       }
-    );
+    } else {
+      await sendMessage(token, chatId,
+        `✅ <b>Redemption Complete!</b>\n\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts spent\n💰 Remaining: ${pts - giveawayItem.points_required} pts\n\n📦 Your product has been delivered!`, {
+          reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
+        }
+      );
+    }
 
     const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
-    await notifyAllAdmins(MAIN_TOKEN, supabase,
-      `🎁 <b>New Giveaway Redemption!</b>\n\n👤 ${firstName} ${username ? `(@${username})` : ""}\n🆔 <code>${userId}</code>\n🏷️ ${name}${varName}\n🎯 ${giveawayItem.points_required} pts\n\n📱 Admin Panel → Giveaway Bot → Redemptions`
-    );
 
     try {
       const { logProof, formatGiveawayRedeem } = await import("./proof-logger.ts");
       await logProof(MAIN_TOKEN, formatGiveawayRedeem(userId, `${name}${varName}`, giveawayItem.points_required));
     } catch {}
-
-    const { data: adminRoles } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .in("role", ["admin", "temp_admin"]);
-
-    if (adminRoles?.length) {
-      const notifications = adminRoles.map((ar: any) => ({
-        user_id: ar.user_id,
-        title: "🎁 New Giveaway Redemption",
-        message: `${firstName} ${username ? `(@${username})` : ""} redeemed ${name}${varName} for ${giveawayItem.points_required} pts`,
-        type: "order",
-      }));
-      await supabase.from("notifications").insert(notifications);
-    }
 
     return true;
   }
