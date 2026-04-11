@@ -133,9 +133,17 @@ export const useAdminPageActions = (loadData: () => void) => {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
-      .slice(0, 40) || 'product';
-    const slugSuffix = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    const productSlug = `${baseSlug}-${slugSuffix}`;
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 50) || 'product';
+    
+    const { data: existing } = await supabase.from('products').select('slug').like('slug', `${baseSlug}%`);
+    const existingSlugs = new Set((existing || []).map((p: any) => p.slug));
+    let productSlug = baseSlug;
+    if (existingSlugs.has(productSlug)) {
+      let counter = 2;
+      while (existingSlugs.has(`${baseSlug}-${counter}`)) counter++;
+      productSlug = `${baseSlug}-${counter}`;
+    }
 
     const { data: newProduct, error } = await supabase.from('products').insert({
       name: productForm.name, description: productForm.description,
