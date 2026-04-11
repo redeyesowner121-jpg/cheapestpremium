@@ -58,19 +58,43 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
     const { targetUserId, originalQuestion, questionLang } = state.data;
     await deleteConversationState(supabase, userId);
 
-    await supabase.from("telegram_ai_knowledge").insert({
+    // Save as PENDING knowledge — needs admin approval
+    const { data: inserted } = await supabase.from("telegram_ai_knowledge").insert({
       question: originalQuestion, answer: text, added_by: userId,
       original_user_id: targetUserId, language: questionLang || "en",
-    });
+      status: "pending",
+    }).select("id").single();
 
     const userState = await import("../db-helpers.ts").then(m => m.getConversationState(supabase, targetUserId));
     if (userState?.step === "awaiting_admin_answer") {
       await deleteConversationState(supabase, targetUserId);
     }
 
+    // Send answer to user immediately
     const userLang = questionLang || "en";
     await sendMessage(token, targetUserId, userLang === "bn" ? `📩 <b>উত্তর:</b>\n\n${text}` : `📩 <b>Answer:</b>\n\n${text}`);
-    await sendMessage(token, chatId, `✅ <b>Done!</b>\n\n📩 Answer sent to user <code>${targetUserId}</code>\n🧠 AI has learned this answer for future use.\n\n❓ <b>Q:</b> ${originalQuestion}\n✅ <b>A:</b> ${text}`);
+
+    // Show approve/reject to admin
+    const knowledgeId = inserted?.id || "";
+    await sendMessage(token, chatId,
+      `✅ <b>উত্তর পাঠানো হয়েছে!</b>\n\n` +
+      `📩 User <code>${targetUserId}</code> কে উত্তর দেওয়া হয়েছে\n\n` +
+      `❓ <b>Q:</b> ${originalQuestion}\n` +
+      `✅ <b>A:</b> ${text}\n\n` +
+      `🧠 <b>এটাকে AI নলেজ হিসেবে সেভ করবেন?</b>\n` +
+      `এপ্রুভ করলে ভবিষ্যতে AI এই উত্তর অন্য ইউজারদের দিতে পারবে।`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: "✅ Approve Knowledge", callback_data: `knowledge_approve_${knowledgeId}` },
+              { text: "❌ Reject", callback_data: `knowledge_reject_${knowledgeId}` },
+            ],
+            [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+          ],
+        },
+      }
+    );
     return true;
   }
 
