@@ -41,17 +41,39 @@ function generateFallbackQrUrl(upiId: string, upiName: string, amount: number): 
   return `https://quickchart.io/qr?size=300&text=${encodeURIComponent(generatePayUrl(upiId, upiName, amount))}`;
 }
 
-// Step 1: Ask deposit amount
+// Step 1: Show payment method choice FIRST (Binance / UPI)
 export async function handleDepositStart(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+  await setConversationState(supabase, userId, "deposit_choose_method", {});
+
+  const text = lang === "bn"
+    ? `➕ <b>ওয়ালেট টপ আপ</b>\n\nপেমেন্ট পদ্ধতি বেছে নিন:`
+    : `➕ <b>Wallet Top Up</b>\n\nChoose payment method:`;
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "💎 Binance", callback_data: "deposit_method_binance" },
+          { text: "📱 UPI", callback_data: "deposit_method_upi" },
+        ],
+        [{ text: t("back", lang), callback_data: "my_wallet" }],
+      ],
+    },
+  });
+}
+
+// Step 2: Ask deposit amount AFTER method is chosen
+export async function showDepositAmountEntry(token: string, supabase: any, chatId: number, userId: number, method: string, lang: string) {
   const settings = await getSettings(supabase);
   const minDeposit = settings.min_deposit_amount || "100";
   const maxDeposit = settings.max_deposit_amount || "50000";
+  const methodLabel = method === "binance" ? "💎 Binance" : "📱 UPI";
 
-  await setConversationState(supabase, userId, "deposit_enter_amount", {});
+  await setConversationState(supabase, userId, "deposit_enter_amount", { method });
 
   const text = lang === "bn"
-    ? `➕ <b>ওয়ালেট টপ আপ</b>\n\n💰 কত টাকা জমা করতে চান?\n\n📊 সীমা: ₹${minDeposit} - ₹${maxDeposit}\n\n✏️ পরিমাণ লিখুন (যেমন: <code>500</code>)`
-    : `➕ <b>Wallet Top Up</b>\n\nHow much do you want to deposit?\n\n📊 Limits: ₹${minDeposit} - ₹${maxDeposit}\n\n✏️ Enter amount (e.g. <code>500</code>)`;
+    ? `${methodLabel} <b>ডিপোজিট</b>\n\n💰 কত টাকা জমা করতে চান?\n\n📊 সীমা: ₹${minDeposit} - ₹${maxDeposit}\n\n✏️ পরিমাণ লিখুন (যেমন: <code>500</code>)`
+    : `${methodLabel} <b>Deposit</b>\n\nHow much do you want to deposit?\n\n📊 Limits: ₹${minDeposit} - ₹${maxDeposit}\n\n✏️ Enter amount (e.g. <code>500</code>)`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
@@ -66,33 +88,25 @@ export async function handleDepositStart(token: string, supabase: any, chatId: n
           { text: "₹2000", callback_data: "deposit_amt_2000" },
           { text: "₹5000", callback_data: "deposit_amt_5000" },
         ],
-        [{ text: t("back", lang), callback_data: "my_wallet" }],
+        [{ text: t("back", lang), callback_data: "wallet_deposit" }],
       ],
     },
   });
 }
 
-// Step 2: Show payment method choice
+// Legacy wrapper — now routes based on method stored in conversation state
 export async function showDepositMethodChoice(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
-  const settings = await getSettings(supabase);
-  const currency = settings.currency_symbol || "₹";
-
-  await setConversationState(supabase, userId, "deposit_choose_method", { amount });
-
-  let text = `<b>💰 ${lang === "bn" ? "ডিপোজিট" : "Deposit"}: ${currency}${amount}</b>\n\n`;
-  text += lang === "bn" ? "পেমেন্ট পদ্ধতি বেছে নিন:" : "Choose payment method:";
-
-  await sendMessage(token, chatId, text, {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: "💎 Binance", callback_data: "deposit_binance" },
-          { text: "📱 UPI", callback_data: "deposit_upi" },
-        ],
-        [{ text: t("back", lang), callback_data: "wallet_deposit" }],
-      ],
-    },
-  });
+  const { getConversationState } = await import("../db-helpers.ts");
+  const convState = await getConversationState(supabase, userId);
+  const method = convState?.data?.method;
+  if (method === "binance") {
+    await showDepositBinance(token, supabase, chatId, userId, amount, lang);
+  } else if (method === "upi") {
+    await showDepositUpi(token, supabase, chatId, userId, amount, lang);
+  } else {
+    // Fallback: if no method in state, show UPI sub-choice
+    await showDepositUpi(token, supabase, chatId, userId, amount, lang);
+  }
 }
 
 // Step 3a: Binance deposit — 20 min reservation, same amount locked
