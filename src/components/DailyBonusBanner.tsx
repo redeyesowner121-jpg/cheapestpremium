@@ -112,7 +112,7 @@ const DailyBonusBanner: React.FC<DailyBonusBannerProps> = React.memo(({ onBonusC
     );
   }
 
-  if (!profile || !canClaimBonus || dismissed) return null;
+  if (!profile || !canClaimBonus || dismissed || !profile.has_blue_check) return null;
 
   // Daily Bonus Banner
   return (
