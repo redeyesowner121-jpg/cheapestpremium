@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Link, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,6 +21,23 @@ const AdminOrderModal: React.FC<AdminOrderModalProps> = ({
   adminNote, accessLink, onAdminNoteChange, onAccessLinkChange,
   onUpdateStatus
 }) => {
+  const [deliveryType, setDeliveryType] = React.useState<'link' | 'credentials'>('link');
+  const [credUsername, setCredUsername] = React.useState('');
+  const [credPassword, setCredPassword] = React.useState('');
+
+  // Build access link from credentials format
+  const getDeliveryValue = () => {
+    if (deliveryType === 'credentials') {
+      return `ID: ${credUsername}\nPassword: ${credPassword}`;
+    }
+    return accessLink;
+  };
+
+  const handleUpdateStatus = (orderId: string, status: string) => {
+    onAccessLinkChange(getDeliveryValue());
+    setTimeout(() => onUpdateStatus(orderId, status), 50);
+  };
+
   if (!order) return null;
 
   return (
@@ -53,24 +70,64 @@ const AdminOrderModal: React.FC<AdminOrderModalProps> = ({
             </div>
           )}
 
+          {/* Delivery Type Selector */}
           <div>
-            <label className="text-sm font-medium mb-1 block">Access Link</label>
-            <Input placeholder="https://..." value={accessLink} onChange={(e) => onAccessLinkChange(e.target.value)} />
+            <label className="text-sm font-medium mb-2 block">Delivery Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={deliveryType === 'link' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDeliveryType('link')}
+                className="gap-1.5"
+              >
+                <Link className="w-3.5 h-3.5" />
+                Direct Link
+              </Button>
+              <Button
+                type="button"
+                variant={deliveryType === 'credentials' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDeliveryType('credentials')}
+                className="gap-1.5"
+              >
+                <Key className="w-3.5 h-3.5" />
+                ID / Password
+              </Button>
+            </div>
           </div>
+
+          {deliveryType === 'link' ? (
+            <div>
+              <label className="text-sm font-medium mb-1 block">Access Link</label>
+              <Input placeholder="https://..." value={accessLink} onChange={(e) => onAccessLinkChange(e.target.value)} />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Username / Email / ID</label>
+                <Input placeholder="user@example.com" value={credUsername} onChange={(e) => setCredUsername(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Password</label>
+                <Input placeholder="••••••••" value={credPassword} onChange={(e) => setCredPassword(e.target.value)} />
+              </div>
+            </div>
+          )}
 
           <Textarea placeholder="Add note for customer..." value={adminNote} onChange={(e) => onAdminNoteChange(e.target.value)} />
 
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={() => onUpdateStatus(order.id, 'processing')}>
+            <Button variant="outline" onClick={() => handleUpdateStatus(order.id, 'processing')}>
               <Clock className="w-4 h-4 mr-2" />
               Processing
             </Button>
-            <Button className="bg-success text-success-foreground hover:bg-success/90" onClick={() => onUpdateStatus(order.id, 'completed')}>
+            <Button className="bg-success text-success-foreground hover:bg-success/90" onClick={() => handleUpdateStatus(order.id, 'completed')}>
               <CheckCircle className="w-4 h-4 mr-2" />
               Complete
             </Button>
           </div>
-          <Button variant="destructive" className="w-full" onClick={() => onUpdateStatus(order.id, 'cancelled')}>
+          <Button variant="destructive" className="w-full" onClick={() => handleUpdateStatus(order.id, 'cancelled')}>
             <XCircle className="w-4 h-4 mr-2" />
             Cancel & Refund
           </Button>

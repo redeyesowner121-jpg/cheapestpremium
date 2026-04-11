@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle, XCircle, MessageCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, MessageCircle, Link, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,13 +29,35 @@ const OrderModal: React.FC<OrderModalProps> = ({
 }) => {
   const [adminNote, setAdminNote] = React.useState(order?.admin_note || '');
   const [accessLink, setAccessLink] = React.useState(order?.access_link || '');
+  const [deliveryType, setDeliveryType] = React.useState<'link' | 'credentials'>('link');
+  const [credUsername, setCredUsername] = React.useState('');
+  const [credPassword, setCredPassword] = React.useState('');
 
   React.useEffect(() => {
     if (order) {
       setAdminNote(order.admin_note || '');
       setAccessLink(order.access_link || '');
+      // Auto-detect if existing access_link is credentials format
+      if (order.access_link && order.access_link.includes('ID:') && order.access_link.includes('Password:')) {
+        setDeliveryType('credentials');
+        const idMatch = order.access_link.match(/ID:\s*(.+)/);
+        const pwMatch = order.access_link.match(/Password:\s*(.+)/);
+        setCredUsername(idMatch?.[1]?.trim() || '');
+        setCredPassword(pwMatch?.[1]?.trim() || '');
+      } else {
+        setDeliveryType('link');
+        setCredUsername('');
+        setCredPassword('');
+      }
     }
   }, [order]);
+
+  const getDeliveryValue = () => {
+    if (deliveryType === 'credentials') {
+      return `ID: ${credUsername}\nPassword: ${credPassword}`;
+    }
+    return accessLink;
+  };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
     // Re-fetch fresh order data to prevent race conditions
@@ -57,14 +79,16 @@ const OrderModal: React.FC<OrderModalProps> = ({
       return;
     }
     
+    const finalAccessLink = getDeliveryValue();
+    
     const updateData: any = { 
       status, 
       admin_note: adminNote || null,
       updated_at: new Date().toISOString()
     };
     
-    if (accessLink) {
-      updateData.access_link = accessLink;
+    if (finalAccessLink) {
+      updateData.access_link = finalAccessLink;
     }
 
     const { error } = await supabase.from('orders').update(updateData).eq('id', orderId);
@@ -142,6 +166,8 @@ const OrderModal: React.FC<OrderModalProps> = ({
     toast.success('Order updated!');
     setAdminNote('');
     setAccessLink('');
+    setCredUsername('');
+    setCredPassword('');
     onOpenChange(false);
     onRefresh();
   };
@@ -183,7 +209,6 @@ const OrderModal: React.FC<OrderModalProps> = ({
             {!order.user_id && order.guest_email && (
               <p className="text-accent font-medium">🏷️ Guest Order</p>
             )}
-            {/* WhatsApp Button */}
             {(() => {
               const phoneNumber = order.user_id ? order.profiles?.phone : order.guest_phone;
               if (phoneNumber) {
@@ -218,11 +243,51 @@ const OrderModal: React.FC<OrderModalProps> = ({
             rows={2}
           />
 
-          <Input
-            placeholder="Access Link / Credentials"
-            value={accessLink}
-            onChange={(e) => setAccessLink(e.target.value)}
-          />
+          {/* Delivery Type Selector */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Delivery Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={deliveryType === 'link' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDeliveryType('link')}
+                className="gap-1.5"
+              >
+                <Link className="w-3.5 h-3.5" />
+                Direct Link
+              </Button>
+              <Button
+                type="button"
+                variant={deliveryType === 'credentials' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDeliveryType('credentials')}
+                className="gap-1.5"
+              >
+                <Key className="w-3.5 h-3.5" />
+                ID / Password
+              </Button>
+            </div>
+          </div>
+
+          {deliveryType === 'link' ? (
+            <Input
+              placeholder="Access Link (https://...)"
+              value={accessLink}
+              onChange={(e) => setAccessLink(e.target.value)}
+            />
+          ) : (
+            <div className="space-y-2">
+              <div>
+                <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
+                <Input placeholder="user@example.com" value={credUsername} onChange={(e) => setCredUsername(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
+                <Input placeholder="••••••••" value={credPassword} onChange={(e) => setCredPassword(e.target.value)} />
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => handleUpdateOrderStatus(order.id, 'processing')}>
