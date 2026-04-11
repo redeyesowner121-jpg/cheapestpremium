@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Package } from 'lucide-react';
+import { Plus, Trash2, Package, Link, Key } from 'lucide-react';
 import ImageUpload from '@/components/ui/image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
