@@ -224,6 +224,169 @@ export type Database = {
         }
         Relationships: []
       }
+      child_bot_earnings: {
+        Row: {
+          amount: number
+          child_bot_id: string
+          created_at: string
+          id: string
+          order_id: string
+          status: string
+        }
+        Insert: {
+          amount?: number
+          child_bot_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          child_bot_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_bot_earnings_child_bot_id_fkey"
+            columns: ["child_bot_id"]
+            isOneToOne: false
+            referencedRelation: "child_bots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "child_bot_earnings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "child_bot_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_bot_orders: {
+        Row: {
+          buyer_telegram_id: number
+          child_bot_id: string
+          created_at: string
+          id: string
+          main_order_id: string | null
+          owner_commission: number
+          product_name: string
+          status: string
+          telegram_order_id: string | null
+          total_price: number
+        }
+        Insert: {
+          buyer_telegram_id: number
+          child_bot_id: string
+          created_at?: string
+          id?: string
+          main_order_id?: string | null
+          owner_commission?: number
+          product_name: string
+          status?: string
+          telegram_order_id?: string | null
+          total_price?: number
+        }
+        Update: {
+          buyer_telegram_id?: number
+          child_bot_id?: string
+          created_at?: string
+          id?: string
+          main_order_id?: string | null
+          owner_commission?: number
+          product_name?: string
+          status?: string
+          telegram_order_id?: string | null
+          total_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_bot_orders_child_bot_id_fkey"
+            columns: ["child_bot_id"]
+            isOneToOne: false
+            referencedRelation: "child_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_bot_users: {
+        Row: {
+          child_bot_id: string
+          created_at: string
+          first_name: string | null
+          id: string
+          last_active: string
+          telegram_id: number
+          username: string | null
+        }
+        Insert: {
+          child_bot_id: string
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_active?: string
+          telegram_id: number
+          username?: string | null
+        }
+        Update: {
+          child_bot_id?: string
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_active?: string
+          telegram_id?: number
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_bot_users_child_bot_id_fkey"
+            columns: ["child_bot_id"]
+            isOneToOne: false
+            referencedRelation: "child_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      child_bots: {
+        Row: {
+          bot_token: string
+          bot_username: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          owner_telegram_id: number
+          revenue_percent: number
+          total_earnings: number
+          total_orders: number
+        }
+        Insert: {
+          bot_token: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_telegram_id: number
+          revenue_percent?: number
+          total_earnings?: number
+          total_orders?: number
+        }
+        Update: {
+          bot_token?: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_telegram_id?: number
+          revenue_percent?: number
+          total_earnings?: number
+          total_orders?: number
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           code: string
@@ -637,6 +800,36 @@ export type Database = {
           transaction_id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      mother_bot_users: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          last_active: string
+          last_name: string | null
+          telegram_id: number
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_active?: string
+          last_name?: string | null
+          telegram_id: number
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          last_active?: string
+          last_name?: string | null
+          telegram_id?: number
+          username?: string | null
         }
         Relationships: []
       }
