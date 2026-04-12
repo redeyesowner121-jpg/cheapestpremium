@@ -1,21 +1,25 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lightbulb, Search, X } from 'lucide-react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
-import FlashSaleSlider from '@/components/FlashSaleSlider';
-import FlashSaleDetailModal from '@/components/FlashSaleDetailModal';
 import CategoryGrid from '@/components/CategoryGrid';
 import ProductGrid from '@/components/ProductGrid';
-import CategorySection from '@/components/CategorySection';
-import QuickStats from '@/components/QuickStats';
-import DailyBonusBanner from '@/components/DailyBonusBanner';
-import OnboardingTour from '@/components/OnboardingTour';
-import PersonalizedRecommendations from '@/components/PersonalizedRecommendations';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNotifications } from '@/hooks/useNotifications';
+
+// Lazy load non-critical sections
+const FlashSaleSlider = lazy(() => import('@/components/FlashSaleSlider'));
+const FlashSaleDetailModal = lazy(() => import('@/components/FlashSaleDetailModal'));
+const CategorySection = lazy(() => import('@/components/CategorySection'));
+const QuickStats = lazy(() => import('@/components/QuickStats'));
+const DailyBonusBanner = lazy(() => import('@/components/DailyBonusBanner'));
+const OnboardingTour = lazy(() => import('@/components/OnboardingTour'));
+const PersonalizedRecommendations = lazy(() => import('@/components/PersonalizedRecommendations'));
+
+const LazyFallback = () => null;
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
@@ -25,33 +29,40 @@ const Index: React.FC = () => {
   const [flashSales, setFlashSales] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [methodsProducts, setMethodsProducts] = useState<any[]>([]);
-  const [coursesProducts, setCoursesProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedFlashSale, setSelectedFlashSale] = useState<any>(null);
   const [showFlashSaleModal, setShowFlashSaleModal] = useState(false);
-  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [deferredReady, setDeferredReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [homeSearchQuery, setHomeSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dataLoadedRef = useRef(false);
 
+  // Load data once
   useEffect(() => {
-    loadData();
-    
-    // Auto-request notification permission when user is logged in
-    if (user && permission === 'default') {
-      setTimeout(async () => {
-        await requestPermission();
-      }, 1500);
+    if (!dataLoadedRef.current) {
+      dataLoadedRef.current = true;
+      loadData();
     }
-    // Defer recommendations render
-    const timer = setTimeout(() => setShowRecommendations(true), 500);
-    return () => clearTimeout(timer);
+    
+    if (user && permission === 'default') {
+      const t = setTimeout(() => requestPermission(), 2000);
+      return () => clearTimeout(t);
+    }
   }, [user, permission]);
 
-  // AI-powered smart search
+  // Defer heavy sections
+  useEffect(() => {
+    const t = requestAnimationFrame(() => {
+      setTimeout(() => setDeferredReady(true), 100);
+    });
+    return () => cancelAnimationFrame(t);
+  }, []);
+
+  // Debounced search
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     
@@ -67,24 +78,16 @@ const Index: React.FC = () => {
         const { data, error } = await supabase.functions.invoke('smart-search', {
           body: { query: homeSearchQuery.trim() },
         });
-
         if (error) throw error;
-
         if (data?.products) {
           setSearchResults(data.products.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price,
+            id: p.id, name: p.name, price: p.price,
             image: p.image_url || 'https://via.placeholder.com/200',
-            originalPrice: p.original_price,
-            reseller_price: p.reseller_price,
-            soldCount: p.sold_count || 0,
-            rating: p.rating || 4.5,
+            originalPrice: p.original_price, reseller_price: p.reseller_price,
+            soldCount: p.sold_count || 0, rating: p.rating || 4.5,
           })));
         }
-      } catch (err) {
-        console.error('Smart search error:', err);
-        // Fallback to basic DB search
+      } catch {
         const query = homeSearchQuery.trim().toLowerCase();
         const { data } = await supabase
           .from('products')
@@ -92,83 +95,53 @@ const Index: React.FC = () => {
           .eq('is_active', true)
           .or(`name.ilike.%${query}%,seo_tags.ilike.%${query}%`)
           .limit(8);
-
         if (data) {
           setSearchResults(data.map(p => ({
-            id: p.id,
-            name: p.name,
-            price: p.price,
+            id: p.id, name: p.name, price: p.price,
             image: p.image_url || 'https://via.placeholder.com/200',
-            originalPrice: p.original_price,
-            reseller_price: p.reseller_price,
-            soldCount: p.sold_count || 0,
-            rating: p.rating || 4.5,
+            originalPrice: p.original_price, reseller_price: p.reseller_price,
+            soldCount: p.sold_count || 0, rating: p.rating || 4.5,
           })));
         }
       }
       setSearchLoading(false);
     }, 500);
 
-    return () => {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    };
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
   }, [homeSearchQuery]);
+
+  const mapProduct = useCallback((p: any) => {
+    const vars = (p.product_variations || [])
+      .filter((v: any) => v.is_active !== false)
+      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    const firstVar = vars[0];
+    return {
+      id: p.id, name: p.name,
+      price: firstVar ? firstVar.price : p.price,
+      originalPrice: p.original_price,
+      image: p.image_url || 'https://via.placeholder.com/200',
+      rating: p.rating || 4.5, soldCount: p.sold_count || 0,
+      reseller_price: p.reseller_price, created_at: p.created_at
+    };
+  }, []);
 
   const loadData = async () => {
     try {
-      const [bannersRes, flashSalesRes, productsRes, methodsRes, coursesRes, categoriesRes] = await Promise.all([
-        supabase
-          .from('banners')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true }),
-        supabase
-          .from('flash_sales')
-          .select('*, products(*)')
-          .eq('is_active', true)
-          .gt('end_time', new Date().toISOString()),
-        supabase
-          .from('products')
-          .select('*, product_variations(*)')
-          .eq('is_active', true)
-          .limit(8),
-        supabase
-          .from('products')
-          .select('*, product_variations(*)')
-          .eq('is_active', true)
-          .ilike('category', '%methods%')
-          .limit(6),
-        supabase
-          .from('products')
-          .select('*, product_variations(*)')
-          .eq('is_active', true)
-          .ilike('category', '%courses%')
-          .limit(6),
-        supabase
-          .from('categories')
-          .select('*')
-          .eq('is_active', true)
-          .order('sort_order', { ascending: true })
+      const [bannersRes, flashSalesRes, productsRes, methodsRes, categoriesRes] = await Promise.all([
+        supabase.from('banners').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('flash_sales').select('*, products(*)').eq('is_active', true).gt('end_time', new Date().toISOString()),
+        supabase.from('products').select('*, product_variations(*)').eq('is_active', true).limit(8),
+        supabase.from('products').select('*, product_variations(*)').eq('is_active', true).ilike('category', '%methods%').limit(6),
+        supabase.from('categories').select('*').eq('is_active', true).order('sort_order', { ascending: true })
       ]);
 
-      if (categoriesRes.error) console.error('Categories error:', categoriesRes.error);
       if (categoriesRes.data) setCategories(categoriesRes.data);
-
-      if (bannersRes.error) console.error('Banners error:', bannersRes.error);
-      if (bannersRes.data && bannersRes.data.length > 0) {
-        setBanners(bannersRes.data.map(b => ({
-          id: b.id,
-          image: b.image_url,
-          title: b.title,
-          link: b.link
-        })));
+      if (bannersRes.data?.length) {
+        setBanners(bannersRes.data.map(b => ({ id: b.id, image: b.image_url, title: b.title, link: b.link })));
       }
-
-      if (flashSalesRes.error) console.error('Flash sales error:', flashSalesRes.error);
       if (flashSalesRes.data) {
         setFlashSales(flashSalesRes.data.map(fs => ({
-          id: fs.id,
-          productId: fs.product_id,
+          id: fs.id, productId: fs.product_id,
           name: fs.products?.name || 'Product',
           originalPrice: fs.products?.price || 0,
           salePrice: fs.sale_price,
@@ -178,81 +151,39 @@ const Index: React.FC = () => {
           variationName: (fs as any).variation_name || null,
         })));
       }
-
-      if (productsRes.error) console.error('Products error:', productsRes.error);
-      if (productsRes.data) {
-        setProducts(productsRes.data.map(p => {
-          const vars = (p.product_variations || [])
-            .filter((v: any) => v.is_active !== false)
-            .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          const firstVar = vars[0];
-          const displayPrice = firstVar ? firstVar.price : p.price;
-          return {
-            id: p.id,
-            name: p.name,
-            price: displayPrice,
-            originalPrice: p.original_price,
-            image: p.image_url || 'https://via.placeholder.com/200',
-            rating: p.rating || 4.5,
-            soldCount: p.sold_count || 0,
-            reseller_price: p.reseller_price,
-            created_at: p.created_at
-          };
-        }));
-      }
-
-      if (methodsRes.error) console.error('Methods error:', methodsRes.error);
-      if (methodsRes.data) {
-        setMethodsProducts(methodsRes.data.map(p => {
-          const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          const firstVar = vars[0];
-          return {
-            id: p.id, name: p.name,
-            price: firstVar ? firstVar.price : p.price,
-            originalPrice: p.original_price,
-            image: p.image_url || 'https://via.placeholder.com/200',
-            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price,
-            created_at: p.created_at
-          };
-        }));
-      }
-
-      if (coursesRes.error) console.error('Courses error:', coursesRes.error);
-      if (coursesRes.data) {
-        setCoursesProducts(coursesRes.data.map(p => {
-          const vars = (p.product_variations || []).filter((v: any) => v.is_active !== false).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          const firstVar = vars[0];
-          return {
-            id: p.id, name: p.name,
-            price: firstVar ? firstVar.price : p.price,
-            originalPrice: p.original_price,
-            image: p.image_url || 'https://via.placeholder.com/200',
-            rating: p.rating || 4.5, soldCount: p.sold_count || 0, reseller_price: p.reseller_price,
-            created_at: p.created_at
-          };
-        }));
-      }
+      if (productsRes.data) setProducts(productsRes.data.map(mapProduct));
+      if (methodsRes.data) setMethodsProducts(methodsRes.data.map(mapProduct));
     } catch (error) {
       console.error('Error loading data:', error);
     }
   };
 
-  const handleProductClick = (product: any) => {
-    // Ensure consistent product format for detail page
-    const productForDetail = {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      image: product.image,
-      image_url: product.image,
-      rating: product.rating || 4.5,
-      soldCount: product.soldCount || 0,
-      sold_count: product.soldCount || 0,
-      reseller_price: product.reseller_price
-    };
-    navigate(`/product/${product.slug || product.id}`, { state: { product: productForDetail } });
-  };
+  const handleProductClick = useCallback((product: any) => {
+    navigate(`/product/${product.slug || product.id}`, {
+      state: {
+        product: {
+          id: product.id, name: product.name, price: product.price,
+          originalPrice: product.originalPrice, image: product.image,
+          image_url: product.image, rating: product.rating || 4.5,
+          soldCount: product.soldCount || 0, sold_count: product.soldCount || 0,
+          reseller_price: product.reseller_price
+        }
+      }
+    });
+  }, [navigate]);
+
+  const handleFlashSaleClick = useCallback((item: any) => {
+    setSelectedFlashSale(item);
+    setShowFlashSaleModal(true);
+  }, []);
+
+  const handleFlashSaleBuy = useCallback((item: any) => {
+    setShowFlashSaleModal(false);
+    navigate('/product', { state: { product: item.productData, flashSalePrice: item.salePrice } });
+  }, [navigate]);
+
+  const handleCategoryClick = useCallback(() => navigate('/products'), [navigate]);
+  const handleMethodsViewAll = useCallback(() => navigate('/products', { state: { category: 'Methods' } }), [navigate]);
 
   if (loading) {
     return (
@@ -263,22 +194,29 @@ const Index: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24 relative overflow-hidden" style={{ background: 'linear-gradient(180deg, hsl(var(--background)) 0%, hsl(250 30% 95%) 30%, hsl(280 20% 94%) 60%, hsl(320 15% 95%) 100%)' }}>
-      {/* Decorative background orbs */}
-      <div className="fixed top-20 -left-32 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
-      <div className="fixed top-1/3 -right-32 w-72 h-72 rounded-full bg-secondary/8 blur-3xl pointer-events-none" />
-      <div className="fixed bottom-1/4 -left-24 w-56 h-56 rounded-full bg-accent/6 blur-3xl pointer-events-none" />
+    <div className="min-h-screen pb-24 relative overflow-hidden bg-page-gradient">
+      {/* Decorative background orbs - use CSS only */}
+      <div className="fixed top-20 -left-32 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none will-change-transform" />
+      <div className="fixed top-1/3 -right-32 w-72 h-72 rounded-full bg-secondary/8 blur-3xl pointer-events-none will-change-transform" />
       
       <Header />
       
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-6 relative z-10">
-        {/* Daily Bonus Banner - shows until claimed */}
-        {user && <DailyBonusBanner />}
+        {user && (
+          <Suspense fallback={<LazyFallback />}>
+            <DailyBonusBanner />
+          </Suspense>
+        )}
         
         <BannerSlider banners={banners} />
-        {user && <QuickStats />}
+        
+        {user && (
+          <Suspense fallback={<div className="h-48 rounded-2xl bg-muted animate-pulse" />}>
+            <QuickStats />
+          </Suspense>
+        )}
 
-        {/* Search Bar - expandable */}
+        {/* Search Bar */}
         <div className="-mx-4 px-4 py-1">
           {searchOpen ? (
             <div className="relative">
@@ -297,19 +235,13 @@ const Index: React.FC = () => {
                 placeholder="Search products..."
                 className="w-full pl-12 pr-12 py-3.5 rounded-2xl gradient-primary text-white placeholder-white/60 text-sm font-medium outline-none shadow-colored-primary"
               />
-              <button
-                onClick={() => { setSearchOpen(false); setHomeSearchQuery(''); }}
-                className="absolute right-4 top-1/2 -translate-y-1/2"
-              >
+              <button onClick={() => { setSearchOpen(false); setHomeSearchQuery(''); }} className="absolute right-4 top-1/2 -translate-y-1/2">
                 <X className="w-5 h-5 text-white/70" />
               </button>
             </div>
           ) : (
             <button
-              onClick={() => {
-                setSearchOpen(true);
-                setTimeout(() => searchInputRef.current?.focus(), 100);
-              }}
+              onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 100); }}
               className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl gradient-primary hover:opacity-95 transition-all active:scale-[0.98] shadow-colored-primary"
             >
               <Search className="w-5 h-5 text-white" />
@@ -327,12 +259,9 @@ const Index: React.FC = () => {
               </div>
             ) : searchResults.length > 0 ? (
               searchResults.map(product => (
-                <button
-                  key={product.id}
-                  onClick={() => handleProductClick(product)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-card shadow-sm hover:shadow-md transition-shadow text-left"
-                >
-                  <img src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover" />
+                <button key={product.id} onClick={() => handleProductClick(product)}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl bg-card shadow-sm hover:shadow-md transition-shadow text-left">
+                  <img src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover" loading="lazy" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
                     <p className="text-xs text-primary font-semibold">₹{product.price}</p>
@@ -345,56 +274,51 @@ const Index: React.FC = () => {
           </div>
         )}
 
-        <FlashSaleSlider 
-          items={flashSales} 
-          onItemClick={(item) => {
-            setSelectedFlashSale(item);
-            setShowFlashSaleModal(true);
-          }} 
-        />
+        {deferredReady && (
+          <Suspense fallback={<LazyFallback />}>
+            <FlashSaleSlider items={flashSales} onItemClick={handleFlashSaleClick} />
+          </Suspense>
+        )}
         
-        {/* Personalized Recommendations - deferred */}
-        {showRecommendations && <PersonalizedRecommendations />}
+        {deferredReady && (
+          <Suspense fallback={<LazyFallback />}>
+            <PersonalizedRecommendations />
+          </Suspense>
+        )}
         
-        <CategoryGrid categories={categories} onCategoryClick={() => navigate('/products')} />
+        <CategoryGrid categories={categories} onCategoryClick={handleCategoryClick} />
         
-        {/* Methods Section */}
-        <CategorySection
-          title="Methods"
-          icon={<Lightbulb className="w-5 h-5" />}
-          products={methodsProducts}
-          onProductClick={handleProductClick}
-          onViewAll={() => navigate('/products', { state: { category: 'Methods' } })}
-          bgColor="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
-          accentColor="text-orange-600"
-        />
+        {deferredReady && methodsProducts.length > 0 && (
+          <Suspense fallback={<LazyFallback />}>
+            <CategorySection
+              title="Methods"
+              icon={<Lightbulb className="w-5 h-5" />}
+              products={methodsProducts}
+              onProductClick={handleProductClick}
+              onViewAll={handleMethodsViewAll}
+              bgColor="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30"
+              accentColor="text-orange-600"
+            />
+          </Suspense>
+        )}
         
-        
-        <ProductGrid 
-          products={products}
-          onProductClick={handleProductClick}
-          onBuyClick={handleProductClick} 
-        />
+        <ProductGrid products={products} onProductClick={handleProductClick} onBuyClick={handleProductClick} />
       </main>
 
-      {/* Flash Sale Detail Modal with Countdown */}
-      <FlashSaleDetailModal
-        open={showFlashSaleModal}
-        onOpenChange={setShowFlashSaleModal}
-        item={selectedFlashSale}
-        onBuyClick={(item) => {
-          setShowFlashSaleModal(false);
-          navigate('/product', { 
-            state: { 
-              product: item.productData,
-              flashSalePrice: item.salePrice 
-            } 
-          });
-        }}
-      />
+      {showFlashSaleModal && (
+        <Suspense fallback={<LazyFallback />}>
+          <FlashSaleDetailModal
+            open={showFlashSaleModal}
+            onOpenChange={setShowFlashSaleModal}
+            item={selectedFlashSale}
+            onBuyClick={handleFlashSaleBuy}
+          />
+        </Suspense>
+      )}
 
-      {/* Onboarding Tour for New Users */}
-      <OnboardingTour />
+      <Suspense fallback={<LazyFallback />}>
+        <OnboardingTour />
+      </Suspense>
 
       <BottomNav />
     </div>
