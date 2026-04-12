@@ -148,11 +148,14 @@ const AdminChatPanel: React.FC = () => {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedUser) return;
 
-    const { error } = await supabase.from('chat_messages').insert({
+    const insertData: any = {
       user_id: selectedUser.id,
       message: newMessage.trim(),
       is_admin: true
-    });
+    };
+    if (replyTo) insertData.reply_to_id = replyTo.id;
+
+    const { error } = await supabase.from('chat_messages').insert(insertData);
 
     if (error) {
       toast.error('Failed to send message');
@@ -168,6 +171,7 @@ const AdminChatPanel: React.FC = () => {
     });
 
     setNewMessage('');
+    setReplyTo(null);
     loadMessages(selectedUser.id);
     loadChatUsers();
     toast.success('Message sent!');
