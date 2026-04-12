@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,11 +20,12 @@ import AdminBannerModal from '@/components/admin/modals/AdminBannerModal';
 import AdminTempAdminModal from '@/components/admin/modals/AdminTempAdminModal';
 import AdminAnnouncementModal from '@/components/admin/modals/AdminAnnouncementModal';
 
+const VALID_TABS = ['overview', 'control'];
+
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
-  const { isAdmin, isTempAdmin, tempAdminExpiry } = useAuth();
-
-  const [activeTab, setActiveTab] = useState('overview');
+  const { tab } = useParams<{ tab?: string }>();
+  const activeTab = VALID_TABS.includes(tab || '') ? tab! : 'overview';
   const [alertsEnabled, setAlertsEnabled] = useState(true);
 
   const { data, stats, loading, loadData, setData } = useAdminData(isAdmin, isTempAdmin);
@@ -118,7 +119,7 @@ const AdminPage: React.FC = () => {
       />
 
       <main className="px-4 max-w-5xl mx-auto mt-6">
-        <AdminNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <AdminNavigation activeTab={activeTab} onTabChange={(t) => navigate(`/admin/${t}`, { replace: true })} />
 
         {activeTab === 'overview' && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
