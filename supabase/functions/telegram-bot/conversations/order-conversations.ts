@@ -95,11 +95,15 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
     },
   };
 
-  try { await forwardToAllAdmins(token, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward screenshot error:", e); }
+  // Use main bot token for admin notifications so callbacks route to main bot
+  const childCtx = getChildBotContext();
+  const mainToken = childCtx ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+
+  try { await forwardToAllAdmins(mainToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward screenshot error:", e); }
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await notifyAllAdmins(token, supabase, adminMsg, adminButtons);
+      await notifyAllAdmins(mainToken, supabase, adminMsg, adminButtons);
       console.log("Admin buttons sent successfully on attempt", attempt + 1);
       break;
     } catch (e) {
