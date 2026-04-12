@@ -17,7 +17,8 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
 
   const orderData = state.data;
   const lang = (await getUserLang(supabase, userId)) || "en";
-  const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
+  const childBotId = orderData.childBotId;
+  const username = childBotId ? `child_bot:${childBotId}` : (msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown");
 
   try { await deleteConversationState(supabase, userId); } catch (e) { console.error("deleteConversationState error:", e); }
 
