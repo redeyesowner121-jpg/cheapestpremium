@@ -51,7 +51,7 @@ export async function sendInstantDeliveryWithLoginCode(
     console.error("Login code insert error:", e);
   }
 
-  const websiteUrl = "https://cheapest-premiums.lovable.app/auth";
+  const websiteUrl = "https://cheapest-premiums.in/auth";
 
   if (isDriveLink(accessLink)) {
     // Drive link → only show website button, don't send link directly

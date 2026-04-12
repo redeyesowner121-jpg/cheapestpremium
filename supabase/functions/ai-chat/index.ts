@@ -34,7 +34,7 @@ serve(async (req) => {
     const products = productsRes.data || [];
     const { data: allVariations } = await supabase.from("product_variations").select("name, price, original_price, product_id, is_active, products(name, slug)").eq("is_active", true);
 
-    const BASE_URL = "https://cheapest-premiums.lovable.app";
+    const BASE_URL = "https://cheapest-premiums.in";
 
     // Build product catalog with website links
     const productCatalog = products.map((p: any) => {

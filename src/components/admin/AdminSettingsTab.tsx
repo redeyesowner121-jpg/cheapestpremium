@@ -150,7 +150,7 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
         </SettingItem>
         <SettingItem label="App URL" description="Share link URL for products & referrals">
           <Input
-            value={localSettings.app_url || 'https://cheapest-premiums.lovable.app'}
+            value={localSettings.app_url || 'https://cheapest-premiums.in'}
             onChange={(e) => updateLocal('app_url', e.target.value)}
             onBlur={(e) => handleSave('app_url', e.target.value)}
             className="w-44 h-9 text-sm rounded-lg"

@@ -56,7 +56,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   razorpay_enabled: true,
   google_login_enabled: false,
   blue_tick_price: 0,
-  app_url: 'https://cheapest-premiums.lovable.app',
+  app_url: 'https://cheapest-premiums.in',
   binance_id: '1178303416',
   binance_contact_message: "You don't have Binance? Contact seller on WhatsApp for alternative payment.",
   app_tagline: 'Premium Digital Products',
