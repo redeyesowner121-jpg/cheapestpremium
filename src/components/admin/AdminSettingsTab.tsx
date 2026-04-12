@@ -93,6 +93,8 @@ const SettingItem: React.FC<SettingItemProps> = ({ label, description, children 
 const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateSetting }) => {
   const [localSettings, setLocalSettings] = useState<Record<string, string>>(settings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const updateLocal = (key: string, value: string) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
