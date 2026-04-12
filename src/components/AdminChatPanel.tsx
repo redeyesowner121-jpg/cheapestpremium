@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, User, Search, ArrowLeft } from 'lucide-react';
+import { Send, User, Search, ArrowLeft, Reply, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,7 @@ interface Message {
   is_admin: boolean;
   created_at: string;
   image_url?: string;
+  reply_to_id?: string | null;
 }
 
 const AdminChatPanel: React.FC = () => {
@@ -31,7 +32,9 @@ const AdminChatPanel: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const adminInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadChatUsers();
