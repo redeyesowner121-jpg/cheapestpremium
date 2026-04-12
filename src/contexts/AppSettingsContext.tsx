@@ -42,7 +42,6 @@ const DEFAULT_SETTINGS: AppSettings = {
   contact_whatsapp: '+918900684167',
   contact_email: '',
   support_telegram: '',
-  contact_email: '',
   min_deposit: 10,
   payment_qr_code: '',
   login_bonus: 0,
