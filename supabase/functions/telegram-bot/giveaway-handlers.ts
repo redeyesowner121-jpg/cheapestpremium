@@ -25,10 +25,10 @@ async function getGiveawaySetting(supabase: any, key: string) {
 // Fixed referral link for main bot
 const MAIN_BOT_REF_LINK = "https://t.me/Air1_Premium_bot?start=ref_REFJFF7FC";
 
-// Giveaway-specific required channels (numeric IDs for reliable getChatMember)
+// Giveaway-specific required channels
 const GIVEAWAY_REQUIRED_CHANNELS = [
   { id: "@rkrxott", name: "@rkrxott" },
-  { id: "@pocket_money27", name: "@pocket_money27" },
+  { id: "@rkrxmethods", name: "@rkrxmethods" },
 ];
 
 export async function checkGiveawayChannels(mainToken: string, userId: number): Promise<boolean> {
@@ -79,14 +79,19 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
 // ===== GIVEAWAY JOIN CHANNELS =====
 
 export async function showGiveawayJoinChannels(token: string, supabase: any, chatId: number, _lang: string, userId: number) {
+  // Dynamic channel buttons from GIVEAWAY_REQUIRED_CHANNELS
+  const channelButtons = GIVEAWAY_REQUIRED_CHANNELS.map(ch => {
+    const name = ch.name.replace("@", "");
+    return [{ text: `Join ${ch.name}`, url: `https://t.me/${name}` }];
+  });
   const buttons: any[][] = [
-    [{ text: "Join @RKRxOTT", url: "https://t.me/RKRxOTT" }],
-    [{ text: "Join @pocket_money27", url: "https://t.me/pocket_money27" }],
+    ...channelButtons,
     [{ text: "🤖 Start Main Bot", url: MAIN_BOT_REF_LINK }],
     [{ text: "✅ Verify", callback_data: "gw_verify_join" }],
   ];
 
-  const text = `🔒 <b>Complete these steps to get started:</b>\n\n1. Join @RKRxOTT\n2. Join @pocket_money27\n3. Start the Main Bot\n\nThen tap ✅ Verify below.`;
+  const channelList = GIVEAWAY_REQUIRED_CHANNELS.map((ch, i) => `${i + 1}. Join ${ch.name}`).join("\n");
+  const text = `🔒 <b>Complete these steps to get started:</b>\n\n${channelList}\n${GIVEAWAY_REQUIRED_CHANNELS.length + 1}. Start the Main Bot\n\nThen tap ✅ Verify below.`;
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
