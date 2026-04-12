@@ -1,4 +1,5 @@
 import React from 'react';
+import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -51,6 +52,9 @@ const FlashSaleModal: React.FC<FlashSaleModalProps> = ({
   });
   const [variations, setVariations] = React.useState<Variation[]>([]);
   const [loadingVariations, setLoadingVariations] = React.useState(false);
+  const [productSearch, setProductSearch] = React.useState('');
+  const [showDropdown, setShowDropdown] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
     setFlashSaleForm({
@@ -62,7 +66,25 @@ const FlashSaleModal: React.FC<FlashSaleModalProps> = ({
       is_active: true
     });
     setVariations([]);
+    setProductSearch('');
+    setShowDropdown(false);
   };
+
+  const filteredProducts = React.useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.toLowerCase();
+    return products.filter(p => p.name.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q));
+  }, [products, productSearch]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleProductChange = async (productId: string) => {
     setFlashSaleForm(prev => ({ ...prev, product_id: productId, variation_id: '', sale_price: '' }));
@@ -136,17 +158,51 @@ const FlashSaleModal: React.FC<FlashSaleModalProps> = ({
           <DialogDescription>Create a time-limited flash sale for a product</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          {/* Product Selector */}
-          <select
-            className="w-full h-10 px-3 rounded-xl border border-input bg-background text-sm"
-            value={flashSaleForm.product_id}
-            onChange={(e) => handleProductChange(e.target.value)}
-          >
-            <option value="">Select Product *</option>
-            {products.map(p => (
-              <option key={p.id} value={p.id}>{p.name} (₹{p.price})</option>
-            ))}
-          </select>
+          {/* Searchable Product Selector */}
+          <div className="relative" ref={dropdownRef}>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search product... *"
+                value={flashSaleForm.product_id ? (products.find(p => p.id === flashSaleForm.product_id)?.name || productSearch) : productSearch}
+                onChange={(e) => {
+                  setProductSearch(e.target.value);
+                  setShowDropdown(true);
+                  if (flashSaleForm.product_id) {
+                    handleProductChange('');
+                  }
+                }}
+                onFocus={() => setShowDropdown(true)}
+                className="pl-9 rounded-xl"
+              />
+            </div>
+            {showDropdown && (
+              <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-input bg-popover shadow-lg">
+                {filteredProducts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-3 text-center">No products found</p>
+                ) : (
+                  filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 ${flashSaleForm.product_id === p.id ? 'bg-accent font-medium' : ''}`}
+                      onClick={() => {
+                        handleProductChange(p.id);
+                        setProductSearch(p.name);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      {p.image_url && <img src={p.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">₹{p.price} · {p.category}</p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Variation Selector - Only show if product has variations */}
           {flashSaleForm.product_id && (
