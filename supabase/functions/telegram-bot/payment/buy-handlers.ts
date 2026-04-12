@@ -122,9 +122,10 @@ async function showPaymentMethodChoice(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "Binance", callback_data: "paymethod_binance" },
-          { text: "UPI", callback_data: "paymethod_upi" },
+          { text: "💎 Binance", callback_data: "paymethod_binance" },
+          { text: "📱 UPI", callback_data: "paymethod_upi" },
         ],
+        [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
       ],
     },
   });

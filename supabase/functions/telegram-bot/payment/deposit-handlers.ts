@@ -56,6 +56,7 @@ export async function handleDepositStart(token: string, supabase: any, chatId: n
           { text: "💎 Binance", callback_data: "deposit_method_binance" },
           { text: "📱 UPI", callback_data: "deposit_method_upi" },
         ],
+        [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
         [{ text: t("back", lang), callback_data: "my_wallet" }],
       ],
     },
