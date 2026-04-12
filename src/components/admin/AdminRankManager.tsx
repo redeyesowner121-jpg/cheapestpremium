@@ -34,6 +34,7 @@ const AdminRankManager: React.FC = () => {
 
   const loadRanks = async () => {
     setLoading(true);
+    clearRanksCache();
     const { data, error } = await supabase.from('ranks').select('*').order('sort_order', { ascending: true });
     if (error) { toast.error('Failed to load ranks'); } else { setRanks(data || []); }
     setLoading(false);
