@@ -194,7 +194,13 @@ async function showPaymentInfo(
     await sendMessage(token, chatId, `🔗 UPI Link:\n<code>${escapedUpiIntentUrl}</code>`);
     await sendMessage(token, chatId, lang === "bn"
       ? "📸 পেমেন্ট করার পর <b>স্ক্রিনশট</b> পাঠান।"
-      : "📸 After payment, send the <b>screenshot</b>.");
+      : "📸 After payment, send the <b>screenshot</b>.", {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
+        ],
+      },
+    });
   }
 }
 
