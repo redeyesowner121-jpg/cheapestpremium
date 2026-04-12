@@ -73,9 +73,9 @@ const QuickStats: React.FC = React.memo(() => {
     setShowSavingsModal(true);
   };
 
-  const rank = getUserRank(rankBalance);
-  const nextRank = getNextRank(rankBalance);
-  const { progress, remaining } = getProgressToNextRank(rankBalance);
+  const rank = getUserRank(rankBalance, fetchedRanks);
+  const nextRank = getNextRank(rankBalance, fetchedRanks);
+  const { progress, remaining } = getProgressToNextRank(rankBalance, fetchedRanks);
 
   const stats = [
     {
