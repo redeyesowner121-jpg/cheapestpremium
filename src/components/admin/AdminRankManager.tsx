@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { RankTable, DISCOUNT_TYPES, ICON_OPTIONS, COLOR_OPTIONS, BG_COLOR_OPTIONS, Rank } from './rank';
+import { clearRanksCache } from '@/lib/ranks';
 
 const AdminRankManager: React.FC = () => {
   const [ranks, setRanks] = useState<Rank[]>([]);

@@ -138,7 +138,13 @@ export function RankBadgeInline({
   clickable?: boolean;
 }) {
   const [showModal, setShowModal] = useState(false);
-  const rank = getUserRank(rankBalance);
+  const [ranks, setRanks] = useState<RankTier[]>(getRanksSync());
+  
+  useEffect(() => {
+    fetchRanks().then(setRanks);
+  }, []);
+
+  const rank = getUserRank(rankBalance, ranks);
   
   return (
     <>
