@@ -76,15 +76,15 @@ export const useWalletData = () => {
     try {
       const scriptLoaded = await loadRazorpayScript();
       if (!scriptLoaded) { toast.error('Failed to load payment gateway'); setLoading(false); return; }
-      const { data: orderData, error: orderError } = await supabase.functions.invoke('razorpay-order', { body: { amount, userId: user.id } });
+      const { data: orderData, error: orderError } = await supabase.functions.invoke('razorpay-order', { body: { amount } });
       if (orderError || !orderData) { toast.error('Failed to create payment order'); setLoading(false); return; }
 
       const options = {
         key: orderData.keyId, amount: orderData.amount, currency: orderData.currency,
         name: 'RKR Premium Store', description: `Wallet Deposit - Rs ${amount}`, order_id: orderData.orderId,
         handler: async (response: any) => {
-          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-webhook', {
-            body: { razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature, userId: user.id, amount }
+          const { data: verifyData, error: verifyError } = await supabase.functions.invoke('razorpay-verify', {
+            body: { razorpay_order_id: response.razorpay_order_id, razorpay_payment_id: response.razorpay_payment_id, razorpay_signature: response.razorpay_signature }
           });
           if (verifyError || !verifyData?.success) { toast.error('Payment verification failed'); return; }
           const details: any[] = [{ label: 'Amount Added', value: `₹${amount}` }];
