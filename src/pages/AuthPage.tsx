@@ -50,8 +50,8 @@ const AuthPage: React.FC = () => {
       setShowTelegramCodeModal(true);
     }
 
-    // Auto-open Telegram login modal when visiting /auth/tele
-    if (location.pathname === '/auth/tele') {
+    // Auto-open Telegram login modal when visiting /auth/telegram
+    if (location.pathname === '/auth/telegram') {
       setShowTelegramCodeModal(true);
     }
   }, [searchParams, location.pathname]);

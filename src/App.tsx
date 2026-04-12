@@ -102,7 +102,7 @@ const AppContent = () => {
             <Route path="/index" element={<IndexRedirect />} />
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/auth/tele" element={<AuthPage />} />
+            <Route path="/auth/telegram" element={<AuthPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/wallet/transactions" element={<TransactionsPage />} />
             <Route path="/orders" element={<OrdersPage />} />
