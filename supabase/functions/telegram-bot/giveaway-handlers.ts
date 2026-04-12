@@ -571,6 +571,101 @@ export async function handleGiveawayCallbacks(
   return false;
 }
 
+// ===== GIVEAWAY ADMIN MENU =====
+
+export async function showGiveawayAdminMenu(token: string, supabase: any, chatId: number) {
+  // Gather giveaway-specific stats
+  const [usersRes, pointsRes, referralsRes, redemptionsRes, productsRes] = await Promise.all([
+    supabase.from("giveaway_points").select("id", { count: "exact", head: true }),
+    supabase.from("giveaway_points").select("points").order("points", { ascending: false }),
+    supabase.from("giveaway_referrals").select("id", { count: "exact", head: true }),
+    supabase.from("giveaway_redemptions").select("id", { count: "exact", head: true }),
+    supabase.from("giveaway_products").select("id", { count: "exact", head: true }).eq("is_active", true),
+  ]);
+
+  const totalUsers = usersRes.count || 0;
+  const totalReferrals = referralsRes.count || 0;
+  const totalRedemptions = redemptionsRes.count || 0;
+  const activeProducts = productsRes.count || 0;
+
+  // Total points in circulation
+  const allPoints = pointsRes.data || [];
+  const totalPoints = allPoints.reduce((sum: number, p: any) => sum + (p.points || 0), 0);
+
+  // Get current channels
+  const channelList = GIVEAWAY_REQUIRED_CHANNELS.map(ch => ch.name).join(", ");
+
+  const text = `🎁 <b>Giveaway Bot — Admin Panel</b>\n\n` +
+    `👥 Total Users: <b>${totalUsers}</b>\n` +
+    `🎯 Total Points in Circulation: <b>${totalPoints}</b>\n` +
+    `👥 Active Referrals: <b>${totalReferrals}</b>\n` +
+    `📦 Active Products: <b>${activeProducts}</b>\n` +
+    `🎁 Total Redemptions: <b>${totalRedemptions}</b>\n\n` +
+    `📢 Required Channels: ${channelList}`;
+
+  await sendMessage(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "📢 Manage Channels", callback_data: "gwa_channels" }],
+        [{ text: "📊 Top Users", callback_data: "gwa_top_users" }],
+        [{ text: "🔙 Main Menu", callback_data: "gw_main" }],
+      ],
+    },
+  });
+}
+
+// ===== GIVEAWAY ADMIN CALLBACKS =====
+
+export async function handleGiveawayAdminCallbacks(
+  token: string, supabase: any, chatId: number, userId: number, data: string
+): Promise<boolean> {
+
+  if (data === "gwa_channels") {
+    const channelList = GIVEAWAY_REQUIRED_CHANNELS.map((ch, i) => `${i + 1}. ${ch.name}`).join("\n");
+    const text = `📢 <b>Required Channels</b>\n\n${channelList || "None"}\n\n` +
+      `To add/remove channels, use:\n<code>/gw_add_channel @channel</code>\n<code>/gw_remove_channel @channel</code>`;
+    await sendMessage(token, chatId, text, {
+      reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gwa_admin" }]] }
+    });
+    return true;
+  }
+
+  if (data === "gwa_admin") {
+    await showGiveawayAdminMenu(token, supabase, chatId);
+    return true;
+  }
+
+  if (data === "gwa_top_users") {
+    const { data: topUsers } = await supabase
+      .from("giveaway_points")
+      .select("telegram_id, points, total_referrals")
+      .order("points", { ascending: false })
+      .limit(15);
+
+    let text = "📊 <b>Top Giveaway Users</b>\n\n";
+    if (!topUsers?.length) {
+      text += "No users yet.";
+    } else {
+      for (let i = 0; i < topUsers.length; i++) {
+        const u = topUsers[i];
+        const { data: userInfo } = await supabase
+          .from("telegram_bot_users")
+          .select("username, first_name")
+          .eq("telegram_id", u.telegram_id)
+          .maybeSingle();
+        const name = userInfo?.username ? `@${userInfo.username}` : userInfo?.first_name || String(u.telegram_id);
+        text += `${i + 1}. ${name} — 🎯${u.points} pts, 👥${u.total_referrals} refs\n`;
+      }
+    }
+    await sendMessage(token, chatId, text, {
+      reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gwa_admin" }]] }
+    });
+    return true;
+  }
+
+  return false;
+}
+
 // ===== HANDLE CHANNEL LEAVE — DEDUCT REFERRAL POINTS =====
 
 export async function handleGiveawayChannelLeave(token: string, supabase: any, chatMember: any) {
