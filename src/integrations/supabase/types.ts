@@ -2078,6 +2078,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_order_refund: {
+        Args: { _order_id: string; _user_id: string }
+        Returns: Json
+      }
+      confirm_seller_receipt: {
+        Args: { _buyer_id: string; _order_id: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2094,6 +2102,19 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      redeem_gift_code: {
+        Args: { _code: string; _user_id: string }
+        Returns: Json
+      }
+      transfer_funds: {
+        Args: {
+          _amount: number
+          _note?: string
+          _receiver_id: string
+          _sender_id: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "user" | "admin" | "temp_admin" | "seller"
