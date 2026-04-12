@@ -24,6 +24,7 @@ const VALID_TABS = ['overview', 'control'];
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
+  const { isAdmin, isTempAdmin, tempAdminExpiry } = useAuth();
   const { tab } = useParams<{ tab?: string }>();
   const activeTab = VALID_TABS.includes(tab || '') ? tab! : 'overview';
   const [alertsEnabled, setAlertsEnabled] = useState(true);
