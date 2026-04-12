@@ -382,6 +382,13 @@ Deno.serve(async (req) => {
       return jsonOk();
     }
 
+    // ===== CHAT MEMBER UPDATES (channel leave/join) =====
+    if (update.chat_member && isGiveaway) {
+      const { handleGiveawayChannelLeave } = await import("./giveaway-handlers.ts");
+      await handleGiveawayChannelLeave(BOT_TOKEN, supabase, update.chat_member);
+      return jsonOk();
+    }
+
     return jsonOk();
   } catch (error) {
     console.error("Telegram bot error:", error);
