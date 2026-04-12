@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronDown, ChevronRight, Settings, Globe, Phone, 
-  CreditCard, Gift, Award, Package, ToggleLeft, Save, Check
+  CreditCard, Gift, Award, Package, ToggleLeft, Save, Check, Upload, Image
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import AdminRankManager from './AdminRankManager';
 import AdminCurrencyManager from './AdminCurrencyManager';
 
