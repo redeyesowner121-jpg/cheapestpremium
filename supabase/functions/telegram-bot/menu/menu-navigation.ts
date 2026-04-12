@@ -35,28 +35,36 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
   const settings = await getSettings(supabase);
   const storeName = settings.app_name || "RKR Premium Store";
 
+  // Check if child bot mode
+  const { isChildBotMode } = await import("../child-context.ts");
+  const isChild = isChildBotMode();
+
   const welcomeText = lang === "bn"
     ? `🛍️ <b>${storeName}-এ স্বাগতম!</b>\n\n✨ সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n⚡ তাৎক্ষণিক ডেলিভারি\n🔒 নিরাপদ পেমেন্ট\n💬 ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:`
     : `🛍️ <b>Welcome to ${storeName}!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments\n💬 24/7 Support\n\nChoose an option below:`;
 
+  const buttons: any[][] = [
+    [{ text: t("view_products", lang), callback_data: "view_products" }],
+    [
+      { text: t("my_orders", lang), callback_data: "my_orders" },
+      { text: t("my_wallet", lang), callback_data: "my_wallet" },
+    ],
+    [
+      { text: t("refer_earn", lang), callback_data: "refer_earn" },
+    ],
+    [
+      { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs" },
+      { text: t("support", lang), callback_data: "support" },
+    ],
+  ];
+
+  // Only show Website Login for main bot, not child bots
+  if (!isChild) {
+    buttons.push([{ text: "Website Login", callback_data: "website_login" }]);
+  }
+
   await sendMessage(token, chatId, welcomeText, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: t("view_products", lang), callback_data: "view_products" }],
-        [
-          { text: t("my_orders", lang), callback_data: "my_orders" },
-          { text: t("my_wallet", lang), callback_data: "my_wallet" },
-        ],
-        [
-          { text: t("refer_earn", lang), callback_data: "refer_earn" },
-        ],
-        [
-          { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs" },
-          { text: t("support", lang), callback_data: "support" },
-        ],
-        [{ text: "Website Login", callback_data: "website_login" }],
-      ],
-    },
+    reply_markup: { inline_keyboard: buttons },
   });
 }
 
