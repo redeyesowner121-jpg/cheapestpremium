@@ -66,7 +66,25 @@ const FlashSaleModal: React.FC<FlashSaleModalProps> = ({
       is_active: true
     });
     setVariations([]);
+    setProductSearch('');
+    setShowDropdown(false);
   };
+
+  const filteredProducts = React.useMemo(() => {
+    if (!productSearch.trim()) return products;
+    const q = productSearch.toLowerCase();
+    return products.filter(p => p.name.toLowerCase().includes(q) || p.category?.toLowerCase().includes(q));
+  }, [products, productSearch]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleProductChange = async (productId: string) => {
     setFlashSaleForm(prev => ({ ...prev, product_id: productId, variation_id: '', sale_price: '' }));
