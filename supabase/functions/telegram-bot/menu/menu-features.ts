@@ -76,9 +76,11 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
   const totalEarned = wallet?.total_earned || 0;
   const refCode = wallet?.referral_code || "N/A";
 
-  // Read bot username from DB settings
+  // Use child bot username if in child mode, otherwise main bot username
+  const { getChildBotContext } = await import("../child-context.ts");
+  const childCtx = getChildBotContext();
   const settings = await getSettings(supabase);
-  const botUsername = settings.bot_username || "Air1_Premium_bot";
+  const botUsername = childCtx?.bot_username || settings.bot_username || "Air1_Premium_bot";
 
   const { data: recent } = await supabase
     .from("telegram_wallet_transactions")
@@ -120,7 +122,11 @@ export async function handleReferEarn(token: string, supabase: any, chatId: numb
   const refCode = wallet?.referral_code || "N/A";
   const settings = await getSettings(supabase);
   const bonus = settings.referral_bonus || "10";
-  const botUsername = settings.bot_username || "Air1_Premium_bot";
+
+  // Use child bot username if in child mode
+  const { getChildBotContext } = await import("../child-context.ts");
+  const childCtx = getChildBotContext();
+  const botUsername = childCtx?.bot_username || settings.bot_username || "Air1_Premium_bot";
 
   let text = `${t("referral_header", lang)}\n\n`;
   text += lang === "bn"
