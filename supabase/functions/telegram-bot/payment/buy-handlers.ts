@@ -41,18 +41,30 @@ function inrToUsd(inrAmount: number): number {
   return Math.max(0.01, Math.round(usd * 100) / 100);
 }
 
-/** Helper to create child bot order record */
-async function createChildBotOrder(supabase: any, childCtx: any, orderId: string, userId: number, productName: string, price: number) {
-  const commission = Math.round(price * childCtx.revenue_percent) / 100;
-  await supabase.from("child_bot_orders").insert({
-    child_bot_id: childCtx.id,
-    telegram_order_id: orderId,
-    buyer_telegram_id: userId,
-    product_name: productName,
-    total_price: price,
-    owner_commission: commission,
-    status: "pending",
-  });
+/** Helper: notify main bot admins for child bot pending orders */
+async function notifyMainAdminsForChildOrder(
+  supabase: any, orderId: string, userId: number, productName: string, price: number, childBotId: string, paymentMethod: string
+) {
+  const mainToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
+  if (!mainToken) return;
+
+  const { notifyAllAdmins } = await import("../db-helpers.ts");
+
+  const adminMsg = `📩 <b>Child Bot Order (${paymentMethod})</b>\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n💵 Amount: <b>₹${price}</b>\n🤖 Child Bot: <code>${childBotId}</code>\n🆔 Order: <code>${orderId.slice(0, 8)}</code>`;
+
+  const adminButtons = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
+          { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
+        ],
+        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+      ],
+    },
+  };
+
+  await notifyAllAdmins(mainToken, supabase, adminMsg, adminButtons);
 }
 
 export async function handleBuyProduct(token: string, supabase: any, chatId: number, productId: string, telegramUser: any, lang: string) {
@@ -360,6 +372,7 @@ export async function handleRazorpayVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
   const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount, childBotId, childBotRevenue } = stateData;
+  const isChildBot = !!childBotId;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -426,19 +439,21 @@ export async function handleRazorpayVerify(
         }
       }
 
-      // Create telegram order
-      const orderUsername = childBotId ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
+      // Child bot orders → pending; regular orders → confirmed
+      const orderStatus = isChildBot ? "pending" : "confirmed";
+      const orderUsername = isChildBot ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
+
       const { data: order } = await supabase.from("telegram_orders").insert({
         telegram_user_id: telegramUser.id,
         product_name: productName,
         product_id: productId,
         amount: price,
-        status: "confirmed",
+        status: orderStatus,
         username: orderUsername,
       }).select("id").single();
 
       // Create child bot order if applicable
-      if (childBotId && order?.id) {
+      if (isChildBot && order?.id) {
         const commission = Math.round(price * (childBotRevenue || 0)) / 100;
         await supabase.from("child_bot_orders").insert({
           child_bot_id: childBotId,
@@ -447,27 +462,41 @@ export async function handleRazorpayVerify(
           product_name: productName,
           total_price: price,
           owner_commission: commission,
-          status: "confirmed",
+          status: "pending",
         });
       }
 
-      // Get access link
-      const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
+      if (isChildBot) {
+        // Tell child bot user order is pending
+        await sendMessage(token, chatId,
+          `✅ <b>Payment Verified!</b>\n\n📦 Product: <b>${productName}</b>\n💵 Amount: ₹${finalAmount}\n\n⏳ Admin is processing your order. You'll get an update soon.`
+        );
+        await setConversationState(supabase, telegramUser.id, "idle", {});
 
-      let successText = `<b>✅ Payment Verified!</b>\n\n`;
-      successText += `Product: <b>${productName}</b>\n`;
-      successText += `Amount: <b>₹${finalAmount}</b>\n`;
+        // Notify main admins
+        await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Razorpay UPI");
+      } else {
+        // Regular flow - auto confirmed
+        const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
 
-      await sendMessage(token, chatId, successText);
+        let successText = `<b>✅ Payment Verified!</b>\n\n`;
+        successText += `Product: <b>${productName}</b>\n`;
+        successText += `Amount: <b>₹${finalAmount}</b>\n`;
 
-      if (product?.access_link) {
-        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+        await sendMessage(token, chatId, successText);
+
+        if (product?.access_link) {
+          const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+        }
+        await setConversationState(supabase, telegramUser.id, "idle", {});
       }
-      await setConversationState(supabase, telegramUser.id, "idle", {});
+
       // Log proof
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Razorpay UPI")); } catch {}
-      await processReferralBonus(supabase, telegramUser.id, token, price);
+      if (!isChildBot) {
+        await processReferralBonus(supabase, telegramUser.id, token, price);
+      }
     } else {
       await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you paid exactly <b>₹${finalAmount}</b> and verify within 2 minutes of paying.`, {
         reply_markup: {
@@ -496,6 +525,7 @@ export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
   const { paymentId, paymentNote, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = stateData;
+  const isChildBot = !!childBotId;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -536,19 +566,21 @@ export async function handleBinanceVerify(
         }
       }
 
-      // Create telegram order
-      const orderUsername = childBotId ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
+      // Child bot orders → pending; regular orders → confirmed
+      const orderStatus = isChildBot ? "pending" : "confirmed";
+      const orderUsername = isChildBot ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
+
       const { data: order } = await supabase.from("telegram_orders").insert({
         telegram_user_id: telegramUser.id,
         product_name: productName,
         product_id: productId,
         amount: price,
-        status: "confirmed",
+        status: orderStatus,
         username: orderUsername,
       }).select("id").single();
 
       // Create child bot order if applicable
-      if (childBotId && order?.id) {
+      if (isChildBot && order?.id) {
         const commission = Math.round(price * (childBotRevenue || 0)) / 100;
         await supabase.from("child_bot_orders").insert({
           child_bot_id: childBotId,
@@ -557,47 +589,57 @@ export async function handleBinanceVerify(
           product_name: productName,
           total_price: price,
           owner_commission: commission,
-          status: "confirmed",
+          status: "pending",
         });
       }
 
-      // Get access link
-      const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
-
-      let successText = `✅ <b>Order Successful!</b>\n\n`;
-      successText += `📦 Product: <b>${productName}</b>\n`;
-      successText += `💵 Amount: <b>$${amountUsd}</b> (₹${price})\n`;
-      successText += `🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
-      if (walletDeduction > 0) {
-        successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
-      }
-
-      await sendMessage(token, chatId, successText);
-
-      if (product?.access_link) {
-        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
-      }
-      await setConversationState(supabase, telegramUser.id, "idle", {});
-
-      // Notify admins
-      try {
-        const childBotLabel = childBotId ? `\n🤖 Child Bot Order` : "";
-        await notifyAllAdmins(token, supabase,
-          `💰 <b>Binance Payment</b>${childBotLabel}\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+      if (isChildBot) {
+        // Tell child bot user order is pending
+        await sendMessage(token, chatId,
+          `✅ <b>Payment Verified!</b>\n\n📦 Product: <b>${productName}</b>\n💵 Amount: $${amountUsd} (₹${price})\n\n⏳ Admin is processing your order. You'll get an update soon.`
         );
-      } catch (e) { console.error("Admin notify error:", e); }
+        await setConversationState(supabase, telegramUser.id, "idle", {});
+
+        // Notify main admins
+        await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Binance Pay");
+      } else {
+        // Regular flow - auto confirmed
+        const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
+
+        let successText = `✅ <b>Order Successful!</b>\n\n`;
+        successText += `📦 Product: <b>${productName}</b>\n`;
+        successText += `💵 Amount: <b>$${amountUsd}</b> (₹${price})\n`;
+        successText += `🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
+        if (walletDeduction > 0) {
+          successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
+        }
+
+        await sendMessage(token, chatId, successText);
+
+        if (product?.access_link) {
+          const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+        }
+        await setConversationState(supabase, telegramUser.id, "idle", {});
+
+        // Notify admins
+        try {
+          await notifyAllAdmins(token, supabase,
+            `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+          );
+        } catch (e) { console.error("Admin notify error:", e); }
+
+        // Sync purchase to website profile
+        try {
+          await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, product?.access_link || undefined);
+        } catch (e) { console.error("Sync error:", e); }
+
+        // Process referral bonus
+        await processReferralBonus(supabase, telegramUser.id, token, price);
+      }
 
       // Log proof
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Binance")); } catch {}
-
-      // Sync purchase to website profile
-      try {
-        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, product?.access_link || undefined);
-      } catch (e) { console.error("Sync error:", e); }
-
-      // Process referral bonus
-      await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
       const debugNote = result.debug?.expectedNote || paymentNote;
       const debugAmt = result.debug?.expectedAmount || amountUsd;
