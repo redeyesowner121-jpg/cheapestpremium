@@ -114,7 +114,8 @@ const AppContent = () => {
             <Route path="/chat" element={<ChatPage />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/notifications" element={<NotificationHistoryPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
+            <Route path="/admin/:tab" element={<AdminPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/resale/:code" element={<ResalePurchasePage />} />
             <Route path="/terms" element={<TermsPage />} />
