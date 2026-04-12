@@ -185,7 +185,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
             <p className="text-[10px] text-muted-foreground">New Users</p>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-success">{totals.deposits}</p>
+            <p className="text-lg font-bold text-success">₹{totals.deposits.toLocaleString()}</p>
             <p className="text-[10px] text-muted-foreground">Deposits</p>
           </div>
           <div className="text-center">
