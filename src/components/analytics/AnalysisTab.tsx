@@ -28,7 +28,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
 
       const newUsers = users.filter(u => u.created_at?.split('T')[0] === dateStr).length;
       const dayDeposits = transactions.filter(t => t.created_at?.split('T')[0] === dateStr && t.type === 'deposit' && t.status === 'completed');
-      const depositCount = dayDeposits.length;
+      const depositAmount = dayDeposits.reduce((s, t) => s + Math.abs(t.amount || 0), 0);
       const dayOrders = orders.filter(o => o.created_at?.split('T')[0] === dateStr);
       const orderCount = dayOrders.length;
       const profitGiven = dayOrders.reduce((s, o) => s + (o.discount_applied || 0), 0);
@@ -36,12 +36,12 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
       return {
         date: new Date(dateStr).toLocaleDateString('en-US', { weekday: days <= 7 ? 'short' : undefined, day: 'numeric', month: days > 7 ? 'short' : undefined }),
         userJoined: newUsers * USER_VALUE,
-        deposit: depositCount * DEPOSIT_VALUE,
+        deposit: depositAmount * DEPOSIT_VALUE,
         order: orderCount * ORDER_VALUE,
         profitGiven: profitGiven * PROFIT_VALUE,
         // Raw counts
         _users: newUsers,
-        _deposits: depositCount,
+        _depositAmount: depositAmount,
         _orders: orderCount,
         _profit: profitGiven,
       };
