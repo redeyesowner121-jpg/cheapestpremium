@@ -52,6 +52,9 @@ const FlashSaleModal: React.FC<FlashSaleModalProps> = ({
   });
   const [variations, setVariations] = React.useState<Variation[]>([]);
   const [loadingVariations, setLoadingVariations] = React.useState(false);
+  const [productSearch, setProductSearch] = React.useState('');
+  const [showDropdown, setShowDropdown] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
 
   const resetForm = () => {
     setFlashSaleForm({
