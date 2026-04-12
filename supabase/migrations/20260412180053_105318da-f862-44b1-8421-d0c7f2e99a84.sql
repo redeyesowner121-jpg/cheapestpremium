@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN total_savings numeric NOT NULL DEFAULT 0;

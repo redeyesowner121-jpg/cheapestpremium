@@ -25,48 +25,13 @@ const QuickStats: React.FC = React.memo(() => {
   useEffect(() => {
     fetchRanks().then(setFetchedRanks);
   }, []);
-  const [totalSavings, setTotalSavings] = useState<number | null>(null);
-  const [savingsLoading, setSavingsLoading] = useState(false);
   const [showSavingsModal, setShowSavingsModal] = useState(false);
   const walletBalance = Number(profile?.wallet_balance ?? 0);
   const totalDeposit = Number(profile?.total_deposit ?? 0);
   const totalOrders = Number(profile?.total_orders ?? 0);
   const rankBalance = Number(profile?.rank_balance ?? 0);
+  const totalSavings = Number((profile as any)?.total_savings ?? 0);
   const blueTickProgress = Math.min(100, (totalDeposit / 1000) * 100);
-
-  const fetchSavings = async () => {
-    if (!user || savingsLoading || totalSavings !== null) return;
-    setSavingsLoading(true);
-    try {
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('total_price, product_id, quantity')
-        .eq('user_id', user.id);
-
-      if (orders) {
-        const productIds = [...new Set(orders.map(o => o.product_id).filter(Boolean))];
-        const { data: products } = await supabase
-          .from('products')
-          .select('id, original_price, price')
-          .in('id', productIds.length > 0 ? productIds : ['none']);
-
-        const productMap = new Map(products?.map(p => [p.id, p]) || []);
-
-        const sum = orders.reduce((acc, o) => {
-          const product = o.product_id ? productMap.get(o.product_id) : null;
-          const originalPrice = product?.original_price || product?.price || o.total_price;
-          const qty = o.quantity || 1;
-          const saving = (originalPrice * qty) - o.total_price;
-          return acc + (saving > 0 ? saving : 0);
-        }, 0);
-        setTotalSavings(sum);
-      }
-    } catch (error) {
-      console.error('Error fetching savings:', error);
-    } finally {
-      setSavingsLoading(false);
-    }
-  };
 
   const handleSavingsClick = () => {
     if (totalSavings === null) fetchSavings();

@@ -1280,6 +1280,7 @@ export type Database = {
           referred_by: string | null
           total_deposit: number | null
           total_orders: number | null
+          total_savings: number
           updated_at: string | null
           wallet_balance: number | null
         }
@@ -1303,6 +1304,7 @@ export type Database = {
           referred_by?: string | null
           total_deposit?: number | null
           total_orders?: number | null
+          total_savings?: number
           updated_at?: string | null
           wallet_balance?: number | null
         }
@@ -1326,6 +1328,7 @@ export type Database = {
           referred_by?: string | null
           total_deposit?: number | null
           total_orders?: number | null
+          total_savings?: number
           updated_at?: string | null
           wallet_balance?: number | null
         }

@@ -109,6 +109,14 @@ export const handleProductPurchase = async (
         user_id: user.id, type: 'purchase', amount: -finalTotal, status: 'completed',
         description: `Purchase: ${productName}${discount > 0 ? ` (₹${discount} discount)` : ''}${donationAmount > 0 ? ` + ₹${donationAmount} donation` : ''}`
       });
+
+      // Calculate and update total_savings
+      const originalPrice = displayProduct.original_price || displayProduct.originalPrice || currentPrice;
+      const savingsThisOrder = Math.max(0, (originalPrice * quantity) - totalPrice);
+      if (savingsThisOrder > 0) {
+        const currentSavings = (profile as any)?.total_savings || 0;
+        await supabase.from('profiles').update({ total_savings: currentSavings + savingsThisOrder }).eq('id', user.id);
+      }
     }
 
     if (appliedCouponId) {
