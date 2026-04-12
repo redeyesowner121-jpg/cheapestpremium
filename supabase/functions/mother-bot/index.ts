@@ -8,6 +8,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const CREATION_FEE = 49; // INR
+
 const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
 
 async function sendMsg(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
@@ -26,6 +28,16 @@ async function answerCb(token: string, cbId: string, text?: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ callback_query_id: cbId, text: text || "" }),
   }).catch(() => {});
+}
+
+async function forwardMessage(token: string, chatId: number, fromChatId: number, messageId: number) {
+  try {
+    await fetch(`${TELEGRAM_API(token)}/forwardMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, from_chat_id: fromChatId, message_id: messageId }),
+    });
+  } catch (e) { console.error("forwardMessage error:", e); }
 }
 
 async function getChatMemberStatus(token: string, chatId: string, userId: number): Promise<string> {
@@ -51,7 +63,7 @@ async function validateBotToken(token: string): Promise<{ ok: boolean; username?
   } catch { return { ok: false }; }
 }
 
-// ===== CONVERSATION STATE (reuses telegram_conversation_state table) =====
+// ===== CONVERSATION STATE =====
 async function getConvState(supabase: any, tgId: number) {
   const { data } = await supabase.from("telegram_conversation_state").select("step, data").eq("telegram_id", tgId).single();
   return data ? { step: data.step, data: data.data || {} } : null;
@@ -63,6 +75,12 @@ async function setConvState(supabase: any, tgId: number, step: string, stateData
 
 async function deleteConvState(supabase: any, tgId: number) {
   await supabase.from("telegram_conversation_state").delete().eq("telegram_id", tgId);
+}
+
+// ===== Get admin telegram IDs =====
+async function getAdminTelegramIds(supabase: any): Promise<number[]> {
+  const { data } = await supabase.from("telegram_bot_admins").select("telegram_id");
+  return (data || []).map((a: any) => a.telegram_id);
 }
 
 // ===== MAIN HANDLER =====
@@ -92,7 +110,8 @@ Deno.serve(async (req) => {
         await setConvState(supabase, userId, "mother_enter_token", {});
         await sendMsg(MOTHER_TOKEN, chatId,
           "🤖 <b>Create a New Bot</b>\n\n" +
-          "Step 1/4: Send your <b>Bot API Token</b>\n\n" +
+          `⚠️ <b>Creation Fee: ₹${CREATION_FEE}</b>\n\n` +
+          "Step 1/5: Send your <b>Bot API Token</b>\n\n" +
           "Get it from @BotFather → /newbot → copy the token.\n\n" +
           "Send /cancel to abort."
         );
@@ -116,7 +135,7 @@ Deno.serve(async (req) => {
           "• <b>My Bots</b> — View and manage your bots\n" +
           "• <b>Earnings</b> — Track your commissions\n\n" +
           "Your bot will sell products from our main store. When a customer orders through your bot, the order goes to our admin. After delivery, you earn your set commission percentage.\n\n" +
-          "Max 3 bots per user. Commission: 1%-60% per sale.\n\n" +
+          `Max 3 bots per user. Commission: 1%-60% per sale.\nCreation Fee: ₹${CREATION_FEE} per bot.\n\n` +
           "Your bot's referral & resale links will use your bot's @username.",
           { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } }
         );
@@ -128,12 +147,21 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Confirm create bot
+      // Confirm create bot → now ask for payment
       if (data === "mother_confirm_create") {
         const state = await getConvState(supabase, userId);
         if (state?.step === "mother_confirm" && state.data.bot_token) {
-          await createChildBot(MOTHER_TOKEN, supabase, chatId, userId, state.data);
-          await deleteConvState(supabase, userId);
+          // Get UPI ID from app_settings
+          const upiId = await getUpiId(supabase);
+          await setConvState(supabase, userId, "mother_awaiting_payment", state.data);
+          await sendMsg(MOTHER_TOKEN, chatId,
+            `💳 <b>Payment Required: ₹${CREATION_FEE}</b>\n\n` +
+            `Please pay <b>₹${CREATION_FEE}</b> to proceed with bot creation.\n\n` +
+            (upiId ? `📱 <b>UPI ID:</b> <code>${upiId}</code>\n\n` : "") +
+            `After payment, <b>send the payment screenshot</b> here.\n\n` +
+            `⏳ Your bot will be activated after admin verifies the payment.\n\n` +
+            `Send /cancel to abort.`
+          );
         }
         return jsonOk();
       }
@@ -142,6 +170,34 @@ Deno.serve(async (req) => {
         await deleteConvState(supabase, userId);
         await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot creation cancelled.");
         await showMotherMenu(MOTHER_TOKEN, chatId);
+        return jsonOk();
+      }
+
+      // Admin approves payment → create bot
+      if (data.startsWith("mother_approve_pay_")) {
+        const creatorTgId = parseInt(data.replace("mother_approve_pay_", ""));
+        const state = await getConvState(supabase, creatorTgId);
+        if (state?.step === "mother_awaiting_payment" && state.data.bot_token) {
+          await createChildBot(MOTHER_TOKEN, supabase, creatorTgId, creatorTgId, state.data);
+          await deleteConvState(supabase, creatorTgId);
+          // Notify admin
+          await sendMsg(MOTHER_TOKEN, chatId, `✅ Payment approved. Bot @${state.data.bot_username} created for user ${creatorTgId}.`);
+        } else {
+          await sendMsg(MOTHER_TOKEN, chatId, "⚠️ No pending bot creation found for this user.");
+        }
+        return jsonOk();
+      }
+
+      // Admin rejects payment
+      if (data.startsWith("mother_reject_pay_")) {
+        const creatorTgId = parseInt(data.replace("mother_reject_pay_", ""));
+        await deleteConvState(supabase, creatorTgId);
+        await sendMsg(MOTHER_TOKEN, chatId, `❌ Payment rejected for user ${creatorTgId}.`);
+        // Notify user
+        await sendMsg(MOTHER_TOKEN, creatorTgId,
+          "❌ <b>Payment Rejected</b>\n\nYour bot creation payment was not approved. Please try again with a valid payment.",
+          { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } }
+        );
         return jsonOk();
       }
 
@@ -174,7 +230,7 @@ Deno.serve(async (req) => {
       return jsonOk();
     }
 
-    // ===== TEXT MESSAGES =====
+    // ===== TEXT / PHOTO MESSAGES =====
     if (update.message) {
       const msg = update.message;
       const chatId = msg.chat.id;
@@ -182,6 +238,43 @@ Deno.serve(async (req) => {
       const text = msg.text || "";
 
       await upsertMotherUser(supabase, msg.from);
+
+      // Handle photo messages (payment screenshot)
+      if (msg.photo) {
+        const state = await getConvState(supabase, userId);
+        if (state?.step === "mother_awaiting_payment") {
+          // Forward screenshot to all admins
+          const adminIds = await getAdminTelegramIds(supabase);
+          const username = msg.from.username ? `@${msg.from.username}` : msg.from.first_name || String(userId);
+          
+          for (const adminId of adminIds) {
+            await forwardMessage(MOTHER_TOKEN, adminId, chatId, msg.message_id);
+            await sendMsg(MOTHER_TOKEN, adminId,
+              `💳 <b>Bot Creation Payment</b>\n\n` +
+              `👤 User: ${username} (<code>${userId}</code>)\n` +
+              `💰 Amount: ₹${CREATION_FEE}\n` +
+              `🤖 Bot: @${state.data.bot_username}\n` +
+              `📊 Revenue: ${state.data.revenue_percent}%`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "✅ Approve", callback_data: `mother_approve_pay_${userId}` }],
+                    [{ text: "❌ Reject", callback_data: `mother_reject_pay_${userId}` }],
+                  ],
+                },
+              }
+            );
+          }
+
+          await sendMsg(MOTHER_TOKEN, chatId,
+            "✅ <b>Payment screenshot received!</b>\n\n" +
+            "⏳ Please wait while our admin verifies your payment.\n" +
+            "You'll be notified once your bot is activated.",
+            { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } }
+          );
+          return jsonOk();
+        }
+      }
 
       // Handle commands — reset conversation
       if (text.startsWith("/")) {
@@ -197,7 +290,6 @@ Deno.serve(async (req) => {
       const command = text.split(" ")[0].toLowerCase().split("@")[0];
 
       if (command === "/start") {
-        // Check channel membership
         const channels = await getRequiredChannels(supabase);
         if (channels.length > 0) {
           const mainToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || MOTHER_TOKEN;
@@ -227,7 +319,13 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Unknown — show menu
+      // If awaiting payment and user sends text instead of photo
+      const state = await getConvState(supabase, userId);
+      if (state?.step === "mother_awaiting_payment") {
+        await sendMsg(MOTHER_TOKEN, chatId, "📸 Please send a <b>payment screenshot</b> (photo), not text.\n\nSend /cancel to abort.");
+        return jsonOk();
+      }
+
       await showMotherMenu(MOTHER_TOKEN, chatId);
       return jsonOk();
     }
@@ -239,7 +337,12 @@ Deno.serve(async (req) => {
   }
 });
 
-// ===== MOTHER BOT HELPERS =====
+// ===== HELPERS =====
+
+async function getUpiId(supabase: any): Promise<string | null> {
+  const { data } = await supabase.from("payment_settings").select("setting_value").eq("setting_key", "upi_id").maybeSingle();
+  return data?.setting_value || null;
+}
 
 async function getRequiredChannels(supabase: any): Promise<string[]> {
   const { data } = await supabase.from("app_settings").select("value").eq("key", "required_channels").maybeSingle();
@@ -263,7 +366,7 @@ async function showMotherMenu(token: string, chatId: number) {
   await sendMsg(token, chatId,
     "🏭 <b>Mother Bot — Create Your Own Selling Bot!</b>\n\n" +
     "Create a bot that sells products from our catalog.\n" +
-    "Earn commission on every sale! 💰\n\n" +
+    `Earn commission on every sale! 💰\n\nCreation Fee: ₹${CREATION_FEE}\n\n` +
     "Choose an option:",
     {
       reply_markup: {
@@ -346,14 +449,12 @@ async function handleMotherConversation(token: string, supabase: any, chatId: nu
       return;
     }
 
-    // Check if token already used
     const { data: existing } = await supabase.from("child_bots").select("id").eq("bot_token", tokenVal).maybeSingle();
     if (existing) {
       await sendMsg(token, chatId, "❌ This bot token is already registered. Use a different bot.");
       return;
     }
 
-    // Check max 3 bots
     const { count } = await supabase.from("child_bots").select("id", { count: "exact", head: true }).eq("owner_telegram_id", userId);
     if ((count || 0) >= 3) {
       await sendMsg(token, chatId, "❌ You can only create up to 3 bots. Deactivate or contact support.");
@@ -364,7 +465,7 @@ async function handleMotherConversation(token: string, supabase: any, chatId: nu
     await setConvState(supabase, userId, "mother_enter_username", { bot_token: tokenVal, bot_username: validation.username, bot_id: validation.id });
     await sendMsg(token, chatId,
       `✅ Bot verified: @${validation.username}\n\n` +
-      `Step 2/4: Enter the <b>Bot Username</b> (without @)\n\n` +
+      `Step 2/5: Enter the <b>Bot Username</b> (without @)\n\n` +
       `This will be used for referral & resale links.\n` +
       `Detected: <code>${validation.username}</code>\n\n` +
       `Send the username or just send <code>${validation.username}</code> to confirm.`
@@ -382,7 +483,7 @@ async function handleMotherConversation(token: string, supabase: any, chatId: nu
     await setConvState(supabase, userId, "mother_enter_owner", { ...state.data, bot_username: username });
     await sendMsg(token, chatId,
       `✅ Username: @${username}\n\n` +
-      `Step 3/4: Enter the <b>Owner Telegram ID</b>\n\n` +
+      `Step 3/5: Enter the <b>Owner Telegram ID</b>\n\n` +
       `This is the person who will manage this bot.\nSend your own ID (<code>${userId}</code>) to be the owner yourself.`
     );
     return;
@@ -397,14 +498,14 @@ async function handleMotherConversation(token: string, supabase: any, chatId: nu
     }
     await setConvState(supabase, userId, "mother_enter_percent", { ...state.data, owner_telegram_id: ownerId });
     await sendMsg(token, chatId,
-      `Step 4/4: Enter your <b>Revenue Percentage</b> (1% – 60%)\n\n` +
+      `Step 4/5: Enter your <b>Revenue Percentage</b> (1% – 60%)\n\n` +
       `This is the commission you'll earn per sale through your bot.\n` +
       `Price shown to users = Reseller Price + Your %`
     );
     return;
   }
 
-  // Step 4: Enter revenue percentage
+  // Step 4: Enter revenue percentage → Show confirmation
   if (state.step === "mother_enter_percent") {
     const percent = parseFloat(text.trim());
     if (isNaN(percent) || percent < 1 || percent > 60) {
@@ -419,11 +520,13 @@ async function handleMotherConversation(token: string, supabase: any, chatId: nu
       `👤 Owner ID: <code>${state.data.owner_telegram_id}</code>\n` +
       `💰 Revenue: ${percent}% per sale\n` +
       `📎 Referral/Resale links will use: @${state.data.bot_username}\n\n` +
+      `💳 <b>Creation Fee: ₹${CREATION_FEE}</b>\n\n` +
+      `After confirmation, you'll need to pay ₹${CREATION_FEE} to activate the bot.\n\n` +
       `Confirm?`,
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "✅ Confirm", callback_data: "mother_confirm_create" }],
+            [{ text: "✅ Confirm & Pay", callback_data: "mother_confirm_create" }],
             [{ text: "❌ Cancel", callback_data: "mother_cancel_create" }],
           ],
         },
@@ -431,12 +534,17 @@ async function handleMotherConversation(token: string, supabase: any, chatId: nu
     );
     return;
   }
+
+  // If in awaiting_payment state and user sends text
+  if (state.step === "mother_awaiting_payment") {
+    await sendMsg(token, chatId, "📸 Please send a <b>payment screenshot</b> (photo), not text.\n\nSend /cancel to abort.");
+    return;
+  }
 }
 
 async function createChildBot(token: string, supabase: any, chatId: number, creatorId: number, data: Record<string, any>) {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
-  // Insert into child_bots
   const { data: newBot, error } = await supabase.from("child_bots").insert({
     bot_token: data.bot_token,
     bot_username: data.bot_username,
@@ -449,7 +557,6 @@ async function createChildBot(token: string, supabase: any, chatId: number, crea
     return;
   }
 
-  // Set webhook for child bot → routes through main telegram-bot function with ?child=<id>
   const webhookUrl = `${SUPABASE_URL}/functions/v1/telegram-bot?child=${newBot.id}`;
   try {
     const res = await fetch(`https://api.telegram.org/bot${data.bot_token}/setWebhook`, {
