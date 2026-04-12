@@ -35,17 +35,32 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   // Build list of tokens to try
   // For resale orders, use resale bot token FIRST so user gets messages in the same bot
+  // For child bot orders, use child bot token FIRST
   const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
   const isResaleOrder = !!order.reseller_telegram_id;
+  const isChildBotOrder = order.username?.startsWith("child_bot:");
   let tokensToTry: string[];
-  if (isResaleOrder && resaleToken && resaleToken !== token) {
+  let userToken: string;
+
+  if (isChildBotOrder) {
+    // For child bot orders, resolve the child bot token
+    const childBotId = order.username.replace("child_bot:", "");
+    const { data: childBot } = await supabase.from("child_bots").select("bot_token").eq("id", childBotId).single();
+    if (childBot?.bot_token) {
+      tokensToTry = [childBot.bot_token, token];
+      userToken = childBot.bot_token;
+    } else {
+      tokensToTry = [token];
+      userToken = token;
+    }
+  } else if (isResaleOrder && resaleToken && resaleToken !== token) {
     tokensToTry = [resaleToken, token]; // Resale bot first
+    userToken = resaleToken;
   } else {
     tokensToTry = [token];
     if (resaleToken && resaleToken !== token) tokensToTry.push(resaleToken);
+    userToken = token;
   }
-  // The primary token for this order (used for instant delivery etc.)
-  const userToken = isResaleOrder && resaleToken ? resaleToken : token;
 
   const msgKey: Record<string, string> = { confirmed: "order_confirmed", rejected: "order_rejected", shipped: "order_shipped" };
   await sendToUser(tokensToTry, order.telegram_user_id, t(msgKey[newStatus] || "order_confirmed", userLang));
