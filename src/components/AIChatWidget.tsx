@@ -1,20 +1,33 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Sparkles, ChevronDown } from 'lucide-react';
+import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Sparkles, ChevronDown, Mic, MicOff, Search, Clock, MessageSquare, Zap, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-type Msg = { role: 'user' | 'assistant'; content: string; timestamp?: number };
+type Msg = { role: 'user' | 'assistant'; content: string; timestamp?: number; wordCount?: number; responseTime?: number };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+const STORAGE_KEY = 'rkr-ai-chat-history';
 
 const SUGGESTIONS = [
-  "🔥 Best deals right now?",
-  "📦 Show me all products",
-  "💰 Cheapest premium apps?",
-  "🎟️ Any active coupons?",
+  { icon: "🔥", text: "Best deals right now?" },
+  { icon: "📦", text: "Show me all products" },
+  { icon: "💰", text: "Cheapest premium apps?" },
+  { icon: "🎟️", text: "Any active coupons?" },
+  { icon: "⚡", text: "Flash sale products?" },
+  { icon: "🆚", text: "Compare Netflix vs Disney+" },
 ];
+
+// Format relative time
+const formatTime = (ts?: number) => {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return new Date(ts).toLocaleDateString();
+};
 
 // Copy button for code blocks
 const CopyButton = ({ text }: { text: string }) => {
@@ -22,52 +35,78 @@ const CopyButton = ({ text }: { text: string }) => {
   return (
     <button
       onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      className="absolute top-2 right-2 p-1 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+      className="absolute top-2 right-2 p-1 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors z-10"
     >
       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
   );
 };
 
-const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading }: {
-  msg: Msg; onCopy: () => void; onRetry?: () => void; isLast: boolean; isLoading: boolean;
+// Blinking cursor for streaming
+const StreamingCursor = () => (
+  <span className="inline-block w-[2px] h-4 bg-primary ml-0.5 animate-pulse align-text-bottom" />
+);
+
+const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isStreaming, searchTerm }: {
+  msg: Msg; onCopy: () => void; onRetry?: () => void; isLast: boolean; isLoading: boolean; isStreaming: boolean; searchTerm: string;
 }) => {
   const isUser = msg.role === 'user';
+
+  // Highlight search matches
+  const highlightContent = useCallback((text: string) => {
+    if (!searchTerm) return text;
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '**$1**');
+  }, [searchTerm]);
   
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.15 }}
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} group`}
     >
-      <div className="flex flex-col gap-1 max-w-[88%]">
+      <div className="flex flex-col gap-0.5 max-w-[88%]">
         {!isUser && (
           <div className="flex items-center gap-1.5 px-1">
-            <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/10">
               <Sparkles className="w-3 h-3 text-primary" />
             </div>
-            <span className="text-[10px] font-medium text-muted-foreground">RKR AI</span>
+            <span className="text-[10px] font-semibold text-primary/70">RKR AI</span>
+            {msg.timestamp && (
+              <span className="text-[9px] text-muted-foreground/50 flex items-center gap-0.5">
+                <Clock className="w-2.5 h-2.5" />
+                {formatTime(msg.timestamp)}
+              </span>
+            )}
+          </div>
+        )}
+        {isUser && msg.timestamp && (
+          <div className="flex justify-end px-1">
+            <span className="text-[9px] text-muted-foreground/50">{formatTime(msg.timestamp)}</span>
           </div>
         )}
         <div
-          className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+          className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed transition-all ${
             isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-sm'
-              : 'bg-muted/70 text-foreground rounded-tl-sm border border-border/50'
+              ? 'bg-primary text-primary-foreground rounded-tr-sm shadow-sm'
+              : 'bg-muted/60 text-foreground rounded-tl-sm border border-border/40 shadow-sm'
           }`}
         >
           {msg.role === 'assistant' ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words [&_a]:text-primary [&_a]:underline [&_a]:font-medium [&_p]:m-0 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:m-0 [&_ul]:mb-1.5 [&_ol]:m-0 [&_ol]:mb-1.5 [&_li]:m-0 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_code]:bg-background/50 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_pre]:relative [&_pre]:bg-background/80 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50">
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words [&_a]:text-primary [&_a]:underline [&_a]:font-medium [&_p]:m-0 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:m-0 [&_ul]:mb-1.5 [&_ol]:m-0 [&_ol]:mb-1.5 [&_li]:m-0 [&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_code]:bg-background/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-xs [&_code]:font-mono [&_pre]:relative [&_pre]:bg-background/80 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50 [&_pre]:my-1.5 [&_table]:text-xs [&_table]:border-collapse [&_th]:border [&_th]:border-border/50 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-muted/50 [&_td]:border [&_td]:border-border/50 [&_td]:px-2 [&_td]:py-1 [&_strong]:text-foreground [&_blockquote]:border-l-2 [&_blockquote]:border-primary/30 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_hr]:border-border/30">
               <ReactMarkdown
                 components={{
                   a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 hover:opacity-80">
+                      {children}
+                      <ArrowRight className="w-3 h-3 inline" />
+                    </a>
                   ),
                   pre: ({ children, ...props }) => {
                     const codeText = (children as any)?.props?.children || '';
                     return (
-                      <pre {...props} className="relative">
+                      <pre {...props} className="relative group/code">
                         <CopyButton text={String(codeText)} />
                         {children}
                       </pre>
@@ -75,24 +114,35 @@ const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading }: {
                   },
                 }}
               >
-                {msg.content}
+                {searchTerm ? highlightContent(msg.content) : msg.content}
               </ReactMarkdown>
+              {isStreaming && isLast && <StreamingCursor />}
             </div>
           ) : (
             <p className="whitespace-pre-wrap break-words">{msg.content}</p>
           )}
         </div>
         
-        {/* Action buttons for assistant messages */}
-        {!isUser && msg.content && (
-          <div className="flex items-center gap-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={onCopy} className="p-1 rounded hover:bg-muted transition-colors" title="Copy">
-              <Copy className="w-3 h-3 text-muted-foreground" />
-            </button>
-            {isLast && !isLoading && onRetry && (
-              <button onClick={onRetry} className="p-1 rounded hover:bg-muted transition-colors" title="Regenerate">
-                <RotateCcw className="w-3 h-3 text-muted-foreground" />
+        {/* Action buttons & meta for assistant messages */}
+        {!isUser && msg.content && !isStreaming && (
+          <div className="flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-0.5">
+              <button onClick={onCopy} className="p-1 rounded-md hover:bg-muted transition-colors" title="Copy response">
+                <Copy className="w-3 h-3 text-muted-foreground" />
               </button>
+              {isLast && !isLoading && onRetry && (
+                <button onClick={onRetry} className="p-1 rounded-md hover:bg-muted transition-colors" title="Regenerate">
+                  <RotateCcw className="w-3 h-3 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            {msg.wordCount && (
+              <span className="text-[9px] text-muted-foreground/40">{msg.wordCount} words</span>
+            )}
+            {msg.responseTime && (
+              <span className="text-[9px] text-muted-foreground/40 flex items-center gap-0.5">
+                <Zap className="w-2.5 h-2.5" />{(msg.responseTime / 1000).toFixed(1)}s
+              </span>
             )}
           </div>
         )}
@@ -102,23 +152,62 @@ const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading }: {
 });
 MessageBubble.displayName = 'MessageBubble';
 
+// Follow-up suggestion chips after AI response
+const FollowUpChips = React.memo(({ suggestions, onSelect }: { suggestions: string[]; onSelect: (s: string) => void }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 5 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.3 }}
+    className="flex flex-wrap gap-1.5 px-1 mt-1"
+  >
+    {suggestions.map((s, i) => (
+      <button
+        key={i}
+        onClick={() => onSelect(s)}
+        className="text-[11px] px-2.5 py-1 rounded-full bg-primary/5 hover:bg-primary/10 border border-primary/15 hover:border-primary/30 text-primary transition-all hover:scale-[1.02]"
+      >
+        {s}
+      </button>
+    ))}
+  </motion.div>
+));
+FollowUpChips.displayName = 'FollowUpChips';
+
 const AIChatWidget: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [messages, setMessages] = useState<Msg[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [followUps, setFollowUps] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const streamStartTime = useRef<number>(0);
 
   // Draggable button state
   const [btnPos, setBtnPos] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const hasMoved = useRef(false);
+
+  // Save messages to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50))); // Keep last 50
+    } catch { /* quota exceeded */ }
+  }, [messages]);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -130,14 +219,12 @@ const AIChatWidget: React.FC = () => {
     scrollToBottom();
   }, [messages, open, scrollToBottom]);
 
-  // Track scroll position for "scroll down" button
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
     setShowScrollDown(scrollHeight - scrollTop - clientHeight > 100);
   }, []);
 
-  // Auto-resize textarea
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
@@ -145,12 +232,61 @@ const AIChatWidget: React.FC = () => {
     }
   }, [input]);
 
-  // Focus input when opened
   useEffect(() => {
-    if (open && inputRef.current) {
+    if (open && inputRef.current && !searchMode) {
       setTimeout(() => inputRef.current?.focus(), 300);
     }
-  }, [open]);
+  }, [open, searchMode]);
+
+  useEffect(() => {
+    if (searchMode && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchMode]);
+
+  // Voice input using Web Speech API
+  const toggleVoice = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Voice input not supported in this browser');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'bn-BD'; // Bengali, falls back to English
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((r: any) => r[0].transcript)
+        .join('');
+      setInput(transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    recognition.start();
+  }, [isListening]);
+
+  // Generate follow-up suggestions from last response
+  const generateFollowUps = useCallback((content: string) => {
+    const suggestions: string[] = [];
+    if (content.toLowerCase().includes('netflix')) suggestions.push('Netflix plans compare করো');
+    if (content.toLowerCase().includes('spotify')) suggestions.push('Spotify features বলো');
+    if (content.toLowerCase().includes('price') || content.includes('₹')) suggestions.push('Cheapest option দেখাও');
+    if (content.toLowerCase().includes('coupon') || content.toLowerCase().includes('discount')) suggestions.push('আর কোনো offer আছে?');
+    if (content.toLowerCase().includes('flash sale')) suggestions.push('Flash sale details দেখাও');
+    if (suggestions.length === 0) {
+      suggestions.push('আরো details দাও', 'Similar products দেখাও');
+    }
+    return suggestions.slice(0, 3);
+  }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     isDragging.current = true;
@@ -168,14 +304,13 @@ const AIChatWidget: React.FC = () => {
   }, []);
 
   const handlePointerUp = useCallback(() => { isDragging.current = false; }, []);
-
-  const handleBtnClick = useCallback(() => {
-    if (!hasMoved.current) setOpen(true);
-  }, []);
+  const handleBtnClick = useCallback(() => { if (!hasMoved.current) setOpen(true); }, []);
 
   const streamChat = useCallback(async (allMessages: Msg[]) => {
     setLoading(true);
+    setFollowUps([]);
     abortRef.current = new AbortController();
+    streamStartTime.current = Date.now();
     let assistantSoFar = '';
 
     try {
@@ -222,12 +357,13 @@ const AIChatWidget: React.FC = () => {
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
+              const wc = assistantSoFar.split(/\s+/).filter(Boolean).length;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
                 if (last?.role === 'assistant') {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar, wordCount: wc } : m);
                 }
-                return [...prev, { role: 'assistant', content: assistantSoFar, timestamp: Date.now() }];
+                return [...prev, { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: wc }];
               });
             }
           } catch {
@@ -251,24 +387,36 @@ const AIChatWidget: React.FC = () => {
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               assistantSoFar += content;
+              const wc = assistantSoFar.split(/\s+/).filter(Boolean).length;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
                 if (last?.role === 'assistant') {
-                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar, wordCount: wc } : m);
                 }
-                return [...prev, { role: 'assistant', content: assistantSoFar, timestamp: Date.now() }];
+                return [...prev, { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: wc }];
               });
             }
           } catch { /* ignore */ }
         }
       }
+
+      // Set response time & follow-ups
+      const responseTime = Date.now() - streamStartTime.current;
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant') {
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, responseTime } : m);
+        }
+        return prev;
+      });
+      setFollowUps(generateFollowUps(assistantSoFar));
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         toast.error('Failed to connect to AI');
       }
     }
     setLoading(false);
-  }, []);
+  }, [generateFollowUps]);
 
   const handleSend = useCallback((text?: string) => {
     const msg = (text || input).trim();
@@ -277,15 +425,13 @@ const AIChatWidget: React.FC = () => {
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-    }
+    setFollowUps([]);
+    if (inputRef.current) inputRef.current.style.height = 'auto';
     streamChat(updated);
   }, [input, loading, messages, streamChat]);
 
   const handleRetry = useCallback(() => {
     if (loading) return;
-    // Remove last assistant message and retry
     setMessages(prev => {
       const withoutLast = prev.slice(0, -1);
       streamChat(withoutLast);
@@ -300,6 +446,8 @@ const AIChatWidget: React.FC = () => {
 
   const handleClearChat = useCallback(() => {
     setMessages([]);
+    setFollowUps([]);
+    localStorage.removeItem(STORAGE_KEY);
     toast.success('Chat cleared');
   }, []);
 
@@ -315,6 +463,18 @@ const AIChatWidget: React.FC = () => {
     }
   }, [handleSend]);
 
+  // Keyboard shortcut: Ctrl+K for search
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && open) {
+        e.preventDefault();
+        setSearchMode(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [open]);
+
   const msgCount = messages.length;
   const lastAssistantIdx = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -323,9 +483,20 @@ const AIChatWidget: React.FC = () => {
     return -1;
   }, [messages]);
 
+  // Filter messages by search
+  const filteredMessages = useMemo(() => {
+    if (!searchTerm) return messages;
+    return messages.filter(m => m.content.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [messages, searchTerm]);
+
+  // Stats
+  const totalWords = useMemo(() => {
+    return messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + (m.wordCount || 0), 0);
+  }, [messages]);
+
   const panelClasses = isFullScreen
     ? 'fixed inset-0 z-[60] w-full h-full rounded-none'
-    : 'fixed bottom-24 right-4 z-[60] w-[380px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-8rem)] rounded-2xl';
+    : 'fixed bottom-24 right-4 z-[60] w-[400px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-8rem)] rounded-2xl';
 
   return (
     <>
@@ -350,10 +521,17 @@ const AIChatWidget: React.FC = () => {
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onClick={handleBtnClick}
-              className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform touch-none select-none cursor-grab active:cursor-grabbing relative"
+              className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform touch-none select-none cursor-grab active:cursor-grabbing relative ring-2 ring-primary/20"
             >
               <Bot className="w-6 h-6 pointer-events-none" />
-              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background">
+                <span className="absolute inset-0 rounded-full bg-green-500 animate-pulse" />
+              </span>
+              {msgCount > 0 && (
+                <span className="absolute -bottom-1 -left-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center border-2 border-background">
+                  {msgCount > 99 ? '99+' : msgCount}
+                </span>
+              )}
             </button>
           </motion.div>
         )}
@@ -367,95 +545,172 @@ const AIChatWidget: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`${panelClasses} bg-background border border-border shadow-2xl flex flex-col overflow-hidden`}
+            className={`${panelClasses} bg-background border border-border/60 shadow-2xl flex flex-col overflow-hidden`}
           >
             {/* Header */}
-            <div className={`flex items-center justify-between px-4 py-3 bg-primary text-primary-foreground border-b border-primary/20 ${isFullScreen ? '' : 'rounded-t-2xl'}`}>
+            <div className={`flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground ${isFullScreen ? '' : 'rounded-t-2xl'}`}>
               <div className="flex items-center gap-2.5">
                 <div className="relative">
-                  <div className="w-8 h-8 rounded-full bg-primary-foreground/15 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="w-9 h-9 rounded-xl bg-primary-foreground/15 flex items-center justify-center backdrop-blur-sm">
+                    <Sparkles className="w-4.5 h-4.5" />
                   </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-primary" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-primary shadow-sm" />
                 </div>
                 <div>
-                  <span className="font-bold text-sm">RKR AI</span>
-                  <p className="text-[10px] opacity-75">Always online • Powered by AI</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-sm">RKR AI</span>
+                    <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary-foreground/15 font-medium">PRO</span>
+                  </div>
+                  <p className="text-[10px] opacity-70">
+                    {loading ? '✍️ Typing...' : msgCount > 0 ? `${msgCount} messages • ${totalWords} words` : 'Always online'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-0.5">
+                <button onClick={() => { setSearchMode(prev => !prev); setSearchTerm(''); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title="Search (Ctrl+K)">
+                  <Search className="w-3.5 h-3.5" />
+                </button>
                 {msgCount > 0 && (
-                  <button onClick={handleClearChat} className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors" title="Clear chat">
+                  <button onClick={handleClearChat} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title="Clear chat">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={() => setIsFullScreen(prev => !prev)} className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors" title={isFullScreen ? 'Minimize' : 'Fullscreen'}>
+                <button onClick={() => setIsFullScreen(prev => !prev)} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title={isFullScreen ? 'Minimize' : 'Fullscreen'}>
                   {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                 </button>
-                <button onClick={() => { setOpen(false); setDismissed(false); setIsFullScreen(false); }} className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors">
+                <button onClick={() => { setOpen(false); setDismissed(false); setIsFullScreen(false); setSearchMode(false); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
+            {/* Search Bar */}
+            <AnimatePresence>
+              {searchMode && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden border-b border-border"
+                >
+                  <div className="px-3 py-2 flex items-center gap-2">
+                    <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchTerm}
+                      onChange={e => setSearchTerm(e.target.value)}
+                      placeholder="Search in conversation..."
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+                    />
+                    {searchTerm && (
+                      <span className="text-[10px] text-muted-foreground shrink-0">
+                        {filteredMessages.length} found
+                      </span>
+                    )}
+                    <button onClick={() => { setSearchMode(false); setSearchTerm(''); }} className="p-0.5">
+                      <X className="w-3.5 h-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Messages */}
             <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-3 py-3 space-y-3 scroll-smooth">
               {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full gap-4 py-6">
+                <div className="flex flex-col items-center justify-center h-full gap-4 py-4">
                   <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', delay: 0.1 }}
-                    className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center"
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', delay: 0.1, damping: 15 }}
+                    className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center ring-1 ring-primary/10"
                   >
-                    <Sparkles className="w-8 h-8 text-primary" />
+                    <Sparkles className="w-10 h-10 text-primary" />
                   </motion.div>
-                  <div className="text-center">
-                    <h3 className="font-bold text-foreground">Hey! I'm RKR AI 🤖</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Ask me anything about products, deals & premium apps!</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 w-full max-w-[300px]">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-center"
+                  >
+                    <h3 className="font-bold text-lg text-foreground">Hey! I'm RKR AI 🤖</h3>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[250px] mx-auto">
+                      Your smart assistant for products, deals, premium apps & more!
+                    </p>
+                  </motion.div>
+                  
+                  <div className="grid grid-cols-2 gap-2 w-full max-w-[320px]">
                     {SUGGESTIONS.map((s, i) => (
                       <motion.button
                         key={i}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 + i * 0.08 }}
-                        onClick={() => handleSend(s)}
-                        className="text-left text-xs p-2.5 rounded-xl bg-muted/60 hover:bg-muted border border-border/50 hover:border-border transition-colors text-foreground"
+                        transition={{ delay: 0.25 + i * 0.06 }}
+                        onClick={() => handleSend(`${s.icon} ${s.text}`)}
+                        className="text-left text-[11px] p-2.5 rounded-xl bg-muted/40 hover:bg-muted/80 border border-border/40 hover:border-border/80 transition-all text-foreground flex items-start gap-1.5 hover:shadow-sm"
                       >
-                        {s}
+                        <span className="text-sm">{s.icon}</span>
+                        <span>{s.text}</span>
                       </motion.button>
                     ))}
                   </div>
+                  
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="text-[10px] text-muted-foreground/40 flex items-center gap-1"
+                  >
+                    <Mic className="w-3 h-3" /> Voice input supported • <MessageSquare className="w-3 h-3" /> Markdown rendered
+                  </motion.p>
                 </div>
               )}
               
-              {messages.map((msg, i) => (
-                <MessageBubble
-                  key={`${i}-${msg.timestamp}`}
-                  msg={msg}
-                  onCopy={() => handleCopy(msg.content)}
-                  onRetry={i === lastAssistantIdx ? handleRetry : undefined}
-                  isLast={i === lastAssistantIdx}
-                  isLoading={loading}
-                />
-              ))}
+              {filteredMessages.map((msg, i) => {
+                const originalIdx = messages.indexOf(msg);
+                return (
+                  <MessageBubble
+                    key={`${originalIdx}-${msg.timestamp}`}
+                    msg={msg}
+                    onCopy={() => handleCopy(msg.content)}
+                    onRetry={originalIdx === lastAssistantIdx ? handleRetry : undefined}
+                    isLast={originalIdx === lastAssistantIdx}
+                    isLoading={loading}
+                    isStreaming={loading && originalIdx === messages.length - 1 && msg.role === 'assistant'}
+                    searchTerm={searchTerm}
+                  />
+                );
+              })}
+
+              {/* Follow-up suggestions */}
+              {!loading && followUps.length > 0 && lastAssistantIdx === messages.length - 1 && (
+                <FollowUpChips suggestions={followUps} onSelect={handleSend} />
+              )}
               
               {loading && messages[messages.length - 1]?.role !== 'assistant' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1.5 px-1">
-                      <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Sparkles className="w-3 h-3 text-primary animate-pulse" />
+                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-1 ring-primary/10">
+                        <Sparkles className="w-3 h-3 text-primary animate-spin" style={{ animationDuration: '3s' }} />
                       </div>
-                      <span className="text-[10px] font-medium text-muted-foreground">RKR AI is thinking...</span>
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1 }}
+                        >
+                          RKR AI is thinking
+                        </motion.span>
+                        <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>...</motion.span>
+                      </span>
                     </div>
-                    <div className="bg-muted/70 rounded-2xl rounded-tl-sm border border-border/50 px-4 py-3">
-                      <div className="flex gap-1.5">
-                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="bg-muted/60 rounded-2xl rounded-tl-sm border border-border/40 px-4 py-3">
+                      <div className="flex gap-1.5 items-center">
+                        <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-2 h-2 bg-primary/50 rounded-full" />
+                        <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.15 }} className="w-2 h-2 bg-primary/50 rounded-full" />
+                        <motion.span animate={{ scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.3 }} className="w-2 h-2 bg-primary/50 rounded-full" />
                       </div>
                     </div>
                   </div>
@@ -471,7 +726,7 @@ const AIChatWidget: React.FC = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
                   onClick={scrollToBottom}
-                  className="absolute bottom-20 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                  className="absolute bottom-24 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </motion.button>
@@ -481,34 +736,53 @@ const AIChatWidget: React.FC = () => {
             {/* Input Area */}
             <div className="p-3 border-t border-border bg-background/95 backdrop-blur-sm">
               {loading && (
-                <button onClick={handleStop} className="w-full mb-2 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 py-1 rounded-lg hover:bg-muted transition-colors">
-                  <span className="w-3 h-3 rounded-sm bg-muted-foreground/50 border border-muted-foreground/30" />
+                <motion.button
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={handleStop}
+                  className="w-full mb-2 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-destructive/10 hover:text-destructive border border-border/50 transition-all"
+                >
+                  <span className="w-3 h-3 rounded-sm bg-destructive/60" />
                   Stop generating
-                </button>
+                </motion.button>
               )}
               <div className="flex gap-2 items-end">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask anything... (Shift+Enter for new line)"
-                  className="flex-1 resize-none text-sm rounded-xl bg-muted/70 border border-border/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 px-3.5 py-2.5 outline-none transition-all min-h-[40px] max-h-[120px] placeholder:text-muted-foreground/60"
-                  disabled={loading}
-                  rows={1}
-                />
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={isListening ? '🎤 Listening...' : 'Ask anything...'}
+                    className={`w-full resize-none text-sm rounded-xl bg-muted/50 border focus:border-primary/50 focus:ring-2 focus:ring-primary/10 px-3.5 py-2.5 pr-10 outline-none transition-all min-h-[42px] max-h-[120px] placeholder:text-muted-foreground/50 ${isListening ? 'border-primary/50 ring-2 ring-primary/10' : 'border-border/50'}`}
+                    disabled={loading}
+                    rows={1}
+                  />
+                  <button
+                    onClick={toggleVoice}
+                    className={`absolute right-2 bottom-2 p-1.5 rounded-lg transition-all ${isListening ? 'bg-primary text-primary-foreground animate-pulse' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                    title={isListening ? 'Stop listening' : 'Voice input'}
+                  >
+                    {isListening ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
                 <Button
                   size="icon"
-                  className="w-10 h-10 rounded-xl shrink-0 transition-all"
+                  className="w-10 h-10 rounded-xl shrink-0 transition-all shadow-sm"
                   onClick={() => handleSend()}
                   disabled={!input.trim() || loading}
                 >
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
-              <p className="text-[9px] text-muted-foreground/50 text-center mt-1.5">
-                AI can make mistakes. Verify important info.
-              </p>
+              <div className="flex items-center justify-between mt-1.5 px-1">
+                <p className="text-[9px] text-muted-foreground/40">
+                  {input.length > 0 ? `${input.length} chars` : 'Shift+Enter for new line'}
+                </p>
+                <p className="text-[9px] text-muted-foreground/40">
+                  AI can make mistakes
+                </p>
+              </div>
             </div>
           </motion.div>
         )}
