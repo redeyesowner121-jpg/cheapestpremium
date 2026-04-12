@@ -142,7 +142,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg text-xs">
         <p className="font-medium text-foreground mb-1">{label}</p>
         <p className="text-primary">👤 Users: {d._users} (value: {d.userJoined})</p>
-        <p className="text-success">💰 Deposits: {d._deposits} (value: {d.deposit})</p>
+        <p className="text-success">💰 Deposits: ₹{d._depositAmount?.toLocaleString()} (value: {d.deposit})</p>
         <p className="text-accent">📦 Orders: {d._orders} (value: {d.order})</p>
         <p className="text-secondary-foreground">🎁 Profit Given: ₹{d._profit} (value: {d.profitGiven.toFixed(1)})</p>
       </div>
