@@ -52,7 +52,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
   const totals = useMemo(() => {
     return combinedData.reduce((acc, d) => ({
       users: acc.users + d._users,
-      deposits: acc.deposits + d._deposits,
+      deposits: acc.deposits + d._depositAmount,
       orders: acc.orders + d._orders,
       profit: acc.profit + d._profit,
     }), { users: 0, deposits: 0, orders: 0, profit: 0 });
