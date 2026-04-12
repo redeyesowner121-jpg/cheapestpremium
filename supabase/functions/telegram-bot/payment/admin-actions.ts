@@ -139,27 +139,103 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
       }
     }
 
-    if (order.reseller_telegram_id && order.reseller_profit > 0) {
-      const resellerWallet = await getWallet(supabase, order.reseller_telegram_id);
-      if (resellerWallet) {
-        await supabase.from("telegram_wallets").update({
-          balance: resellerWallet.balance + order.reseller_profit,
-          total_earned: resellerWallet.total_earned + order.reseller_profit,
-          updated_at: new Date().toISOString(),
-        }).eq("telegram_id", order.reseller_telegram_id);
+    // Credit child bot owner commission if this is a child bot order
+    if (order.username?.startsWith("child_bot:")) {
+      try {
+        const childBotId = order.username.replace("child_bot:", "");
+        const { data: childBot } = await supabase.from("child_bots").select("*").eq("id", childBotId).single();
+        if (childBot) {
+          // Update child bot order status
+          await supabase.from("child_bot_orders")
+            .update({ status: "confirmed" })
+            .eq("telegram_order_id", orderId);
 
-        await supabase.from("telegram_wallet_transactions").insert({
-          telegram_id: order.reseller_telegram_id,
-          type: "resale_profit",
-          amount: order.reseller_profit,
-          description: `Resale profit: ${order.product_name}`,
-        });
+          // Calculate and credit commission
+          const commission = Math.round(order.amount * childBot.revenue_percent) / 100;
 
-        try {
-          await sendMessage(token, order.reseller_telegram_id,
-            `💰 <b>Resale Profit!</b>\n\n₹${order.reseller_profit} added to your wallet!\nProduct: ${order.product_name}`
-          );
-        } catch { /* reseller may have blocked bot */ }
+          // Credit to child bot owner's wallet
+          const { data: ownerWallet } = await supabase.from("telegram_wallets").select("balance, total_earned").eq("telegram_id", childBot.owner_telegram_id).single();
+          if (ownerWallet) {
+            await supabase.from("telegram_wallets").update({
+              balance: ownerWallet.balance + commission,
+              total_earned: ownerWallet.total_earned + commission,
+              updated_at: new Date().toISOString(),
+            }).eq("telegram_id", childBot.owner_telegram_id);
+
+            await supabase.from("telegram_wallet_transactions").insert({
+              telegram_id: childBot.owner_telegram_id,
+              type: "child_bot_commission",
+              amount: commission,
+              description: `Commission: ${order.product_name} (${childBot.revenue_percent}%)`,
+            });
+          }
+
+          // Update child bot stats
+          await supabase.from("child_bots").update({
+            total_earnings: childBot.total_earnings + commission,
+            total_orders: childBot.total_orders + 1,
+          }).eq("id", childBotId);
+
+          // Create earnings record
+          const { data: childOrder } = await supabase.from("child_bot_orders")
+            .select("id").eq("telegram_order_id", orderId).single();
+          if (childOrder) {
+            await supabase.from("child_bot_earnings").insert({
+              child_bot_id: childBotId,
+              order_id: childOrder.id,
+              amount: commission,
+              status: "paid",
+            });
+          }
+
+          // Notify buyer via child bot token (no website link)
+          try {
+            await sendToUser([childBot.bot_token], order.telegram_user_id,
+              `✅ <b>Order Confirmed!</b>\n\nProduct: <b>${order.product_name}</b>\nYour order has been confirmed and delivered! ⚡`
+            );
+
+            // Send access link via child bot (credentials only, no website links)
+            if (order.product_id) {
+              const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
+              if (product?.access_link) {
+                // Check if it's credentials (contains | separator) or a link
+                const isCredentials = product.access_link.includes("|");
+                const isDriveLink = product.access_link.includes("drive.google.com");
+
+                if (isCredentials) {
+                  const parts = product.access_link.split("|").map((p: string) => p.trim());
+                  let credText = `🔑 <b>Your Credentials</b>\n\n`;
+                  if (parts.length >= 2) {
+                    credText += `📧 ID: <code>${parts[0]}</code>\n🔒 Password: <code>${parts[1]}</code>`;
+                  } else {
+                    credText += `<code>${product.access_link}</code>`;
+                  }
+                  await sendToUser([childBot.bot_token], order.telegram_user_id, credText);
+                } else if (!isDriveLink) {
+                  // Send non-drive links directly
+                  await sendToUser([childBot.bot_token], order.telegram_user_id,
+                    `🔗 <b>Your Access Link</b>\n\n${product.access_link}`
+                  );
+                }
+                // Drive links are NOT shared via child bot
+              }
+            }
+          } catch (e) {
+            console.error("Child bot notification error:", e);
+          }
+
+          // Notify child bot owner about commission
+          try {
+            const motherToken = Deno.env.get("MOTHER_BOT_TOKEN");
+            if (motherToken) {
+              await sendToUser([motherToken], childBot.owner_telegram_id,
+                `💰 <b>Commission Earned!</b>\n\n🤖 Bot: @${childBot.bot_username}\n📦 Product: ${order.product_name}\n💵 Commission: ₹${commission} (${childBot.revenue_percent}%)`
+              );
+            }
+          } catch {}
+        }
+      } catch (e) {
+        console.error("Child bot commission error:", e);
       }
     }
   }
