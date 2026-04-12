@@ -50,7 +50,7 @@ const CategorySection: React.FC<CategorySectionProps> = ({
           return (
             <div
               key={product.id}
-              onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
+              onClick={() => navigate(`/product/${(product as any).slug || product.id}`, { state: { product: productForDetail } })}
               className="flex-shrink-0 w-36 bg-card rounded-xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
             >
               <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover" loading="lazy" />

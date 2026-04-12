@@ -251,7 +251,7 @@ const Index: React.FC = () => {
       sold_count: product.soldCount || 0,
       reseller_price: product.reseller_price
     };
-    navigate(`/product/${product.id}`, { state: { product: productForDetail } });
+    navigate(`/product/${product.slug || product.id}`, { state: { product: productForDetail } });
   };
 
   if (loading) {

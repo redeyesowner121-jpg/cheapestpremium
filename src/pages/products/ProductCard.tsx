@@ -61,7 +61,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <div
-      onClick={() => navigate(`/product/${product.id}`, { state: { product: productForDetail } })}
+      onClick={() => navigate(`/product/${(product as any).slug || product.id}`, { state: { product: productForDetail } })}
       className="bg-card rounded-2xl overflow-hidden shadow-card active:scale-[0.98] transition-transform cursor-pointer"
     >
       <div className="relative">
