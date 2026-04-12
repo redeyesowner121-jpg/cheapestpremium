@@ -65,62 +65,35 @@ const OrdersPage: React.FC = () => {
     if (!order.seller_id || !user) return;
     setConfirmingOrder(order.id);
     try {
-      const platformCommission = order.total_price * 0.10;
-      const sellerEarnings = order.total_price - platformCommission;
-      const { data: sellerProfile } = await supabase.from('profiles').select('wallet_balance, pending_balance').eq('id', order.seller_id).single();
-      if (sellerProfile) {
-        await supabase.from('profiles').update({ wallet_balance: (sellerProfile.wallet_balance || 0) + sellerEarnings, pending_balance: Math.max(0, (sellerProfile.pending_balance || 0) - sellerEarnings) }).eq('id', order.seller_id);
-      }
-      await supabase.from('orders').update({ buyer_confirmed: true, is_withdrawable: true, updated_at: new Date().toISOString() }).eq('id', order.id);
-      await supabase.from('transactions').update({ status: 'completed', type: 'sale', description: `Sale completed: ${order.product_name} (10% commission deducted)` }).eq('user_id', order.seller_id).eq('type', 'sale_pending').eq('status', 'pending');
-      await supabase.from('notifications').insert({ user_id: order.seller_id, title: 'Payment Released! 💰', message: `Buyer confirmed receipt for ${order.product_name}. ₹${sellerEarnings.toFixed(2)} has been added to your wallet.`, type: 'payment' });
+      const { data, error } = await supabase.rpc('confirm_seller_receipt', {
+        _buyer_id: user.id,
+        _order_id: order.id,
+      });
+      if (error) throw new Error(error.message);
       toast.success('Receipt confirmed! Payment released to seller.');
       await refreshProfile(); loadOrders();
-    } catch (error) { toast.error('Failed to confirm receipt'); }
+    } catch (error: any) { toast.error(error.message || 'Failed to confirm receipt'); }
     finally { setConfirmingOrder(null); }
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    // Re-fetch fresh order data to prevent race conditions
-    const { data: freshOrder } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
-    
-    if (!freshOrder || freshOrder.status !== 'pending') {
-      toast.error('Order status has changed. Please refresh.');
-      loadOrders();
-      return;
-    }
-    
-    // Check if coupon/discount was used - no refund if discount applied
-    const hasDiscount = (freshOrder.discount_applied || 0) > 0;
-    
+    if (!user) return;
     try {
-      await supabase.from('orders').update({ status: 'cancelled', updated_at: new Date().toISOString() }).eq('id', orderId);
-      
-      // Only refund if no discount/coupon was used
-      if (profile && !hasDiscount) {
-        const newBalance = (profile.wallet_balance || 0) + freshOrder.total_price;
-        await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user?.id);
-        await supabase.from('transactions').insert({ user_id: user?.id, type: 'refund', amount: freshOrder.total_price, status: 'completed', description: `Order cancelled - ${freshOrder.product_name}` });
-      }
-      
-      if (freshOrder.seller_id) {
-        const sellerEarnings = freshOrder.total_price * 0.90;
-        const { data: sellerProfile } = await supabase.from('profiles').select('pending_balance').eq('id', freshOrder.seller_id).single();
-        if (sellerProfile) { await supabase.from('profiles').update({ pending_balance: Math.max(0, (sellerProfile.pending_balance || 0) - sellerEarnings) }).eq('id', freshOrder.seller_id); }
-        await supabase.from('transactions').delete().eq('user_id', freshOrder.seller_id).eq('type', 'sale_pending').eq('status', 'pending');
-        await supabase.from('notifications').insert({ user_id: freshOrder.seller_id, title: 'Order Cancelled', message: `Order for ${freshOrder.product_name} was cancelled by the buyer.`, type: 'order' });
-      }
-      
-      const message = hasDiscount 
-        ? 'Order cancelled (no refund - coupon/discount was used)' 
-        : 'Order cancelled and refunded';
+      const { data, error } = await supabase.rpc('cancel_order_refund', {
+        _user_id: user.id,
+        _order_id: orderId,
+      });
+      if (error) throw new Error(error.message);
+      const result = data as any;
+      const message = result.refunded
+        ? 'Order cancelled and refunded'
+        : 'Order cancelled (no refund - coupon/discount was used)';
       toast.success(message);
       await refreshProfile(); loadOrders();
-    } catch (error) { toast.error('Failed to cancel order'); }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to cancel order');
+      loadOrders();
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
