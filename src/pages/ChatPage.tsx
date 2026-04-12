@@ -3,8 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Send, 
   ArrowLeft, 
-  Phone,
-  PhoneCall,
+  MessageCircle,
   Image as ImageIcon,
   X
 } from 'lucide-react';
@@ -12,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -27,6 +27,7 @@ interface Message {
 const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const { profile, user, isAdmin, isTempAdmin } = useAuth();
+  const { settings } = useAppSettingsContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,11 @@ const ChatPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Dynamic support contacts from settings
+  const whatsappNumber = (settings.contact_whatsapp || '').replace(/[^0-9]/g, '');
+  const telegramContact = (settings as any).support_telegram || '';
+  const telegramClean = telegramContact.replace(/^@/, '').replace(/^\+/, '');
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -44,7 +50,6 @@ const ChatPage: React.FC = () => {
     if (user) {
       loadMessages();
       
-      // Subscribe to realtime messages
       const channel = supabase
         .channel('chat-messages')
         .on(
@@ -73,7 +78,6 @@ const ChatPage: React.FC = () => {
 
   const loadMessages = async () => {
     if (!user) return;
-    
     setLoading(true);
     const { data } = await supabase
       .from('chat_messages')
@@ -81,9 +85,7 @@ const ChatPage: React.FC = () => {
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
 
-    if (data) {
-      setMessages(data);
-    }
+    if (data) setMessages(data);
     setLoading(false);
   };
 
@@ -102,28 +104,15 @@ const ChatPage: React.FC = () => {
   const removeSelectedImage = () => {
     setSelectedImage(null);
     setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-    
-    const { data, error } = await supabase.storage
-      .from('chat-images')
-      .upload(fileName, file);
-
-    if (error) {
-      console.error('Upload error:', error);
-      return null;
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('chat-images')
-      .getPublicUrl(fileName);
-
+    const { error } = await supabase.storage.from('chat-images').upload(fileName, file);
+    if (error) return null;
+    const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(fileName);
     return urlData.publicUrl;
   };
 
@@ -161,78 +150,120 @@ const ChatPage: React.FC = () => {
     loadMessages();
   };
 
-  const handleCall = () => {
-    window.open('tel:+918900684167', '_self');
+  const handleWhatsApp = () => {
+    if (whatsappNumber) {
+      window.open(`https://wa.me/${whatsappNumber}`, '_blank');
+    } else {
+      toast.error('WhatsApp number not configured');
+    }
   };
 
-  const handleWhatsApp = () => {
-    window.open('https://wa.me/918900684167', '_blank');
+  const handleTelegram = () => {
+    if (telegramClean) {
+      // If it's a phone number (digits only), use phone format; otherwise username
+      const isPhone = /^\d+$/.test(telegramClean);
+      if (isPhone) {
+        window.open(`https://t.me/+${telegramClean}`, '_blank');
+      } else {
+        window.open(`https://t.me/${telegramClean}`, '_blank');
+      }
+    } else {
+      toast.error('Telegram contact not configured');
+    }
   };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  };
+
+  const formatDisplayNumber = (num: string) => {
+    if (!num) return '';
+    // Format as +XX XXXX XXXXXX
+    if (num.length > 6) {
+      return `+${num.slice(0, 2)} ${num.slice(2, 6)} ${num.slice(6)}`;
+    }
+    return `+${num}`;
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="glass fixed top-0 left-0 right-0 z-50 px-4 py-3">
-        <div className="max-w-lg mx-auto flex items-center gap-4">
-          <button onClick={() => navigate(-1)} className="p-2">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           
           <div className="flex items-center gap-3 flex-1">
             <div className="w-10 h-10 gradient-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">A</span>
+              <span className="text-primary-foreground font-bold text-sm">A</span>
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Admin Support</h2>
-              <p className="text-xs text-success">Online</p>
+              <h2 className="font-semibold text-foreground text-sm">Admin Support</h2>
+              <p className="text-[11px] text-success flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-success rounded-full inline-block" />
+                Online
+              </p>
             </div>
           </div>
 
-          <button 
-            className="p-2 bg-success/10 rounded-xl"
-            onClick={handleWhatsApp}
-          >
-            <Phone className="w-5 h-5 text-success" />
-          </button>
-          <button 
-            className="p-2 bg-primary/10 rounded-xl"
-            onClick={handleCall}
-          >
-            <PhoneCall className="w-5 h-5 text-primary" />
-          </button>
+          {/* WhatsApp button */}
+          {whatsappNumber && (
+            <button 
+              className="p-2.5 bg-[#25D366]/10 rounded-xl hover:bg-[#25D366]/20 transition-colors"
+              onClick={handleWhatsApp}
+              title="WhatsApp"
+            >
+              <MessageCircle className="w-5 h-5 text-[#25D366]" />
+            </button>
+          )}
+          {/* Telegram button */}
+          {telegramClean && (
+            <button 
+              className="p-2.5 bg-[#0088cc]/10 rounded-xl hover:bg-[#0088cc]/20 transition-colors"
+              onClick={handleTelegram}
+              title="Telegram"
+            >
+              <Send className="w-5 h-5 text-[#0088cc]" />
+            </button>
+          )}
         </div>
       </header>
 
       {/* Messages */}
-      <main className="flex-1 pt-20 pb-36 px-4 max-w-lg mx-auto w-full overflow-y-auto">
+      <main className="flex-1 pt-20 pb-28 px-4 max-w-lg mx-auto w-full overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 py-4">
             {messages.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No messages yet. Start a conversation!</p>
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MessageCircle className="w-8 h-8 text-primary/50" />
+                </div>
+                <p className="text-muted-foreground text-sm mb-1">No messages yet</p>
+                <p className="text-muted-foreground/60 text-xs">Send a message to start a conversation with admin</p>
               </div>
             )}
             {messages.map((message, index) => (
               <motion.div
                 key={message.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.02 }}
+                transition={{ delay: Math.min(index * 0.02, 0.5) }}
                 className={`flex ${message.is_admin ? 'justify-start' : 'justify-end'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
                     message.is_admin
-                      ? 'bg-card shadow-card rounded-tl-none'
-                      : 'gradient-primary text-primary-foreground rounded-tr-none'
+                      ? 'bg-card shadow-sm border border-border/50 rounded-tl-sm'
+                      : 'bg-primary text-primary-foreground rounded-tr-sm'
                   }`}
                 >
                   {message.image_url && (
@@ -244,13 +275,13 @@ const ChatPage: React.FC = () => {
                     />
                   )}
                   {message.message && message.message !== '📷 Photo' && (
-                    <p className={`text-sm ${message.is_admin ? 'text-foreground' : ''}`}>
+                    <p className={`text-sm leading-relaxed ${message.is_admin ? 'text-foreground' : ''}`}>
                       {message.message}
                     </p>
                   )}
                   <p
                     className={`text-[10px] mt-1 text-right ${
-                      message.is_admin ? 'text-muted-foreground' : 'text-primary-foreground/70'
+                      message.is_admin ? 'text-muted-foreground' : 'text-primary-foreground/60'
                     }`}
                   >
                     {formatTime(message.created_at)}
@@ -263,20 +294,30 @@ const ChatPage: React.FC = () => {
         )}
       </main>
 
-      {/* Contact Info */}
-      <div className="fixed bottom-20 left-0 right-0 px-4">
+      {/* Contact bar */}
+      <div className="fixed bottom-16 left-0 right-0 px-4 pb-1">
         <div className="max-w-lg mx-auto">
-          <div className="bg-accent/10 rounded-xl px-4 py-2 text-center">
-            <p className="text-xs text-muted-foreground">
-              📞 Call/WhatsApp: <span className="font-semibold text-primary">+91 8900684167</span>
-            </p>
+          <div className="bg-muted/50 rounded-xl px-3 py-1.5 flex items-center justify-center gap-3 text-xs text-muted-foreground">
+            {whatsappNumber && (
+              <button onClick={handleWhatsApp} className="flex items-center gap-1 hover:text-[#25D366] transition-colors">
+                <MessageCircle className="w-3 h-3" />
+                <span>WhatsApp</span>
+              </button>
+            )}
+            {whatsappNumber && telegramClean && <span className="text-border">•</span>}
+            {telegramClean && (
+              <button onClick={handleTelegram} className="flex items-center gap-1 hover:text-[#0088cc] transition-colors">
+                <Send className="w-3 h-3" />
+                <span>Telegram</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Image Preview */}
       {imagePreview && (
-        <div className="fixed bottom-24 left-4 right-4 max-w-lg mx-auto">
+        <div className="fixed bottom-20 left-4 right-4 max-w-lg mx-auto z-10">
           <div className="bg-card rounded-xl p-2 shadow-card relative inline-block">
             <img src={imagePreview} alt="Preview" className="h-20 rounded-lg" />
             <button 
@@ -290,7 +331,7 @@ const ChatPage: React.FC = () => {
       )}
 
       {/* Input */}
-      <footer className="fixed bottom-0 left-0 right-0 glass border-t border-border px-4 py-3">
+      <footer className="fixed bottom-0 left-0 right-0 glass border-t border-border px-4 py-2.5">
         <div className="max-w-lg mx-auto flex items-center gap-2">
           <input
             ref={fileInputRef}
@@ -300,7 +341,7 @@ const ChatPage: React.FC = () => {
             className="hidden"
           />
           <button 
-            className="p-2"
+            className="p-2 rounded-full hover:bg-muted transition-colors"
             onClick={() => fileInputRef.current?.click()}
           >
             <ImageIcon className="w-5 h-5 text-muted-foreground" />
@@ -316,7 +357,7 @@ const ChatPage: React.FC = () => {
           
           <Button
             size="icon"
-            className="w-10 h-10 rounded-full btn-gradient"
+            className="w-10 h-10 rounded-full"
             onClick={handleSendMessage}
             disabled={(!newMessage.trim() && !selectedImage) || uploading}
           >
