@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Gift, 
   TrendingUp, 
@@ -13,13 +13,18 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import BlueTick from './BlueTick';
 import { RankBadgeInline } from './RankBadge';
-import { getUserRank, getNextRank, getProgressToNextRank } from '@/lib/ranks';
+import { getUserRank, getNextRank, getProgressToNextRank, fetchRanks, getRanksSync, RankTier } from '@/lib/ranks';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import SavingsHistoryModal from './SavingsHistoryModal';
 
 const QuickStats: React.FC = React.memo(() => {
   const { profile, user } = useAuth();
+  const [fetchedRanks, setFetchedRanks] = useState<RankTier[]>(getRanksSync());
+  
+  useEffect(() => {
+    fetchRanks().then(setFetchedRanks);
+  }, []);
   const [totalSavings, setTotalSavings] = useState<number | null>(null);
   const [savingsLoading, setSavingsLoading] = useState(false);
   const [showSavingsModal, setShowSavingsModal] = useState(false);
@@ -68,9 +73,9 @@ const QuickStats: React.FC = React.memo(() => {
     setShowSavingsModal(true);
   };
 
-  const rank = getUserRank(rankBalance);
-  const nextRank = getNextRank(rankBalance);
-  const { progress, remaining } = getProgressToNextRank(rankBalance);
+  const rank = getUserRank(rankBalance, fetchedRanks);
+  const nextRank = getNextRank(rankBalance, fetchedRanks);
+  const { progress, remaining } = getProgressToNextRank(rankBalance, fetchedRanks);
 
   const stats = [
     {
