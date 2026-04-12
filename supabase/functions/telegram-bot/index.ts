@@ -48,6 +48,7 @@ import { handleMenuCallbacks } from "./callbacks/menu-callbacks.ts";
 import {
   handleGiveawayCallbacks, handleGiveawayStart,
   showGiveawayMainMenu, showGiveawayReferralLink, showGiveawayStats,
+  showGiveawayAdminMenu, handleGiveawayAdminCallbacks,
 } from "./giveaway-handlers.ts";
 
 // ===== MAIN HANDLER =====
@@ -172,6 +173,7 @@ Deno.serve(async (req) => {
       const lang = userData.language || "en";
 
       // Giveaway-specific callbacks (before menu callbacks to override back_main)
+      if (isGiveaway && await handleGiveawayAdminCallbacks(BOT_TOKEN, supabase, chatId, userId, data)) return jsonOk();
       if (isGiveaway && await handleGiveawayCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) return jsonOk();
 
       // For giveaway mode, override back_main to show giveaway menu
@@ -341,7 +343,12 @@ Deno.serve(async (req) => {
           }
           case "/admin":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
-            await handleAdminMenu(BOT_TOKEN, supabase, chatId, userId); break;
+            if (isGiveaway) {
+              await showGiveawayAdminMenu(BOT_TOKEN, supabase, chatId);
+            } else {
+              await handleAdminMenu(BOT_TOKEN, supabase, chatId, userId);
+            }
+            break;
           case "/broadcast":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await setConversationState(supabase, userId, "broadcast_message", {});

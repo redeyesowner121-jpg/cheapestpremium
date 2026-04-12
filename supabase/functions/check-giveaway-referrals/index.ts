@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GIVEAWAY_REQUIRED_CHANNELS = ["@rkrxott", "@pocket_money27"];
+const GIVEAWAY_REQUIRED_CHANNELS = ["@rkrxott", "@rkrxmethods"];
 
 async function getChatMember(token: string, chatId: string, userId: number): Promise<string> {
   try {
