@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
+import { X, Send, Bot, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
@@ -14,16 +13,47 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 const AIChatWidget: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Draggable button state
+  const [btnPos, setBtnPos] = useState({ x: 0, y: 0 }); // offset from default position
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+  const hasMoved = useRef(false);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, open]);
+
+  // Drag handlers for the floating button
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    isDragging.current = true;
+    hasMoved.current = false;
+    dragStart.current = { x: e.clientX, y: e.clientY, posX: btnPos.x, posY: btnPos.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [btnPos]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved.current = true;
+    setBtnPos({ x: dragStart.current.posX + dx, y: dragStart.current.posY + dy });
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  const handleBtnClick = useCallback(() => {
+    if (!hasMoved.current) setOpen(true);
+  }, []);
 
   const streamChat = useCallback(async (allMessages: Msg[]) => {
     setLoading(true);
@@ -102,9 +132,14 @@ const AIChatWidget: React.FC = () => {
     streamChat(updated);
   };
 
+  // Panel size classes
+  const panelClasses = isFullScreen
+    ? 'fixed inset-0 z-[60] w-full h-full rounded-none'
+    : 'fixed bottom-24 right-4 z-[60] w-[340px] max-w-[calc(100vw-2rem)] h-[460px] max-h-[calc(100vh-8rem)] rounded-2xl';
+
   return (
     <>
-      {/* Floating Button */}
+      {/* Floating Draggable Button */}
       <AnimatePresence>
         {!open && !dismissed && (
           <motion.div
@@ -112,6 +147,7 @@ const AIChatWidget: React.FC = () => {
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
             className="fixed bottom-24 right-4 z-[60]"
+            style={{ transform: `translate(${btnPos.x}px, ${btnPos.y}px)` }}
           >
             {/* Dismiss X button */}
             <button
@@ -120,12 +156,15 @@ const AIChatWidget: React.FC = () => {
             >
               <X className="w-3 h-3" />
             </button>
-            {/* Bot button */}
+            {/* Draggable Bot button */}
             <button
-              onClick={() => setOpen(true)}
-              className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onClick={handleBtnClick}
+              className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-transform touch-none select-none cursor-grab active:cursor-grabbing"
             >
-              <Bot className="w-6 h-6" />
+              <Bot className="w-6 h-6 pointer-events-none" />
             </button>
           </motion.div>
         )}
@@ -139,17 +178,30 @@ const AIChatWidget: React.FC = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-24 right-4 z-[60] w-[340px] max-w-[calc(100vw-2rem)] h-[460px] max-h-[calc(100vh-8rem)] bg-card border border-border rounded-2xl shadow-xl flex flex-col overflow-hidden"
+            className={`${panelClasses} bg-card border border-border shadow-xl flex flex-col overflow-hidden`}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-primary text-primary-foreground rounded-t-2xl">
+            <div className={`flex items-center justify-between px-4 py-3 bg-primary text-primary-foreground ${isFullScreen ? '' : 'rounded-t-2xl'}`}>
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5" />
                 <span className="font-semibold text-sm">AI Assistant</span>
               </div>
-              <button onClick={() => { setOpen(false); setDismissed(false); }} className="p-1 rounded-full hover:bg-primary-foreground/20 transition-colors">
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Toggle half/full screen */}
+                <button
+                  onClick={() => setIsFullScreen(prev => !prev)}
+                  className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors"
+                  title={isFullScreen ? 'Half screen' : 'Full screen'}
+                >
+                  {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={() => { setOpen(false); setDismissed(false); setIsFullScreen(false); }}
+                  className="p-1.5 rounded-full hover:bg-primary-foreground/20 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Messages */}
