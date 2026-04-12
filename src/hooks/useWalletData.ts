@@ -125,19 +125,16 @@ export const useWalletData = () => {
     if (amt > (profile.wallet_balance || 0)) { toast.error('Insufficient balance'); return; }
     setLoading(true);
     try {
-      const { data: senderData } = await supabase.from('profiles').select('wallet_balance').eq('id', user.id).single();
-      const { data: recipientData } = await supabase.from('profiles').select('wallet_balance').eq('id', recipient.id).single();
-      if (!senderData || (senderData.wallet_balance || 0) < amt) { toast.error('Insufficient balance'); setLoading(false); return; }
-      await supabase.from('profiles').update({ wallet_balance: (senderData.wallet_balance || 0) - amt }).eq('id', user.id);
-      await supabase.from('profiles').update({ wallet_balance: (recipientData?.wallet_balance || 0) + amt }).eq('id', recipient.id);
-      await supabase.from('transactions').insert([
-        { user_id: user.id, type: 'transfer_out', amount: -amt, status: 'completed', description: `Transfer to ${recipient.name}` },
-        { user_id: recipient.id, type: 'transfer_in', amount: amt, status: 'completed', description: `Transfer from ${profile.name}` }
-      ]);
-      await supabase.from('notifications').insert({ user_id: recipient.id, title: 'Money Received! 💰', message: `You received ₹${amt} from ${profile.name}${note ? ` - "${note}"` : ''}`, type: 'wallet' });
+      const { data, error } = await supabase.rpc('transfer_funds', {
+        _sender_id: user.id,
+        _receiver_id: recipient.id,
+        _amount: amt,
+        _note: note || null,
+      });
+      if (error) throw new Error(error.message);
       toast.success(`₹${amt} sent to ${recipient.name}`);
       refreshProfile(); loadTransactions();
-    } catch { toast.error('Transfer failed'); }
+    } catch (err: any) { toast.error(err.message || 'Transfer failed'); }
     finally { setLoading(false); }
   };
 
@@ -147,20 +144,15 @@ export const useWalletData = () => {
     if (!code) { toast.error('Please enter a code'); return; }
     setRedeemingCode(true);
     try {
-      const { data: codeData, error: codeError } = await supabase.from('redeem_codes').select('*').eq('code', code).eq('is_active', true).single();
-      if (codeError || !codeData) { toast.error('Invalid or inactive code'); return; }
-      if (codeData.expires_at && new Date(codeData.expires_at) < new Date()) { toast.error('This code has expired'); return; }
-      if (codeData.used_count >= codeData.usage_limit) { toast.error('This code has reached its usage limit'); return; }
-      const { data: usageData } = await supabase.from('redeem_code_usage').select('id').eq('code_id', codeData.id).eq('user_id', user.id).single();
-      if (usageData) { toast.error('You have already used this code'); return; }
-      const newBalance = (profile.wallet_balance || 0) + codeData.amount;
-      await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user.id);
-      await supabase.from('redeem_code_usage').insert({ code_id: codeData.id, user_id: user.id });
-      await supabase.from('redeem_codes').update({ used_count: codeData.used_count + 1 }).eq('id', codeData.id);
-      await supabase.from('transactions').insert({ user_id: user.id, type: 'gift', amount: codeData.amount, status: 'completed', description: `Redeemed code: ${code}` });
-      setSuccessData({ type: 'bonus', title: 'Code Redeemed! 🎉', message: codeData.description || 'Gift code successfully redeemed!', details: [{ label: 'Amount Added', value: `₹${codeData.amount}` }, { label: 'New Balance', value: `₹${newBalance.toFixed(2)}` }] });
+      const { data, error } = await supabase.rpc('redeem_gift_code', {
+        _user_id: user.id,
+        _code: code,
+      });
+      if (error) throw new Error(error.message);
+      const result = data as any;
+      setSuccessData({ type: 'bonus', title: 'Code Redeemed! 🎉', message: result.description || 'Gift code successfully redeemed!', details: [{ label: 'Amount Added', value: `₹${result.amount}` }, { label: 'New Balance', value: `₹${Number(result.new_balance).toFixed(2)}` }] });
       refreshProfile(); loadTransactions(); setRedeemCode(''); setShowSuccessModal(true);
-    } catch { toast.error('Failed to redeem code'); }
+    } catch (err: any) { toast.error(err.message || 'Failed to redeem code'); }
     finally { setRedeemingCode(false); }
   };
 
