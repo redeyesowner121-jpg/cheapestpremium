@@ -1,6 +1,7 @@
 // ===== MAIN ENTRY POINT =====
 // All logic is split into separate modules for maintainability.
 // Supports giveaway mode via ?bot=giveaway query parameter.
+// Supports child bot mode via ?child=<id> query parameter.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders, t, UPI_ID, UPI_NAME, BOT_USERNAME, RESALE_BOT_USERNAME } from "./constants.ts";
@@ -50,6 +51,7 @@ import {
   showGiveawayMainMenu, showGiveawayReferralLink, showGiveawayStats,
   showGiveawayAdminMenu, handleGiveawayAdminCallbacks,
 } from "./giveaway-handlers.ts";
+import { setChildBotContext, clearChildBotContext } from "./child-context.ts";
 
 // ===== MAIN HANDLER =====
 
@@ -60,11 +62,34 @@ Deno.serve(async (req) => {
 
   const jsonOk = () => new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-  // Detect giveaway mode
+  // Detect modes
   const url = new URL(req.url);
   const isGiveaway = url.searchParams.get("bot") === "giveaway" || req.headers.get("X-Bot-Mode") === "giveaway";
+  const childBotId = url.searchParams.get("child");
 
-  if (req.method === "GET" && !isGiveaway) {
+  // Create supabase client early (needed for child bot lookup)
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Clear child context from any previous request
+  clearChildBotContext();
+
+  // ===== CHILD BOT MODE =====
+  let BOT_TOKEN: string | null = null;
+  let isChildMode = false;
+
+  if (childBotId) {
+    const { data: childBot } = await supabase.from("child_bots").select("*").eq("id", childBotId).single();
+    if (!childBot || !childBot.is_active) return jsonOk();
+    BOT_TOKEN = childBot.bot_token;
+    isChildMode = true;
+    setChildBotContext({
+      id: childBot.id,
+      bot_token: childBot.bot_token,
+      owner_telegram_id: childBot.owner_telegram_id,
+      revenue_percent: childBot.revenue_percent,
+      bot_username: childBot.bot_username,
+    });
+  } else if (req.method === "GET" && !isGiveaway) {
     if (url.searchParams.get("action") === "upi_redirect") {
       const pa = url.searchParams.get("pa") || UPI_ID;
       const pn = url.searchParams.get("pn") || UPI_NAME;
@@ -126,31 +151,29 @@ Deno.serve(async (req) => {
     return new Response("Not found", { status: 404, headers: corsHeaders });
   }
 
-  // Resolve bot token
-  let BOT_TOKEN: string | null;
+  // Resolve bot token (if not child mode)
+  if (!BOT_TOKEN) {
+    if (isGiveaway) {
+      BOT_TOKEN = Deno.env.get("GIVEAWAY_BOT_TOKEN") || null;
+    } else {
+      const tokenResult = await resolveTelegramBotTokens({
+        configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
+        configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+        expectedMainUsername: BOT_USERNAME,
+        expectedResaleUsername: RESALE_BOT_USERNAME,
+      });
+      BOT_TOKEN = tokenResult.mainBotToken;
 
-  if (isGiveaway) {
-    BOT_TOKEN = Deno.env.get("GIVEAWAY_BOT_TOKEN") || null;
-  } else {
-    const tokenResult = await resolveTelegramBotTokens({
-      configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
-      configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
-      expectedMainUsername: BOT_USERNAME,
-      expectedResaleUsername: RESALE_BOT_USERNAME,
-    });
-    BOT_TOKEN = tokenResult.mainBotToken;
-
-    if (tokenResult.tokenUsernames.configuredMainTokenUsername &&
-        tokenResult.tokenUsernames.configuredMainTokenUsername.toLowerCase() !== BOT_USERNAME.toLowerCase()) {
-      console.warn(`TELEGRAM_BOT_TOKEN mapped to @${tokenResult.tokenUsernames.configuredMainTokenUsername}; using resolved for @${BOT_USERNAME}`);
+      if (tokenResult.tokenUsernames.configuredMainTokenUsername &&
+          tokenResult.tokenUsernames.configuredMainTokenUsername.toLowerCase() !== BOT_USERNAME.toLowerCase()) {
+        console.warn(`TELEGRAM_BOT_TOKEN mapped to @${tokenResult.tokenUsernames.configuredMainTokenUsername}; using resolved for @${BOT_USERNAME}`);
+      }
     }
   }
 
   if (!BOT_TOKEN) {
     return new Response("Bot token not configured", { status: 500 });
   }
-
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
     const update = await req.json();
@@ -163,22 +186,38 @@ Deno.serve(async (req) => {
       const telegramUser = cq.from;
       const userId = telegramUser.id;
 
-      const [userData] = await Promise.all([
+      const upsertPromises: Promise<any>[] = [
         getUserData(supabase, userId),
         upsertTelegramUser(supabase, telegramUser),
         answerCallbackQuery(BOT_TOKEN, cq.id),
-      ]);
+      ];
 
-      if (userData.is_banned) return jsonOk();
+      // Also upsert child bot user if in child mode
+      if (isChildMode && childBotId) {
+        upsertPromises.push(
+          supabase.from("child_bot_users").upsert({
+            child_bot_id: childBotId,
+            telegram_id: userId,
+            username: telegramUser.username || null,
+            first_name: telegramUser.first_name || null,
+            last_active: new Date().toISOString(),
+          }, { onConflict: "child_bot_id,telegram_id" })
+        );
+      }
+
+      const [userData] = await Promise.all(upsertPromises);
+
+      if (userData.is_banned) { clearChildBotContext(); return jsonOk(); }
       const lang = userData.language || "en";
 
       // Giveaway-specific callbacks (before menu callbacks to override back_main)
-      if (isGiveaway && await handleGiveawayAdminCallbacks(BOT_TOKEN, supabase, chatId, userId, data)) return jsonOk();
-      if (isGiveaway && await handleGiveawayCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) return jsonOk();
+      if (isGiveaway && await handleGiveawayAdminCallbacks(BOT_TOKEN, supabase, chatId, userId, data)) { clearChildBotContext(); return jsonOk(); }
+      if (isGiveaway && await handleGiveawayCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
 
       // For giveaway mode, override back_main to show giveaway menu
       if (isGiveaway && data === "back_main") {
         await showGiveawayMainMenu(BOT_TOKEN, supabase, chatId, lang, userId);
+        clearChildBotContext();
         return jsonOk();
       }
 
@@ -197,14 +236,16 @@ Deno.serve(async (req) => {
           await ensureWallet(supabase, userId);
           await showGiveawayMainMenu(BOT_TOKEN, supabase, chatId, selectedLang, userId);
         }
+        clearChildBotContext();
         return jsonOk();
       }
 
       // Standard callbacks
-      if (await handleAdminCallbacks(BOT_TOKEN, supabase, chatId, userId, data)) return jsonOk();
-      if (await handlePaymentCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) return jsonOk();
-      if (await handleMenuCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) return jsonOk();
+      if (await handleAdminCallbacks(BOT_TOKEN, supabase, chatId, userId, data)) { clearChildBotContext(); return jsonOk(); }
+      if (await handlePaymentCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
+      if (await handleMenuCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
 
+      clearChildBotContext();
       return jsonOk();
     }
 
@@ -216,12 +257,26 @@ Deno.serve(async (req) => {
       const userId = telegramUser.id;
       const text = msg.text || "";
 
-      const [userData] = await Promise.all([
+      const upsertPromises: Promise<any>[] = [
         getUserData(supabase, userId),
         upsertTelegramUser(supabase, telegramUser),
-      ]);
+      ];
 
-      if (userData.is_banned) return jsonOk();
+      if (isChildMode && childBotId) {
+        upsertPromises.push(
+          supabase.from("child_bot_users").upsert({
+            child_bot_id: childBotId,
+            telegram_id: userId,
+            username: telegramUser.username || null,
+            first_name: telegramUser.first_name || null,
+            last_active: new Date().toISOString(),
+          }, { onConflict: "child_bot_id,telegram_id" })
+        );
+      }
+
+      const [userData] = await Promise.all(upsertPromises);
+
+      if (userData.is_banned) { clearChildBotContext(); return jsonOk(); }
       const lang = userData.language || "en";
 
       // Reset conversation state on commands
@@ -231,6 +286,7 @@ Deno.serve(async (req) => {
         const convState = await getConversationState(supabase, userId);
         if (convState) {
           await handleConversationStep(BOT_TOKEN, supabase, chatId, userId, msg, convState);
+          clearChildBotContext();
           return jsonOk();
         }
       }
@@ -246,12 +302,14 @@ Deno.serve(async (req) => {
 
             if (isGiveaway) {
               await handleGiveawayStart(BOT_TOKEN, supabase, chatId, userId, telegramUser, payload, lang, userData);
+              clearChildBotContext();
               return jsonOk();
             }
 
-            if (payload.startsWith("ref_")) {
+            // Child bot mode: skip resale redirect
+            if (!isChildMode && payload.startsWith("ref_")) {
               await handleStartWithRef(BOT_TOKEN, supabase, userId, telegramUser, payload.replace("ref_", ""), lang);
-            } else if (payload.startsWith("buy_")) {
+            } else if (!isChildMode && payload.startsWith("buy_")) {
               const linkCode = payload.replace("buy_", "");
               const resaleUrl = `https://t.me/${RESALE_BOT_USERNAME}?start=buy_${linkCode}`;
               await sendMessage(BOT_TOKEN, chatId,
@@ -260,17 +318,21 @@ Deno.serve(async (req) => {
                   : `🔒 This resale link works only in the reseller bot.\n\n👉 Open here: <code>${resaleUrl}</code>`,
                 { reply_markup: { inline_keyboard: [[{ text: lang === "bn" ? "🚀 রিসেলার বটে যান" : "🚀 Open Reseller Bot", url: resaleUrl }]] } }
               );
+              clearChildBotContext();
               return jsonOk();
+            } else if (payload.startsWith("ref_")) {
+              // Child bot referral
+              await handleStartWithRef(BOT_TOKEN, supabase, userId, telegramUser, payload.replace("ref_", ""), lang);
             }
 
-            if (!userData.language) { await showLanguageSelection(BOT_TOKEN, chatId); return jsonOk(); }
+            if (!userData.language) { await showLanguageSelection(BOT_TOKEN, chatId); clearChildBotContext(); return jsonOk(); }
 
             const [isUserAdmin, joined] = await Promise.all([
               isAdminBot(supabase, userId),
               checkChannelMembership(BOT_TOKEN, userId, supabase),
               ensureWallet(supabase, userId),
             ]);
-            if (!isUserAdmin && !joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); return jsonOk(); }
+            if (!isUserAdmin && !joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); clearChildBotContext(); return jsonOk(); }
 
             await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
             break;
@@ -282,8 +344,6 @@ Deno.serve(async (req) => {
           case "/points":
           case "/balance":
             if (isGiveaway) {
-              const { default: _ } = await import("./giveaway-handlers.ts");
-              // Inline points display for giveaway
               const gp = await supabase.from("giveaway_points").select("*").eq("telegram_id", userId).single();
               const pts = gp.data?.points || 0;
               const refs = gp.data?.total_referrals || 0;
@@ -316,7 +376,13 @@ Deno.serve(async (req) => {
           case "/offers":
             await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); break;
           case "/login":
-            await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); break;
+            // Child bots don't provide website login
+            if (isChildMode) {
+              await sendMessage(BOT_TOKEN, chatId, "❌ This command is not available.");
+            } else {
+              await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang);
+            }
+            break;
           case "/users": {
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAllUsers(BOT_TOKEN, supabase, chatId, 0); break;
@@ -381,11 +447,13 @@ Deno.serve(async (req) => {
             break;
           }
         }
+        clearChildBotContext();
         return jsonOk();
       }
 
       // Non-command text → route to AI assistant
       await handleAIQuery(BOT_TOKEN, supabase, chatId, userId, text, lang);
+      clearChildBotContext();
       return jsonOk();
     }
 
@@ -393,12 +461,15 @@ Deno.serve(async (req) => {
     if (update.chat_member && isGiveaway) {
       const { handleGiveawayChannelLeave } = await import("./giveaway-handlers.ts");
       await handleGiveawayChannelLeave(BOT_TOKEN, supabase, update.chat_member);
+      clearChildBotContext();
       return jsonOk();
     }
 
+    clearChildBotContext();
     return jsonOk();
   } catch (error) {
     console.error("Telegram bot error:", error);
+    clearChildBotContext();
     return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

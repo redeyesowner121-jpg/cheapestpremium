@@ -2,6 +2,7 @@
 
 import { SUPER_ADMIN_ID } from "./constants.ts";
 import { sendMessage, forwardMessage } from "./telegram-api.ts";
+import { getChildBotContext } from "./child-context.ts";
 
 // ===== ADMIN HELPERS =====
 
@@ -11,6 +12,9 @@ export function isSuperAdmin(userId: number): boolean {
 
 export async function isAdminBot(supabase: any, userId: number): Promise<boolean> {
   if (userId === SUPER_ADMIN_ID) return true;
+  // Child bot owner is admin for their bot
+  const childCtx = getChildBotContext();
+  if (childCtx && childCtx.owner_telegram_id === userId) return true;
   const { data } = await supabase.from("telegram_bot_admins").select("id").eq("telegram_id", userId).maybeSingle();
   return !!data;
 }
@@ -160,9 +164,11 @@ export async function checkChannelMembership(token: string, userId: number, supa
   if (!supabase) return true;
   const channels = await getRequiredChannels(supabase);
   if (channels.length === 0) return true;
+  // For child bots, use main bot token for channel checks (child bot may not be admin in channels)
+  const checkToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
   // Check all channels in PARALLEL instead of sequential
   const results = await Promise.all(
-    channels.map(ch => getChatMember(token, ch, userId))
+    channels.map(ch => getChatMember(checkToken, ch, userId))
   );
   return results.every(status => ["member", "administrator", "creator"].includes(status));
 }
