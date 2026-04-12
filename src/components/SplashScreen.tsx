@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import appLogo from '@/assets/app-logo.jpg';
+import appLogoFallback from '@/assets/app-logo.jpg';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 
@@ -10,6 +10,7 @@ interface SplashScreenProps {
 const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const [isExiting, setIsExiting] = useState(false);
   const { settings } = useAppSettingsContext();
+  const appLogo = settings.app_logo || appLogoFallback;
 
   useEffect(() => {
     const exitTimer = setTimeout(() => {

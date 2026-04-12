@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { 
   ChevronDown, ChevronRight, Settings, Globe, Phone, 
-  CreditCard, Gift, Award, Package, ToggleLeft, Save, Check
+  CreditCard, Gift, Award, Package, ToggleLeft, Save, Check, Upload, Image
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import AdminRankManager from './AdminRankManager';
 import AdminCurrencyManager from './AdminCurrencyManager';
 
@@ -92,6 +93,8 @@ const SettingItem: React.FC<SettingItemProps> = ({ label, description, children 
 const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateSetting }) => {
   const [localSettings, setLocalSettings] = useState<Record<string, string>>(settings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const updateLocal = (key: string, value: string) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
@@ -111,6 +114,36 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
     });
     setHasChanges(false);
     toast.success('All settings saved');
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `app-logo-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+      onUpdateSetting('app_logo', publicUrl);
+      setLocalSettings(prev => ({ ...prev, app_logo: publicUrl }));
+      toast.success('Logo updated!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
   };
 
   return (
@@ -140,6 +173,31 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             className="w-44 h-9 text-sm rounded-lg"
           />
         </SettingItem>
+        <div className="flex items-center justify-between gap-4 py-2">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-foreground">App Logo</p>
+            <p className="text-xs text-muted-foreground">Logo for home & login pages</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {localSettings.app_logo && (
+              <img src={localSettings.app_logo} alt="Logo" className="w-10 h-10 rounded-xl object-cover border border-border" />
+            )}
+            <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={uploadingLogo}
+              className="rounded-lg h-9"
+            >
+              {uploadingLogo ? (
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <><Upload className="w-4 h-4 mr-1" /> Upload</>
+              )}
+            </Button>
+          </div>
+        </div>
         <SettingItem label="App Tagline" description="Tagline shown on splash screen">
           <Input
             value={localSettings.app_tagline || 'Premium Digital Products'}
