@@ -198,7 +198,7 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
       expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
     });
 
-    const websiteUrl = "https://cheapest-premiums.lovable.app";
+    const websiteUrl = "https://cheapest-premiums.in";
 
     const text = lang === "bn"
       ? `🔐 <b>ওয়েবসাইট লগইন</b>\n\n📋 আপনার লগইন কোড:\n<code>${code}</code>\n(ট্যাপ করলে কপি হবে)\n\n⏰ কোডটি ৫ মিনিট সক্রিয় থাকবে।\n\n📖 <b>কিভাবে লগইন করবেন:</b>\n1️⃣ নিচের লিংকে ক্লিক করুন\n2️⃣ "Telegram Login" অপশনে ক্লিক করুন\n3️⃣ উপরের কোডটি পেস্ট করুন\n4️⃣ Login বাটনে ক্লিক করুন\n\n✅ আপনার ওয়ালেট, অর্ডার সব অটোমেটিক সিঙ্ক হয়ে যাবে!\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
