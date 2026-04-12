@@ -279,6 +279,18 @@
   .orb {
     @apply absolute rounded-full blur-3xl opacity-20 pointer-events-none;
   }
+
+  /* Page background gradient */
+  .bg-page-gradient {
+    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(250 30% 95%) 30%, hsl(280 20% 94%) 60%, hsl(320 15% 95%) 100%);
+  }
+  .dark .bg-page-gradient {
+    background: var(--page-gradient);
+  }
+
+  /* Scrollbar hide utility */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
 @layer utilities {
