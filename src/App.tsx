@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +9,7 @@ import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettin
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import AIChatWidget from "@/components/AIChatWidget";
 import RecentOrderNotification from "@/components/RecentOrderNotification";
+import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index";
 import { Construction, Settings } from "lucide-react";
 
@@ -74,6 +75,9 @@ const IndexRedirect = () => {
 const AppContent = () => {
   const { settings, loading: settingsLoading } = useAppSettingsContext();
   const { isAdmin, isTempAdmin, loading: authLoading } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+
+  const isReady = !authLoading && !settingsLoading;
 
   useEffect(() => {
     if (settings.app_name) {
@@ -81,12 +85,9 @@ const AppContent = () => {
     }
   }, [settings.app_name]);
 
-  if (authLoading || settingsLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+  // Show splash screen until both auth & settings are ready AND splash animation finishes
+  if (!isReady || !splashDone) {
+    return <SplashScreen onComplete={() => setSplashDone(true)} />;
   }
 
   if (settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
