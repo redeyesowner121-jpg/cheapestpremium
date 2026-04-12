@@ -1,6 +1,7 @@
 // ===== ORDER & SCREENSHOT CONVERSATION HANDLERS =====
 
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
+import { getChildBotContext } from "../child-context.ts";
 import {
   deleteConversationState, getUserLang,
   getWallet, notifyAllAdmins, forwardToAllAdmins,
