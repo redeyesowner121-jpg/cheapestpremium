@@ -39,7 +39,7 @@ const ChatPage: React.FC = () => {
 
   // Dynamic support contacts from settings
   const whatsappNumber = (settings.contact_whatsapp || '').replace(/[^0-9]/g, '');
-  const telegramContact = (settings as any).support_telegram || '';
+  const telegramContact = settings.support_telegram || '';
   const telegramClean = telegramContact.replace(/^@/, '').replace(/^\+/, '');
 
   const scrollToBottom = () => {
