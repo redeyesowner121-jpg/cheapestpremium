@@ -28,7 +28,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
 
       const newUsers = users.filter(u => u.created_at?.split('T')[0] === dateStr).length;
       const dayDeposits = transactions.filter(t => t.created_at?.split('T')[0] === dateStr && t.type === 'deposit' && t.status === 'completed');
-      const depositCount = dayDeposits.length;
+      const depositAmount = dayDeposits.reduce((s, t) => s + Math.abs(t.amount || 0), 0);
       const dayOrders = orders.filter(o => o.created_at?.split('T')[0] === dateStr);
       const orderCount = dayOrders.length;
       const profitGiven = dayOrders.reduce((s, o) => s + (o.discount_applied || 0), 0);
@@ -36,12 +36,12 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
       return {
         date: new Date(dateStr).toLocaleDateString('en-US', { weekday: days <= 7 ? 'short' : undefined, day: 'numeric', month: days > 7 ? 'short' : undefined }),
         userJoined: newUsers * USER_VALUE,
-        deposit: depositCount * DEPOSIT_VALUE,
+        deposit: depositAmount * DEPOSIT_VALUE,
         order: orderCount * ORDER_VALUE,
         profitGiven: profitGiven * PROFIT_VALUE,
         // Raw counts
         _users: newUsers,
-        _deposits: depositCount,
+        _depositAmount: depositAmount,
         _orders: orderCount,
         _profit: profitGiven,
       };
@@ -52,7 +52,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
   const totals = useMemo(() => {
     return combinedData.reduce((acc, d) => ({
       users: acc.users + d._users,
-      deposits: acc.deposits + d._deposits,
+      deposits: acc.deposits + d._depositAmount,
       orders: acc.orders + d._orders,
       profit: acc.profit + d._profit,
     }), { users: 0, deposits: 0, orders: 0, profit: 0 });
@@ -142,7 +142,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg text-xs">
         <p className="font-medium text-foreground mb-1">{label}</p>
         <p className="text-primary">👤 Users: {d._users} (value: {d.userJoined})</p>
-        <p className="text-success">💰 Deposits: {d._deposits} (value: {d.deposit})</p>
+        <p className="text-success">💰 Deposits: ₹{d._depositAmount?.toLocaleString()} (value: {d.deposit})</p>
         <p className="text-accent">📦 Orders: {d._orders} (value: {d.order})</p>
         <p className="text-secondary-foreground">🎁 Profit Given: ₹{d._profit} (value: {d.profitGiven.toFixed(1)})</p>
       </div>
@@ -185,7 +185,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
             <p className="text-[10px] text-muted-foreground">New Users</p>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-success">{totals.deposits}</p>
+            <p className="text-lg font-bold text-success">₹{totals.deposits.toLocaleString()}</p>
             <p className="text-[10px] text-muted-foreground">Deposits</p>
           </div>
           <div className="text-center">
