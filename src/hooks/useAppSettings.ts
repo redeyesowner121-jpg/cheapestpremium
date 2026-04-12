@@ -31,6 +31,7 @@ export interface AppSettings {
   usd_conversion_rate: number;
   foreign_deposit_fee_percent: number;
   payment_link: string;
+  app_logo: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
