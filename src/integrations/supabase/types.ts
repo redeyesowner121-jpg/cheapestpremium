@@ -204,6 +204,7 @@ export type Database = {
           image_url: string | null
           is_admin: boolean | null
           message: string
+          reply_to_id: string | null
           user_id: string
         }
         Insert: {
@@ -212,6 +213,7 @@ export type Database = {
           image_url?: string | null
           is_admin?: boolean | null
           message: string
+          reply_to_id?: string | null
           user_id: string
         }
         Update: {
@@ -220,9 +222,18 @@ export type Database = {
           image_url?: string | null
           is_admin?: boolean | null
           message?: string
+          reply_to_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "chat_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       child_bot_earnings: {
         Row: {
