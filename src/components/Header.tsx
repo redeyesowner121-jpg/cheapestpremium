@@ -5,12 +5,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import BlueTick from './BlueTick';
-import appLogo from '@/assets/app-logo.jpg';
+import appLogoFallback from '@/assets/app-logo.jpg';
 
 const Header: React.FC = React.memo(() => {
   const navigate = useNavigate();
   const { user, profile, isAdmin, isTempAdmin } = useAuth();
   const { settings } = useAppSettingsContext();
+  const appLogo = settings.app_logo || appLogoFallback;
   const [unreadCount, setUnreadCount] = useState(0);
   const walletBalance = Number(profile?.wallet_balance ?? 0);
 
