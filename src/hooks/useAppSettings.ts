@@ -64,6 +64,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   usd_conversion_rate: 95,
   foreign_deposit_fee_percent: 10,
   payment_link: 'https://razorpay.me/@asifikbalrubaiulislam',
+  app_logo: '',
 };
 
 // Parse value based on expected type
