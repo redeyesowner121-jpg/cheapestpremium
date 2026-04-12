@@ -8,13 +8,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import appLogo from '@/assets/app-logo.jpg';
+import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
+import appLogoFallback from '@/assets/app-logo.jpg';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login, register, loginWithTelegram, user } = useAuth();
+  const { settings } = useAppSettingsContext();
+  const appLogo = settings.app_logo || appLogoFallback;
   
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -196,7 +199,7 @@ const AuthPage: React.FC = () => {
       <div className="gradient-primary pt-12 pb-20 px-6 text-center">
         <motion.img
           src={appLogo}
-          alt="RKR Premium"
+          alt={settings.app_name}
           className="w-20 h-20 rounded-2xl mx-auto mb-4 shadow-lg"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
@@ -208,7 +211,7 @@ const AuthPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          RKR Premium Store
+          {settings.app_name}
         </motion.h1>
         <motion.p
           className="text-primary-foreground/80 text-sm mt-2"
