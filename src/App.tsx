@@ -9,6 +9,7 @@ import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettin
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import AIChatWidget from "@/components/AIChatWidget";
 import RecentOrderNotification from "@/components/RecentOrderNotification";
+import PageTransition from "@/components/PageTransition";
 import Index from "./pages/Index";
 import { Construction, Settings } from "lucide-react";
 
@@ -30,7 +31,18 @@ const ResalePurchasePage = lazy(() => import("./pages/ResalePurchasePage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+// Optimized QueryClient with aggressive caching
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,       // 5 min - data considered fresh
+      gcTime: 30 * 60 * 1000,          // 30 min - keep in cache
+      refetchOnWindowFocus: false,      // don't refetch on tab switch
+      refetchOnMount: false,            // use cached data on mount
+      retry: 1,
+    },
+  },
+});
 
 // Maintenance Mode Screen
 const MaintenanceScreen = () => {
@@ -58,6 +70,15 @@ const IndexRedirect = () => {
   const { search, hash } = useLocation();
 
   return <Navigate to={{ pathname: "/", search, hash }} replace />;
+};
+
+// Scroll restoration
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
 };
 
 // App Content with Settings Applied
@@ -88,29 +109,32 @@ const AppContent = () => {
   return (
     <>
       <BrowserRouter>
+        <ScrollToTop />
         <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>}>
-          <Routes>
-            <Route path="/index" element={<IndexRedirect />} />
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/auth/tele" element={<AuthPage />} />
-            <Route path="/wallet" element={<WalletPage />} />
-            <Route path="/wallet/transactions" element={<TransactionsPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/profile/edit" element={<ProfileEditPage />} />
-            <Route path="/products" element={<ProductsPage />} />
-            <Route path="/product/:id" element={<ProductDetailPage />} />
-            <Route path="/product" element={<ProductDetailPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/notifications" element={<NotificationHistoryPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/cart" element={<CartPage />} />
-            <Route path="/resale/:code" element={<ResalePurchasePage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <PageTransition>
+            <Routes>
+              <Route path="/index" element={<IndexRedirect />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/auth/tele" element={<AuthPage />} />
+              <Route path="/wallet" element={<WalletPage />} />
+              <Route path="/wallet/transactions" element={<TransactionsPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile/edit" element={<ProfileEditPage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/product/:id" element={<ProductDetailPage />} />
+              <Route path="/product" element={<ProductDetailPage />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/notifications" element={<NotificationHistoryPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/cart" element={<CartPage />} />
+              <Route path="/resale/:code" element={<ResalePurchasePage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </PageTransition>
         </Suspense>
         <RecentOrderNotification />
       </BrowserRouter>
