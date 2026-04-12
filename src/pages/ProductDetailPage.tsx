@@ -66,6 +66,10 @@ const ProductDetailPage: React.FC = () => {
     setProduct(data);
     setCurrentStock(data.stock ?? null);
     loadVariations(data.id);
+    // Replace UUID in URL with slug for clean sharing links
+    if (isUUID && data.slug && id !== data.slug) {
+      window.history.replaceState(null, '', `/product/${data.slug}`);
+    }
     setLoadingProduct(false);
   };
 
