@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function setWebhook(token: string, url: string, retries = 1) {
+async function setWebhook(token: string, url: string, retries = 1, allowedUpdates: string[] = ["message", "callback_query"]) {
   let lastResponse: any = null;
 
   for (let attempt = 0; attempt < retries; attempt++) {
@@ -19,7 +19,7 @@ async function setWebhook(token: string, url: string, retries = 1) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         url,
-        allowed_updates: ["message", "callback_query"],
+        allowed_updates: allowedUpdates,
       }),
     });
 
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
     if (giveawayBotToken) {
       const giveawayBotUsername = await getTelegramBotUsername(giveawayBotToken);
       const giveawayWebhookUrl = `${SUPABASE_URL}/functions/v1/giveaway-bot`;
-      const giveawayResponse = await setWebhook(giveawayBotToken, giveawayWebhookUrl, 3);
+      const giveawayResponse = await setWebhook(giveawayBotToken, giveawayWebhookUrl, 3, ["message", "callback_query", "chat_member"]);
       console.log("Giveaway bot webhook result:", giveawayResponse);
       results.push({
         bot: "giveaway",

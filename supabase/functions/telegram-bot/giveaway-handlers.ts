@@ -565,3 +565,66 @@ export async function handleGiveawayCallbacks(
 
   return false;
 }
+
+// ===== HANDLE CHANNEL LEAVE — DEDUCT REFERRAL POINTS =====
+
+export async function handleGiveawayChannelLeave(token: string, supabase: any, chatMember: any) {
+  try {
+    const newStatus = chatMember.new_chat_member?.status;
+    const oldStatus = chatMember.old_chat_member?.status;
+
+    // Only handle when user actually leaves (was member/admin, now left/kicked)
+    const wasMember = ["member", "administrator", "creator"].includes(oldStatus);
+    const isGone = ["left", "kicked"].includes(newStatus);
+    if (!wasMember || !isGone) return;
+
+    const leavingUserId = chatMember.new_chat_member?.user?.id;
+    if (!leavingUserId) return;
+
+    const leavingUser = chatMember.new_chat_member?.user;
+    const displayName = leavingUser?.username
+      ? `@${leavingUser.username}`
+      : leavingUser?.first_name || "Unknown";
+
+    // Check if this user was referred by someone
+    const { data: referral } = await supabase
+      .from("giveaway_referrals")
+      .select("referrer_telegram_id, points_awarded")
+      .eq("referred_telegram_id", leavingUserId)
+      .single();
+
+    if (!referral) return; // Not a referred user
+
+    const referrerId = referral.referrer_telegram_id;
+    const pointsToDeduct = referral.points_awarded || 2;
+
+    // Deduct points from referrer
+    const referrerPoints = await getPoints(supabase, referrerId);
+    const newPoints = Math.max(0, (referrerPoints?.points || 0) - pointsToDeduct);
+    const newReferrals = Math.max(0, (referrerPoints?.total_referrals || 0) - 1);
+
+    await supabase.from("giveaway_points")
+      .update({
+        points: newPoints,
+        total_referrals: newReferrals,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("telegram_id", referrerId);
+
+    // Delete the referral record so it can't be deducted again
+    await supabase.from("giveaway_referrals")
+      .delete()
+      .eq("referred_telegram_id", leavingUserId);
+
+    // Notify the referrer
+    try {
+      await sendMessage(token, referrerId,
+        `⚠️ <b>Referral Points Deducted!</b>\n\n❌ Your referral <b>${displayName}</b> (ID: <code>${leavingUserId}</code>) has left the channel.\n\n🎯 <b>-${pointsToDeduct}</b> points deducted.\n💰 Current Points: <b>${newPoints}</b>`
+      );
+    } catch { /* referrer may have blocked bot */ }
+
+    console.log(`Giveaway: Deducted ${pointsToDeduct} pts from ${referrerId} — referral ${leavingUserId} left channel`);
+  } catch (err) {
+    console.error("handleGiveawayChannelLeave error:", err);
+  }
+}
