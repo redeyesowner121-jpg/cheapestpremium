@@ -120,6 +120,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const motherBotToken = Deno.env.get("MOTHER_BOT_TOKEN");
+    if (motherBotToken) {
+      const motherBotUsername = await getTelegramBotUsername(motherBotToken);
+      const motherWebhookUrl = `${SUPABASE_URL}/functions/v1/mother-bot`;
+      const motherResponse = await setWebhook(motherBotToken, motherWebhookUrl, 3);
+      console.log("Mother bot webhook result:", motherResponse);
+      results.push({
+        bot: "mother",
+        username: motherBotUsername,
+        webhook_url: motherWebhookUrl,
+        telegram_response: motherResponse,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
