@@ -7,6 +7,7 @@ export interface AppSettings {
   currency_symbol: string;
   contact_whatsapp: string;
   contact_email: string;
+  support_telegram: string;
   min_deposit: number;
   payment_qr_code: string;
   login_bonus: number;
