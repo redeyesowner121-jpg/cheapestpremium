@@ -12,9 +12,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
   const { settings, loading } = useAppSettingsContext();
   const appLogo = settings.app_logo || appLogoFallback;
 
-  // Minimum display time of 1.2s for branding
+  // Minimum display time of 800ms for branding
   useEffect(() => {
-    const timer = setTimeout(() => setMinTimeElapsed(true), 1200);
+    const timer = setTimeout(() => setMinTimeElapsed(true), 800);
     return () => clearTimeout(timer);
   }, []);
 
