@@ -2,6 +2,7 @@
 // Generates a login code and sends website link + access link to user after instant delivery
 
 import { sendMessage } from "../telegram-api.ts";
+import { isChildBotMode } from "../child-context.ts";
 
 function isDriveLink(url: string): boolean {
   return /drive\.google\.com|docs\.google\.com|googleapis\.com/i.test(url);
@@ -9,8 +10,9 @@ function isDriveLink(url: string): boolean {
 
 /**
  * Generate a 6-digit login code, save to DB, and send delivery to user.
- * - Drive links: Only show "View on Website" button (no direct link)
+ * - Drive links: Only show "View on Website" button (no direct link) — UNLESS child bot mode
  * - Other links: Send directly in bot message
+ * - Child bot mode: Send credentials only, NO website link
  */
 export async function sendInstantDeliveryWithLoginCode(
   token: string,
@@ -21,6 +23,14 @@ export async function sendInstantDeliveryWithLoginCode(
   productName: string,
   lang: string
 ) {
+  const childMode = isChildBotMode();
+
+  // For child bots, deliver credentials directly without website link
+  if (childMode) {
+    await sendChildBotDelivery(token, chatId, accessLink, productName, lang);
+    return;
+  }
+
   // Generate 6-digit login code
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry
@@ -65,7 +75,6 @@ export async function sendInstantDeliveryWithLoginCode(
         `🔑 Login Code: <code>${code}</code>\n` +
         `⏳ Code valid for 30 minutes.`;
 
-    // Send with inline button to website
     const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
     await fetch(apiUrl, {
       method: "POST",
@@ -108,5 +117,40 @@ export async function sendInstantDeliveryWithLoginCode(
         }
       }),
     });
+  }
+}
+
+/**
+ * Child bot delivery: Send credentials only, NO website link, NO login code
+ */
+async function sendChildBotDelivery(
+  token: string,
+  chatId: number,
+  accessLink: string,
+  productName: string,
+  lang: string
+) {
+  // Check if it's credentials (contains | separator)
+  const isCredentials = accessLink.includes("|");
+
+  if (isCredentials) {
+    const parts = accessLink.split("|").map((p: string) => p.trim());
+    let credText = `✅ <b>${productName} Delivered!</b>\n\n🔑 <b>Your Credentials</b>\n\n`;
+    if (parts.length >= 2) {
+      credText += `📧 ID: <code>${parts[0]}</code>\n🔒 Password: <code>${parts[1]}</code>`;
+    } else {
+      credText += `<code>${accessLink}</code>`;
+    }
+    await sendMessage(token, chatId, credText);
+  } else if (isDriveLink(accessLink)) {
+    // Drive links are NOT shared via child bot
+    await sendMessage(token, chatId,
+      `✅ <b>${productName} Delivered!</b>\n\n📁 Your product has been delivered. Please contact support if you need assistance.`
+    );
+  } else {
+    // Non-drive links: send directly
+    await sendMessage(token, chatId,
+      `✅ <b>${productName} Delivered!</b>\n\n🔗 <b>Your Access:</b>\n<code>${accessLink}</code>`
+    );
   }
 }

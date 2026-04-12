@@ -3,6 +3,7 @@
 import { t } from "../constants.ts";
 import { sendMessage, sendPhoto } from "../telegram-api.ts";
 import { getSettings, getWallet } from "../db-helpers.ts";
+import { getChildBotContext, childBotPrice, isChildBotMode } from "../child-context.ts";
 
 export async function handleViewCategories(token: string, supabase: any, chatId: number, lang: string) {
   const { data: categories, error } = await supabase
@@ -40,7 +41,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 export async function handleCategoryProducts(token: string, supabase: any, chatId: number, categoryName: string, lang: string) {
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, price, original_price, image_url")
+    .select("id, name, price, original_price, image_url, reseller_price")
     .eq("category", categoryName)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -59,12 +60,21 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
+  const childCtx = getChildBotContext();
   let text = `📂 <b>${categoryName}</b>\n\n`;
 
   products.forEach((p: any) => {
-    const priceText = p.original_price && p.original_price > p.price
-      ? `<s>${currency}${p.original_price}</s> ${currency}${p.price}`
-      : `${currency}${p.price}`;
+    let displayPrice: number;
+    if (childCtx) {
+      // Child bot: reseller_price + markup
+      displayPrice = childBotPrice(p.reseller_price, p.price);
+    } else {
+      displayPrice = p.price;
+    }
+
+    const priceText = (!childCtx && p.original_price && p.original_price > p.price)
+      ? `<s>${currency}${p.original_price}</s> ${currency}${displayPrice}`
+      : `${currency}${displayPrice}`;
     text += `• <b>${p.name}</b> — ${priceText}\n`;
   });
 
@@ -94,9 +104,10 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
 
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
+  const childCtx = getChildBotContext();
 
   const wallet = await getWallet(supabase, userId);
-  const isReseller = wallet?.is_reseller === true;
+  const isReseller = !childCtx && wallet?.is_reseller === true; // No reseller features in child bots
 
   const { data: variations } = await supabase
     .from("product_variations")
@@ -124,18 +135,30 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     text += `\n${lang === "bn" ? "ভেরিয়েশন নির্বাচন করুন:" : "Choose a variation:"}\n\n`;
 
     variations.forEach((v: any) => {
-      const displayPrice = isReseller ? (v.reseller_price || v.price) : v.price;
-      const priceLabel = isReseller ? `${currency}${displayPrice} (Reseller)` : (
-        v.original_price && v.original_price > v.price
+      let displayPrice: number;
+      let priceLabel: string;
+
+      if (childCtx) {
+        displayPrice = childBotPrice(v.reseller_price, v.price);
+        priceLabel = `${currency}${displayPrice}`;
+      } else if (isReseller) {
+        displayPrice = v.reseller_price || v.price;
+        priceLabel = `${currency}${displayPrice} (Reseller)`;
+      } else {
+        displayPrice = v.price;
+        priceLabel = v.original_price && v.original_price > v.price
           ? `${currency}${v.price} (was ${currency}${v.original_price})`
-          : `${currency}${v.price}`
-      );
+          : `${currency}${v.price}`;
+      }
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
     for (let idx = 0; idx < variations.length; idx++) {
       const v = variations[idx];
-      if (isReseller) {
+      if (childCtx) {
+        const dp = childBotPrice(v.reseller_price, v.price);
+        buttons.push([{ text: `${v.name} - ${currency}${dp}`, callback_data: `buyvar_${v.id}` }]);
+      } else if (isReseller) {
         buttons.push([
           { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` },
           { text: `Resale`, callback_data: `resalevar_${v.id}` },
@@ -152,12 +175,22 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
     }
   } else {
-    const displayPrice = isReseller ? (product.reseller_price || product.price) : product.price;
-    const priceLabel = isReseller ? `${currency}${displayPrice} (Reseller)` : (
-      product.original_price && product.original_price > product.price
+    let displayPrice: number;
+    let priceLabel: string;
+
+    if (childCtx) {
+      displayPrice = childBotPrice(product.reseller_price, product.price);
+      priceLabel = `${currency}${displayPrice}`;
+    } else if (isReseller) {
+      displayPrice = product.reseller_price || product.price;
+      priceLabel = `${currency}${displayPrice} (Reseller)`;
+    } else {
+      displayPrice = product.price;
+      priceLabel = product.original_price && product.original_price > product.price
         ? `<s>${currency}${product.original_price}</s> ${currency}${product.price}`
-        : `${currency}${product.price}`
-    );
+        : `${currency}${product.price}`;
+    }
+
     let text = `<b>${product.name}</b>\n`;
     if (product.description) text += `${product.description}\n`;
     text += `\n${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
@@ -167,7 +200,9 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     }
 
     if (product.stock === null || product.stock > 0) {
-      if (isReseller) {
+      if (childCtx) {
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+      } else if (isReseller) {
         buttons.push([
           { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
           { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}` },

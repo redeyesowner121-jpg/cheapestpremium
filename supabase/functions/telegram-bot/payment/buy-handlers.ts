@@ -4,6 +4,7 @@ import { t } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
+import { getChildBotContext, childBotPrice } from "../child-context.ts";
 
 const INR_TO_USD_RATE = 60; // ₹60 = $1
 
@@ -25,7 +26,6 @@ function generatePaymentNote(): string {
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   const digits = '23456789';
   let note = '';
-  // 8 chars: ~6 letters + 2 digits (80/20 ratio)
   for (let i = 0; i < 8; i++) {
     if (i === 3 || i === 6) {
       note += digits[Math.floor(Math.random() * digits.length)];
@@ -41,12 +41,32 @@ function inrToUsd(inrAmount: number): number {
   return Math.max(0.01, Math.round(usd * 100) / 100);
 }
 
+/** Helper to create child bot order record */
+async function createChildBotOrder(supabase: any, childCtx: any, orderId: string, userId: number, productName: string, price: number) {
+  const commission = Math.round(price * childCtx.revenue_percent) / 100;
+  await supabase.from("child_bot_orders").insert({
+    child_bot_id: childCtx.id,
+    telegram_order_id: orderId,
+    buyer_telegram_id: userId,
+    product_name: productName,
+    total_price: price,
+    owner_commission: commission,
+    status: "pending",
+  });
+}
+
 export async function handleBuyProduct(token: string, supabase: any, chatId: number, productId: string, telegramUser: any, lang: string) {
-  const { data: product } = await supabase.from("products").select("name, price, stock, id").eq("id", productId).single();
+  const { data: product } = await supabase.from("products").select("name, price, stock, id, reseller_price").eq("id", productId).single();
   if (!product) { await sendMessage(token, chatId, t("product_not_found", lang)); return; }
   if (product.stock !== null && product.stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
 
-  await showPaymentMethodChoice(token, supabase, chatId, telegramUser, product.name, product.price, product.id, null, lang);
+  const childCtx = getChildBotContext();
+  let buyPrice = product.price;
+  if (childCtx) {
+    buyPrice = childBotPrice(product.reseller_price, product.price);
+  }
+
+  await showPaymentMethodChoice(token, supabase, chatId, telegramUser, product.name, buyPrice, product.id, null, lang);
 }
 
 export async function handleBuyVariation(token: string, supabase: any, chatId: number, variationId: string, telegramUser: any, lang: string) {
@@ -68,9 +88,15 @@ export async function handleBuyVariation(token: string, supabase: any, chatId: n
   const stock = product?.stock;
   if (stock !== null && stock !== undefined && stock <= 0) { await sendMessage(token, chatId, t("out_of_stock", lang)); return; }
 
-  const wallet = await getWallet(supabase, telegramUser.id);
-  const isReseller = wallet?.is_reseller === true;
-  const price = isReseller ? (variation.reseller_price || variation.price) : variation.price;
+  const childCtx = getChildBotContext();
+  let price: number;
+  if (childCtx) {
+    price = childBotPrice(variation.reseller_price, variation.price);
+  } else {
+    const wallet = await getWallet(supabase, telegramUser.id);
+    const isReseller = wallet?.is_reseller === true;
+    price = isReseller ? (variation.reseller_price || variation.price) : variation.price;
+  }
 
   await showPaymentMethodChoice(token, supabase, chatId, telegramUser, productName, price, variation.product_id, variation.id, lang);
 }
@@ -89,6 +115,10 @@ async function showPaymentMethodChoice(
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
+  // Store child bot context in conversation state data
+  const childCtx = getChildBotContext();
+  const childBotData = childCtx ? { childBotId: childCtx.id, childBotRevenue: childCtx.revenue_percent } : {};
+
   let text = `<b>Order: ${productName}</b>\n\n`;
   text += `Price: <b>${currency}${price}</b>\n`;
   text += `Wallet Balance: <b>${currency}${walletBalance}</b>\n`;
@@ -100,7 +130,7 @@ async function showPaymentMethodChoice(
   // If wallet covers it, go straight to wallet pay
   if (finalAmount === 0) {
     await setConversationState(supabase, userId, "wallet_pay_confirm", {
-      productName, price, productId, variationId,
+      productName, price, productId, variationId, ...childBotData,
     });
     text += "\nClick below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
@@ -113,7 +143,7 @@ async function showPaymentMethodChoice(
 
   // Store purchase data for later
   await setConversationState(supabase, userId, "choose_payment_method", {
-    productName, price, finalAmount, productId, variationId, walletDeduction,
+    productName, price, finalAmount, productId, variationId, walletDeduction, ...childBotData,
   });
 
   text += "\nChoose payment method:";
@@ -139,7 +169,7 @@ export async function showBinancePayment(
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
 
   const amountUsd = inrToUsd(finalAmount);
   const paymentNote = generatePaymentNote();
@@ -164,6 +194,7 @@ export async function showBinancePayment(
     paymentId: payment?.id,
     paymentNote,
     amountUsd,
+    childBotId, childBotRevenue,
   });
 
   let text = `<b>Binance Payment</b>\n\n`;
@@ -221,14 +252,14 @@ export async function showUpiPayment(
   });
 }
 
-// Step 2b-i: Auto UPI via Razorpay (Amount + time-based verification, no code needed)
+// Step 2b-i: Auto UPI via Razorpay
 export async function showRazorpayUpiPayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
   const userId = telegramUser.id;
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
 
   const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
 
@@ -252,6 +283,7 @@ export async function showRazorpayUpiPayment(
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
     payClickedAt,
+    childBotId, childBotRevenue,
   });
 
   let text = `<b>⚡ UPI Payment</b>\n\n`;
@@ -283,10 +315,11 @@ export async function showManualUpiPayment(
   const currency = settings.currency_symbol || "₹";
   const upiId = settings.upi_id || "8900684167@ibl";
   const upiName = settings.upi_name || "Asif Ikbal Rubaiul Islam";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
 
   await setConversationState(supabase, userId, "awaiting_screenshot", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
+    childBotId, childBotRevenue,
   });
 
   const upiIntentUrl = generatePayUrl(upiId, upiName, finalAmount);
@@ -326,7 +359,7 @@ export async function showManualUpiPayment(
 export async function handleRazorpayVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
-  const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount } = stateData;
+  const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount, childBotId, childBotRevenue } = stateData;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -341,7 +374,6 @@ export async function handleRazorpayVerify(
 
     const authHeader = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
 
-    // Use payClickedAt as the start of time window
     const clickTime = payClickedAt ? Math.floor(new Date(payClickedAt).getTime() / 1000) : (Math.floor(Date.now() / 1000) - 120);
     const fromTime = Math.max(clickTime - 30, Math.floor(Date.now() / 1000) - 300);
 
@@ -377,7 +409,6 @@ export async function handleRazorpayVerify(
     });
 
     if (matchingPayment) {
-      // Payment confirmed!
       const { processReferralBonus } = await import("./wallet-pay.ts");
 
       // Update payment record
@@ -396,14 +427,29 @@ export async function handleRazorpayVerify(
       }
 
       // Create telegram order
-      await supabase.from("telegram_orders").insert({
+      const orderUsername = childBotId ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
+      const { data: order } = await supabase.from("telegram_orders").insert({
         telegram_user_id: telegramUser.id,
         product_name: productName,
         product_id: productId,
         amount: price,
         status: "confirmed",
-        username: telegramUser.username || telegramUser.first_name,
-      });
+        username: orderUsername,
+      }).select("id").single();
+
+      // Create child bot order if applicable
+      if (childBotId && order?.id) {
+        const commission = Math.round(price * (childBotRevenue || 0)) / 100;
+        await supabase.from("child_bot_orders").insert({
+          child_bot_id: childBotId,
+          telegram_order_id: order.id,
+          buyer_telegram_id: telegramUser.id,
+          product_name: productName,
+          total_price: price,
+          owner_commission: commission,
+          status: "confirmed",
+        });
+      }
 
       // Get access link
       const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
@@ -449,7 +495,7 @@ export async function handleRazorpayVerify(
 export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
-  const { paymentId, paymentNote, amountUsd, productName, productId, variationId, walletDeduction, price } = stateData;
+  const { paymentId, paymentNote, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = stateData;
 
   await sendMessage(token, chatId, "Verifying payment...");
 
@@ -491,14 +537,29 @@ export async function handleBinanceVerify(
       }
 
       // Create telegram order
+      const orderUsername = childBotId ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
       const { data: order } = await supabase.from("telegram_orders").insert({
         telegram_user_id: telegramUser.id,
         product_name: productName,
         product_id: productId,
         amount: price,
         status: "confirmed",
-        username: telegramUser.username || telegramUser.first_name,
+        username: orderUsername,
       }).select("id").single();
+
+      // Create child bot order if applicable
+      if (childBotId && order?.id) {
+        const commission = Math.round(price * (childBotRevenue || 0)) / 100;
+        await supabase.from("child_bot_orders").insert({
+          child_bot_id: childBotId,
+          telegram_order_id: order.id,
+          buyer_telegram_id: telegramUser.id,
+          product_name: productName,
+          total_price: price,
+          owner_commission: commission,
+          status: "confirmed",
+        });
+      }
 
       // Get access link
       const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
@@ -521,8 +582,9 @@ export async function handleBinanceVerify(
 
       // Notify admins
       try {
+        const childBotLabel = childBotId ? `\n🤖 Child Bot Order` : "";
         await notifyAllAdmins(token, supabase,
-          `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+          `💰 <b>Binance Payment</b>${childBotLabel}\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
         );
       } catch (e) { console.error("Admin notify error:", e); }
 

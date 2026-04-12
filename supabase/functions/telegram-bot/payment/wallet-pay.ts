@@ -5,8 +5,9 @@ import { sendMessage } from "../telegram-api.ts";
 import { getSettings, getWallet, notifyAllAdmins } from "../db-helpers.ts";
 import { syncPurchaseToProfile } from "./sync-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
+import { getChildBotContext } from "../child-context.ts";
 
-export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string) {
+export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, childBotId?: string, childBotRevenue?: number) {
   const wallet = await getWallet(supabase, userId);
   if (!wallet || wallet.balance < amount) {
     await sendMessage(token, chatId, lang === "bn" ? "❌ পর্যাপ্ত ব্যালেন্স নেই।" : "❌ Insufficient wallet balance.");
@@ -25,14 +26,34 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     description: `Purchase: ${productName}`,
   });
 
+  // Determine child bot context from either passed params or global context
+  const childCtx = getChildBotContext();
+  const effectiveChildBotId = childBotId || childCtx?.id;
+  const effectiveRevenue = childBotRevenue ?? childCtx?.revenue_percent;
+
+  const orderUsername = effectiveChildBotId ? `child_bot:${effectiveChildBotId}` : `wallet_pay`;
   const { data: order } = await supabase.from("telegram_orders").insert({
     telegram_user_id: userId,
-    username: `wallet_pay`,
+    username: orderUsername,
     product_name: productName,
     product_id: productId || null,
     amount: amount,
     status: "confirmed",
   }).select("id").single();
+
+  // Create child bot order if applicable
+  if (effectiveChildBotId && order?.id) {
+    const commission = Math.round(amount * (effectiveRevenue || 0)) / 100;
+    await supabase.from("child_bot_orders").insert({
+      child_bot_id: effectiveChildBotId,
+      telegram_order_id: order.id,
+      buyer_telegram_id: userId,
+      product_name: productName,
+      total_price: amount,
+      owner_commission: commission,
+      status: "confirmed",
+    });
+  }
 
   await sendMessage(token, chatId,
     t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
@@ -46,8 +67,9 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     }
   }
 
+  const childBotLabel = effectiveChildBotId ? `\n🤖 Child Bot Order` : "";
   await notifyAllAdmins(token, supabase,
-    `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+    `💰 <b>Wallet Payment</b>${childBotLabel}\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
   // Log proof to channel
