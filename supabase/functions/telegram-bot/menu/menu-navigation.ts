@@ -63,6 +63,11 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
     buttons.push([{ text: "Website Login", callback_data: "website_login" }]);
   }
 
+  // Show "Make My Own Bot" button in child bots → redirects to Mother Bot
+  if (isChild) {
+    buttons.push([{ text: "🤖 Make My Own Bot", url: "https://t.me/Botmother_selling_bot" }]);
+  }
+
   await sendMessage(token, chatId, welcomeText, {
     reply_markup: { inline_keyboard: buttons },
   });
