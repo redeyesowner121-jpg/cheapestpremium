@@ -34,7 +34,6 @@ const QuickStats: React.FC = React.memo(() => {
   const blueTickProgress = Math.min(100, (totalDeposit / 1000) * 100);
 
   const handleSavingsClick = () => {
-    if (totalSavings === null) fetchSavings();
     setShowSavingsModal(true);
   };
 
@@ -152,7 +151,7 @@ const QuickStats: React.FC = React.memo(() => {
           <div className="flex-1">
             <p className="font-extrabold text-success-foreground text-sm font-display tracking-tight">Total Savings 🎉</p>
             <p className="text-[11px] text-success-foreground/75 font-medium">
-              {savingsLoading ? 'Calculating...' : 'Tap to see your savings!'}
+              Tap to see your savings!
             </p>
           </div>
           <div className="text-right flex items-center gap-1">
