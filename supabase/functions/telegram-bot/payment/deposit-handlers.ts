@@ -346,11 +346,11 @@ export async function showDepositManualUpi(token: string, supabase: any, chatId:
 
 // ===== VERIFY DEPOSIT =====
 
-// Verify Binance deposit — with 20 min reservation expiry check
-export async function verifyDepositBinance(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { paymentNote, paymentId, amountUsd, amount, expiresAt, reservationId } = stateData;
+// Verify Binance deposit with Order ID
+export async function verifyDepositBinanceWithOrderId(token: string, supabase: any, chatId: number, userId: number, stateData: any, binanceOrderId: string, lang: string) {
+  const { paymentId, amountUsd, amount, expiresAt, reservationId } = stateData;
 
-  // Check 20 min expiry — clear reservation from DB
+  // Check 20 min expiry
   if (expiresAt && new Date(expiresAt) < new Date()) {
     await deleteConversationState(supabase, userId);
     await supabase.from("payments").update({ status: "expired" }).eq("id", paymentId);
@@ -380,7 +380,7 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
     const verifyRes = await fetch(`${supabaseUrl}/functions/v1/verify-binance-payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ note: paymentNote, amount: amountUsd, paymentId }),
+      body: JSON.stringify({ orderId: binanceOrderId, amount: amountUsd, paymentId }),
     });
 
     const result = await verifyRes.json();
@@ -390,22 +390,24 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
       if (reservationId) {
         await supabase.from("binance_amount_reservations").update({ status: "completed" }).eq("id", reservationId);
       }
-      await creditWallet(supabase, userId, amount, "binance", paymentNote);
+      await creditWallet(supabase, userId, amount, "binance", binanceOrderId);
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
       await sendMessage(token, chatId,
         `✅ <b>Payment Verified!</b>\n\n💰 ₹${amount} deposited\n💵 New Balance: <b>₹${wallet?.balance || 0}</b>`
       );
       await notifyAllAdmins(token, supabase,
-        `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n📝 Note: ${paymentNote}\n✅ Auto-verified`
+        `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n🆔 Order ID: ${binanceOrderId}\n✅ Auto-verified`
       );
       try { await logProof(token, formatDepositSuccess(userId, amount, "Binance Auto")); } catch {}
     } else {
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
-      await sendMessage(token, chatId, `${result.message || "Payment not found."}\n\n⏰ ${remaining} min remaining`, {
+      let retryMsg = `${result.message || "Payment not found."}\n\n`;
+      retryMsg += `⏰ ${remaining} min remaining\n\n`;
+      retryMsg += `📤 Send your Binance Order ID again to retry.`;
+      await sendMessage(token, chatId, retryMsg, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "✅ Verify Payment", callback_data: "deposit_binance_verify" }],
             [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
           ],
         },
@@ -413,10 +415,23 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
     }
   } catch (err) {
     console.error("Deposit binance verify error:", err);
-    await sendMessage(token, chatId, "Verification error. Try again.", {
-      reply_markup: { inline_keyboard: [[{ text: "✅ Verify", callback_data: "deposit_binance_verify" }]] },
+    await sendMessage(token, chatId, "Verification error. Send your Order ID again to retry.", {
+      reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
     });
   }
+}
+
+// Legacy verify function for backward compat (old deposit_binance_pending state)
+export async function verifyDepositBinance(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
+  // Old flow had paymentNote — redirect to ask for order ID
+  await setConversationState(supabase, userId, "deposit_binance_awaiting_order_id", stateData);
+  await sendMessage(token, chatId, "📤 Please send your <b>Binance Order ID</b> as a message to verify payment.", {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
+      ],
+    },
+  });
 }
 
 // Verify Razorpay deposit — uses reservation system
