@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SEOHead from '@/components/SEOHead';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
@@ -119,6 +120,29 @@ const ProductDetailPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      <SEOHead
+        title={`${displayProduct.name} - Buy at ₹${Math.round(currentPrice)}`}
+        description={displayProduct.description || `Buy ${displayProduct.name} at the cheapest price. Instant delivery, 100% genuine. Only ₹${Math.round(currentPrice)} at Cheapest Premiums.`}
+        canonicalPath={`/product/${displayProduct.slug || displayProduct.id}`}
+        ogImage={displayProduct.image_url || undefined}
+        type="product"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          "name": displayProduct.name,
+          "description": displayProduct.description || `Buy ${displayProduct.name} at cheapest price`,
+          "image": displayProduct.image_url,
+          "url": `https://cheapest-premiums.in/product/${displayProduct.slug || displayProduct.id}`,
+          "offers": {
+            "@type": "Offer",
+            "price": Math.round(currentPrice),
+            "priceCurrency": "INR",
+            "availability": isOutOfStock ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+            "seller": { "@type": "Organization", "name": "Cheapest Premiums" }
+          },
+          ...(displayProduct.rating ? { "aggregateRating": { "@type": "AggregateRating", "ratingValue": displayProduct.rating, "bestRating": 5, "ratingCount": displayProduct.sold_count || 1 } } : {})
+        }}
+      />
       <ProductHeader onBack={handleBack} isAdmin={isAdmin} isTempAdmin={isTempAdmin} onEdit={() => navigate('/admin', { state: { editProduct: displayProduct } })} isFavorite={isFavorite} onToggleFavorite={() => setIsFavorite(!isFavorite)} onShare={handleShare} />
 
       <main className="pt-16 max-w-lg mx-auto">

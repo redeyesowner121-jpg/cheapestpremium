@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
+import { HelmetProvider } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -131,19 +132,21 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppErrorBoundary>
-        <AuthProvider>
-          <AppSettingsProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <AppContent />
-            </TooltipProvider>
-          </AppSettingsProvider>
-        </AuthProvider>
-      </AppErrorBoundary>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppErrorBoundary>
+          <AuthProvider>
+            <AppSettingsProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <AppContent />
+              </TooltipProvider>
+            </AppSettingsProvider>
+          </AuthProvider>
+        </AppErrorBoundary>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 };
 
