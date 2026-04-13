@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Dynamic sitemap is served at: https://aeiqhaqwudhhdfsvnnja.supabase.co/functions/v1/sitemap -->
-<!-- Submit this URL in Google Search Console instead -->
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://cheapest-premiums.in/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://aeiqhaqwudhhdfsvnnja.supabase.co/functions/v1/sitemap</loc>
+  </sitemap>
+</sitemapindex>
