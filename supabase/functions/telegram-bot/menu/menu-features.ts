@@ -201,14 +201,14 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
       username: botUser?.username || null,
       first_name: botUser?.first_name || null,
       created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     });
 
     const websiteUrl = "https://cheapest-premiums.in";
 
     const text = lang === "bn"
-      ? `🔐 <b>ওয়েবসাইট লগইন</b>\n\n📋 আপনার লগইন কোড:\n<code>${code}</code>\n(ট্যাপ করলে কপি হবে)\n\n⏰ কোডটি ৫ মিনিট সক্রিয় থাকবে।\n\n📖 <b>কিভাবে লগইন করবেন:</b>\n1️⃣ নিচের লিংকে ক্লিক করুন\n2️⃣ "Telegram Login" অপশনে ক্লিক করুন\n3️⃣ উপরের কোডটি পেস্ট করুন\n4️⃣ Login বাটনে ক্লিক করুন\n\n✅ আপনার ওয়ালেট, অর্ডার সব অটোমেটিক সিঙ্ক হয়ে যাবে!\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
-      : `🔐 <b>Website Login</b>\n\n📋 Your login code:\n<code>${code}</code>\n(Tap to copy)\n\n⏰ Code is active for 5 minutes.\n\n📖 <b>How to login:</b>\n1️⃣ Click the link below\n2️⃣ Click "Telegram Login" option\n3️⃣ Paste the code above\n4️⃣ Click the Login button\n\n✅ Your wallet, orders will auto-sync!\n\n⚠️ Do not share this code with anyone.`;
+      ? `🔐 <b>ওয়েবসাইট লগইন</b>\n\n📋 আপনার লগইন কোড:\n<code>${code}</code>\n(ট্যাপ করলে কপি হবে)\n\n⏰ কোডটি ৩০ মিনিট সক্রিয় থাকবে।\n\n📖 <b>কিভাবে লগইন করবেন:</b>\n1️⃣ নিচের লিংকে ক্লিক করুন\n2️⃣ "Telegram Login" অপশনে ক্লিক করুন\n3️⃣ উপরের কোডটি পেস্ট করুন\n4️⃣ Login বাটনে ক্লিক করুন\n\n✅ আপনার ওয়ালেট, অর্ডার সব অটোমেটিক সিঙ্ক হয়ে যাবে!\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
+      : `🔐 <b>Website Login</b>\n\n📋 Your login code:\n<code>${code}</code>\n(Tap to copy)\n\n⏰ Code is active for 30 minutes.\n\n📖 <b>How to login:</b>\n1️⃣ Click the link below\n2️⃣ Click "Telegram Login" option\n3️⃣ Paste the code above\n4️⃣ Click the Login button\n\n✅ Your wallet, orders will auto-sync!\n\n⚠️ Do not share this code with anyone.`;
 
     await sendMessage(token, chatId, text, {
       reply_markup: {
