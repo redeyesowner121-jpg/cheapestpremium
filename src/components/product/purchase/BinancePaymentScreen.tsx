@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, Copy, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { copyToClipboard } from './utils';
 
@@ -11,12 +12,14 @@ interface BinancePaymentScreenProps {
   paymentNote: string;
   verifying: boolean;
   onBack: () => void;
-  onVerify: () => void;
+  onVerify: (orderId: string) => void;
 }
 
 const BinancePaymentScreen: React.FC<BinancePaymentScreenProps> = ({
   open, onOpenChange, amountUsd, paymentNote, verifying, onBack, onVerify
 }) => {
+  const [binanceOrderId, setBinanceOrderId] = useState('');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl">
@@ -48,29 +51,31 @@ const BinancePaymentScreen: React.FC<BinancePaymentScreenProps> = ({
                 </Button>
               </div>
             </div>
-            <div>
-              <p className="text-xs text-destructive mb-1 font-medium">⚠️ Payment Note (MUST add)</p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 p-2 bg-background rounded-lg text-sm font-mono font-bold text-primary">{paymentNote}</code>
-                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(paymentNote)}>
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
           </div>
 
           <div className="text-xs text-muted-foreground space-y-1 p-3 bg-muted rounded-lg">
             <p>1. Open Binance → Pay → Send</p>
             <p>2. Enter Pay ID above</p>
             <p>3. Amount: <b>${amountUsd}</b></p>
-            <p>4. Add note: <b>{paymentNote}</b></p>
-            <p>5. Complete payment & verify below</p>
+            <p>4. Complete payment</p>
+            <p>5. Copy your <b>Order ID</b> from Binance</p>
+            <p>6. Paste below & verify</p>
+          </div>
+
+          <div>
+            <p className="text-xs text-muted-foreground mb-1 font-medium">📋 Binance Order ID</p>
+            <Input
+              placeholder="Enter your Binance Order ID"
+              value={binanceOrderId}
+              onChange={(e) => setBinanceOrderId(e.target.value)}
+              className="font-mono"
+            />
           </div>
 
           <Button
             className="w-full h-12 rounded-xl btn-gradient"
-            onClick={onVerify}
-            disabled={verifying}
+            onClick={() => onVerify(binanceOrderId)}
+            disabled={verifying || !binanceOrderId.trim()}
           >
             {verifying ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Verifying...</> : '✅ Verify Payment'}
           </Button>

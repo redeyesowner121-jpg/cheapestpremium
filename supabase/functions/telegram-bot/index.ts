@@ -21,7 +21,7 @@ import {
 } from "./menu-handlers.ts";
 import {
   handleBuyProduct, handleBuyVariation, handleWalletPay, handleAdminAction,
-  showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment, handleBinanceVerify, handleRazorpayVerify,
+  showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment, handleRazorpayVerify,
 } from "./payment-handlers.ts";
 import {
   handleResaleStart, handleResaleVariationStart, handleStartWithRef,

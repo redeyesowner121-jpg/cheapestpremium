@@ -173,7 +173,7 @@ async function showPaymentMethodChoice(
   });
 }
 
-// Step 2a: Binance payment flow with auto-verify
+// Step 2a: Binance payment flow with order ID verification
 export async function showBinancePayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
@@ -184,14 +184,13 @@ export async function showBinancePayment(
   const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
 
   const amountUsd = inrToUsd(finalAmount);
-  const paymentNote = generatePaymentNote();
 
   // Create payment record
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
     amount: finalAmount,
     amount_usd: amountUsd,
-    note: paymentNote,
+    note: `BINANCE_ORDER_ID_PENDING`,
     status: "pending",
     payment_method: "binance",
     product_id: productId,
@@ -200,11 +199,10 @@ export async function showBinancePayment(
     telegram_user_id: userId,
   }).select("id").single();
 
-  // Store in conversation state for verify callback
-  await setConversationState(supabase, userId, "binance_payment_pending", {
+  // Store in conversation state — user will send order ID as text
+  await setConversationState(supabase, userId, "binance_awaiting_order_id", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    paymentNote,
     amountUsd,
     childBotId, childBotRevenue,
   });
@@ -212,23 +210,20 @@ export async function showBinancePayment(
   let text = `<b>Binance Payment</b>\n\n`;
   text += `Product: <b>${productName}</b>\n`;
   text += `Amount: <b>${currency}${finalAmount}</b> = <b>$${amountUsd}</b>\n\n`;
-  text += `Binance Pay ID: <code>${binanceId}</code>\n`;
-  text += `Payment Note: <code>${paymentNote}</code>\n\n`;
+  text += `Binance Pay ID: <code>${binanceId}</code>\n\n`;
   text += `<b>Instructions:</b>\n`;
   text += `1. Open Binance App\n`;
   text += `2. Go to Pay > Send\n`;
   text += `3. Enter Pay ID: <code>${binanceId}</code>\n`;
   text += `4. Amount: <b>$${amountUsd}</b>\n`;
-  text += `5. Add note: <code>${paymentNote}</code>\n`;
-  text += `6. Complete payment\n`;
-  text += `7. Click "Verify Payment" below\n\n`;
-  text += `<i>Note must match exactly for auto-verification.</i>`;
+  text += `5. Complete payment\n`;
+  text += `6. <b>Send your Binance Order ID here</b>\n\n`;
+  text += `<i>After paying, copy the Order ID from Binance and send it as a message here.</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "Verify Payment", callback_data: "binance_verify" }],
-        [{ text: "Cancel", callback_data: "binance_cancel" }],
+        [{ text: "❌ Cancel", callback_data: "binance_cancel" }],
       ],
     },
   });
@@ -520,14 +515,14 @@ export async function handleRazorpayVerify(
   }
 }
 
-// Verify Binance payment
+// Verify Binance payment using Order ID
 export async function handleBinanceVerify(
-  token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
+  token: string, supabase: any, chatId: number, telegramUser: any, stateData: any, binanceOrderId: string
 ) {
-  const { paymentId, paymentNote, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = stateData;
+  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = stateData;
   const isChildBot = !!childBotId;
 
-  await sendMessage(token, chatId, "Verifying payment...");
+  await sendMessage(token, chatId, "🔍 Verifying payment...");
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -539,7 +534,7 @@ export async function handleBinanceVerify(
         "Content-Type": "application/json",
         "Authorization": `Bearer ${serviceKey}`,
       },
-      body: JSON.stringify({ note: paymentNote, amount: amountUsd, paymentId }),
+      body: JSON.stringify({ orderId: binanceOrderId, amount: amountUsd, paymentId }),
     });
 
     const result = await verifyRes.json();
@@ -594,16 +589,12 @@ export async function handleBinanceVerify(
       }
 
       if (isChildBot) {
-        // Tell child bot user order is pending
         await sendMessage(token, chatId,
           `✅ <b>Payment Verified!</b>\n\n📦 Product: <b>${productName}</b>\n💵 Amount: $${amountUsd} (₹${price})\n\n⏳ Admin is processing your order. You'll get an update soon.`
         );
         await setConversationState(supabase, telegramUser.id, "idle", {});
-
-        // Notify main admins
         await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Binance Pay");
       } else {
-        // Regular flow - auto confirmed
         const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
 
         let successText = `✅ <b>Order Successful!</b>\n\n`;
@@ -622,44 +613,40 @@ export async function handleBinanceVerify(
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
 
-        // Notify admins
         try {
           await notifyAllAdmins(token, supabase,
-            `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Binance Pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+            `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Order ID: ${binanceOrderId})\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
           );
         } catch (e) { console.error("Admin notify error:", e); }
 
-        // Sync purchase to website profile
         try {
           await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, product?.access_link || undefined);
         } catch (e) { console.error("Sync error:", e); }
 
-        // Process referral bonus
         await processReferralBonus(supabase, telegramUser.id, token, price);
       }
 
-      // Log proof
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Binance")); } catch {}
     } else {
-      const debugNote = result.debug?.expectedNote || paymentNote;
+      const debugOrderId = result.debug?.expectedOrderId || binanceOrderId;
       const debugAmt = result.debug?.expectedAmount || amountUsd;
       const billCount = result.debug?.billCount ?? "?";
 
       let retryMsg = `❌ <b>Payment not verified yet</b>\n\n`;
       retryMsg += `${result.message || "No matching transaction found."}\n\n`;
       retryMsg += `🔍 <b>What we searched for:</b>\n`;
-      retryMsg += `• Note: <code>${debugNote}</code>\n`;
+      retryMsg += `• Order ID: <code>${debugOrderId}</code>\n`;
       retryMsg += `• Amount: <b>$${debugAmt}</b>\n`;
       retryMsg += `• Transactions checked: ${billCount}\n\n`;
       retryMsg += `💡 <b>Tips:</b>\n`;
-      retryMsg += `• Make sure you included the note <code>${paymentNote}</code> in your Binance Pay remark\n`;
+      retryMsg += `• Make sure you sent the correct Binance Order ID\n`;
       retryMsg += `• Wait 1-2 minutes after payment before verifying\n`;
-      retryMsg += `• Ensure the exact amount <b>$${amountUsd}</b> was sent`;
+      retryMsg += `• Ensure the exact amount <b>$${amountUsd}</b> was sent\n\n`;
+      retryMsg += `📤 Send your Order ID again to retry.`;
 
       await sendMessage(token, chatId, retryMsg, {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🔄 Verify Again", callback_data: "binance_verify" }],
             [{ text: "❌ Cancel", callback_data: "binance_cancel" }],
           ],
         },
@@ -667,10 +654,9 @@ export async function handleBinanceVerify(
     }
   } catch (err) {
     console.error("Binance verify error:", err);
-    await sendMessage(token, chatId, "⚠️ Verification error. Please try again in a moment.", {
+    await sendMessage(token, chatId, "⚠️ Verification error. Send your Order ID again to retry.", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🔄 Retry", callback_data: "binance_verify" }],
           [{ text: "❌ Cancel", callback_data: "binance_cancel" }],
         ],
       },

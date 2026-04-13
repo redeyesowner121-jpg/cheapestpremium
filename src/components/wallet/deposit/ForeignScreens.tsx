@@ -48,7 +48,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
   const [step, setStep] = useState<BinanceStep>('amount');
   const [amountInr, setAmountInr] = useState('');
   const [amountUsd, setAmountUsd] = useState(0);
-  const [paymentNote, setPaymentNote] = useState('');
+  const [binanceOrderId, setBinanceOrderId] = useState('');
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [reserving, setReserving] = useState(false);
@@ -69,7 +69,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
       setStep('amount');
       setAmountInr('');
       setAmountUsd(0);
-      setPaymentNote('');
+      setBinanceOrderId('');
       setReservationId(null);
       setPaymentId(null);
       setVerified(false);
@@ -149,7 +149,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
         user_id: user.id,
         amount: inr,
         amount_usd: usd,
-        note,
+        note: 'BINANCE_ORDER_ID_PENDING',
         status: 'pending',
         payment_method: 'binance',
         product_name: 'Wallet Deposit',
@@ -167,7 +167,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
         expires_at: expiry.toISOString(),
       } as any).select('id').single();
 
-      setPaymentNote(note);
+      setPaymentId((payment as any)?.id || null);
       setPaymentId((payment as any)?.id || null);
       setReservationId((reservation as any)?.id || null);
       setExpiresAt(expiry);
@@ -182,16 +182,15 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
   };
 
   const handleVerify = useCallback(async () => {
-    if (verifying || verified) return;
+    if (verifying || verified || !binanceOrderId.trim()) return;
     setVerifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-binance-payment', {
-        body: { note: paymentNote, amount: amountUsd, paymentId },
+        body: { orderId: binanceOrderId.trim(), amount: amountUsd, paymentId },
       });
 
       if (data?.success) {
         setVerified(true);
-        if (pollingRef.current) clearInterval(pollingRef.current);
 
         // Mark reservation completed
         if (reservationId) {
@@ -238,15 +237,9 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
     } finally {
       setVerifying(false);
     }
-  }, [verifying, verified, paymentNote, amountUsd, paymentId, reservationId, amountInr, feePercent, user]);
+  }, [verifying, verified, binanceOrderId, amountUsd, paymentId, reservationId, amountInr, feePercent, user]);
 
-  // Auto-polling every 10 seconds
-  useEffect(() => {
-    if (step === 'pay' && !verified && paymentNote) {
-      pollingRef.current = setInterval(() => { handleVerify(); }, 10000);
-      return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-    }
-  }, [step, verified, paymentNote, handleVerify]);
+  // No auto-polling — user must enter order ID and click verify
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -353,13 +346,6 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(binanceId)}><Copy className="w-3 h-3" /></Button>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Payment Note</span>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-bold text-primary">{paymentNote}</code>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(paymentNote)}><Copy className="w-3 h-3" /></Button>
-                </div>
-              </div>
             </div>
 
             <div className="p-3 bg-primary/5 rounded-xl text-sm space-y-1">
@@ -368,15 +354,25 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
                 <li>Open Binance App → Pay → Send</li>
                 <li>Enter Pay ID: <b>{binanceId}</b></li>
                 <li>Amount: <b>${amountUsd}</b></li>
-                <li>Note: <b>{paymentNote}</b> (must match exactly!)</li>
-                <li>Complete payment & click Verify</li>
+                <li>Complete payment</li>
+                <li>Copy your <b>Order ID</b> from Binance</li>
+                <li>Paste below & verify</li>
               </ol>
             </div>
 
-            <Button onClick={handleVerify} className="w-full h-12 btn-gradient rounded-xl" disabled={verifying}>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1 font-medium">📋 Binance Order ID</p>
+              <Input
+                placeholder="Enter your Binance Order ID"
+                value={binanceOrderId}
+                onChange={(e) => setBinanceOrderId(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+
+            <Button onClick={handleVerify} className="w-full h-12 btn-gradient rounded-xl" disabled={verifying || !binanceOrderId.trim()}>
               {verifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : '✅ Verify Payment'}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">Auto-checking every 10 seconds...</p>
             <Button variant="ghost" onClick={() => {
               if (pollingRef.current) clearInterval(pollingRef.current);
               if (reservationId) {

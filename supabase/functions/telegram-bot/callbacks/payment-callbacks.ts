@@ -4,7 +4,7 @@ import { getConversationState, deleteConversationState } from "../db-helpers.ts"
 import {
   handleWalletPay, handleAdminAction,
   showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment,
-  handleBinanceVerify, handleRazorpayVerify,
+  handleRazorpayVerify,
 } from "../payment-handlers.ts";
 import { handleMyWallet } from "../menu-handlers.ts";
 import { showMainMenu } from "../menu/menu-navigation.ts";
@@ -82,11 +82,12 @@ export async function handlePaymentCallbacks(
     return true;
   }
 
-  // Verify payments
+  // Binance verify is now handled via text message (order ID), not callback
+  // Keep for backward compat - prompt user to send order ID
   if (data === "binance_verify") {
     const convState = await getConversationState(supabase, userId);
-    if (convState?.step === "binance_payment_pending") {
-      await handleBinanceVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
+    if (convState?.step === "binance_payment_pending" || convState?.step === "binance_awaiting_order_id") {
+      await sendMessage(BOT_TOKEN, chatId, "📤 Please send your <b>Binance Order ID</b> as a message to verify payment.");
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
