@@ -239,13 +239,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
     }
   }, [verifying, verified, binanceOrderId, amountUsd, paymentId, reservationId, amountInr, feePercent, user]);
 
-  // Auto-polling every 10 seconds
-  useEffect(() => {
-    if (step === 'pay' && !verified && paymentNote) {
-      pollingRef.current = setInterval(() => { handleVerify(); }, 10000);
-      return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-    }
-  }, [step, verified, paymentNote, handleVerify]);
+  // No auto-polling — user must enter order ID and click verify
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
