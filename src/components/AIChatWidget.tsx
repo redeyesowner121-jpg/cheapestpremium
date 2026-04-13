@@ -1,14 +1,23 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Sparkles, ChevronDown, Mic, MicOff, Search, Clock, MessageSquare, Zap, ArrowRight } from 'lucide-react';
+import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Sparkles, ChevronDown, Mic, MicOff, Search, Clock, MessageSquare, Zap, ArrowRight, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
-type Msg = { role: 'user' | 'assistant'; content: string; timestamp?: number; wordCount?: number; responseTime?: number };
+type Msg = {
+  id?: string;
+  role: 'user' | 'assistant';
+  content: string;
+  image_url?: string | null;
+  timestamp?: number;
+  wordCount?: number;
+  responseTime?: number;
+};
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-const STORAGE_KEY = 'rkr-ai-chat-history';
 
 const SUGGESTIONS = [
   { icon: "🔥", text: "Best deals right now?" },
@@ -19,7 +28,6 @@ const SUGGESTIONS = [
   { icon: "🆚", text: "Compare Netflix vs Disney+" },
 ];
 
-// Format relative time
 const formatTime = (ts?: number) => {
   if (!ts) return '';
   const diff = Date.now() - ts;
@@ -29,7 +37,6 @@ const formatTime = (ts?: number) => {
   return new Date(ts).toLocaleDateString();
 };
 
-// Copy button for code blocks
 const CopyButton = ({ text }: { text: string }) => {
   const [copied, setCopied] = useState(false);
   return (
@@ -42,17 +49,69 @@ const CopyButton = ({ text }: { text: string }) => {
   );
 };
 
-// Blinking cursor for streaming
 const StreamingCursor = () => (
   <span className="inline-block w-[2px] h-4 bg-primary ml-0.5 animate-pulse align-text-bottom" />
 );
+
+const MarkdownContent = React.memo(({ content }: { content: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      a: ({ href, children }) => (
+        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary underline font-medium hover:opacity-80">
+          {children}
+          <ArrowRight className="w-3 h-3 inline" />
+        </a>
+      ),
+      strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
+      em: ({ children }) => <em className="italic">{children}</em>,
+      h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-3 first:mt-0 text-foreground">{children}</h1>,
+      h2: ({ children }) => <h2 className="text-sm font-bold mb-1.5 mt-2.5 first:mt-0 text-foreground">{children}</h2>,
+      h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 mt-2 first:mt-0 text-foreground">{children}</h3>,
+      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+      li: ({ children }) => <li className="text-sm leading-relaxed">{children}</li>,
+      p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+      code: ({ className, children, ...props }) => {
+        const isInline = !className;
+        if (isInline) {
+          return <code className="bg-muted px-1.5 py-0.5 rounded-md text-xs font-mono text-primary">{children}</code>;
+        }
+        return <code className={className} {...props}>{children}</code>;
+      },
+      pre: ({ children }) => {
+        const codeText = (children as any)?.props?.children || '';
+        return (
+          <pre className="relative group/code bg-muted/80 rounded-lg border border-border/50 my-2 p-3 overflow-x-auto text-xs">
+            <CopyButton text={String(codeText)} />
+            {children}
+          </pre>
+        );
+      },
+      table: ({ children }) => (
+        <div className="overflow-x-auto my-2">
+          <table className="w-full text-xs border-collapse border border-border/50 rounded-lg overflow-hidden">{children}</table>
+        </div>
+      ),
+      thead: ({ children }) => <thead className="bg-muted/60">{children}</thead>,
+      th: ({ children }) => <th className="border border-border/50 px-2.5 py-1.5 text-left font-semibold text-foreground">{children}</th>,
+      td: ({ children }) => <td className="border border-border/50 px-2.5 py-1.5">{children}</td>,
+      blockquote: ({ children }) => (
+        <blockquote className="border-l-3 border-primary/40 pl-3 my-2 italic text-muted-foreground bg-primary/5 py-1 rounded-r-md">{children}</blockquote>
+      ),
+      hr: () => <hr className="my-3 border-border/40" />,
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+));
+MarkdownContent.displayName = 'MarkdownContent';
 
 const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isStreaming, searchTerm }: {
   msg: Msg; onCopy: () => void; onRetry?: () => void; isLast: boolean; isLoading: boolean; isStreaming: boolean; searchTerm: string;
 }) => {
   const isUser = msg.role === 'user';
 
-  // Highlight search matches
   const highlightContent = useCallback((text: string) => {
     if (!searchTerm) return text;
     const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
@@ -93,29 +152,21 @@ const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isS
               : 'bg-muted/60 text-foreground rounded-tl-sm border border-border/40 shadow-sm'
           }`}
         >
+          {/* Image display */}
+          {msg.image_url && (
+            <div className="mb-2">
+              <img 
+                src={msg.image_url} 
+                alt="Uploaded" 
+                className="max-w-full max-h-48 rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => window.open(msg.image_url!, '_blank')}
+              />
+            </div>
+          )}
+          
           {msg.role === 'assistant' ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words [&_a]:text-primary [&_a]:underline [&_a]:font-medium [&_p]:m-0 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:m-0 [&_ul]:mb-1.5 [&_ol]:m-0 [&_ol]:mb-1.5 [&_li]:m-0 [&_h1]:text-base [&_h1]:font-bold [&_h1]:mb-1 [&_h2]:text-sm [&_h2]:font-bold [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_code]:bg-background/60 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-xs [&_code]:font-mono [&_pre]:relative [&_pre]:bg-background/80 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50 [&_pre]:my-1.5 [&_table]:text-xs [&_table]:border-collapse [&_th]:border [&_th]:border-border/50 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-muted/50 [&_td]:border [&_td]:border-border/50 [&_td]:px-2 [&_td]:py-1 [&_strong]:text-foreground [&_blockquote]:border-l-2 [&_blockquote]:border-primary/30 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_hr]:border-border/30">
-              <ReactMarkdown
-                components={{
-                  a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 hover:opacity-80">
-                      {children}
-                      <ArrowRight className="w-3 h-3 inline" />
-                    </a>
-                  ),
-                  pre: ({ children, ...props }) => {
-                    const codeText = (children as any)?.props?.children || '';
-                    return (
-                      <pre {...props} className="relative group/code">
-                        <CopyButton text={String(codeText)} />
-                        {children}
-                      </pre>
-                    );
-                  },
-                }}
-              >
-                {searchTerm ? highlightContent(msg.content) : msg.content}
-              </ReactMarkdown>
+            <div className="prose-chat max-w-none break-words text-sm">
+              <MarkdownContent content={searchTerm ? highlightContent(msg.content) : msg.content} />
               {isStreaming && isLast && <StreamingCursor />}
             </div>
           ) : (
@@ -123,7 +174,6 @@ const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isS
           )}
         </div>
         
-        {/* Action buttons & meta for assistant messages */}
         {!isUser && msg.content && !isStreaming && (
           <div className="flex items-center gap-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="flex items-center gap-0.5">
@@ -152,7 +202,6 @@ const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isS
 });
 MessageBubble.displayName = 'MessageBubble';
 
-// Follow-up suggestion chips after AI response
 const FollowUpChips = React.memo(({ suggestions, onSelect }: { suggestions: string[]; onSelect: (s: string) => void }) => (
   <motion.div
     initial={{ opacity: 0, y: 5 }}
@@ -177,12 +226,7 @@ const AIChatWidget: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [messages, setMessages] = useState<Msg[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -190,24 +234,68 @@ const AIChatWidget: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [followUps, setFollowUps] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const streamStartTime = useRef<number>(0);
 
-  // Draggable button state
   const [btnPos, setBtnPos] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const hasMoved = useRef(false);
 
-  // Save messages to localStorage
+  // Get current user
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50))); // Keep last 50
-    } catch { /* quota exceeded */ }
-  }, [messages]);
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+      setHistoryLoaded(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load chat history from database
+  useEffect(() => {
+    if (!userId || historyLoaded) return;
+    const loadHistory = async () => {
+      const { data } = await supabase
+        .from('ai_chat_messages')
+        .select('id, role, content, image_url, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true })
+        .limit(100);
+      if (data && data.length > 0) {
+        setMessages(data.map(m => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          image_url: m.image_url,
+          timestamp: new Date(m.created_at).getTime(),
+        })));
+      }
+      setHistoryLoaded(true);
+    };
+    loadHistory();
+  }, [userId, historyLoaded]);
+
+  // Save message to database
+  const saveToDb = useCallback(async (msg: Msg) => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from('ai_chat_messages')
+      .insert({ user_id: userId, role: msg.role, content: msg.content, image_url: msg.image_url || null })
+      .select('id')
+      .single();
+    return data?.id;
+  }, [userId]);
 
   const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
@@ -215,9 +303,7 @@ const AIChatWidget: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, open, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, open, scrollToBottom]);
 
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
@@ -233,40 +319,28 @@ const AIChatWidget: React.FC = () => {
   }, [input]);
 
   useEffect(() => {
-    if (open && inputRef.current && !searchMode) {
-      setTimeout(() => inputRef.current?.focus(), 300);
-    }
+    if (open && inputRef.current && !searchMode) setTimeout(() => inputRef.current?.focus(), 300);
   }, [open, searchMode]);
 
   useEffect(() => {
-    if (searchMode && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
+    if (searchMode && searchInputRef.current) searchInputRef.current.focus();
   }, [searchMode]);
 
-  // Voice input using Web Speech API
+  // Voice input
   const toggleVoice = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       toast.error('Voice input not supported in this browser');
       return;
     }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
+    if (isListening) { setIsListening(false); return; }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = 'bn-BD'; // Bengali, falls back to English
+    recognition.lang = 'bn-BD';
     recognition.interimResults = true;
     recognition.continuous = false;
-
     recognition.onstart = () => setIsListening(true);
     recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join('');
+      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join('');
       setInput(transcript);
     };
     recognition.onerror = () => setIsListening(false);
@@ -274,17 +348,38 @@ const AIChatWidget: React.FC = () => {
     recognition.start();
   }, [isListening]);
 
-  // Generate follow-up suggestions from last response
+  // Image upload
+  const handleImageSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Only images allowed'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB image size'); return; }
+
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `ai-chat/${userId || 'anon'}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('chat-images').upload(path, file);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(path);
+      setPendingImage(urlData.publicUrl);
+      toast.success('Image ready to send!');
+    } catch (err) {
+      toast.error('Failed to upload image');
+    }
+    setUploadingImage(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [userId]);
+
   const generateFollowUps = useCallback((content: string) => {
     const suggestions: string[] = [];
-    if (content.toLowerCase().includes('netflix')) suggestions.push('Netflix plans compare করো');
-    if (content.toLowerCase().includes('spotify')) suggestions.push('Spotify features বলো');
-    if (content.toLowerCase().includes('price') || content.includes('₹')) suggestions.push('Cheapest option দেখাও');
-    if (content.toLowerCase().includes('coupon') || content.toLowerCase().includes('discount')) suggestions.push('আর কোনো offer আছে?');
-    if (content.toLowerCase().includes('flash sale')) suggestions.push('Flash sale details দেখাও');
-    if (suggestions.length === 0) {
-      suggestions.push('আরো details দাও', 'Similar products দেখাও');
-    }
+    const lc = content.toLowerCase();
+    if (lc.includes('netflix')) suggestions.push('Netflix plans compare করো');
+    if (lc.includes('spotify')) suggestions.push('Spotify features বলো');
+    if (lc.includes('price') || content.includes('₹')) suggestions.push('Cheapest option দেখাও');
+    if (lc.includes('coupon') || lc.includes('discount')) suggestions.push('আর কোনো offer আছে?');
+    if (lc.includes('flash sale')) suggestions.push('Flash sale details দেখাও');
+    if (suggestions.length === 0) suggestions.push('আরো details দাও', 'Similar products দেখাও');
     return suggestions.slice(0, 3);
   }, []);
 
@@ -320,7 +415,7 @@ const AIChatWidget: React.FC = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ messages: allMessages.map(m => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({ messages: allMessages.map(m => ({ role: m.role, content: m.image_url ? `[User sent an image: ${m.image_url}]\n${m.content}` : m.content })) }),
         signal: abortRef.current.signal,
       });
 
@@ -360,7 +455,7 @@ const AIChatWidget: React.FC = () => {
               const wc = assistantSoFar.split(/\s+/).filter(Boolean).length;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
-                if (last?.role === 'assistant') {
+                if (last?.role === 'assistant' && !last.id) {
                   return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar, wordCount: wc } : m);
                 }
                 return [...prev, { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: wc }];
@@ -390,7 +485,7 @@ const AIChatWidget: React.FC = () => {
               const wc = assistantSoFar.split(/\s+/).filter(Boolean).length;
               setMessages(prev => {
                 const last = prev[prev.length - 1];
-                if (last?.role === 'assistant') {
+                if (last?.role === 'assistant' && !last.id) {
                   return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar, wordCount: wc } : m);
                 }
                 return [...prev, { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: wc }];
@@ -400,12 +495,17 @@ const AIChatWidget: React.FC = () => {
         }
       }
 
-      // Set response time & follow-ups
+      // Set response time & save to DB
       const responseTime = Date.now() - streamStartTime.current;
+      const assistantMsg: Msg = { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: assistantSoFar.split(/\s+/).filter(Boolean).length, responseTime };
+      
+      // Save assistant message to DB
+      const savedId = await saveToDb(assistantMsg);
+      
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant') {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, responseTime } : m);
+          return prev.map((m, i) => i === prev.length - 1 ? { ...m, id: savedId, responseTime } : m);
         }
         return prev;
       });
@@ -416,19 +516,34 @@ const AIChatWidget: React.FC = () => {
       }
     }
     setLoading(false);
-  }, [generateFollowUps]);
+  }, [generateFollowUps, saveToDb]);
 
-  const handleSend = useCallback((text?: string) => {
+  const handleSend = useCallback(async (text?: string) => {
     const msg = (text || input).trim();
-    if (!msg || loading) return;
-    const userMsg: Msg = { role: 'user', content: msg, timestamp: Date.now() };
+    if ((!msg && !pendingImage) || loading) return;
+    
+    const userMsg: Msg = { 
+      role: 'user', 
+      content: msg || (pendingImage ? '📷 Image' : ''), 
+      image_url: pendingImage,
+      timestamp: Date.now() 
+    };
+    
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
+    setPendingImage(null);
     setFollowUps([]);
     if (inputRef.current) inputRef.current.style.height = 'auto';
+    
+    // Save user message to DB
+    const savedId = await saveToDb(userMsg);
+    if (savedId) {
+      setMessages(prev => prev.map((m, i) => i === prev.length - 1 && m.role === 'user' ? { ...m, id: savedId } : m));
+    }
+    
     streamChat(updated);
-  }, [input, loading, messages, streamChat]);
+  }, [input, loading, messages, streamChat, pendingImage, saveToDb]);
 
   const handleRetry = useCallback(() => {
     if (loading) return;
@@ -444,12 +559,15 @@ const AIChatWidget: React.FC = () => {
     setLoading(false);
   }, []);
 
-  const handleClearChat = useCallback(() => {
+  const handleClearChat = useCallback(async () => {
     setMessages([]);
     setFollowUps([]);
-    localStorage.removeItem(STORAGE_KEY);
+    // Delete from DB
+    if (userId) {
+      await supabase.from('ai_chat_messages').delete().eq('user_id', userId);
+    }
     toast.success('Chat cleared');
-  }, []);
+  }, [userId]);
 
   const handleCopy = useCallback((content: string) => {
     navigator.clipboard.writeText(content);
@@ -463,7 +581,6 @@ const AIChatWidget: React.FC = () => {
     }
   }, [handleSend]);
 
-  // Keyboard shortcut: Ctrl+K for search
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k' && open) {
@@ -483,13 +600,11 @@ const AIChatWidget: React.FC = () => {
     return -1;
   }, [messages]);
 
-  // Filter messages by search
   const filteredMessages = useMemo(() => {
     if (!searchTerm) return messages;
     return messages.filter(m => m.content.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [messages, searchTerm]);
 
-  // Stats
   const totalWords = useMemo(() => {
     return messages.filter(m => m.role === 'assistant').reduce((sum, m) => sum + (m.wordCount || 0), 0);
   }, [messages]);
@@ -537,6 +652,15 @@ const AIChatWidget: React.FC = () => {
         )}
       </AnimatePresence>
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageSelect}
+        className="hidden"
+      />
+
       {/* Chat Panel */}
       <AnimatePresence>
         {open && (
@@ -562,7 +686,7 @@ const AIChatWidget: React.FC = () => {
                     <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary-foreground/15 font-medium">PRO</span>
                   </div>
                   <p className="text-[10px] opacity-70">
-                    {loading ? '✍️ Typing...' : msgCount > 0 ? `${msgCount} messages • ${totalWords} words` : 'Always online'}
+                    {loading ? '✍️ Typing...' : !userId ? '🔐 Login to save history' : msgCount > 0 ? `${msgCount} msgs • ${totalWords} words` : 'Always online'}
                   </p>
                 </div>
               </div>
@@ -604,9 +728,7 @@ const AIChatWidget: React.FC = () => {
                       className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
                     />
                     {searchTerm && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {filteredMessages.length} found
-                      </span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{filteredMessages.length} found</span>
                     )}
                     <button onClick={() => { setSearchMode(false); setSearchTerm(''); }} className="p-0.5">
                       <X className="w-3.5 h-3.5 text-muted-foreground" />
@@ -662,7 +784,7 @@ const AIChatWidget: React.FC = () => {
                     transition={{ delay: 0.6 }}
                     className="text-[10px] text-muted-foreground/40 flex items-center gap-1"
                   >
-                    <Mic className="w-3 h-3" /> Voice input supported • <MessageSquare className="w-3 h-3" /> Markdown rendered
+                    <Mic className="w-3 h-3" /> Voice • <ImageIcon className="w-3 h-3" /> Images • <MessageSquare className="w-3 h-3" /> Rich text
                   </motion.p>
                 </div>
               )}
@@ -671,7 +793,7 @@ const AIChatWidget: React.FC = () => {
                 const originalIdx = messages.indexOf(msg);
                 return (
                   <MessageBubble
-                    key={`${originalIdx}-${msg.timestamp}`}
+                    key={`${originalIdx}-${msg.timestamp || msg.id}`}
                     msg={msg}
                     onCopy={() => handleCopy(msg.content)}
                     onRetry={originalIdx === lastAssistantIdx ? handleRetry : undefined}
@@ -683,7 +805,6 @@ const AIChatWidget: React.FC = () => {
                 );
               })}
 
-              {/* Follow-up suggestions */}
               {!loading && followUps.length > 0 && lastAssistantIdx === messages.length - 1 && (
                 <FollowUpChips suggestions={followUps} onSelect={handleSend} />
               )}
@@ -696,11 +817,7 @@ const AIChatWidget: React.FC = () => {
                         <Sparkles className="w-3 h-3 text-primary animate-spin" style={{ animationDuration: '3s' }} />
                       </div>
                       <span className="text-[10px] font-medium text-muted-foreground">
-                        <motion.span
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1 }}
-                        >
+                        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ repeat: Infinity, repeatType: 'reverse', duration: 1 }}>
                           RKR AI is thinking
                         </motion.span>
                         <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 1.5 }}>...</motion.span>
@@ -718,7 +835,7 @@ const AIChatWidget: React.FC = () => {
               )}
             </div>
 
-            {/* Scroll to bottom button */}
+            {/* Scroll to bottom */}
             <AnimatePresence>
               {showScrollDown && (
                 <motion.button
@@ -732,6 +849,21 @@ const AIChatWidget: React.FC = () => {
                 </motion.button>
               )}
             </AnimatePresence>
+
+            {/* Pending image preview */}
+            {pendingImage && (
+              <div className="px-3 py-2 border-t border-border bg-muted/30">
+                <div className="relative inline-block">
+                  <img src={pendingImage} alt="Pending" className="h-16 rounded-lg object-cover" />
+                  <button
+                    onClick={() => setPendingImage(null)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-sm"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Input Area */}
             <div className="p-3 border-t border-border bg-background/95 backdrop-blur-sm">
@@ -747,6 +879,16 @@ const AIChatWidget: React.FC = () => {
                 </motion.button>
               )}
               <div className="flex gap-2 items-end">
+                {/* Image button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || uploadingImage}
+                  className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all shrink-0 disabled:opacity-50"
+                  title="Send image"
+                >
+                  {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                </button>
+                
                 <div className="flex-1 relative">
                   <textarea
                     ref={inputRef}
@@ -770,7 +912,7 @@ const AIChatWidget: React.FC = () => {
                   size="icon"
                   className="w-10 h-10 rounded-xl shrink-0 transition-all shadow-sm"
                   onClick={() => handleSend()}
-                  disabled={!input.trim() || loading}
+                  disabled={(!input.trim() && !pendingImage) || loading}
                 >
                   <Send className="w-4 h-4" />
                 </Button>
@@ -780,7 +922,7 @@ const AIChatWidget: React.FC = () => {
                   {input.length > 0 ? `${input.length} chars` : 'Shift+Enter for new line'}
                 </p>
                 <p className="text-[9px] text-muted-foreground/40">
-                  AI can make mistakes
+                  {userId ? '☁️ Synced' : '🔐 Login to sync'}
                 </p>
               </div>
             </div>
