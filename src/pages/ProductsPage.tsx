@@ -52,6 +52,45 @@ const ProductsPage: React.FC = () => {
   const [flashSalePrice, setFlashSalePrice] = useState<number | null>(null);
   const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    priceMin: 0,
+    priceMax: 50000,
+    availability: 'all' as 'all' | 'in-stock' | 'instant',
+    sortBy: 'newest' as 'newest' | 'price-low' | 'price-high' | 'popular',
+  });
+
+  const maxPrice = useMemo(() => {
+    if (filteredProducts.length === 0) return 50000;
+    return Math.max(...filteredProducts.map(p => p.price), 1000);
+  }, [filteredProducts]);
+
+  const displayProducts = useMemo(() => {
+    let result = [...filteredProducts];
+    
+    // Price filter
+    result = result.filter(p => p.price >= filters.priceMin && p.price <= filters.priceMax);
+    
+    // Availability
+    if (filters.availability === 'in-stock') {
+      result = result.filter(p => p.stock === null || p.stock === undefined || p.stock > 0);
+    } else if (filters.availability === 'instant') {
+      result = result.filter(p => !!p.access_link);
+    }
+    
+    // Sort
+    if (filters.sortBy === 'price-low') result.sort((a, b) => a.price - b.price);
+    else if (filters.sortBy === 'price-high') result.sort((a, b) => b.price - a.price);
+    else if (filters.sortBy === 'popular') result.sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0));
+    
+    return result;
+  }, [filteredProducts, filters]);
+
+  const activeFiltersCount = [
+    filters.priceMin > 0 || filters.priceMax < maxPrice,
+    filters.availability !== 'all',
+    filters.sortBy !== 'newest'
+  ].filter(Boolean).length;
 
   // Handle flash sale click
   useEffect(() => {
