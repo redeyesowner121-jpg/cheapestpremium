@@ -12,6 +12,7 @@ export interface Product {
   reseller_price?: number;
   seo_tags?: string;
   created_at?: string;
+  stock?: number | null;
 }
 
 export interface ProductVariation {
