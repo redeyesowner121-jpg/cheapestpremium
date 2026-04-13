@@ -149,7 +149,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
         user_id: user.id,
         amount: inr,
         amount_usd: usd,
-        note,
+        note: 'BINANCE_ORDER_ID_PENDING',
         status: 'pending',
         payment_method: 'binance',
         product_name: 'Wallet Deposit',
@@ -167,7 +167,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
         expires_at: expiry.toISOString(),
       } as any).select('id').single();
 
-      setPaymentNote(note);
+      setPaymentId((payment as any)?.id || null);
       setPaymentId((payment as any)?.id || null);
       setReservationId((reservation as any)?.id || null);
       setExpiresAt(expiry);
@@ -182,16 +182,15 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
   };
 
   const handleVerify = useCallback(async () => {
-    if (verifying || verified) return;
+    if (verifying || verified || !binanceOrderId.trim()) return;
     setVerifying(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-binance-payment', {
-        body: { note: paymentNote, amount: amountUsd, paymentId },
+        body: { orderId: binanceOrderId.trim(), amount: amountUsd, paymentId },
       });
 
       if (data?.success) {
         setVerified(true);
-        if (pollingRef.current) clearInterval(pollingRef.current);
 
         // Mark reservation completed
         if (reservationId) {
@@ -238,7 +237,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
     } finally {
       setVerifying(false);
     }
-  }, [verifying, verified, paymentNote, amountUsd, paymentId, reservationId, amountInr, feePercent, user]);
+  }, [verifying, verified, binanceOrderId, amountUsd, paymentId, reservationId, amountInr, feePercent, user]);
 
   // Auto-polling every 10 seconds
   useEffect(() => {
