@@ -23,19 +23,40 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
 
     const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
     
-    // Check if user has resale orders — if so, try resale bot first
-    let isResaleUser = false;
+    // Check if user has child bot orders — if so, try child bot token first
+    let childBotToken: string | null = null;
     try {
-      const { count } = await supabase.from("telegram_orders")
-        .select("*", { count: "exact", head: true })
+      const { data: childOrder } = await supabase.from("telegram_orders")
+        .select("username")
         .eq("telegram_user_id", targetUserId)
-        .not("reseller_telegram_id", "is", null)
-        .limit(1);
-      isResaleUser = (count || 0) > 0;
+        .ilike("username", "child_bot:%")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (childOrder?.username) {
+        const childBotId = childOrder.username.replace("child_bot:", "");
+        const { data: childBot } = await supabase.from("child_bots").select("bot_token").eq("id", childBotId).single();
+        childBotToken = childBot?.bot_token || null;
+      }
     } catch {}
 
+    // Check if user has resale orders — if so, try resale bot first
+    let isResaleUser = false;
+    if (!childBotToken) {
+      try {
+        const { count } = await supabase.from("telegram_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("telegram_user_id", targetUserId)
+          .not("reseller_telegram_id", "is", null)
+          .limit(1);
+        isResaleUser = (count || 0) > 0;
+      } catch {}
+    }
+
     let tokensToTry: string[];
-    if (isResaleUser && resaleToken && resaleToken !== token) {
+    if (childBotToken) {
+      tokensToTry = [childBotToken, token]; // Child bot first
+    } else if (isResaleUser && resaleToken && resaleToken !== token) {
       tokensToTry = [resaleToken, token]; // Resale bot first for resale users
     } else {
       tokensToTry = [token];
