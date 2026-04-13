@@ -346,13 +346,6 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(binanceId)}><Copy className="w-3 h-3" /></Button>
                 </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Payment Note</span>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-bold text-primary">{paymentNote}</code>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => copyToClipboard(paymentNote)}><Copy className="w-3 h-3" /></Button>
-                </div>
-              </div>
             </div>
 
             <div className="p-3 bg-primary/5 rounded-xl text-sm space-y-1">
@@ -361,15 +354,25 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
                 <li>Open Binance App → Pay → Send</li>
                 <li>Enter Pay ID: <b>{binanceId}</b></li>
                 <li>Amount: <b>${amountUsd}</b></li>
-                <li>Note: <b>{paymentNote}</b> (must match exactly!)</li>
-                <li>Complete payment & click Verify</li>
+                <li>Complete payment</li>
+                <li>Copy your <b>Order ID</b> from Binance</li>
+                <li>Paste below & verify</li>
               </ol>
             </div>
 
-            <Button onClick={handleVerify} className="w-full h-12 btn-gradient rounded-xl" disabled={verifying}>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1 font-medium">📋 Binance Order ID</p>
+              <Input
+                placeholder="Enter your Binance Order ID"
+                value={binanceOrderId}
+                onChange={(e) => setBinanceOrderId(e.target.value)}
+                className="font-mono"
+              />
+            </div>
+
+            <Button onClick={handleVerify} className="w-full h-12 btn-gradient rounded-xl" disabled={verifying || !binanceOrderId.trim()}>
               {verifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : '✅ Verify Payment'}
             </Button>
-            <p className="text-xs text-muted-foreground text-center">Auto-checking every 10 seconds...</p>
             <Button variant="ghost" onClick={() => {
               if (pollingRef.current) clearInterval(pollingRef.current);
               if (reservationId) {
