@@ -124,10 +124,25 @@ Deno.serve(async (req: Request) => {
     // Deterministic password for telegram users
     const stablePassword = `tg_${telegramId}_${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(-12)}`;
 
-    // Try to find existing user
-    const { data: existingUsers } = await supabase.auth.admin.listUsers();
-    let user = existingUsers?.users?.find((u: any) => u.email === email);
+    // Try to find existing user by email (paginated listUsers misses users)
+    let user: any = null;
     let isNewUser = false;
+
+    // First try: list users filtered by page to find by email
+    let page = 1;
+    const perPage = 1000;
+    let found = false;
+    while (!found) {
+      const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
+      if (listError || !pageData?.users?.length) break;
+      const match = pageData.users.find((u: any) => u.email === email);
+      if (match) {
+        user = match;
+        found = true;
+      }
+      if (pageData.users.length < perPage) break;
+      page++;
+    }
 
     if (!user) {
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
