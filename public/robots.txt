@@ -7,5 +7,5 @@ Disallow: /auth
 Disallow: /profile/edit
 Disallow: /transactions
 
-# Sitemap
-Sitemap: https://cheapest-premiums.in/sitemap.xml
+# Sitemap (dynamic - includes all product pages)
+Sitemap: https://aeiqhaqwudhhdfsvnnja.supabase.co/functions/v1/sitemap
