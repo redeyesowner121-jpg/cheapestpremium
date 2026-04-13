@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { useProductsData } from './products/useProductsData';
+import SEOHead from '@/components/SEOHead';
 import { Product, ProductVariation } from './products/types';
 import ProductCard from './products/ProductCard';
 import CategorySection from './products/CategorySection';
@@ -234,6 +235,11 @@ const ProductsPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      <SEOHead
+        title="Shop All Premium Subscriptions"
+        description="Browse & buy cheapest premium subscriptions — Netflix, Spotify, YouTube Premium, Canva Pro, ChatGPT Plus & more. Filter by category, price & availability."
+        canonicalPath="/products"
+      />
       <Header />
 
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-4">
