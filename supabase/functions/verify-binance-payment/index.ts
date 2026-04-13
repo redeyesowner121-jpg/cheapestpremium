@@ -17,21 +17,16 @@ function normalizeText(value: unknown): string {
   return String(value ?? "").trim().toUpperCase();
 }
 
-function getCandidateNotes(bill: Record<string, any>): string[] {
-  const rawNotes = [
-    bill.remark,
-    bill.note,
-    bill.memo,
-    bill.payNote,
-    bill.bizMemo,
-    bill.receiverNote,
-    bill.payerInfo?.remark,
-    bill.payerInfo?.note,
-    bill.receiverInfo?.remark,
-    bill.receiverInfo?.note,
+function getCandidateIds(bill: Record<string, any>): string[] {
+  const rawIds = [
+    bill.billId,
+    bill.orderId,
+    bill.transactionId,
+    bill.trxId,
+    bill.payerInfo?.orderId,
+    bill.receiverInfo?.orderId,
   ];
-
-  return [...new Set(rawNotes.map(normalizeText).filter(Boolean))];
+  return [...new Set(rawIds.map(normalizeText).filter(Boolean))];
 }
 
 function getCandidateAmounts(bill: Record<string, any>): number[] {
@@ -52,9 +47,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { note, amount, paymentId } = await req.json();
-    if (!note || !amount || !paymentId) {
-      return new Response(JSON.stringify({ error: "Missing note, amount, or paymentId" }), {
+    const { orderId, amount, paymentId } = await req.json();
+    if (!orderId || !amount || !paymentId) {
+      return new Response(JSON.stringify({ error: "Missing orderId, amount, or paymentId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -95,7 +90,6 @@ Deno.serve(async (req) => {
     const timestamp = Date.now();
     const nonce = crypto.randomUUID().replace(/-/g, "").substring(0, 32);
     
-    // Binance Pay API - query order list
     const createdAtMs = payment.created_at ? new Date(payment.created_at).getTime() : Number.NaN;
     const startTime = Number.isFinite(createdAtMs)
       ? Math.max(0, createdAtMs - 15 * 60 * 1000)
@@ -133,14 +127,17 @@ Deno.serve(async (req) => {
       throw new Error("Invalid Binance response");
     }
 
+    const expectedOrderId = normalizeText(orderId);
+    const expectedAmount = Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount)));
+
     const debugInfo: any = {
       httpStatus: binanceRes.status,
       status: binanceData?.status,
       code: binanceData?.code,
       errorMessage: binanceData?.errorMessage,
       billCount: Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0,
-      expectedNote: normalizeText(note),
-      expectedAmount: Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount))),
+      expectedOrderId,
+      expectedAmount,
       searchWindow: { startTime, endTime },
     };
 
@@ -150,31 +147,30 @@ Deno.serve(async (req) => {
     let matchDetails: any = null;
 
     if (binanceData.status === "SUCCESS" && binanceData.data?.billList) {
-      const expectedAmount = debugInfo.expectedAmount;
-      const expectedNote = debugInfo.expectedNote;
-      
       const billSummaries: any[] = [];
 
       for (const bill of binanceData.data.billList) {
-        const candidateNotes = getCandidateNotes(bill);
+        const candidateIds = getCandidateIds(bill);
         const candidateAmounts = getCandidateAmounts(bill);
-        const noteMatch = candidateNotes.some((candidate) => (
-          candidate === expectedNote || candidate.includes(expectedNote) || expectedNote.includes(candidate)
+        
+        // Match by order ID - check if any candidate ID contains or equals the expected order ID
+        const idMatch = candidateIds.some((candidate) => (
+          candidate === expectedOrderId || candidate.includes(expectedOrderId) || expectedOrderId.includes(candidate)
         ));
         const amountMatch = candidateAmounts.some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
 
         billSummaries.push({
           billType: bill.billType,
           bizType: bill.bizType,
-          candidateNotes,
+          candidateIds,
           candidateAmounts,
-          noteMatch,
+          idMatch,
           amountMatch,
         });
 
-        if (noteMatch && amountMatch) {
+        if (idMatch && amountMatch) {
           verified = true;
-          matchDetails = { candidateNotes, candidateAmounts };
+          matchDetails = { candidateIds, candidateAmounts };
           break;
         }
       }
@@ -195,14 +191,14 @@ Deno.serve(async (req) => {
       ? `Binance API error: ${binanceData.errorMessage || binanceData.code || "unknown"}`
       : billCount === 0
         ? "No transactions found in the time window."
-        : `Checked ${billCount} transactions — no note/amount match.`;
+        : `Checked ${billCount} transactions — no matching Order ID found.`;
 
     console.log("❌ Payment NOT verified:", failReason);
 
     return new Response(JSON.stringify({
       success: false,
       message: `Payment not yet found. ${failReason} Please wait 1-2 minutes after paying and try again.`,
-      debug: { billCount, expectedNote: normalizeText(note), expectedAmount: Math.abs(Number.parseFloat(String(amount))) },
+      debug: { billCount, expectedOrderId, expectedAmount },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
