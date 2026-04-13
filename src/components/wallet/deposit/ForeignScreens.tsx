@@ -48,7 +48,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
   const [step, setStep] = useState<BinanceStep>('amount');
   const [amountInr, setAmountInr] = useState('');
   const [amountUsd, setAmountUsd] = useState(0);
-  const [paymentNote, setPaymentNote] = useState('');
+  const [binanceOrderId, setBinanceOrderId] = useState('');
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [reserving, setReserving] = useState(false);
@@ -69,7 +69,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
       setStep('amount');
       setAmountInr('');
       setAmountUsd(0);
-      setPaymentNote('');
+      setBinanceOrderId('');
       setReservationId(null);
       setPaymentId(null);
       setVerified(false);
