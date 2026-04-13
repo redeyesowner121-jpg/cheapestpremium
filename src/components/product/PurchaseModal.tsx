@@ -87,7 +87,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
   };
 
   const initPayment = async (method: 'binance' | 'razorpay') => {
-    const note = generatePaymentNote();
+    const note = method === 'binance' ? 'BINANCE_ORDER_ID_PENDING' : generatePaymentNote();
     setPaymentNote(note);
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -108,12 +108,12 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
     }
   };
 
-  const verifyPayment = async (method: 'binance' | 'razorpay') => {
+  const verifyPayment = async (method: 'binance' | 'razorpay', binanceOrderId?: string) => {
     setVerifying(true);
     try {
       const functionName = method === 'binance' ? 'verify-binance-payment' : 'verify-razorpay-note';
       const body = method === 'binance' 
-        ? { note: paymentNote, amount: amountUsd, paymentId }
+        ? { orderId: binanceOrderId, amount: amountUsd, paymentId }
         : { amount: finalTotal, paymentId, payClickedAt };
       const { data, error } = await supabase.functions.invoke(functionName, { body });
       if (error) throw error;
@@ -145,7 +145,7 @@ const PurchaseModal: React.FC<PurchaseModalProps> = ({
       <BinancePaymentScreen
         open={open} onOpenChange={handleOpenChange}
         amountUsd={amountUsd} paymentNote={paymentNote} verifying={verifying}
-        onBack={() => setPaymentStep('method')} onVerify={() => verifyPayment('binance')}
+        onBack={() => setPaymentStep('method')} onVerify={(orderId) => verifyPayment('binance', orderId)}
       />
     );
   }
