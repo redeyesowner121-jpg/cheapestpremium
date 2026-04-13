@@ -23,19 +23,40 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
 
     const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
     
-    // Check if user has resale orders — if so, try resale bot first
-    let isResaleUser = false;
+    // Check if user has child bot orders — if so, try child bot token first
+    let childBotToken: string | null = null;
     try {
-      const { count } = await supabase.from("telegram_orders")
-        .select("*", { count: "exact", head: true })
+      const { data: childOrder } = await supabase.from("telegram_orders")
+        .select("username")
         .eq("telegram_user_id", targetUserId)
-        .not("reseller_telegram_id", "is", null)
-        .limit(1);
-      isResaleUser = (count || 0) > 0;
+        .ilike("username", "child_bot:%")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (childOrder?.username) {
+        const childBotId = childOrder.username.replace("child_bot:", "");
+        const { data: childBot } = await supabase.from("child_bots").select("bot_token").eq("id", childBotId).single();
+        childBotToken = childBot?.bot_token || null;
+      }
     } catch {}
 
+    // Check if user has resale orders — if so, try resale bot first
+    let isResaleUser = false;
+    if (!childBotToken) {
+      try {
+        const { count } = await supabase.from("telegram_orders")
+          .select("*", { count: "exact", head: true })
+          .eq("telegram_user_id", targetUserId)
+          .not("reseller_telegram_id", "is", null)
+          .limit(1);
+        isResaleUser = (count || 0) > 0;
+      } catch {}
+    }
+
     let tokensToTry: string[];
-    if (isResaleUser && resaleToken && resaleToken !== token) {
+    if (childBotToken) {
+      tokensToTry = [childBotToken, token]; // Child bot first
+    } else if (isResaleUser && resaleToken && resaleToken !== token) {
       tokensToTry = [resaleToken, token]; // Resale bot first for resale users
     } else {
       tokensToTry = [token];
@@ -138,9 +159,15 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
       return true;
     }
     const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
+    // Forward using current bot token (the one user is chatting with)
     await forwardToAllAdmins(token, supabase, chatId, msg.message_id);
-    await notifyAllAdmins(token, supabase,
-      `💬 <b>Live Chat</b> from <b>${username}</b> (<code>${userId}</code>)`,
+    // But send admin buttons via main token so callbacks work in main bot
+    const { getChildBotContext } = await import("../child-context.ts");
+    const childCtx = getChildBotContext();
+    const mainToken = childCtx ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+    const sourceLabel = childCtx ? ` (via Child Bot)` : "";
+    await notifyAllAdmins(mainToken, supabase,
+      `💬 <b>Live Chat</b>${sourceLabel} from <b>${username}</b> (<code>${userId}</code>)`,
       { reply_markup: { inline_keyboard: [[{ text: "💬 Reply", callback_data: `admin_chat_${userId}` }]] } }
     );
     return true;

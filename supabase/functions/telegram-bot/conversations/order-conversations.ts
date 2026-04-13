@@ -96,11 +96,41 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
   };
 
   // Use main bot token for admin notifications so callbacks route to main bot
+  // But use the CURRENT bot token for forwarding (since screenshot was sent to current bot)
   const childCtx = getChildBotContext();
   const mainToken = childCtx ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+  const forwardToken = token; // Always use current bot token for forwarding (it has access to the chat)
 
-  try { await forwardToAllAdmins(mainToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward screenshot error:", e); }
+  // Forward screenshot using the bot that received it
+  try { await forwardToAllAdmins(forwardToken, supabase, chatId, msg.message_id); } catch (e) {
+    console.error("Forward screenshot error:", e);
+    // If forwarding fails (e.g. admin hasn't started child bot), try sending the photo directly via main token
+    if (childCtx) {
+      try {
+        const fileId = msg.photo[msg.photo.length - 1]?.file_id;
+        if (fileId) {
+          // Download the photo via child bot and re-send via main bot
+          const { getAllAdminIds } = await import("../db-helpers.ts");
+          const adminIds = await getAllAdminIds(supabase);
+          for (const adminId of adminIds) {
+            try {
+              await fetch(`https://api.telegram.org/bot${mainToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: adminId,
+                  text: `📸 <i>Screenshot from child bot user <code>${userId}</code> (forwarding unavailable)</i>`,
+                  parse_mode: "HTML",
+                }),
+              });
+            } catch {}
+          }
+        }
+      } catch (e2) { console.error("Fallback screenshot forward error:", e2); }
+    }
+  }
 
+  // Send admin buttons via MAIN bot so callbacks route correctly
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await notifyAllAdmins(mainToken, supabase, adminMsg, adminButtons);
