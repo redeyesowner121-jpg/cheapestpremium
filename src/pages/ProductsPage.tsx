@@ -245,9 +245,16 @@ const ProductsPage: React.FC = () => {
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-4">
         {/* Search */}
         <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-12 pr-12 h-12 rounded-xl bg-card border-0 shadow-card"
+          />
           <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
             <SheetTrigger asChild>
-              <button className="absolute left-4 top-1/2 -translate-y-1/2 relative z-10">
+              <button className="absolute right-4 top-1/2 -translate-y-1/2">
                 <SlidersHorizontal className="w-5 h-5 text-muted-foreground" />
                 {activeFiltersCount > 0 && (
                   <span className="absolute -top-2 -right-2 w-4 h-4 bg-primary text-primary-foreground text-[10px] rounded-full flex items-center justify-center">
@@ -256,13 +263,6 @@ const ProductsPage: React.FC = () => {
                 )}
               </button>
             </SheetTrigger>
-          <Input
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 pr-12 h-12 rounded-xl bg-card border-0 shadow-card"
-          />
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl">
               <SheetHeader className="mb-4">
                 <SheetTitle className="flex items-center justify-between">
