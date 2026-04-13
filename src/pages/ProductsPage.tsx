@@ -1,6 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, Filter, Lightbulb, GraduationCap } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
+import { Check, DollarSign, Package, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
