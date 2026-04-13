@@ -4,7 +4,7 @@ import { getConversationState, deleteConversationState } from "../db-helpers.ts"
 import {
   handleWalletPay, handleAdminAction,
   showBinancePayment, showUpiPayment, showRazorpayUpiPayment, showManualUpiPayment,
-  handleBinanceVerify, handleRazorpayVerify,
+  handleRazorpayVerify,
 } from "../payment-handlers.ts";
 import { handleMyWallet } from "../menu-handlers.ts";
 import { showMainMenu } from "../menu/menu-navigation.ts";
