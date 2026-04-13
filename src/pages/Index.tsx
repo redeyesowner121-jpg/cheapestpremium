@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lightbulb, Search, X } from 'lucide-react';
+import SEOHead from '@/components/SEOHead';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
@@ -195,6 +196,10 @@ const Index: React.FC = () => {
 
   return (
     <div className="min-h-screen pb-24 relative overflow-hidden bg-page-gradient">
+      <SEOHead
+        canonicalPath="/"
+        description="Buy cheapest premium subscriptions in India — Netflix, Spotify, YouTube, Canva, ChatGPT & more at lowest prices. Instant delivery, 100% genuine."
+      />
       {/* Decorative background orbs - use CSS only */}
       <div className="fixed top-20 -left-32 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none will-change-transform" />
       <div className="fixed top-1/3 -right-32 w-72 h-72 rounded-full bg-secondary/8 blur-3xl pointer-events-none will-change-transform" />
