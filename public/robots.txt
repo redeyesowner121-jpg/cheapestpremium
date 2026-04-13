@@ -8,4 +8,4 @@ Disallow: /profile/edit
 Disallow: /transactions
 
 # Sitemap (dynamic - includes all product pages)
-Sitemap: https://aeiqhaqwudhhdfsvnnja.supabase.co/functions/v1/sitemap
+Sitemap: https://cheapest-premiums.in/sitemap.xml
