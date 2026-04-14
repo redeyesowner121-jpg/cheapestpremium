@@ -258,8 +258,6 @@ STRICT RULES:
 
     const answer = fullAnswer.trim();
 
-    // answer is already defined above
-
     // Save user question and AI answer to history
     await supabase.from("telegram_ai_messages").insert([
       { telegram_id: userId, role: "user", content: question },
@@ -293,8 +291,8 @@ STRICT RULES:
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}` }],
-              [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
+              [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}`, style: "success" }],
+              [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
             ],
           },
         }
@@ -310,7 +308,7 @@ STRICT RULES:
           parse_mode: "",
           reply_markup: {
             inline_keyboard: [
-              [{ text: t("back_main", lang), callback_data: "back_main" }],
+              [{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }],
             ],
           },
         });
@@ -318,7 +316,7 @@ STRICT RULES:
         await sendMessage(token, chatId, forwardMsg, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: t("back_main", lang), callback_data: "back_main" }],
+              [{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }],
             ],
           },
         });
@@ -330,8 +328,8 @@ STRICT RULES:
           parse_mode: "",
           reply_markup: {
             inline_keyboard: [
-              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
-              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
+              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
+              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
               [{ text: t("back_main", lang), callback_data: "back_main" }],
             ],
           },
@@ -340,8 +338,8 @@ STRICT RULES:
         await sendMessage(token, chatId, `🤖 ${answer}`, {
           reply_markup: {
             inline_keyboard: [
-              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
-              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
+              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
+              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
               [{ text: t("back_main", lang), callback_data: "back_main" }],
             ],
           },
@@ -355,8 +353,8 @@ STRICT RULES:
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}` }],
-            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
+            [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}`, style: "success" }],
+            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
           ],
         },
       }
@@ -368,7 +366,7 @@ STRICT RULES:
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: t("back_main", lang), callback_data: "back_main" }],
+            [{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }],
           ],
         },
       }

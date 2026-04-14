@@ -25,13 +25,14 @@ export async function handleAITrainingMenu(token: string, supabase: any, chatId:
   const buttons = TRAINING_CATEGORIES.map(c => [{
     text: `${c.emoji} ${c.label}`,
     callback_data: `aitrain_${c.key}`,
+    style: "primary",
   }]);
   
   if ((pendingCount || 0) > 0) {
-    buttons.push([{ text: `⏳ Pending Approval (${pendingCount})`, callback_data: "aitrain_pending" }]);
+    buttons.push([{ text: `⏳ Pending Approval (${pendingCount})`, callback_data: "aitrain_pending", style: "danger" }]);
   }
-  buttons.push([{ text: "📊 View All Knowledge", callback_data: "aitrain_view" }]);
-  buttons.push([{ text: "🗑️ Delete Knowledge", callback_data: "aitrain_delete" }]);
+  buttons.push([{ text: "📊 View All Knowledge", callback_data: "aitrain_view", style: "success" }]);
+  buttons.push([{ text: "🗑️ Delete Knowledge", callback_data: "aitrain_delete", style: "danger" }]);
   buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId,
@@ -112,11 +113,11 @@ export async function handleTrainingAnswer(token: string, supabase: any, chatId:
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "✅ Approve Now", callback_data: `knowledge_approve_${inserted.id}` },
-            { text: "❌ Reject", callback_data: `knowledge_reject_${inserted.id}` },
+            { text: "✅ Approve Now", callback_data: `knowledge_approve_${inserted.id}`, style: "success" },
+            { text: "❌ Reject", callback_data: `knowledge_reject_${inserted.id}`, style: "danger" },
           ],
-          [{ text: `${cat?.emoji || "📋"} আরো ${cat?.label || ""} যোগ করুন`, callback_data: `aitrain_${category}` }],
-          [{ text: "🧠 AI Training Menu", callback_data: "adm_ai_training" }],
+          [{ text: `${cat?.emoji || "📋"} আরো ${cat?.label || ""} যোগ করুন`, callback_data: `aitrain_${category}`, style: "primary" }],
+          [{ text: "🧠 AI Training Menu", callback_data: "adm_ai_training", style: "primary" }],
         ],
       },
     }
@@ -135,7 +136,7 @@ export async function handlePendingKnowledge(token: string, supabase: any, chatI
   if (!data?.length) {
     await sendMessage(token, chatId,
       "✅ <b>কোনো পেন্ডিং নলেজ নেই!</b>\n\nসব কিছু অ্যাপ্রুভড।",
-      { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }]] } }
     );
     return;
   }
@@ -148,12 +149,12 @@ export async function handlePendingKnowledge(token: string, supabase: any, chatI
     const a = k.answer.length > 60 ? k.answer.slice(0, 57) + "..." : k.answer;
     text += `<b>${i + 1}.</b> ❓ ${q}\n✅ ${a}\n\n`;
     buttons.push([
-      { text: `✅ #${i + 1} Approve`, callback_data: `knowledge_approve_${k.id}` },
-      { text: `❌ #${i + 1} Reject`, callback_data: `knowledge_reject_${k.id}` },
+      { text: `✅ #${i + 1} Approve`, callback_data: `knowledge_approve_${k.id}`, style: "success" },
+      { text: `❌ #${i + 1} Reject`, callback_data: `knowledge_reject_${k.id}`, style: "danger" },
     ]);
   });
 
-  buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]);
+  buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }]);
   buttons.push([{ text: "⬅️ Back", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
@@ -171,7 +172,7 @@ export async function handleViewKnowledge(token: string, supabase: any, chatId: 
   if (!data?.length) {
     await sendMessage(token, chatId,
       "📭 <b>কোনো ট্রেনিং ডেটা নেই।</b>\n\nAI Training Menu থেকে নতুন তথ্য যোগ করুন।",
-      { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }]] } }
     );
     return;
   }
@@ -186,12 +187,12 @@ export async function handleViewKnowledge(token: string, supabase: any, chatId: 
   });
 
   const navButtons: any[] = [];
-  if (page > 0) navButtons.push({ text: "⬅️ Previous", callback_data: `aitrain_view_${page - 1}` });
-  if (page + 1 < totalPages) navButtons.push({ text: "Next ➡️", callback_data: `aitrain_view_${page + 1}` });
+  if (page > 0) navButtons.push({ text: "⬅️ Previous", callback_data: `aitrain_view_${page - 1}`, style: "primary" });
+  if (page + 1 < totalPages) navButtons.push({ text: "Next ➡️", callback_data: `aitrain_view_${page + 1}`, style: "primary" });
 
   const buttons: any[][] = [];
   if (navButtons.length) buttons.push(navButtons);
-  buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]);
+  buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }]);
   buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
@@ -214,6 +215,7 @@ export async function startDeleteKnowledge(token: string, supabase: any, chatId:
   const buttons = data.map((k: any) => [{
     text: `🗑️ ${k.question.slice(0, 40)}`,
     callback_data: `aitrain_del_${k.id.slice(0, 32)}`,
+    style: "danger",
   }]);
   buttons.push([{ text: "⬅️ Back", callback_data: "adm_ai_training" }]);
 
@@ -241,6 +243,6 @@ export async function executeDeleteKnowledge(token: string, supabase: any, chatI
 
   await sendMessage(token, chatId,
     `✅ <b>মুছে ফেলা হয়েছে!</b>\n\n❓ ${entry.question}`,
-    { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }]] } }
   );
 }

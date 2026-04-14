@@ -38,12 +38,9 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   const orderUsername = isChildBotOrder ? `child_bot:${effectiveChildBotId}` : `wallet_pay`;
 
   const { data: order } = await supabase.from("telegram_orders").insert({
-    telegram_user_id: userId,
-    username: orderUsername,
-    product_name: productName,
-    product_id: productId || null,
-    amount: amount,
-    status: orderStatus,
+    telegram_user_id: userId, username: orderUsername,
+    product_name: productName, product_id: productId || null,
+    amount: amount, status: orderStatus,
   }).select("id").single();
 
   // Create child bot order record
@@ -77,10 +74,10 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
-            { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
+            { text: "✅ Approve", callback_data: `admin_confirm_${orderId}`, style: "success" },
+            { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
           ],
-          [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+          [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}`, style: "primary" }],
         ],
       },
     };
