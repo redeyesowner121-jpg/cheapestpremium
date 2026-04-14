@@ -32,6 +32,7 @@ interface ProductForm {
   access_link: string;
   stock: string;
   is_active: boolean;
+  button_style?: string;
 }
 
 export async function handleAddProduct(
