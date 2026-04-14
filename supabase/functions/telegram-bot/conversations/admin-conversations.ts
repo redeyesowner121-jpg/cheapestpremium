@@ -125,10 +125,10 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Approve Knowledge", callback_data: `knowledge_approve_${knowledgeId}` },
-              { text: "❌ Reject", callback_data: `knowledge_reject_${knowledgeId}` },
+              { text: "✅ Approve Knowledge", callback_data: `knowledge_approve_${knowledgeId}`, style: "success" },
+              { text: "❌ Reject", callback_data: `knowledge_reject_${knowledgeId}`, style: "danger" },
             ],
-            [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+            [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "primary" }],
           ],
         },
       }
@@ -168,7 +168,7 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
     const sourceLabel = childCtx ? ` (via Child Bot)` : "";
     await notifyAllAdmins(mainToken, supabase,
       `💬 <b>Live Chat</b>${sourceLabel} from <b>${username}</b> (<code>${userId}</code>)`,
-      { reply_markup: { inline_keyboard: [[{ text: "💬 Reply", callback_data: `admin_chat_${userId}` }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: "💬 Reply", callback_data: `admin_chat_${userId}`, style: "primary" }]] } }
     );
     return true;
   }

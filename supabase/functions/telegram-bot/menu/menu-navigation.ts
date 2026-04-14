@@ -21,7 +21,7 @@ export async function showJoinChannels(token: string, supabase: any, chatId: num
   const channels = await getRequiredChannels(supabase);
   const buttons: any[][] = channels.map((ch: string) => {
     const name = ch.startsWith("@") ? ch : `@${ch}`;
-    return [{ text: `Join ${name}`, url: `https://t.me/${name.replace("@", "")}` }];
+    return [{ text: `Join ${name}`, url: `https://t.me/${name.replace("@", "")}`, style: "primary" }];
   });
   buttons.push([{ text: lang === "bn" ? "যাচাই করুন" : "Verify", callback_data: "verify_join", style: "success" }]);
 
@@ -80,8 +80,8 @@ export async function handleSupport(token: string, supabase: any, chatId: number
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}` }],
-          [{ text: "Telegram", url: `https://t.me/${supportNumber}` }],
+          [{ text: "WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}`, style: "success" }],
+          [{ text: "Telegram", url: `https://t.me/${supportNumber}`, style: "primary" }],
           [{ text: lang === "bn" ? "অ্যাডমিনকে পাঠান" : "Forward to Admin", callback_data: "forward_to_admin", style: "primary" }],
           [{ text: t("back_main", lang), callback_data: "back_main" }],
         ],
