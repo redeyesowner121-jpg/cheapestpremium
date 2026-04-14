@@ -540,6 +540,21 @@ async function handleMotherConversation(motherToken: string, mainToken: string, 
     );
     return;
   }
+
+  // Admin: Set revenue percentage
+  if (state.step === "mother_admin_setrev") {
+    if (!isMotherOwner(userId)) return;
+    const percent = parseFloat(text.trim());
+    if (isNaN(percent) || percent < 1 || percent > 60) {
+      await sendMsg(motherToken, chatId, "❌ Enter a number between 1 and 60.");
+      return;
+    }
+    await supabase.from("child_bots").update({ revenue_percent: percent }).eq("id", state.data.bot_id);
+    await deleteConvState(supabase, userId);
+    await sendMsg(motherToken, chatId, `✅ Revenue updated to ${percent}%`);
+    await showAdminBots(motherToken, supabase, chatId);
+    return;
+  }
 }
 
 async function createChildBot(token: string, supabase: any, chatId: number, creatorId: number, data: Record<string, any>) {
