@@ -197,15 +197,91 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
-      // Toggle child bot active/inactive
+      // Toggle child bot active/inactive (OWNER ONLY)
       if (data.startsWith("mother_toggle_")) {
+        if (!isMotherOwner(userId)) {
+          await sendMsg(MOTHER_TOKEN, chatId, "🔒 Only the owner can toggle bots.");
+          return jsonOk();
+        }
         const botId = data.replace("mother_toggle_", "");
         const { data: bot } = await supabase.from("child_bots").select("is_active, owner_telegram_id").eq("id", botId).single();
-        if (bot && bot.owner_telegram_id === userId) {
+        if (bot) {
           await supabase.from("child_bots").update({ is_active: !bot.is_active }).eq("id", botId);
           await sendMsg(MOTHER_TOKEN, chatId, bot.is_active ? "⏸ Bot deactivated." : "▶️ Bot activated.");
         }
-        await showMyBots(MOTHER_TOKEN, supabase, chatId, userId);
+        await showAdminBots(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      // Delete child bot (OWNER ONLY)
+      if (data.startsWith("mother_delete_")) {
+        if (!isMotherOwner(userId)) return jsonOk();
+        const botId = data.replace("mother_delete_", "");
+        await supabase.from("child_bot_users").delete().eq("child_bot_id", botId);
+        await supabase.from("child_bot_earnings").delete().eq("child_bot_id", botId);
+        await supabase.from("child_bot_orders").delete().eq("child_bot_id", botId);
+        await supabase.from("child_bots").delete().eq("id", botId);
+        await sendMsg(MOTHER_TOKEN, chatId, "🗑 Bot deleted successfully.");
+        await showAdminBots(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      // Change revenue % (OWNER ONLY)
+      if (data.startsWith("mother_setrev_")) {
+        if (!isMotherOwner(userId)) return jsonOk();
+        const botId = data.replace("mother_setrev_", "");
+        await setConvState(supabase, userId, "mother_admin_setrev", { bot_id: botId });
+        await sendMsg(MOTHER_TOKEN, chatId, "📊 Enter new revenue percentage (1-60):");
+        return jsonOk();
+      }
+
+      // Admin panel callbacks
+      if (data === "mother_admin") {
+        if (!isMotherOwner(userId)) {
+          await sendMsg(MOTHER_TOKEN, chatId, "🔒 Owner only.");
+          return jsonOk();
+        }
+        await showAdminPanel(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      if (data === "mother_admin_bots") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        await showAdminBots(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      if (data === "mother_admin_users") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        const { count } = await supabase.from("mother_bot_users").select("id", { count: "exact", head: true });
+        const { data: recent } = await supabase.from("mother_bot_users").select("*").order("last_active", { ascending: false }).limit(10);
+        let text = `👥 <b>Mother Bot Users</b>\n\n📊 Total: ${count || 0}\n\n<b>Recent Active:</b>\n`;
+        if (recent?.length) {
+          for (const u of recent) {
+            text += `• ${u.first_name || "Unknown"} ${u.username ? `(@${u.username})` : ""} — <code>${u.telegram_id}</code>\n`;
+          }
+        }
+        await sendMsg(MOTHER_TOKEN, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin" }]] } });
+        return jsonOk();
+      }
+
+      if (data === "mother_admin_stats") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        const { data: bots } = await supabase.from("child_bots").select("*");
+        const { count: usersCount } = await supabase.from("mother_bot_users").select("id", { count: "exact", head: true });
+        const botsList = bots || [];
+        const totalEarnings = botsList.reduce((s: number, b: any) => s + b.total_earnings, 0);
+        const totalOrders = botsList.reduce((s: number, b: any) => s + b.total_orders, 0);
+        await sendMsg(MOTHER_TOKEN, chatId,
+          `📊 <b>Mother Bot Statistics</b>\n\n` +
+          `🤖 Total Bots: ${botsList.length}\n` +
+          `🟢 Active: ${botsList.filter((b: any) => b.is_active).length}\n` +
+          `🔴 Inactive: ${botsList.filter((b: any) => !b.is_active).length}\n` +
+          `👥 Total Users: ${usersCount || 0}\n` +
+          `📦 Total Orders: ${totalOrders}\n` +
+          `💰 Total Commissions: ₹${totalEarnings}`,
+          { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin" }]] } }
+        );
         return jsonOk();
       }
 
