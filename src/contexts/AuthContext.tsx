@@ -100,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isTempAdmin, setIsTempAdmin] = useState(false);
   const [tempAdminExpiry, setTempAdminExpiry] = useState<string | undefined>();
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userMeta?: Record<string, any>) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -116,12 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data) {
       const normalizedProfile = normalizeProfile(data);
 
-      // Check if blue tick has expired (stored in user metadata)
-      if (normalizedProfile.has_blue_check) {
-        const { data: userData } = await supabase.auth.getUser();
-        const blueTickExpiry = userData?.user?.user_metadata?.blue_tick_expiry;
+      // Check if blue tick has expired using already-available metadata
+      if (normalizedProfile.has_blue_check && userMeta) {
+        const blueTickExpiry = userMeta.blue_tick_expiry;
         if (blueTickExpiry && new Date(blueTickExpiry) < new Date()) {
-          // Blue tick expired, remove it
           await supabase.from('profiles').update({ has_blue_check: false }).eq('id', userId);
           normalizedProfile.has_blue_check = false;
         }
@@ -178,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.user_metadata);
         checkAdminRole(session.user.id);
       }
       
@@ -201,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           setTimeout(() => {
-            fetchProfile(session.user.id);
+            fetchProfile(session.user.id, session.user.user_metadata);
             checkAdminRole(session.user.id);
           }, 0);
         } else {

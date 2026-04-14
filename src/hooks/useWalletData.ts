@@ -158,9 +158,7 @@ export const useWalletData = () => {
 
   useEffect(() => {
     if (user) {
-      loadTransactions();
-      loadPaymentSettings();
-      checkPendingRequests();
+      Promise.all([loadTransactions(), loadPaymentSettings(), checkPendingRequests()]);
     }
   }, [user]);
 

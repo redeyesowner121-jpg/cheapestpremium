@@ -6,6 +6,7 @@ import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Spa
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Msg = {
   id?: string;
@@ -223,6 +224,7 @@ const FollowUpChips = React.memo(({ suggestions, onSelect }: { suggestions: stri
 FollowUpChips.displayName = 'FollowUpChips';
 
 const AIChatWidget: React.FC = () => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -234,7 +236,6 @@ const AIChatWidget: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [followUps, setFollowUps] = useState<string[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -250,17 +251,13 @@ const AIChatWidget: React.FC = () => {
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const hasMoved = useRef(false);
 
-  // Get current user
+  const userId = user?.id ?? null;
+
+  // Reset history when user changes
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
-      setHistoryLoaded(false);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    setHistoryLoaded(false);
+    setMessages([]);
+  }, [userId]);
 
   // Load chat history from database
   useEffect(() => {
