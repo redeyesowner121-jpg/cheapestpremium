@@ -20,7 +20,7 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: t("view_products", lang), callback_data: "view_products" }],
+            [{ text: t("view_products", lang), callback_data: "view_products", style: "success" }],
             [{ text: t("back_main", lang), callback_data: "back_main" }],
           ],
         },
@@ -62,8 +62,8 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: lang === "bn" ? "আরো কিনুন" : "Buy More", callback_data: "view_products" }],
-        [{ text: t("support", lang), callback_data: "support" }],
+        [{ text: lang === "bn" ? "আরো কিনুন" : "Buy More", callback_data: "view_products", style: "success" }],
+        [{ text: t("support", lang), callback_data: "support", style: "danger" }],
         [{ text: t("back_main", lang), callback_data: "back_main" }],
       ],
     },
@@ -76,7 +76,6 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
   const totalEarned = wallet?.total_earned || 0;
   const refCode = wallet?.referral_code || "N/A";
 
-  // Use child bot username if in child mode, otherwise main bot username
   const { getChildBotContext } = await import("../child-context.ts");
   const childCtx = getChildBotContext();
   const settings = await getSettings(supabase);
@@ -108,8 +107,8 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
     reply_markup: {
       inline_keyboard: [
         [
-          { text: lang === "bn" ? "টপ আপ" : "Deposit", callback_data: "wallet_deposit" },
-          { text: lang === "bn" ? "উইথড্র" : "Withdraw", callback_data: "wallet_withdraw" }
+          { text: lang === "bn" ? "টপ আপ" : "Deposit", callback_data: "wallet_deposit", style: "success" },
+          { text: lang === "bn" ? "উইথড্র" : "Withdraw", callback_data: "wallet_withdraw", style: "danger" }
         ],
         [{ text: t("back_main", lang), callback_data: "back_main" }],
       ],
@@ -123,7 +122,6 @@ export async function handleReferEarn(token: string, supabase: any, chatId: numb
   const settings = await getSettings(supabase);
   const bonus = settings.referral_bonus || "10";
 
-  // Use child bot username if in child mode
   const { getChildBotContext } = await import("../child-context.ts");
   const childCtx = getChildBotContext();
   const botUsername = childCtx?.bot_username || settings.bot_username || "Air1_Premium_bot";
@@ -178,7 +176,7 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: t("view_products", lang), callback_data: "view_products" }],
+        [{ text: t("view_products", lang), callback_data: "view_products", style: "success" }],
         [{ text: t("back_main", lang), callback_data: "back_main" }],
       ],
     },
@@ -257,8 +255,8 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "📱 UPI", callback_data: "withdraw_upi" },
-          { text: "💎 Binance", callback_data: "withdraw_binance" },
+          { text: "📱 UPI", callback_data: "withdraw_upi", style: "primary" },
+          { text: "💎 Binance", callback_data: "withdraw_binance", style: "primary" },
         ],
         [{ text: t("back", lang), callback_data: "my_wallet" }],
       ],

@@ -9,8 +9,8 @@ export async function showLanguageSelection(token: string, chatId: number) {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "English", callback_data: "lang_en" },
-          { text: "বাংলা", callback_data: "lang_bn" },
+          { text: "English", callback_data: "lang_en", style: "primary" },
+          { text: "বাংলা", callback_data: "lang_bn", style: "success" },
         ],
       ],
     },
@@ -23,7 +23,7 @@ export async function showJoinChannels(token: string, supabase: any, chatId: num
     const name = ch.startsWith("@") ? ch : `@${ch}`;
     return [{ text: `Join ${name}`, url: `https://t.me/${name.replace("@", "")}` }];
   });
-  buttons.push([{ text: lang === "bn" ? "যাচাই করুন" : "Verify", callback_data: "verify_join" }]);
+  buttons.push([{ text: lang === "bn" ? "যাচাই করুন" : "Verify", callback_data: "verify_join", style: "success" }]);
 
   await sendMessage(token, chatId, t("join_channels", lang), {
     reply_markup: { inline_keyboard: buttons },
@@ -31,11 +31,9 @@ export async function showJoinChannels(token: string, supabase: any, chatId: num
 }
 
 export async function showMainMenu(token: string, supabase: any, chatId: number, lang: string) {
-  // Read store name from DB settings
   const settings = await getSettings(supabase);
   const storeName = settings.app_name || "RKR Premium Store";
 
-  // Check if child bot mode
   const { isChildBotMode } = await import("../child-context.ts");
   const isChild = isChildBotMode();
 
@@ -44,26 +42,24 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
     : `🛍️ <b>Welcome to ${storeName}!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments\n💬 24/7 Support\n\nChoose an option below:`;
 
   const buttons: any[][] = [
-    [{ text: t("view_products", lang), callback_data: "view_products" }],
+    [{ text: t("view_products", lang), callback_data: "view_products", style: "success" }],
     [
-      { text: t("my_orders", lang), callback_data: "my_orders" },
-      { text: t("my_wallet", lang), callback_data: "my_wallet" },
+      { text: t("my_orders", lang), callback_data: "my_orders", style: "primary" },
+      { text: t("my_wallet", lang), callback_data: "my_wallet", style: "primary" },
     ],
     [
-      { text: t("refer_earn", lang), callback_data: "refer_earn" },
+      { text: t("refer_earn", lang), callback_data: "refer_earn", style: "success" },
     ],
     [
       { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs" },
-      { text: t("support", lang), callback_data: "support" },
+      { text: t("support", lang), callback_data: "support", style: "danger" },
     ],
   ];
 
-  // Only show Website Login for main bot, not child bots
   if (!isChild) {
-    buttons.push([{ text: "Website Login", callback_data: "website_login" }]);
+    buttons.push([{ text: "Website Login", callback_data: "website_login", style: "primary" }]);
   }
 
-  // Show "Make My Own Bot" button in child bots → redirects to Mother Bot
   if (isChild) {
     buttons.push([{ text: "🤖 Make My Own Bot", url: "https://t.me/Botmother_selling_bot" }]);
   }
@@ -74,7 +70,6 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
 }
 
 export async function handleSupport(token: string, supabase: any, chatId: number, lang: string) {
-  // Read support contact from DB settings
   const settings = await getSettings(supabase);
   const supportNumber = settings.support_contact || "+201556690444";
 
@@ -87,7 +82,7 @@ export async function handleSupport(token: string, supabase: any, chatId: number
         inline_keyboard: [
           [{ text: "WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}` }],
           [{ text: "Telegram", url: `https://t.me/${supportNumber}` }],
-          [{ text: lang === "bn" ? "অ্যাডমিনকে পাঠান" : "Forward to Admin", callback_data: "forward_to_admin" }],
+          [{ text: lang === "bn" ? "অ্যাডমিনকে পাঠান" : "Forward to Admin", callback_data: "forward_to_admin", style: "primary" }],
           [{ text: t("back_main", lang), callback_data: "back_main" }],
         ],
       },
@@ -105,7 +100,7 @@ export async function forwardUserMessageToAdmin(token: string, supabase: any, ms
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Chat", callback_data: `admin_chat_${telegramUser.id}` }],
+          [{ text: "Chat", callback_data: `admin_chat_${telegramUser.id}`, style: "primary" }],
         ],
       },
     }
