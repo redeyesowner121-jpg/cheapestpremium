@@ -228,6 +228,33 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
             )}
           </div>
           <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
+          
+          {/* Bot Button Color */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Bot Button Color</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { value: 'primary', label: '🔵 Blue', bg: 'bg-blue-500' },
+                { value: 'success', label: '🟢 Green', bg: 'bg-green-500' },
+                { value: 'danger', label: '🔴 Red', bg: 'bg-red-500' },
+                { value: '', label: '⚪ Default', bg: 'bg-gray-400' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  className={`text-xs px-2 py-2 rounded-lg font-medium transition-all border-2 ${
+                    (productForm.button_style || 'primary') === opt.value || (!productForm.button_style && opt.value === 'primary')
+                      ? `${opt.bg} text-white border-foreground shadow-md scale-105`
+                      : `bg-muted text-muted-foreground border-transparent hover:border-muted-foreground/30`
+                  }`}
+                  onClick={() => setProductForm({ ...productForm, button_style: opt.value || 'primary' })}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <span className="text-sm">Active</span>
             <Switch checked={productForm.is_active} onCheckedChange={(v) => setProductForm({ ...productForm, is_active: v })} />
