@@ -155,18 +155,25 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
+    const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : undefined;
     for (let idx = 0; idx < variations.length; idx++) {
       const v = variations[idx];
       if (childCtx) {
         const dp = childBotPrice(v.reseller_price, v.price);
-        buttons.push([{ text: `${v.name} - ${currency}${dp}`, callback_data: `buyvar_${v.id}` }]);
+        const btn: any = { text: `${v.name} - ${currency}${dp}`, callback_data: `buyvar_${v.id}` };
+        if (btnStyle) btn.style = btnStyle;
+        buttons.push([btn]);
       } else if (isReseller) {
+        const buyBtn: any = { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` };
+        if (btnStyle) buyBtn.style = btnStyle;
         buttons.push([
-          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` },
-          { text: `Resale`, callback_data: `resalevar_${v.id}` },
+          buyBtn,
+          { text: `Resale`, callback_data: `resalevar_${v.id}`, style: "danger" },
         ]);
       } else {
-        buttons.push([{ text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
+        const btn: any = { text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` };
+        if (btnStyle) btn.style = btnStyle;
+        buttons.push([btn]);
       }
     }
     buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
@@ -202,15 +209,16 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     }
 
     if (product.stock === null || product.stock > 0) {
+      const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : "success";
       if (childCtx) {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle }]);
       } else if (isReseller) {
         buttons.push([
-          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
-          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}` },
+          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle },
+          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}`, style: "danger" },
         ]);
       } else {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle }]);
       }
     }
 
