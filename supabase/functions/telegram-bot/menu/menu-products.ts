@@ -41,7 +41,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 export async function handleCategoryProducts(token: string, supabase: any, chatId: number, categoryName: string, lang: string) {
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, price, original_price, image_url, reseller_price")
+    .select("id, name, price, original_price, image_url, reseller_price, button_style")
     .eq("category", categoryName)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -79,7 +79,9 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   });
 
   const buttons: any[][] = products.map((p: any) => {
-    return [{ text: p.name, callback_data: `product_${p.id}` }];
+    const btn: any = { text: p.name, callback_data: `product_${p.id}` };
+    if (p.button_style && p.button_style !== 'default') btn.style = p.button_style;
+    return [btn];
   });
   buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
