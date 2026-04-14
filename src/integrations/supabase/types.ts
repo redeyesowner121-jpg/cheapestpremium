@@ -1229,6 +1229,7 @@ export type Database = {
       products: {
         Row: {
           access_link: string | null
+          button_style: string | null
           category: string
           created_at: string | null
           description: string | null
@@ -1248,6 +1249,7 @@ export type Database = {
         }
         Insert: {
           access_link?: string | null
+          button_style?: string | null
           category: string
           created_at?: string | null
           description?: string | null
@@ -1267,6 +1269,7 @@ export type Database = {
         }
         Update: {
           access_link?: string | null
+          button_style?: string | null
           category?: string
           created_at?: string | null
           description?: string | null
