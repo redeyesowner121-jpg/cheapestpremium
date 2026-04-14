@@ -347,6 +347,15 @@ Deno.serve(async (req) => {
       if (command === "/menu") { await showMotherMenu(MOTHER_TOKEN, chatId); return jsonOk(); }
       if (command === "/cancel") { await sendMsg(MOTHER_TOKEN, chatId, "❌ Cancelled."); return jsonOk(); }
 
+      if (command === "/admin") {
+        if (!isMotherOwner(userId)) {
+          await sendMsg(MOTHER_TOKEN, chatId, "🔒 This command is only for the owner.");
+          return jsonOk();
+        }
+        await showAdminPanel(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
       await showMotherMenu(MOTHER_TOKEN, chatId);
       return jsonOk();
     }
