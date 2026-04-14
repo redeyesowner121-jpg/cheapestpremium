@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN button_style text DEFAULT 'primary';

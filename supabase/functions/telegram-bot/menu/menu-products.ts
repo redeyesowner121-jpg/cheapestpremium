@@ -41,7 +41,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 export async function handleCategoryProducts(token: string, supabase: any, chatId: number, categoryName: string, lang: string) {
   const { data: products, error } = await supabase
     .from("products")
-    .select("id, name, price, original_price, image_url, reseller_price")
+    .select("id, name, price, original_price, image_url, reseller_price, button_style")
     .eq("category", categoryName)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -79,7 +79,9 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   });
 
   const buttons: any[][] = products.map((p: any) => {
-    return [{ text: p.name, callback_data: `product_${p.id}` }];
+    const btn: any = { text: p.name, callback_data: `product_${p.id}` };
+    if (p.button_style && p.button_style !== 'default') btn.style = p.button_style;
+    return [btn];
   });
   buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
@@ -153,18 +155,25 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
+    const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : undefined;
     for (let idx = 0; idx < variations.length; idx++) {
       const v = variations[idx];
       if (childCtx) {
         const dp = childBotPrice(v.reseller_price, v.price);
-        buttons.push([{ text: `${v.name} - ${currency}${dp}`, callback_data: `buyvar_${v.id}` }]);
+        const btn: any = { text: `${v.name} - ${currency}${dp}`, callback_data: `buyvar_${v.id}` };
+        if (btnStyle) btn.style = btnStyle;
+        buttons.push([btn]);
       } else if (isReseller) {
+        const buyBtn: any = { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` };
+        if (btnStyle) buyBtn.style = btnStyle;
         buttons.push([
-          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` },
-          { text: `Resale`, callback_data: `resalevar_${v.id}` },
+          buyBtn,
+          { text: `Resale`, callback_data: `resalevar_${v.id}`, style: "danger" },
         ]);
       } else {
-        buttons.push([{ text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` }]);
+        const btn: any = { text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` };
+        if (btnStyle) btn.style = btnStyle;
+        buttons.push([btn]);
       }
     }
     buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
@@ -200,15 +209,16 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     }
 
     if (product.stock === null || product.stock > 0) {
+      const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : "success";
       if (childCtx) {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle }]);
       } else if (isReseller) {
         buttons.push([
-          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
-          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}` },
+          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle },
+          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}`, style: "danger" },
         ]);
       } else {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle }]);
       }
     }
 

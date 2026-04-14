@@ -59,7 +59,7 @@ const AdminPage: React.FC = () => {
   // Product form
   const [productForm, setProductForm] = useState({
     name: '', description: '', price: '', original_price: '', reseller_price: '',
-    category: '', image_url: '', access_link: '', stock: '', is_active: true
+    category: '', image_url: '', access_link: '', stock: '', is_active: true, button_style: 'primary'
   });
   const [pendingVariations, setPendingVariations] = useState<any[]>([]);
   const [existingVariations, setExistingVariations] = useState<any[]>([]);
@@ -72,7 +72,7 @@ const AdminPage: React.FC = () => {
   }, [isAdmin, isTempAdmin, navigate]);
 
   const resetProductForm = () => {
-    setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true });
+    setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', access_link: '', stock: '', is_active: true, button_style: 'primary' });
     setPendingVariations([]);
     setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
     setEditingProduct(null);
@@ -87,7 +87,8 @@ const AdminPage: React.FC = () => {
       price: product.price?.toString() || '', original_price: product.original_price?.toString() || '',
       reseller_price: product.reseller_price?.toString() || '', category: product.category || '',
       image_url: product.image_url || '', access_link: product.access_link || '',
-      stock: product.stock?.toString() || '', is_active: product.is_active !== false
+      stock: product.stock?.toString() || '', is_active: product.is_active !== false,
+      button_style: product.button_style || 'primary'
     });
     const { data: varData } = await supabase.from('product_variations').select('*')
       .eq('product_id', product.id).order('created_at', { ascending: true });
