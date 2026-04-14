@@ -69,7 +69,7 @@ export async function handleAdminCallbacks(
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "📦 Mark Delivered", callback_data: `wd_delivered_${wdId}` }],
+              [{ text: "📦 Mark Delivered", callback_data: `wd_delivered_${wdId}`, style: "success" }],
             ],
           },
         }

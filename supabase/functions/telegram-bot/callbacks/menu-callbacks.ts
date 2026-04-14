@@ -209,10 +209,10 @@ export async function handleMenuCallbacks(
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}` },
-              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}` },
+              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}`, style: "success" },
+              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}`, style: "danger" },
             ],
-            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}` }],
+            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}`, style: "primary" }],
           ],
         },
       }
