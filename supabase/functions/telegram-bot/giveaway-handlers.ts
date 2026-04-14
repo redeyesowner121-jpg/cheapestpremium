@@ -59,18 +59,18 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "🎁 Giveaway Products", callback_data: "gw_products" },
-          { text: "💰 My Points", callback_data: "gw_points" },
+          { text: "🎁 Giveaway Products", callback_data: "gw_products", style: "success" },
+          { text: "💰 My Points", callback_data: "gw_points", style: "primary" },
         ],
         [
-          { text: "📜 Redemptions", callback_data: "gw_history" },
-          { text: "📎 Refer & Earn", callback_data: "gw_referral" },
+          { text: "📜 Redemptions", callback_data: "gw_history", style: "primary" },
+          { text: "📎 Refer & Earn", callback_data: "gw_referral", style: "success" },
         ],
         [
-          { text: "⭐ Reviews", callback_data: "gw_reviews" },
-          { text: "📞 Support", callback_data: "support" },
+          { text: "⭐ Reviews", callback_data: "gw_reviews", style: "primary" },
+          { text: "📞 Support", callback_data: "support", style: "danger" },
         ],
-        [{ text: "🌐 Website Login", callback_data: "website_login" }],
+        [{ text: "🌐 Website Login", callback_data: "website_login", style: "primary" }],
       ],
     },
   });
@@ -87,7 +87,7 @@ export async function showGiveawayJoinChannels(token: string, supabase: any, cha
   const buttons: any[][] = [
     ...channelButtons,
     [{ text: "🤖 Start Main Bot", url: MAIN_BOT_REF_LINK }],
-    [{ text: "✅ Verify", callback_data: "gw_verify_join" }],
+    [{ text: "✅ Verify", callback_data: "gw_verify_join", style: "success" }],
   ];
 
   const channelList = GIVEAWAY_REQUIRED_CHANNELS.map((ch, i) => `${i + 1}. Join ${ch.name}`).join("\n");
@@ -392,8 +392,8 @@ export async function handleGiveawayCallbacks(
     await sendMessage(token, chatId,
       `🎁 <b>Confirm Redeem?</b>\n\n🏷️ ${name}${varName}\n🎯 Cost: ${giveawayItem.points_required} pts\n💰 Balance: ${pts} pts\nAfter: ${pts - giveawayItem.points_required} pts`, {
         reply_markup: { inline_keyboard: [
-          [{ text: "✅ Confirm", callback_data: `gw_confirm_${gpId}` }],
-          [{ text: "❌ Cancel", callback_data: `gw_pdetail_${giveawayItem.product_id}` }],
+          [{ text: "✅ Confirm", callback_data: `gw_confirm_${gpId}`, style: "success" }],
+          [{ text: "❌ Cancel", callback_data: `gw_pdetail_${giveawayItem.product_id}`, style: "danger" }],
         ]}
       }
     );
@@ -606,8 +606,8 @@ export async function showGiveawayAdminMenu(token: string, supabase: any, chatId
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "📢 Manage Channels", callback_data: "gwa_channels" }],
-        [{ text: "📊 Top Users", callback_data: "gwa_top_users" }],
+        [{ text: "📢 Manage Channels", callback_data: "gwa_channels", style: "primary" }],
+        [{ text: "📊 Top Users", callback_data: "gwa_top_users", style: "success" }],
         [{ text: "🔙 Main Menu", callback_data: "gw_main" }],
       ],
     },
