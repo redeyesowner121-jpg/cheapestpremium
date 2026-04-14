@@ -124,24 +124,35 @@ Deno.serve(async (req: Request) => {
     // Deterministic password for telegram users
     const stablePassword = `tg_${telegramId}_${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(-12)}`;
 
-    // Try to find existing user by email (paginated listUsers misses users)
+    // Try to find existing user by email
     let user: any = null;
     let isNewUser = false;
 
-    // First try: list users filtered by page to find by email
-    let page = 1;
-    const perPage = 1000;
-    let found = false;
-    while (!found) {
-      const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
-      if (listError || !pageData?.users?.length) break;
-      const match = pageData.users.find((u: any) => u.email === email);
-      if (match) {
-        user = match;
-        found = true;
+    // Efficient lookup: try signing in first - if it works, user exists
+    const { data: signInCheck, error: signInCheckError } = await supabase.auth.signInWithPassword({
+      email,
+      password: stablePassword,
+    });
+
+    if (!signInCheckError && signInCheck?.user) {
+      user = signInCheck.user;
+    } else {
+      // Sign-in failed - could be wrong password (user exists with different password) or no user
+      // Try admin lookup by email with pagination
+      let page = 1;
+      const perPage = 1000;
+      let found = false;
+      while (!found) {
+        const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
+        if (listError || !pageData?.users?.length) break;
+        const match = pageData.users.find((u: any) => u.email === email);
+        if (match) {
+          user = match;
+          found = true;
+        }
+        if (pageData.users.length < perPage) break;
+        page++;
       }
-      if (pageData.users.length < perPage) break;
-      page++;
     }
 
     if (!user) {
