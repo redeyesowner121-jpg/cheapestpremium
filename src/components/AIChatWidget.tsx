@@ -6,6 +6,7 @@ import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Spa
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 type Msg = {
   id?: string;
@@ -223,6 +224,7 @@ const FollowUpChips = React.memo(({ suggestions, onSelect }: { suggestions: stri
 FollowUpChips.displayName = 'FollowUpChips';
 
 const AIChatWidget: React.FC = () => {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
