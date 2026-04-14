@@ -600,3 +600,57 @@ async function createChildBot(token: string, supabase: any, chatId: number, crea
     { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots" }], [{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } }
   );
 }
+
+// ===== ADMIN PANEL (OWNER ONLY) =====
+
+async function showAdminPanel(token: string, supabase: any, chatId: number) {
+  const { data: bots } = await supabase.from("child_bots").select("id, is_active, total_orders, total_earnings");
+  const { count: usersCount } = await supabase.from("mother_bot_users").select("id", { count: "exact", head: true });
+  const botsList = bots || [];
+
+  await sendMsg(token, chatId,
+    `🛡 <b>Owner Admin Panel</b>\n\n` +
+    `🤖 Bots: ${botsList.length} (${botsList.filter((b: any) => b.is_active).length} active)\n` +
+    `👥 Users: ${usersCount || 0}\n` +
+    `📦 Orders: ${botsList.reduce((s: number, b: any) => s + b.total_orders, 0)}\n` +
+    `💰 Commissions: ₹${botsList.reduce((s: number, b: any) => s + b.total_earnings, 0)}`,
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🤖 Manage Bots", callback_data: "mother_admin_bots", style: "primary" }],
+          [{ text: "👥 View Users", callback_data: "mother_admin_users", style: "primary" }],
+          [{ text: "📊 Full Stats", callback_data: "mother_admin_stats", style: "success" }],
+          [{ text: "🏠 Main Menu", callback_data: "mother_main", style: "danger" }],
+        ],
+      },
+    }
+  );
+}
+
+async function showAdminBots(token: string, supabase: any, chatId: number) {
+  const { data: bots } = await supabase.from("child_bots").select("*").order("created_at", { ascending: false });
+
+  if (!bots?.length) {
+    await sendMsg(token, chatId, "🤖 No child bots exist yet.",
+      { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin" }]] } });
+    return;
+  }
+
+  let text = "🛡 <b>All Child Bots (Admin)</b>\n\n";
+  const buttons: any[][] = [];
+
+  for (const bot of bots) {
+    const status = bot.is_active ? "🟢" : "🔴";
+    text += `${status} @${bot.bot_username || "unknown"}\n`;
+    text += `   Owner: <code>${bot.owner_telegram_id}</code> | Rev: ${bot.revenue_percent}%\n`;
+    text += `   Orders: ${bot.total_orders} | Earned: ₹${bot.total_earnings}\n\n`;
+    buttons.push([
+      { text: `${bot.is_active ? "⏸" : "▶️"} @${bot.bot_username || "bot"}`, callback_data: `mother_toggle_${bot.id}` },
+      { text: `📊 Rev%`, callback_data: `mother_setrev_${bot.id}` },
+      { text: `🗑`, callback_data: `mother_delete_${bot.id}`, style: "danger" },
+    ]);
+  }
+
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+}
