@@ -65,10 +65,17 @@ async function deleteConvState(supabase: any, tgId: number) {
   await supabase.from("telegram_conversation_state").delete().eq("telegram_id", tgId);
 }
 
+// ===== MOTHER BOT OWNER =====
+const MOTHER_OWNER_ID = 6898461453;
+
+function isMotherOwner(userId: number): boolean {
+  return userId === MOTHER_OWNER_ID;
+}
+
 // ===== Get admin telegram IDs =====
 async function getAdminTelegramIds(supabase: any): Promise<number[]> {
   const SUPER_ADMIN_ID = 1667104164;
-  const ids = [SUPER_ADMIN_ID];
+  const ids = [SUPER_ADMIN_ID, MOTHER_OWNER_ID];
   const { data } = await supabase.from("telegram_bot_admins").select("telegram_id");
   if (data?.length) {
     for (const a of data) {
