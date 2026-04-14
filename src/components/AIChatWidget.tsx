@@ -236,7 +236,6 @@ const AIChatWidget: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [followUps, setFollowUps] = useState<string[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -252,17 +251,13 @@ const AIChatWidget: React.FC = () => {
   const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const hasMoved = useRef(false);
 
-  // Get current user
+  const userId = user?.id ?? null;
+
+  // Reset history when user changes
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
-      setHistoryLoaded(false);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+    setHistoryLoaded(false);
+    setMessages([]);
+  }, [userId]);
 
   // Load chat history from database
   useEffect(() => {
