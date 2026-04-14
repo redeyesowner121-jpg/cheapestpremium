@@ -286,10 +286,10 @@ async function showMotherMenu(token: string, chatId: number) {
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🟢 ➕ Create a Bot 🟢", callback_data: "mother_create_bot" }],
-          [{ text: "🔵 🤖 My Bots 🔵", callback_data: "mother_my_bots" }],
-          [{ text: "🟡 💰 Earnings 🟡", callback_data: "mother_earnings" }],
-          [{ text: "🟣 ❓ Help 🟣", callback_data: "mother_help" }],
+          [{ text: "➕ Create a Bot", callback_data: "mother_create_bot", style: "success" }],
+          [{ text: "🤖 My Bots", callback_data: "mother_my_bots", style: "primary" }],
+          [{ text: "💰 Earnings", callback_data: "mother_earnings", style: "primary" }],
+          [{ text: "❓ Help", callback_data: "mother_help", style: "danger" }],
         ],
       },
     }
