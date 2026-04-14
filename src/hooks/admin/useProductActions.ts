@@ -79,8 +79,9 @@ export async function handleAddProduct(
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,
-    slug: productSlug
-  }).select().single();
+    slug: productSlug,
+    button_style: productForm.button_style || 'primary'
+  } as any).select().single();
   
   if (error || !newProduct) {
     toast.error('Failed to add product');
@@ -133,8 +134,9 @@ export async function handleUpdateProduct(
     image_url: productForm.image_url,
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
-    is_active: productForm.is_active
-  }).eq('id', productId).select().single();
+    is_active: productForm.is_active,
+    button_style: productForm.button_style || 'primary'
+  } as any).eq('id', productId).select().single();
 
   if (error) {
     toast.error('Failed to update product');
