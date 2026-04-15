@@ -22,18 +22,17 @@ export const usePushNotifications = () => {
     if (!user || !isSupported) return;
 
     const init = async () => {
+      const { initializeMessaging, onPushMessage } = await import('@/lib/firebase');
       await initializeMessaging();
       
       // Listen for foreground messages
       onPushMessage((payload) => {
         console.log('Foreground message:', payload);
         
-        // Show toast for foreground messages
         toast.info(payload.notification?.title || 'New Notification', {
           description: payload.notification?.body
         });
         
-        // Also show browser notification
         if (Notification.permission === 'granted') {
           new Notification(payload.notification?.title || 'New Notification', {
             body: payload.notification?.body,
@@ -54,6 +53,7 @@ export const usePushNotifications = () => {
     }
 
     try {
+      const { requestPushNotificationPermission } = await import('@/lib/firebase');
       const token = await requestPushNotificationPermission();
       
       if (token && user) {
