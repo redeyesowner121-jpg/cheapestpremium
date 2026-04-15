@@ -6,9 +6,10 @@ import { toast } from 'sonner';
 export interface CartItem {
   id: string;
   user_id: string;
-  product_id: string;
+  product_id: string | null;
   variation_id: string | null;
   quantity: number;
+  donation_amount: number | null;
   created_at: string;
   product?: {
     id: string;
