@@ -166,24 +166,34 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     });
 
     const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : undefined;
-    for (let idx = 0; idx < variations.length; idx++) {
-      const v = variations[idx];
-      if (childCtx) {
-        const dp = childBotPrice(v.reseller_price, v.price);
-        const btn: any = { text: `${v.name} - ${currency}${dp}`, callback_data: `buyvar_${v.id}` };
-        if (btnStyle) btn.style = btnStyle;
-        buttons.push([btn]);
-      } else if (isReseller) {
+    
+    if (isReseller && !childCtx) {
+      // Resellers: buy + resale side by side per variation (keep 1 per row)
+      for (const v of variations) {
         const buyBtn: any = { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` };
         if (btnStyle) buyBtn.style = btnStyle;
         buttons.push([
           buyBtn,
           { text: `Resale`, callback_data: `resalevar_${v.id}`, style: "danger" },
         ]);
-      } else {
-        const btn: any = { text: `${v.name} - ${currency}${v.price}`, callback_data: `buyvar_${v.id}` };
-        if (btnStyle) btn.style = btnStyle;
-        buttons.push([btn]);
+      }
+    } else {
+      // Normal users & child bots: 2 variations per row
+      for (let i = 0; i < variations.length; i += 2) {
+        const row: any[] = [];
+        const v1 = variations[i];
+        const dp1 = childCtx ? childBotPrice(v1.reseller_price, v1.price) : v1.price;
+        const btn1: any = { text: `${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}` };
+        if (btnStyle) btn1.style = btnStyle;
+        row.push(btn1);
+        if (variations[i + 1]) {
+          const v2 = variations[i + 1];
+          const dp2 = childCtx ? childBotPrice(v2.reseller_price, v2.price) : v2.price;
+          const btn2: any = { text: `${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}` };
+          if (btnStyle) btn2.style = btnStyle;
+          row.push(btn2);
+        }
+        buttons.push(row);
       }
     }
     buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
