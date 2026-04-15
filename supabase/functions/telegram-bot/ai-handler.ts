@@ -274,11 +274,8 @@ STRICT RULES:
       throw new Error(`AI error: ${response.status}`);
     }
 
-    // TRUE real-time streaming: edit message as tokens arrive
+    // Collect full answer (show typing indicator, no streaming edits)
     let fullAnswer = "";
-    let lastEditTime = 0;
-    const MIN_EDIT_INTERVAL = 300;
-    let pendingEdit = false;
 
     const typingInterval = setInterval(() => {
       sendChatAction(token, chatId, "typing");
@@ -287,24 +284,6 @@ STRICT RULES:
     try {
       for await (const chunk of parseSSEStream(response)) {
         fullAnswer += chunk;
-
-        const now = Date.now();
-        const elapsed = now - lastEditTime;
-
-        if (thinkingMsgId && elapsed >= MIN_EDIT_INTERVAL) {
-          // For streaming, only show first 3500 chars in the edit (Telegram limit)
-          const displayText = fullAnswer.length > 3500 ? fullAnswer.slice(0, 3500) + "..." : fullAnswer;
-          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${displayText}▍`, { parse_mode: "" });
-          lastEditTime = Date.now();
-          pendingEdit = false;
-        } else {
-          pendingEdit = true;
-        }
-      }
-
-      if (pendingEdit && thinkingMsgId && fullAnswer) {
-        const displayText = fullAnswer.length > 3500 ? fullAnswer.slice(0, 3500) + "..." : fullAnswer;
-        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${displayText}▍`, { parse_mode: "" });
       }
     } finally {
       clearInterval(typingInterval);
@@ -312,70 +291,18 @@ STRICT RULES:
 
     const answer = fullAnswer.trim();
 
-    // Save user question and AI answer to history
-    await supabase.from("telegram_ai_messages").insert([
-      { telegram_id: userId, role: "user", content: question },
-      ...(answer ? [{ telegram_id: userId, role: "assistant", content: answer }] : []),
-    ]);
-
-    // Clean old messages (keep last 20 per user)
-    const { data: oldMessages } = await supabase
-      .from("telegram_ai_messages")
-      .select("id")
-      .eq("telegram_id", userId)
-      .order("created_at", { ascending: false })
-      .range(20, 1000);
-    if (oldMessages?.length) {
-      await supabase.from("telegram_ai_messages").delete().in("id", oldMessages.map((m: any) => m.id));
+    // Delete the "thinking" message — we'll send fresh split messages
+    if (thinkingMsgId) {
+      try {
+        const delUrl = `https://api.telegram.org/bot${token}/deleteMessage`;
+        await fetch(delUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: chatId, message_id: thinkingMsgId }),
+        });
+      } catch { /* ignore delete errors */ }
     }
-
-    // Check if AI wants to forward to admin
-    const shouldForward = !answer || answer.startsWith("[FORWARD_TO_ADMIN]");
-
-    if (shouldForward) {
-      const cleanAnswer = answer?.replace("[FORWARD_TO_ADMIN]", "").trim();
-
-      await setConversationState(supabase, userId, "awaiting_admin_answer", {
-        originalQuestion: question,
-        questionLang: lang,
-      });
-
-      await notifyAllAdmins(token, supabase,
-        `🤖❓ <b>AI couldn't answer</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>\n\n📝 Reply to teach AI this answer. Click "Answer" below:`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}`, style: "success" }],
-              [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
-            ],
-          },
-        }
-      );
-
-      const forwardMsg = cleanAnswer || (lang === "bn"
-        ? "🤔 আমি এই প্রশ্নের উত্তর দিতে পারছি না। আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হচ্ছে। শীঘ্রই উত্তর পাবেন! ⏳"
-        : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳");
-
-      if (thinkingMsgId) {
-        await editMessageText(token, chatId, thinkingMsgId, forwardMsg, {
-          parse_mode: "",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }],
-            ],
-          },
-        });
-      } else {
-        await sendMessage(token, chatId, forwardMsg, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }],
-            ],
-          },
-        });
-      }
-    } else {
-      // Split long answers into multiple messages
+...
       const messageParts = splitMessage(answer);
       const actionButtons = {
         inline_keyboard: [
@@ -385,29 +312,13 @@ STRICT RULES:
         ],
       };
 
-      if (messageParts.length === 1) {
-        // Single message — edit the thinking message
-        if (thinkingMsgId) {
-          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${messageParts[0]}`, {
-            parse_mode: "",
-            reply_markup: actionButtons,
-          });
-        } else {
-          await sendMessage(token, chatId, `🤖 ${messageParts[0]}`, { reply_markup: actionButtons });
-        }
-      } else {
-        // Multiple parts — edit first, send rest with small delay
-        if (thinkingMsgId) {
-          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${messageParts[0]}`, { parse_mode: "" });
-        } else {
-          await sendMessage(token, chatId, `🤖 ${messageParts[0]}`);
-        }
-
-        for (let i = 1; i < messageParts.length; i++) {
-          await new Promise(r => setTimeout(r, 400)); // small delay for natural feel
-          const isLast = i === messageParts.length - 1;
-          await sendMessage(token, chatId, `${messageParts[i]}`, isLast ? { reply_markup: actionButtons } : undefined);
-        }
+      // Send each part as a separate message
+      for (let i = 0; i < messageParts.length; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, 400));
+        const isFirst = i === 0;
+        const isLast = i === messageParts.length - 1;
+        const text = isFirst ? `🤖 ${messageParts[i]}` : messageParts[i];
+        await sendMessage(token, chatId, text, isLast ? { reply_markup: actionButtons } : undefined);
       }
     }
   } catch (error) {
