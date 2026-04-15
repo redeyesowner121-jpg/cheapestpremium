@@ -32,8 +32,8 @@ export async function checkGiveawayChannels(mainToken: string, userId: number): 
   const { getChatMember } = await import("../telegram-api.ts");
 
   const resolvedTokens = await resolveTelegramBotTokens({
-    configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
-    configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+    configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN") ?? null,
+    configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN") ?? null,
     expectedMainUsername: BOT_USERNAME,
     expectedResaleUsername: RESALE_BOT_USERNAME,
   });
