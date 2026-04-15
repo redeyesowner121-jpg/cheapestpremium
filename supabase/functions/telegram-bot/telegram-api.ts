@@ -15,17 +15,17 @@ function normalizeBackButtons(replyMarkup?: any) {
         const callbackData = typeof button.callback_data === "string" ? button.callback_data : "";
         const isBackButton =
           /back/i.test(normalizedText) ||
+          /main\s*menu/i.test(normalizedText) ||
+          /মূল\s*মেনু/i.test(normalizedText) ||
+          /পিছনে/i.test(normalizedText) ||
+          /ফিরুন/i.test(normalizedText) ||
+          /cancel/i.test(normalizedText) ||
+          /বাতিল/i.test(normalizedText) ||
           normalizedText.includes("⬅️") ||
           normalizedText.includes("◀️") ||
           normalizedText.includes("🔙") ||
-          /(^|_)(back|main)$/.test(callbackData) ||
-          callbackData === "back_main" ||
-          callbackData === "adm_back" ||
-          callbackData === "cadm_back" ||
-          callbackData === "gw_main" ||
-          callbackData === "mother_admin" ||
-          callbackData === "mother_my_bots" ||
-          callbackData === "third_back";
+          /back/i.test(callbackData) ||
+          /^(back_main|back_products|adm_back|cadm_back|cadm_settings|adm_settings|adm_ai_training|gw_main|gw_products|gwa_admin|mother_admin|mother_my_bots|third_back|my_wallet|deposit_cancel|binance_cancel)$/.test(callbackData);
 
         if (!isBackButton) return button;
 
