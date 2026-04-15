@@ -479,10 +479,18 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-              <span className="font-bold">{formatPrice(cartSummary.subtotal)}</span>
-            </div>
+            {cartSummary.subtotal > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Products ({productItems.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                <span className="font-bold">{formatPrice(cartSummary.subtotal)}</span>
+              </div>
+            )}
+            {cartSummary.donationTotal > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1"><Heart className="w-3 h-3 text-pink-500 fill-pink-500" /> Donation</span>
+                <span className="font-bold">{formatPrice(cartSummary.donationTotal)}</span>
+              </div>
+            )}
             {cartSummary.totalSavings > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-success">Rank Savings</span>
@@ -492,42 +500,42 @@ const CartPage: React.FC = () => {
             {isAAX && (
               <div className="flex justify-between text-sm">
                 <span className="text-success">🔱 Apex Discount (up to {AAX_DISPLAY_DISCOUNT}%)</span>
-                <span className="text-success font-medium">-₹{(cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}</span>
+                <span className="text-success font-medium">-₹{(cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}</span>
               </div>
             )}
             {isForeignCurrency && !isAAX && (
               <div className="flex justify-between text-sm">
                 <span className="text-destructive">Conversion Fee ({FOREIGN_CONVERT_FEE_PERCENT}%)</span>
-                <span className="text-destructive font-medium">₹{(cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}</span>
+                <span className="text-destructive font-medium">₹{(cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold">
               <span>Total</span>
               <span className="text-primary text-lg">
                 {isAAX
-                  ? `₹${(cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
+                  ? `₹${(cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
                   : isForeignCurrency
-                    ? `₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                    : formatPrice(cartSummary.subtotal)}
+                    ? `₹${(cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                    : formatPrice(cartSummary.grandTotal)}
               </span>
             </div>
             <Button
               className="w-full h-12 btn-gradient rounded-xl text-base"
               onClick={handleCheckout}
-              disabled={checkingOut || items.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
+              disabled={checkingOut || productItems.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
             >
               {checkingOut ? 'Processing...' : isAAX
-                ? `🔱 Checkout - ₹${(cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
+                ? `🔱 Checkout - ₹${(cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
                 : isForeignCurrency
-                  ? `Convert & Checkout - ₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                  : `Checkout - ${formatPrice(cartSummary.subtotal)}`}
+                  ? `Convert & Checkout - ₹${(cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                  : `Checkout - ${formatPrice(cartSummary.grandTotal)}`}
             </Button>
             {(() => {
               const balance = profile?.wallet_balance || 0;
               const needed = isAAX
-                ? cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100
+                ? cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100
                 : isForeignCurrency
-                  ? cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100
+                  ? cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100
                   : cartSummary.subtotal;
               return balance < needed ? (
                 <p className="text-xs text-destructive text-center">
