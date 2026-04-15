@@ -2242,6 +2242,10 @@ export type Database = {
         Args: { _buyer_id: string; _order_id: string }
         Returns: Json
       }
+      finalize_instant_delivery: {
+        Args: { p_order_id: string; p_product_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

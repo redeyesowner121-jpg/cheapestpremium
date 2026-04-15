@@ -67,36 +67,25 @@ export const handleProductPurchase = async (
       ? `${displayProduct.name} - ${selectedVariation.name}`
       : displayProduct.name;
 
-    // Check if product has access_link for instant delivery
+    // First check delivery mode to decide instant delivery
     let accessLink: string | null = null;
+    let isInstantDelivery = false;
+    
     if (displayProduct.id) {
       const { data: productData } = await supabase
         .from('products')
-        .select('access_link, delivery_mode')
+        .select('access_link, delivery_mode, show_link_in_website')
         .eq('id', displayProduct.id)
         .single();
 
-      if (productData?.delivery_mode === 'unique') {
-        // Pick unused stock item
-        const { data: stockItems } = await (supabase as any)
-          .from('product_stock_items')
-          .select('id, access_link')
-          .eq('product_id', displayProduct.id)
-          .eq('is_used', false)
-          .order('created_at', { ascending: true })
-          .limit(1);
-
-        if (stockItems?.length) {
-          accessLink = stockItems[0].access_link;
-          // We'll mark it used after order creation with the order_id
+      if (productData?.show_link_in_website !== false) {
+        if (productData?.delivery_mode === 'unique' || productData?.access_link) {
+          isInstantDelivery = true;
         }
-      } else {
-        accessLink = productData?.access_link || null;
       }
     }
 
-    const isInstantDelivery = !!accessLink;
-
+    // Create order first (as pending)
     const orderData: any = {
       product_id: displayProduct.id,
       product_name: productName,
@@ -105,9 +94,8 @@ export const handleProductPurchase = async (
       total_price: totalPrice,
       quantity,
       user_note: userNote + (donationAmount > 0 ? ` [Donation: ₹${donationAmount}]` : ''),
-      status: isInstantDelivery ? 'confirmed' : 'pending',
+      status: 'pending',
       discount_applied: discount,
-      access_link: accessLink,
     };
 
     if (isGuestCheckout) {
@@ -121,20 +109,16 @@ export const handleProductPurchase = async (
     const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert(orderData).select('id').single();
     if (orderError) throw orderError;
 
-    // Mark stock item as used if unique delivery
-    if (accessLink && displayProduct.id) {
-      const { data: productData } = await supabase
-        .from('products')
-        .select('delivery_mode')
-        .eq('id', displayProduct.id)
-        .single();
-      if (productData?.delivery_mode === 'unique') {
-        await (supabase as any)
-          .from('product_stock_items')
-          .update({ is_used: true, used_at: new Date().toISOString(), order_id: insertedOrder?.id })
-          .eq('product_id', displayProduct.id)
-          .eq('access_link', accessLink)
-          .eq('is_used', false);
+    // Finalize instant delivery via secure RPC (handles both unique & repeated)
+    if (isInstantDelivery && insertedOrder?.id) {
+      const { data: claimedLink } = await supabase.rpc('finalize_instant_delivery', {
+        p_product_id: displayProduct.id,
+        p_order_id: insertedOrder.id,
+      });
+      if (claimedLink) {
+        accessLink = claimedLink;
+      } else {
+        isInstantDelivery = false;
       }
     }
 
