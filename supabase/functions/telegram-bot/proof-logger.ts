@@ -3,7 +3,16 @@
 
 const PROOF_CHANNEL = "@RKRxProofs";
 
-const PROMO_FOOTER = `\n\n━━━━━━━━━━━━━━━━━\n🤖 <b>@Air1_Premium_bot</b>\n💎 Cheapest Premium Subscriptions\n🔒 100% Trusted · Instant Delivery\n🛒 Start Shopping → @Air1_Premium_bot`;
+const PROMO_FOOTER = `\n\n┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n🤖 <b>@Air1_Premium_bot</b>\n💎 Cheapest Premium Subscriptions\n🔒 100% Trusted · Instant Delivery\n🛒 Start Shopping → @Air1_Premium_bot`;
+
+function getTimeIST(): string {
+  return new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
+}
+
+function maskName(name: string): string {
+  if (!name || name.length <= 2) return name || "User";
+  return name[0] + "•".repeat(Math.min(name.length - 2, 4)) + name[name.length - 1];
+}
 
 export async function logProof(token: string, text: string) {
   try {
@@ -43,69 +52,96 @@ export async function logProofPhoto(token: string, fileId: string, caption: stri
 }
 
 // ===== Specific proof formatters =====
+// Public proofs show masked first_name only. Admin messages show username separately.
 
-export function formatOrderPlaced(userId: number, username: string, productName: string, amount: number, method: string): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return `📦 <b>New Order Placed</b>\n\n` +
-    `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
+export function formatOrderPlaced(userId: number, firstName: string, productName: string, amount: number, method: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName);
+  return `┌─────────────────────┐\n` +
+    `   📦 <b>NEW ORDER PLACED</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `🛒 Product: <b>${productName}</b>\n` +
     `💰 Amount: <b>₹${amount}</b>\n` +
-    `💳 Method: <b>${method}</b>\n` +
-    `🕐 Time: ${now}`;
+    `💳 Payment: <b>${method}</b>\n` +
+    `🕐 ${time}\n\n` +
+    `✨ <i>Another happy customer!</i>`;
 }
 
-export function formatOrderConfirmed(userId: number, productName: string, amount: number): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return `✅ <b>Order Confirmed</b>\n\n` +
-    `👤 User: <code>${userId}</code>\n` +
+export function formatOrderConfirmed(userId: number, productName: string, amount: number, firstName?: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName || "User");
+  return `┌─────────────────────┐\n` +
+    `   ✅ <b>ORDER CONFIRMED</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `🛒 Product: <b>${productName}</b>\n` +
     `💰 Amount: <b>₹${amount}</b>\n` +
-    `🕐 Time: ${now}`;
+    `🕐 ${time}\n\n` +
+    `🎉 <i>Delivered successfully!</i>`;
 }
 
-export function formatOrderDelivered(userId: number, productName: string, amount: number): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return `📬 <b>Order Delivered</b>\n\n` +
-    `👤 User: <code>${userId}</code>\n` +
+export function formatOrderDelivered(userId: number, productName: string, amount: number, firstName?: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName || "User");
+  return `┌─────────────────────┐\n` +
+    `   📬 <b>ORDER DELIVERED</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `🛒 Product: <b>${productName}</b>\n` +
     `💰 Amount: <b>₹${amount}</b>\n` +
-    `🕐 Time: ${now}`;
+    `🕐 ${time}\n\n` +
+    `⚡ <i>Lightning-fast delivery!</i>`;
 }
 
-export function formatDepositSuccess(userId: number, amount: number, method: string): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return `💰 <b>Deposit Successful</b>\n\n` +
-    `👤 User: <code>${userId}</code>\n` +
+export function formatDepositSuccess(userId: number, amount: number, method: string, firstName?: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName || "User");
+  return `┌─────────────────────┐\n` +
+    `   💰 <b>DEPOSIT SUCCESSFUL</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `💵 Amount: <b>₹${amount}</b>\n` +
     `💳 Method: <b>${method}</b>\n` +
-    `🕐 Time: ${now}`;
+    `🕐 ${time}\n\n` +
+    `💎 <i>Wallet topped up!</i>`;
 }
 
-export function formatWithdrawalUpdate(userId: number, amount: number, method: string, status: string, accountDetails: string): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+export function formatWithdrawalUpdate(userId: number, amount: number, method: string, status: string, accountDetails: string, firstName?: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName || "User");
   const emoji = status === "accepted" ? "💸" : status === "delivered" ? "📦" : "❌";
   const label = status.charAt(0).toUpperCase() + status.slice(1);
-  return `${emoji} <b>Withdrawal ${label}</b>\n\n` +
-    `👤 User: <code>${userId}</code>\n` +
+  return `┌─────────────────────┐\n` +
+    `   ${emoji} <b>WITHDRAWAL ${label.toUpperCase()}</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `💵 Amount: <b>₹${amount}</b>\n` +
     `💳 ${method.toUpperCase()}: <code>${accountDetails}</code>\n` +
-    `🕐 Time: ${now}`;
+    `🕐 ${time}`;
 }
 
-export function formatRedeemCode(userId: number, code: string, amount: number): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return `🎟️ <b>Redeem Code Used</b>\n\n` +
-    `👤 User: <code>${userId}</code>\n` +
+export function formatRedeemCode(userId: number, code: string, amount: number, firstName?: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName || "User");
+  return `┌─────────────────────┐\n` +
+    `   🎟️ <b>REDEEM CODE USED</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `🏷️ Code: <code>${code}</code>\n` +
     `💰 Amount: <b>₹${amount}</b>\n` +
-    `🕐 Time: ${now}`;
+    `🕐 ${time}`;
 }
 
-export function formatGiveawayRedeem(userId: number, productName: string, points: number): string {
-  const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  return `🎁 <b>Giveaway Redeemed</b>\n\n` +
-    `👤 User: <code>${userId}</code>\n` +
+export function formatGiveawayRedeem(userId: number, productName: string, points: number, firstName?: string): string {
+  const time = getTimeIST();
+  const displayName = maskName(firstName || "User");
+  return `┌─────────────────────┐\n` +
+    `   🎁 <b>GIVEAWAY REDEEMED</b>\n` +
+    `└─────────────────────┘\n\n` +
+    `👤 Customer: <b>${displayName}</b>\n` +
     `🛒 Product: <b>${productName}</b>\n` +
     `🎯 Points: <b>${points}</b>\n` +
-    `🕐 Time: ${now}`;
+    `🕐 ${time}\n\n` +
+    `🌟 <i>Free product claimed!</i>`;
 }

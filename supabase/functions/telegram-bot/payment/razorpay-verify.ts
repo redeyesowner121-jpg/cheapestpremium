@@ -91,7 +91,7 @@ export async function handleRazorpayVerify(
         `💰 <b>Razorpay Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: ₹${finalAmount}\n✅ Auto-verified${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
       );
 
-      try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Razorpay UPI")); } catch {}
+      try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.first_name || "User", productName, price, "Razorpay UPI")); } catch {}
       await processReferralBonus(supabase, telegramUser.id, token, price);
     } else {
       await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you paid exactly <b>₹${finalAmount}</b> and verify within 2 minutes of paying.`, {

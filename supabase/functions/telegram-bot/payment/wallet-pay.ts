@@ -91,7 +91,13 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   await processReferralBonus(supabase, userId, token, amount);
 
   // Log proof to channel
-  try { await logProof(token, formatOrderPlaced(userId, `wallet_pay`, productName, amount, "Wallet")); } catch {}
+  // Get user first_name for proof
+  let proofName = "User";
+  try {
+    const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", userId).single();
+    if (bu?.first_name) proofName = bu.first_name;
+  } catch {}
+  try { await logProof(token, formatOrderPlaced(userId, proofName, productName, amount, "Wallet")); } catch {}
 }
 
 export async function processReferralBonus(supabase: any, userId: number, token: string, orderAmount: number = 0) {
