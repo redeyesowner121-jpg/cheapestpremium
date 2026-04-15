@@ -24,7 +24,7 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
   await sendMessage(token, chatId,
     `🔐 <b>Admin Control Panel</b>\n\n` +
     `👥 Users: <b>${userCount || 0}</b> | 📦 Orders: <b>${orderCount || 0}</b> | ⏳ Pending: <b>${pendingCount || 0}</b>\n\n` +
-    `নিচের বাটনে ক্লিক করে ক্যাটেগরি সিলেক্ট করুন:`,
+    `Select a category below:`,
     { reply_markup: { inline_keyboard: buttons } }
   );
 }
@@ -32,7 +32,7 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
 // ===== SUB-MENU: Products =====
 export async function handleAdminProductsMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
-    `📦 <b>Product Management</b>\n\nনিচের বাটন ব্যবহার করুন:`,
+    `📦 <b>Product Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
       [{ text: "➕ Add Product", callback_data: "adm_add_product", style: "success" }],
       [{ text: "✏️ Edit Price", callback_data: "adm_edit_price", style: "primary" }, { text: "❌ Out of Stock", callback_data: "adm_out_stock", style: "danger" }],
@@ -44,7 +44,7 @@ export async function handleAdminProductsMenu(token: string, chatId: number) {
 // ===== SUB-MENU: Users =====
 export async function handleAdminUsersMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
-    `👥 <b>User Management</b>\n\nনিচের বাটন ব্যবহার করুন:`,
+    `👥 <b>User Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
       [{ text: "👥 Recent Users", callback_data: "adm_recent_users", style: "primary" }, { text: "📋 All Users", callback_data: "adm_all_users", style: "primary" }],
       [{ text: "📜 Order History", callback_data: "adm_history", style: "primary" }, { text: "🔄 Make Reseller", callback_data: "adm_make_reseller", style: "success" }],
@@ -57,7 +57,7 @@ export async function handleAdminUsersMenu(token: string, chatId: number) {
 // ===== SUB-MENU: Wallet =====
 export async function handleAdminWalletMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
-    `💰 <b>Wallet Management</b>\n\nনিচের বাটন ব্যবহার করুন:`,
+    `💰 <b>Wallet Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
       [{ text: "➕ Add Balance", callback_data: "adm_add_balance", style: "success" }, { text: "➖ Deduct Balance", callback_data: "adm_deduct_balance", style: "danger" }],
       [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
@@ -68,7 +68,7 @@ export async function handleAdminWalletMenu(token: string, chatId: number) {
 // ===== SUB-MENU: Channels =====
 export async function handleAdminChannelsMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
-    `📢 <b>Channel Management</b>\n\nনিচের বাটন ব্যবহার করুন:`,
+    `📢 <b>Channel Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
       [{ text: "📋 List Channels", callback_data: "adm_list_channels", style: "primary" }],
       [{ text: "➕ Add Channel", callback_data: "adm_add_channel", style: "success" }, { text: "➖ Remove Channel", callback_data: "adm_remove_channel", style: "danger" }],
@@ -80,7 +80,7 @@ export async function handleAdminChannelsMenu(token: string, chatId: number) {
 // ===== SUB-MENU: Owner =====
 export async function handleAdminOwnerMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
-    `👑 <b>Owner Panel</b>\n\nশুধুমাত্র সুপার অ্যাডমিনের জন্য:`,
+    `👑 <b>Owner Panel</b>\n\nSuper Admin only:`,
     { reply_markup: { inline_keyboard: [
       [{ text: "➕ Add Admin", callback_data: "adm_add_admin", style: "success" }, { text: "➖ Remove Admin", callback_data: "adm_remove_admin", style: "danger" }],
       [{ text: "📋 List Admins", callback_data: "adm_list_admins", style: "primary" }],
@@ -103,7 +103,7 @@ export async function handleAdminSettingsMenu(token: string, chatId: number) {
   buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
   
   await sendMessage(token, chatId,
-    `⚙️ <b>Settings (20+ Configurable Items)</b>\n\nক্যাটেগরি সিলেক্ট করুন:`,
+    `⚙️ <b>Settings (20+ Configurable Items)</b>\n\nSelect a category:`,
     { reply_markup: { inline_keyboard: buttons } }
   );
 }
@@ -120,45 +120,45 @@ interface SettingDef {
 }
 
 const PAYMENT_SETTINGS: SettingDef[] = [
-  { key: "upi_id", label: "UPI ID", emoji: "💳", description: "পেমেন্টের জন্য UPI আইডি", defaultValue: "" },
-  { key: "upi_name", label: "UPI Name", emoji: "👤", description: "UPI অ্যাকাউন্ট নাম", defaultValue: "" },
+  { key: "upi_id", label: "UPI ID", emoji: "💳", description: "UPI ID for payments", defaultValue: "" },
+  { key: "upi_name", label: "UPI Name", emoji: "👤", description: "UPI account name", defaultValue: "" },
   { key: "binance_id", label: "Binance Pay ID", emoji: "🔶", description: "Binance Pay ID", defaultValue: "" },
-  { key: "binance_contact", label: "Binance Contact", emoji: "📞", description: "Binance কন্টাক্ট মেসেজ", defaultValue: "" },
-  { key: "min_deposit_amount", label: "Min Deposit", emoji: "⬇️", description: "সর্বনিম্ন ডিপোজিট অ্যামাউন্ট (₹)", defaultValue: "10" },
-  { key: "max_deposit_amount", label: "Max Deposit", emoji: "⬆️", description: "সর্বোচ্চ ডিপোজিট অ্যামাউন্ট (₹)", defaultValue: "10000" },
+  { key: "binance_contact", label: "Binance Contact", emoji: "📞", description: "Binance contact message", defaultValue: "" },
+  { key: "min_deposit_amount", label: "Min Deposit", emoji: "⬇️", description: "Minimum deposit amount (₹)", defaultValue: "10" },
+  { key: "max_deposit_amount", label: "Max Deposit", emoji: "⬆️", description: "Maximum deposit amount (₹)", defaultValue: "10000" },
 ];
 
 const BONUS_SETTINGS: SettingDef[] = [
-  { key: "referral_bonus", label: "Referral Bonus", emoji: "🎁", description: "রেফারাল বোনাস অ্যামাউন্ট (₹)", defaultValue: "10" },
-  { key: "min_referral_amount", label: "Min Referral Order", emoji: "📊", description: "রেফারাল বোনাসের জন্য সর্বনিম্ন অর্ডার (₹)", defaultValue: "15" },
-  { key: "daily_bonus_min", label: "Daily Bonus Min", emoji: "🎰", description: "দৈনিক বোনাস সর্বনিম্ন (₹)", defaultValue: "1" },
-  { key: "daily_bonus_max", label: "Daily Bonus Max", emoji: "🎯", description: "দৈনিক বোনাস সর্বোচ্চ (₹)", defaultValue: "5" },
-  { key: "reseller_commission", label: "Reseller Commission %", emoji: "💵", description: "রিসেলার কমিশন শতাংশ", defaultValue: "10" },
-  { key: "first_purchase_bonus", label: "1st Purchase Bonus", emoji: "🎊", description: "প্রথম পার্চেজ বোনাস (₹)", defaultValue: "0" },
+  { key: "referral_bonus", label: "Referral Bonus", emoji: "🎁", description: "Referral bonus amount (₹)", defaultValue: "10" },
+  { key: "min_referral_amount", label: "Min Referral Order", emoji: "📊", description: "Minimum order for referral bonus (₹)", defaultValue: "15" },
+  { key: "daily_bonus_min", label: "Daily Bonus Min", emoji: "🎰", description: "Daily bonus minimum (₹)", defaultValue: "1" },
+  { key: "daily_bonus_max", label: "Daily Bonus Max", emoji: "🎯", description: "Daily bonus maximum (₹)", defaultValue: "5" },
+  { key: "reseller_commission", label: "Reseller Commission %", emoji: "💵", description: "Reseller commission percentage", defaultValue: "10" },
+  { key: "first_purchase_bonus", label: "1st Purchase Bonus", emoji: "🎊", description: "First purchase bonus (₹)", defaultValue: "0" },
 ];
 
 const STORE_SETTINGS: SettingDef[] = [
-  { key: "app_name", label: "App/Store Name", emoji: "🏪", description: "অ্যাপ/স্টোরের নাম", defaultValue: "RKR Premium Store" },
-  { key: "app_tagline", label: "App Tagline", emoji: "✨", description: "স্প্ল্যাশ স্ক্রিন সাবটাইটেল", defaultValue: "" },
-  { key: "app_url", label: "App URL", emoji: "🌐", description: "ওয়েবসাইট URL (শেয়ারিং/রেফারেলের জন্য)", defaultValue: "" },
-  { key: "bot_username", label: "Bot Username", emoji: "🤖", description: "টেলিগ্রাম বটের ইউজারনেম (@ ছাড়া)", defaultValue: "Air1_Premium_bot" },
-  { key: "currency_symbol", label: "Currency Symbol", emoji: "💱", description: "মূল্যের প্রতীক (₹, $, ৳)", defaultValue: "₹" },
-  { key: "support_contact", label: "Support Contact", emoji: "📞", description: "সাপোর্ট কন্টাক্ট (Telegram/Phone)", defaultValue: "" },
-  { key: "no_return_policy", label: "Return Policy Text", emoji: "📜", description: "No Return Policy টেক্সট", defaultValue: "All sales are final. No returns." },
+  { key: "app_name", label: "App/Store Name", emoji: "🏪", description: "App/Store name", defaultValue: "RKR Premium Store" },
+  { key: "app_tagline", label: "App Tagline", emoji: "✨", description: "Splash screen subtitle", defaultValue: "" },
+  { key: "app_url", label: "App URL", emoji: "🌐", description: "Website URL (for sharing/referrals)", defaultValue: "" },
+  { key: "bot_username", label: "Bot Username", emoji: "🤖", description: "Telegram bot username (without @)", defaultValue: "Air1_Premium_bot" },
+  { key: "currency_symbol", label: "Currency Symbol", emoji: "💱", description: "Price symbol (₹, $, ৳)", defaultValue: "₹" },
+  { key: "support_contact", label: "Support Contact", emoji: "📞", description: "Support contact (Telegram/Phone)", defaultValue: "" },
+  { key: "no_return_policy", label: "Return Policy Text", emoji: "📜", description: "No Return Policy text", defaultValue: "All sales are final. No returns." },
 ];
 
 const BOT_SETTINGS: SettingDef[] = [
-  { key: "bot_welcome_message", label: "Welcome Message", emoji: "👋", description: "বটের ওয়েলকাম মেসেজ (কাস্টম)", defaultValue: "" },
-  { key: "bot_maintenance", label: "Bot Maintenance", emoji: "🔧", description: "বট মেনটেন্যান্স মোড (on/off)", defaultValue: "off" },
-  { key: "auto_confirm_orders", label: "Auto Confirm Orders", emoji: "⚡", description: "ওয়ালেট অর্ডার অটো কনফার্ম (on/off)", defaultValue: "off" },
-  { key: "ai_enabled", label: "AI Auto Reply", emoji: "🤖", description: "AI অটো রিপ্লাই (on/off)", defaultValue: "on" },
+  { key: "bot_welcome_message", label: "Welcome Message", emoji: "👋", description: "Bot welcome message (custom)", defaultValue: "" },
+  { key: "bot_maintenance", label: "Bot Maintenance", emoji: "🔧", description: "Bot maintenance mode (on/off)", defaultValue: "off" },
+  { key: "auto_confirm_orders", label: "Auto Confirm Orders", emoji: "⚡", description: "Auto confirm wallet orders (on/off)", defaultValue: "off" },
+  { key: "ai_enabled", label: "AI Auto Reply", emoji: "🤖", description: "AI auto reply (on/off)", defaultValue: "on" },
 ];
 
 const SECURITY_SETTINGS: SettingDef[] = [
-  { key: "maintenance_mode", label: "Maintenance Mode", emoji: "🚧", description: "সাইট মেনটেন্যান্স মোড (on/off)", defaultValue: "off" },
-  { key: "max_orders_per_day", label: "Max Orders/Day", emoji: "📦", description: "প্রতি ইউজার দৈনিক সর্বোচ্চ অর্ডার", defaultValue: "10" },
-  { key: "min_wallet_pay", label: "Min Wallet Pay", emoji: "💳", description: "ওয়ালেট পে-এর সর্বনিম্ন অ্যামাউন্ট (₹)", defaultValue: "1" },
-  { key: "max_wallet_balance", label: "Max Wallet Balance", emoji: "💰", description: "সর্বোচ্চ ওয়ালেট ব্যালেন্স (₹)", defaultValue: "50000" },
+  { key: "maintenance_mode", label: "Maintenance Mode", emoji: "🚧", description: "Site maintenance mode (on/off)", defaultValue: "off" },
+  { key: "max_orders_per_day", label: "Max Orders/Day", emoji: "📦", description: "Max orders per user per day", defaultValue: "10" },
+  { key: "min_wallet_pay", label: "Min Wallet Pay", emoji: "💳", description: "Minimum wallet pay amount (₹)", defaultValue: "1" },
+  { key: "max_wallet_balance", label: "Max Wallet Balance", emoji: "💰", description: "Maximum wallet balance (₹)", defaultValue: "50000" },
 ];
 
 export function getAllSettingDefs(): Record<string, SettingDef[]> {
@@ -195,7 +195,7 @@ export async function handleSettingsCategory(token: string, supabase: any, chatI
     const val = settings[s.key] || s.defaultValue || "Not set";
     text += `${s.emoji} <b>${s.label}:</b> <code>${val}</code>\n`;
   });
-  text += `\nনিচের বাটনে ক্লিক করে যেকোনো সেটিং পরিবর্তন করুন:`;
+  text += `\nClick a button below to change any setting:`;
 
   const buttons = cat.settings.map(s => [{
     text: `${s.emoji} ${s.label}`,
@@ -218,10 +218,10 @@ export async function promptSettingEdit(token: string, supabase: any, chatId: nu
   const currentValue = settings[settingKey] || def.defaultValue || "Not set";
 
   await sendMessage(token, chatId,
-    `✏️ <b>${def.label} পরিবর্তন করুন</b>\n\n` +
-    `${def.emoji} <b>বর্তমান মান:</b> <code>${currentValue}</code>\n` +
-    `📝 <b>বিবরণ:</b> ${def.description}\n\n` +
-    `নতুন মান টাইপ করুন:\n/cancel করলে বাতিল হবে।`
+    `✏️ <b>Edit ${def.label}</b>\n\n` +
+    `${def.emoji} <b>Current Value:</b> <code>${currentValue}</code>\n` +
+    `📝 <b>Description:</b> ${def.description}\n\n` +
+    `Type the new value:\nType /cancel to abort.`
   );
 }
 
@@ -238,7 +238,7 @@ export async function saveSetting(token: string, supabase: any, chatId: number, 
   const emoji = def?.emoji || "⚙️";
 
   await sendMessage(token, chatId,
-    `✅ <b>${label} আপডেট হয়েছে!</b>\n\n${emoji} নতুন মান: <code>${value}</code>`,
+    `✅ <b>${label} updated!</b>\n\n${emoji} New value: <code>${value}</code>`,
     { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "adm_settings" }]] } }
   );
 }
@@ -253,7 +253,7 @@ export async function handleBotSettings(token: string, supabase: any, chatId: nu
     const val = settings[s.key] || s.defaultValue || "—";
     text += `${s.emoji} ${s.label}: <code>${val}</code>\n`;
   });
-  text += `\n/admin মেনু থেকে ⚙️ Settings-এ গিয়ে পরিবর্তন করুন।`;
+  text += `\nGo to ⚙️ Settings from /admin menu to edit.`;
 
   await sendMessage(token, chatId, text);
 }
@@ -312,31 +312,24 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
 
   for (let i = 0; i < users.length; i += batchSize) {
     const batch = users.slice(i, i + batchSize);
-    const promises = batch.map(async (user: any) => {
+    const promises = batch.map(async (u: any) => {
       try {
-        if (user.telegram_id === SUPER_ADMIN_ID) {
-          skipped++;
-          return true;
-        }
-        if (msg.photo) {
-          await sendPhoto(token, user.telegram_id, msg.photo[msg.photo.length - 1].file_id, msg.caption || "");
-        } else if (msg.text) {
-          await sendMessage(token, user.telegram_id, msg.text);
-        }
-        sent++;
-        return true;
-      } catch (e) {
-        console.error(`Broadcast to user ${user.telegram_id} failed:`, e);
-        failed++;
-        return false;
-      }
+        const copyRes = await fetch(`https://api.telegram.org/bot${token}/copyMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: u.telegram_id, from_chat_id: adminChatId, message_id: msg.message_id }),
+        });
+        const result = await copyRes.json();
+        if (result.ok) sent++;
+        else if (result.description?.includes("blocked")) skipped++;
+        else failed++;
+      } catch { failed++; }
     });
-
     await Promise.all(promises);
-    if (i + batchSize < users.length) {
-      await new Promise(r => setTimeout(r, delayBetweenBatches));
-    }
+    if (i + batchSize < users.length) await new Promise(r => setTimeout(r, delayBetweenBatches));
   }
 
-  await sendMessage(token, adminChatId, `📢 <b>Broadcast Complete!</b>\n✅ Sent: ${sent}\n❌ Failed: ${failed}\n⏭️ Skipped: ${skipped}\n📊 Total: ${users.length}`);
+  await sendMessage(token, adminChatId,
+    `📢 <b>Broadcast Complete!</b>\n\n✅ Sent: ${sent}\n❌ Failed: ${failed}\n🚫 Blocked: ${skipped}\n📊 Total: ${users.length}`
+  );
 }
