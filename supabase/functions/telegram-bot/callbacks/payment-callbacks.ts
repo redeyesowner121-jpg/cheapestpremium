@@ -11,7 +11,7 @@ import { showMainMenu } from "../menu/menu-navigation.ts";
 
 // Helper: resend access link + login code for the user's last confirmed order
 async function resendLastDelivery(token: string, supabase: any, chatId: number, userId: number, lang: string) {
-  const { data: lastOrder } = await supabase
+  const { data: lastTelegramOrder } = await supabase
     .from("telegram_orders")
     .select("product_name, product_id")
     .eq("telegram_user_id", userId)
@@ -20,14 +20,31 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
     .limit(1)
     .maybeSingle();
 
-  if (lastOrder?.product_id) {
-    const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
-    const resolved = await resolveAccessLink(supabase, lastOrder.product_id, lastOrder.id);
-    if (resolved.link && resolved.showInBot) {
-      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, lastOrder.product_name || "Product", lang);
+  const email = `telegram_${userId}@bot.local`;
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (profile?.id && lastTelegramOrder?.product_id) {
+    const { data: deliveredOrder } = await supabase
+      .from("orders")
+      .select("access_link, product_name")
+      .eq("user_id", profile.id)
+      .eq("product_id", lastTelegramOrder.product_id)
+      .not("access_link", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (deliveredOrder?.access_link) {
+      const { sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, deliveredOrder.access_link, deliveredOrder.product_name || lastTelegramOrder.product_name || "Product", lang);
       return;
     }
   }
+
   await sendMessage(token, chatId, "✅ Payment already processed.");
 }
 

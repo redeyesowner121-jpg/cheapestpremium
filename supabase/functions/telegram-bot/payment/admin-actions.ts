@@ -102,6 +102,13 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   // If confirmed, process referral, reseller profit, and auto-send access_link
   if (newStatus === "confirmed") {
+    let resolvedDelivery: { link: string | null; showInBot: boolean; showInWebsite: boolean } | null = null;
+
+    if (!order.product_name?.startsWith("Wallet Deposit") && order.product_id) {
+      const { resolveAccessLink } = await import("./instant-delivery.ts");
+      resolvedDelivery = await resolveAccessLink(supabase, order.product_id, undefined, order.id);
+    }
+
     // If this is a wallet deposit order, credit the wallet
     if (order.product_name?.startsWith("Wallet Deposit")) {
       const depositAmount = order.amount;
@@ -126,32 +133,22 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
             : `💰 ₹${depositAmount} has been deposited to your wallet!`
         );
 
-        // Sync to website profile
         const { syncDepositToProfile } = await import("./sync-helpers.ts");
         await syncDepositToProfile(supabase, order.telegram_user_id, depositAmount, "manual_upi");
       }
     } else {
-      // This is a product purchase — sync to website orders table
       try {
         const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
-        let accessLink: string | undefined;
-        if (order.product_id) {
-          const { data: product } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", order.product_id).single();
-          accessLink = (product?.show_link_in_website !== false && product?.access_link) ? product.access_link : undefined;
-        }
-        // skipWalletDeduct=true because payment was via UPI, not wallet
-        await syncPurchaseToProfile(supabase, order.telegram_user_id, order.amount, order.product_name || "Product", order.product_id || undefined, accessLink, true);
+        const websiteLink = resolvedDelivery?.link && resolvedDelivery.showInWebsite ? resolvedDelivery.link : undefined;
+        await syncPurchaseToProfile(supabase, order.telegram_user_id, order.amount, order.product_name || "Product", order.product_id || undefined, websiteLink, true);
       } catch (e) { console.error("Sync purchase to profile error:", e); }
     }
 
     await processReferralBonus(supabase, order.telegram_user_id, token, order.amount);
 
-    if (order.product_id) {
-      const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolved = await resolveAccessLink(supabase, order.product_id, order.id);
-      if (resolved.link && resolved.showInBot) {
-        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolved.link, order.product_name || "Product", userLang);
-      }
+    if (resolvedDelivery?.link && resolvedDelivery.showInBot && !isChildBotOrder) {
+      const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+      await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolvedDelivery.link, order.product_name || "Product", userLang);
     }
 
     // Credit child bot owner commission if this is a child bot order
@@ -209,30 +206,25 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
               `✅ <b>Order Confirmed!</b>\n\nProduct: <b>${order.product_name}</b>\nYour order has been confirmed and delivered! ⚡`
             );
 
-            // Send access link via child bot (credentials only, no website links)
-            if (order.product_id) {
-              const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
-              if (product?.access_link) {
-                // Check if it's credentials (contains | separator) or a link
-                const isCredentials = product.access_link.includes("|");
-                const isDriveLink = product.access_link.includes("drive.google.com");
+            // Send access link via child bot using the consumed unique/repeated delivery
+            if (resolvedDelivery?.link) {
+              const deliveryLink = resolvedDelivery.link;
+              const isCredentials = deliveryLink.includes("|");
+              const isDriveLink = deliveryLink.includes("drive.google.com");
 
-                if (isCredentials) {
-                  const parts = product.access_link.split("|").map((p: string) => p.trim());
-                  let credText = `🔑 <b>Your Credentials</b>\n\n`;
-                  if (parts.length >= 2) {
-                    credText += `📧 ID: <code>${parts[0]}</code>\n🔒 Password: <code>${parts[1]}</code>`;
-                  } else {
-                    credText += `<code>${product.access_link}</code>`;
-                  }
-                  await sendToUser([childBot.bot_token], order.telegram_user_id, credText);
-                } else if (!isDriveLink) {
-                  // Send non-drive links directly
-                  await sendToUser([childBot.bot_token], order.telegram_user_id,
-                    `🔗 <b>Your Access Link</b>\n\n${product.access_link}`
-                  );
+              if (isCredentials) {
+                const parts = deliveryLink.split("|").map((p: string) => p.trim());
+                let credText = `🔑 <b>Your Credentials</b>\n\n`;
+                if (parts.length >= 2) {
+                  credText += `📧 ID: <code>${parts[0]}</code>\n🔒 Password: <code>${parts[1]}</code>`;
+                } else {
+                  credText += `<code>${deliveryLink}</code>`;
                 }
-                // Drive links are NOT shared via child bot
+                await sendToUser([childBot.bot_token], order.telegram_user_id, credText);
+              } else if (!isDriveLink) {
+                await sendToUser([childBot.bot_token], order.telegram_user_id,
+                  `🔗 <b>Your Access Link</b>\n\n${deliveryLink}`
+                );
               }
             }
           } catch (e) {
