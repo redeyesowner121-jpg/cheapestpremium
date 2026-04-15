@@ -682,7 +682,7 @@ async function showAdminPanel(token: string, supabase: any, chatId: number) {
       reply_markup: {
         inline_keyboard: [
           [{ text: "🤖 Manage Bots", callback_data: "mother_admin_bots", style: "primary" }],
-          [{ text: "👥 View Users", callback_data: "mother_admin_users", style: "primary" }],
+          [{ text: "📢 Channels", callback_data: "mother_admin_channels", style: "primary" }, { text: "👥 Users", callback_data: "mother_admin_users", style: "primary" }],
           [{ text: "📊 Full Stats", callback_data: "mother_admin_stats", style: "success" }],
           [{ text: "🏠 Main Menu", callback_data: "mother_main", style: "danger" }],
         ],
