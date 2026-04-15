@@ -77,8 +77,7 @@ export async function handleBinanceVerify(
       } catch (e) { console.error("Admin notify error:", e); }
 
       try {
-        const { data: prodVis } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
-        const websiteLink = (prodVis?.show_link_in_website !== false && prodVis?.access_link) ? prodVis.access_link : undefined;
+        const websiteLink = resolved.link && resolved.showInWebsite ? resolved.link : undefined;
         await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
       } catch (e) { console.error("Sync error:", e); }
 

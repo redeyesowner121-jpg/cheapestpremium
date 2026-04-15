@@ -67,11 +67,15 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
   );
 
+  let websiteAccessLink: string | undefined;
   if (productId) {
     const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-    const resolved = await resolveAccessLink(supabase, productId, order?.id);
+    const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id);
     if (resolved.link && resolved.showInBot) {
       await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, productName, lang);
+    }
+    if (resolved.link && resolved.showInWebsite) {
+      websiteAccessLink = resolved.link;
     }
   }
 
@@ -80,13 +84,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
-  // Sync purchase to website profile
-  let accessLink: string | undefined;
-  if (productId) {
-    const { data: prod } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
-    accessLink = (prod?.show_link_in_website !== false && prod?.access_link) ? prod.access_link : undefined;
-  }
-  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, accessLink);
+  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink);
 
   await processReferralBonus(supabase, userId, token, amount);
 

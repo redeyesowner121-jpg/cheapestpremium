@@ -10,7 +10,7 @@ function isDriveLink(url: string): boolean {
 
 /**
  * Resolve access link for a product:
- * - If delivery_mode === 'unique': pick an unused stock item and mark it as used
+ * - If delivery_mode === 'unique': atomically consume the oldest unused stock item and delete it
  * - If delivery_mode === 'repeated' (default): use product.access_link directly
  * Returns the access link string or null if unavailable
  */
@@ -20,7 +20,9 @@ export async function resolveAccessLink(
   orderId?: string,
   telegramOrderId?: string
 ): Promise<{ link: string | null; showInBot: boolean; showInWebsite: boolean }> {
-  // Fetch product delivery_mode, access_link, and visibility flags
+  void orderId;
+  void telegramOrderId;
+
   const { data: product } = await supabase
     .from("products")
     .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website")
@@ -33,37 +35,43 @@ export async function resolveAccessLink(
   const showInWebsite = product.show_link_in_website !== false;
 
   if (product.delivery_mode === "unique") {
-    const { data: stockItems } = await supabase
-      .from("product_stock_items")
-      .select("id, access_link")
-      .eq("product_id", productId)
-      .eq("is_used", false)
-      .order("created_at", { ascending: true })
-      .limit(1);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: stockItems } = await supabase
+        .from("product_stock_items")
+        .select("id, access_link")
+        .eq("product_id", productId)
+        .eq("is_used", false)
+        .order("created_at", { ascending: true })
+        .limit(1);
 
-    if (!stockItems?.length) {
-      console.log("No stock items available for product:", productId);
-      return { link: null, showInBot, showInWebsite };
+      if (!stockItems?.length) {
+        console.log("No stock items available for product:", productId);
+        return { link: null, showInBot, showInWebsite };
+      }
+
+      const stockItem = stockItems[0];
+      const { data: consumedRows, error: consumeError } = await supabase
+        .from("product_stock_items")
+        .delete()
+        .eq("id", stockItem.id)
+        .eq("is_used", false)
+        .select("access_link");
+
+      if (consumeError) {
+        console.error("Unique stock consume failed:", consumeError);
+        return { link: null, showInBot, showInWebsite };
+      }
+
+      const consumedLink = consumedRows?.[0]?.access_link;
+      if (consumedLink) {
+        return { link: consumedLink, showInBot, showInWebsite };
+      }
     }
 
-    const stockItem = stockItems[0];
-
-    const updateData: any = {
-      is_used: true,
-      used_at: new Date().toISOString(),
-    };
-    if (orderId) updateData.order_id = orderId;
-    if (telegramOrderId) updateData.telegram_order_id = telegramOrderId;
-
-    await supabase
-      .from("product_stock_items")
-      .update(updateData)
-      .eq("id", stockItem.id);
-
-    return { link: stockItem.access_link, showInBot, showInWebsite };
+    console.log("Unique stock item race detected, retries exhausted for product:", productId);
+    return { link: null, showInBot, showInWebsite };
   }
 
-  // Default: repeated mode
   return { link: product.access_link || null, showInBot, showInWebsite };
 }
 

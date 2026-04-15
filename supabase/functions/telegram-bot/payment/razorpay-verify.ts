@@ -46,6 +46,7 @@ export async function handleRazorpayVerify(
 
     if (matchingPayment) {
       const { processReferralBonus } = await import("./wallet-pay.ts");
+      const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
       if (paymentId) await supabase.from("payments").update({ status: "success" }).eq("id", paymentId);
 
       if (walletDeduction > 0) {
@@ -90,6 +91,11 @@ export async function handleRazorpayVerify(
       await notifyAdmins(mainToken, supabase,
         `💰 <b>Razorpay Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: ₹${finalAmount}\n✅ Auto-verified${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
       );
+
+      try {
+        const websiteLink = resolved.link && resolved.showInWebsite ? resolved.link : undefined;
+        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
+      } catch (e) { console.error("Sync error:", e); }
 
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.first_name || "User", productName, price, "Razorpay UPI")); } catch {}
       await processReferralBonus(supabase, telegramUser.id, token, price);
