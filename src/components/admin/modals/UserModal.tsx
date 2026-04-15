@@ -332,7 +332,31 @@ const UserModal: React.FC<UserModalProps> = ({
             </div>
           </div>
 
-          <div className="flex gap-2">
+          {/* Set Rank Directly */}
+          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50 rounded-xl p-3 space-y-2">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <Crown className="w-4 h-4 text-yellow-600" />
+              Set Rank
+              {getCurrentRank() && (
+                <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 rounded-full">
+                  Current: {getCurrentRank()?.icon} {getCurrentRank()?.name}
+                </span>
+              )}
+            </p>
+            <Select onValueChange={handleSetRank} value={getCurrentRank()?.id || ''}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select rank..." />
+              </SelectTrigger>
+              <SelectContent>
+                {ranks.map((rank) => (
+                  <SelectItem key={rank.id} value={rank.id}>
+                    {rank.icon} {rank.name} (Min: ₹{rank.min_balance})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
             {!user.has_blue_check && (
               <Button onClick={() => handleGiftBlueTick(user.id)} className="flex-1 btn-gradient">
                 <Award className="w-4 h-4 mr-2" />
