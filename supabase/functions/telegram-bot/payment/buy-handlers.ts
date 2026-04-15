@@ -127,7 +127,7 @@ async function showPaymentMethodChoice(
     text += "\nClick below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
       reply_markup: {
-        inline_keyboard: [[{ text: t("pay_with_wallet", lang), callback_data: "walletpay_confirm" }]],
+        inline_keyboard: [[{ text: `💳 ${t("pay_with_wallet", lang)}`, callback_data: "walletpay_confirm" }]],
       },
     });
     return;

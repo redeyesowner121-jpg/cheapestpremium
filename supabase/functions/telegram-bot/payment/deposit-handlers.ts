@@ -22,7 +22,7 @@ export async function handleDepositStart(token: string, supabase: any, chatId: n
           { text: "📱 UPI", callback_data: "deposit_method_upi" },
         ],
         [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
-        [{ text: t("back", lang), callback_data: "my_wallet" }],
+        [{ text: `⬅️ ${t("back", lang)}`, callback_data: "my_wallet" }],
       ],
     },
   });
@@ -54,7 +54,7 @@ export async function showDepositAmountEntry(token: string, supabase: any, chatI
           { text: "₹2000", callback_data: "deposit_amt_2000" },
           { text: "₹5000", callback_data: "deposit_amt_5000" },
         ],
-        [{ text: t("back", lang), callback_data: "wallet_deposit" }],
+        [{ text: `⬅️ ${t("back", lang)}`, callback_data: "wallet_deposit" }],
       ],
     },
   });
@@ -173,7 +173,7 @@ export async function showDepositUpi(token: string, supabase: any, chatId: numbe
       inline_keyboard: [
         [{ text: "⚡ Automatic (Razorpay)", callback_data: "deposit_upi_auto" }],
         [{ text: "📋 Manual (Screenshot)", callback_data: "deposit_upi_manual" }],
-        [{ text: t("back", lang), callback_data: "deposit_choose_method" }],
+        [{ text: `⬅️ ${t("back", lang)}`, callback_data: "deposit_choose_method" }],
       ],
     },
   });
