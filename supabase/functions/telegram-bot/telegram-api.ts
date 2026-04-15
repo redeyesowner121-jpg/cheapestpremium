@@ -12,11 +12,20 @@ function normalizeBackButtons(replyMarkup?: any) {
         if (!button?.text) return button;
 
         const normalizedText = String(button.text).trim();
+        const callbackData = typeof button.callback_data === "string" ? button.callback_data : "";
         const isBackButton =
           /back/i.test(normalizedText) ||
           normalizedText.includes("⬅️") ||
           normalizedText.includes("◀️") ||
-          normalizedText.includes("🔙");
+          normalizedText.includes("🔙") ||
+          /(^|_)(back|main)$/.test(callbackData) ||
+          callbackData === "back_main" ||
+          callbackData === "adm_back" ||
+          callbackData === "cadm_back" ||
+          callbackData === "gw_main" ||
+          callbackData === "mother_admin" ||
+          callbackData === "mother_my_bots" ||
+          callbackData === "third_back";
 
         if (!isBackButton) return button;
 
@@ -65,7 +74,7 @@ export async function sendPhoto(token: string, chatId: number, photoUrl: string,
       photo: photoUrl,
       caption,
       parse_mode: "HTML",
-      ...(replyMarkup && { reply_markup: replyMarkup }),
+      ...(replyMarkup && { reply_markup: normalizeBackButtons(replyMarkup) }),
     }),
   });
 }
