@@ -40,8 +40,76 @@ export async function notifyAllAdmins(token: string, supabase: any, text: string
 
 export async function forwardToAllAdmins(token: string, supabase: any, fromChatId: number, messageId: number) {
   const adminIds = await getAllAdminIds(supabase);
+  const childCtx = getChildBotContext();
+  
   for (const adminId of adminIds) {
-    try { await forwardMessage(token, adminId, fromChatId, messageId); } catch { /* */ }
+    try { 
+      await forwardMessage(token, adminId, fromChatId, messageId); 
+    } catch {
+      // If forwarding fails (admin hasn't started child bot), skip — caller handles fallback
+    }
+  }
+}
+
+/**
+ * Download a photo from one bot and re-send it via another bot to all admins.
+ * Used when child bot forwarding fails because admins haven't started the child bot.
+ */
+export async function resendPhotoToAllAdmins(
+  sourceToken: string, targetToken: string, supabase: any,
+  fileId: string, caption?: string, opts?: { reply_markup?: any }
+) {
+  try {
+    // Step 1: Get file path from source bot
+    const fileRes = await fetch(`https://api.telegram.org/bot${sourceToken}/getFile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: fileId }),
+    });
+    const fileData = await fileRes.json();
+    if (!fileData?.result?.file_path) {
+      console.error("resendPhotoToAllAdmins: getFile failed", fileData);
+      return false;
+    }
+
+    // Step 2: Download the file
+    const downloadUrl = `https://api.telegram.org/file/bot${sourceToken}/${fileData.result.file_path}`;
+    const photoRes = await fetch(downloadUrl);
+    if (!photoRes.ok) {
+      console.error("resendPhotoToAllAdmins: download failed", photoRes.status);
+      return false;
+    }
+    const photoBlob = await photoRes.blob();
+
+    // Step 3: Send to all admins via target bot using multipart form
+    const adminIds = await getAllAdminIds(supabase);
+    let anySent = false;
+    for (const adminId of adminIds) {
+      try {
+        const form = new FormData();
+        form.append("chat_id", adminId.toString());
+        form.append("photo", photoBlob, "photo.jpg");
+        if (caption) {
+          form.append("caption", caption);
+          form.append("parse_mode", "HTML");
+        }
+        if (opts?.reply_markup) {
+          form.append("reply_markup", JSON.stringify(opts.reply_markup));
+        }
+        const res = await fetch(`https://api.telegram.org/bot${targetToken}/sendPhoto`, {
+          method: "POST",
+          body: form,
+        });
+        const result = await res.json();
+        if (result.ok) anySent = true;
+      } catch (e) {
+        console.error("resendPhotoToAllAdmins: send to admin error", e);
+      }
+    }
+    return anySent;
+  } catch (e) {
+    console.error("resendPhotoToAllAdmins error:", e);
+    return false;
   }
 }
 

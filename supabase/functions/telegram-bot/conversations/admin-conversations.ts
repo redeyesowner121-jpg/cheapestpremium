@@ -3,7 +3,7 @@
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import {
   deleteConversationState, setConversationState, getUserLang,
-  notifyAllAdmins, forwardToAllAdmins,
+  notifyAllAdmins, forwardToAllAdmins, resendPhotoToAllAdmins,
 } from "../db-helpers.ts";
 import { showMainMenu } from "../menu/menu-navigation.ts";
 import { executeBroadcast } from "../admin/admin-menu.ts";
@@ -159,13 +159,30 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
       return true;
     }
     const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
-    // Forward using current bot token (the one user is chatting with)
-    await forwardToAllAdmins(token, supabase, chatId, msg.message_id);
-    // But send admin buttons via main token so callbacks work in main bot
     const { getChildBotContext } = await import("../child-context.ts");
     const childCtx = getChildBotContext();
     const mainToken = childCtx ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
     const sourceLabel = childCtx ? ` (via Child Bot)` : "";
+
+    if (childCtx) {
+      // Child bot: can't forward directly, download and re-send
+      if (msg.photo) {
+        const fileId = msg.photo[msg.photo.length - 1]?.file_id;
+        if (fileId) {
+          await resendPhotoToAllAdmins(token, mainToken, supabase, fileId,
+            `💬 <b>Live Chat</b>${sourceLabel}\n👤 ${username} (<code>${userId}</code>)`
+          );
+        }
+      } else if (text) {
+        await notifyAllAdmins(mainToken, supabase,
+          `💬 <b>Live Chat</b>${sourceLabel} from <b>${username}</b> (<code>${userId}</code>)\n\n${text}`
+        );
+      }
+    } else {
+      // Main bot: forward directly
+      await forwardToAllAdmins(token, supabase, chatId, msg.message_id);
+    }
+
     await notifyAllAdmins(mainToken, supabase,
       `💬 <b>Live Chat</b>${sourceLabel} from <b>${username}</b> (<code>${userId}</code>)`,
       { reply_markup: { inline_keyboard: [[{ text: "💬 Reply", callback_data: `admin_chat_${userId}`, style: "primary" }]] } }
