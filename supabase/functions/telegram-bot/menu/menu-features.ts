@@ -44,7 +44,7 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
         reply_markup: {
           inline_keyboard: [
             [{ text: t("view_products", lang), callback_data: "view_products", style: "success" }],
-            [{ text: t("back_main", lang), callback_data: "back_main" }],
+            [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
           ],
         },
       }
@@ -87,7 +87,7 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
       inline_keyboard: [
         [{ text: lang === "bn" ? "আরো কিনুন" : "Buy More", callback_data: "view_products", style: "success" }],
         [{ text: t("support", lang), callback_data: "support", style: "danger" }],
-        [{ text: t("back_main", lang), callback_data: "back_main" }],
+        [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
       ],
     },
   });
@@ -155,7 +155,7 @@ export async function handleReferEarn(token: string, supabase: any, chatId: numb
     : `Earn ₹${bonus} for every referral!\n\n🔗 Your referral link:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
 
   await sendMessage(token, chatId, text, {
-    reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },
+    reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }]] },
   });
 }
 
@@ -200,7 +200,7 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
     reply_markup: {
       inline_keyboard: [
         [{ text: t("view_products", lang), callback_data: "view_products", style: "success" }],
-        [{ text: t("back_main", lang), callback_data: "back_main" }],
+        [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
       ],
     },
   });
@@ -234,8 +234,8 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
     await sendMessage(token, chatId, text, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: lang === "bn" ? "Open Website" : "Open Website", url: websiteUrl }],
-          [{ text: t("back_main", lang), callback_data: "back_main" }],
+          [{ text: lang === "bn" ? "Open Website" : "Open Website", url: websiteUrl, style: "success" }],
+          [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
         ],
       },
     });
@@ -262,7 +262,7 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
       ? `❌ আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹50 প্রয়োজন।\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>`
       : `❌ Insufficient balance. Minimum ₹50 required.\n\n💵 Current Balance: <b>₹${balance}</b>`;
     await sendMessage(token, chatId, text, {
-      reply_markup: { inline_keyboard: [[{ text: t("back", lang), callback_data: "my_wallet" }]] },
+      reply_markup: { inline_keyboard: [[{ text: t("back", lang), callback_data: "my_wallet", style: "secondary" }]] },
     });
     return;
   }
@@ -281,7 +281,7 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
           { text: "📱 UPI", callback_data: "withdraw_upi", style: "primary" },
           { text: "💎 Binance", callback_data: "withdraw_binance", style: "primary" },
         ],
-        [{ text: t("back", lang), callback_data: "my_wallet" }],
+        [{ text: t("back", lang), callback_data: "my_wallet", style: "secondary" }],
       ],
     },
   });

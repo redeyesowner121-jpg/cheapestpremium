@@ -26,7 +26,7 @@ export async function showMyBots(token: string, supabase: any, chatId: number, u
 
   if (!bots?.length) {
     await sendMsg(token, chatId, "🤖 You haven't created any bots yet.\n\nTap <b>Create a Bot</b> to get started!",
-      { reply_markup: { inline_keyboard: [[{ text: "➕ Create a Bot", callback_data: "mother_create_bot" }], [{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: "➕ Create a Bot", callback_data: "mother_create_bot", style: "success" }], [{ text: "🏠 Main Menu", callback_data: "mother_main", style: "primary" }]] } });
     return;
   }
 
@@ -44,7 +44,7 @@ export async function showMyBots(token: string, supabase: any, chatId: number, u
   }
 
   buttons.push([{ text: "➕ Create New Bot", callback_data: "mother_create_bot", style: "success" }]);
-  buttons.push([{ text: "🏠 Main Menu", callback_data: "mother_main" }]);
+  buttons.push([{ text: "🏠 Main Menu", callback_data: "mother_main", style: "secondary" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
@@ -53,7 +53,7 @@ export async function showEarnings(token: string, supabase: any, chatId: number,
 
   if (!bots?.length) {
     await sendMsg(token, chatId, "💰 No earnings yet. Create a bot to start earning!",
-      { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main", style: "primary" }]] } });
     return;
   }
 
@@ -70,13 +70,13 @@ export async function showEarnings(token: string, supabase: any, chatId: number,
 
   text += `━━━━━━━━━━━━━\n`;
   text += `📊 <b>Total:</b> ${totalOrders} orders | ₹${totalEarnings} earned`;
-  await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } });
+  await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main", style: "secondary" }]] } });
 }
 
 export async function showBotManagement(token: string, supabase: any, chatId: number, userId: number, botId: string) {
   const { data: bot } = await supabase.from("child_bots").select("*").eq("id", botId).eq("owner_telegram_id", userId).single();
   if (!bot) {
-    await sendMsg(token, chatId, "❌ Bot not found.", { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots" }]] } });
+    await sendMsg(token, chatId, "❌ Bot not found.", { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots", style: "primary" }]] } });
     return;
   }
 
@@ -96,7 +96,7 @@ export async function showBotManagement(token: string, supabase: any, chatId: nu
         ],
         [{ text: "📝 Edit Revenue %", callback_data: `mybot_editrev_${botId}`, style: "primary" }],
         [{ text: "🗑 Delete Bot", callback_data: `mybot_delete_${botId}`, style: "danger" }],
-        [{ text: "◀️ My Bots", callback_data: "mother_my_bots" }],
+        [{ text: "◀️ My Bots", callback_data: "mother_my_bots", style: "secondary" }],
       ],
     },
   });
@@ -127,7 +127,7 @@ export async function showAdminBots(token: string, supabase: any, chatId: number
 
   if (!bots?.length) {
     await sendMsg(token, chatId, "🤖 No child bots exist yet.",
-      { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin", style: "secondary" }]] } });
     return;
   }
 
@@ -138,13 +138,13 @@ export async function showAdminBots(token: string, supabase: any, chatId: number
     const status = bot.is_active ? "🟢" : "🔴";
     text += `${status} @${bot.bot_username || "unknown"}\n   Owner: <code>${bot.owner_telegram_id}</code> | Rev: ${bot.revenue_percent}%\n   Orders: ${bot.total_orders} | Earned: ₹${bot.total_earnings}\n\n`;
     buttons.push([
-      { text: `${bot.is_active ? "⏸" : "▶️"} @${bot.bot_username || "bot"}`, callback_data: `mother_toggle_${bot.id}` },
-      { text: `📊 Rev%`, callback_data: `mother_setrev_${bot.id}` },
+      { text: `${bot.is_active ? "⏸" : "▶️"} @${bot.bot_username || "bot"}`, callback_data: `mother_toggle_${bot.id}`, style: bot.is_active ? "danger" : "success" },
+      { text: `📊 Rev%`, callback_data: `mother_setrev_${bot.id}`, style: "primary" },
       { text: `🗑`, callback_data: `mother_delete_${bot.id}`, style: "danger" },
     ]);
   }
 
-  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin", style: "secondary" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
@@ -167,7 +167,7 @@ export async function showChannelManager(token: string, supabase: any, chatId: n
   }
 
   buttons.push([{ text: "➕ Add Channel", callback_data: "mother_add_channel", style: "success" }]);
-  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin", style: "secondary" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
@@ -203,6 +203,6 @@ export async function createChildBot(token: string, supabase: any, chatId: numbe
 
   await sendMsg(token, chatId,
     `✅ <b>Bot Created Successfully!</b>\n\n🤖 Bot: @${data.bot_username}\n👤 Owner: <code>${data.owner_telegram_id}</code>\n💰 Revenue: ${data.revenue_percent}%\n\nYour bot is now live! Users can start using it at @${data.bot_username}.\nOrders will be processed by our main admin team.\n\n📎 Referral & resale links will use @${data.bot_username}.`,
-    { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots" }], [{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots", style: "primary" }], [{ text: "🏠 Main Menu", callback_data: "mother_main", style: "secondary" }]] } }
   );
 }

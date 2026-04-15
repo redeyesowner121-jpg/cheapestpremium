@@ -51,7 +51,7 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
       { text: t("refer_earn", lang), callback_data: "refer_earn", style: "success" },
     ],
     [
-      { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs" },
+      { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs", style: "primary" },
       { text: t("support", lang), callback_data: "support", style: "danger" },
     ],
   ];
@@ -61,7 +61,7 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
   }
 
   if (isChild) {
-    buttons.push([{ text: "🤖 Make My Own Bot", url: "https://t.me/Botmother_selling_bot" }]);
+    buttons.push([{ text: "🤖 Make My Own Bot", url: "https://t.me/Botmother_selling_bot", style: "success" }]);
   }
 
   await sendMessage(token, chatId, welcomeText, {
@@ -83,7 +83,7 @@ export async function handleSupport(token: string, supabase: any, chatId: number
           [{ text: "WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}`, style: "success" }],
           [{ text: "Telegram", url: `https://t.me/${supportNumber}`, style: "primary" }],
           [{ text: lang === "bn" ? "অ্যাডমিনকে পাঠান" : "Forward to Admin", callback_data: "forward_to_admin", style: "primary" }],
-          [{ text: t("back_main", lang), callback_data: "back_main" }],
+          [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
         ],
       },
     }

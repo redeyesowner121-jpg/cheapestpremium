@@ -36,7 +36,7 @@ export async function handleAdminProductsMenu(token: string, chatId: number) {
     { reply_markup: { inline_keyboard: [
       [{ text: "➕ Add Product", callback_data: "adm_add_product", style: "success" }],
       [{ text: "✏️ Edit Price", callback_data: "adm_edit_price", style: "primary" }, { text: "❌ Out of Stock", callback_data: "adm_out_stock", style: "danger" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
     ]}}
   );
 }
@@ -49,7 +49,7 @@ export async function handleAdminUsersMenu(token: string, chatId: number) {
       [{ text: "👥 Recent Users", callback_data: "adm_recent_users", style: "primary" }, { text: "📋 All Users", callback_data: "adm_all_users", style: "primary" }],
       [{ text: "📜 Order History", callback_data: "adm_history", style: "primary" }, { text: "🔄 Make Reseller", callback_data: "adm_make_reseller", style: "success" }],
       [{ text: "🚫 Ban User", callback_data: "adm_ban", style: "danger" }, { text: "✅ Unban User", callback_data: "adm_unban", style: "success" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
     ]}}
   );
 }
@@ -60,7 +60,7 @@ export async function handleAdminWalletMenu(token: string, chatId: number) {
     `💰 <b>Wallet Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
       [{ text: "➕ Add Balance", callback_data: "adm_add_balance", style: "success" }, { text: "➖ Deduct Balance", callback_data: "adm_deduct_balance", style: "danger" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
     ]}}
   );
 }
@@ -72,7 +72,7 @@ export async function handleAdminChannelsMenu(token: string, chatId: number) {
     { reply_markup: { inline_keyboard: [
       [{ text: "📋 List Channels", callback_data: "adm_list_channels", style: "primary" }],
       [{ text: "➕ Add Channel", callback_data: "adm_add_channel", style: "success" }, { text: "➖ Remove Channel", callback_data: "adm_remove_channel", style: "danger" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
     ]}}
   );
 }
@@ -84,23 +84,23 @@ export async function handleAdminOwnerMenu(token: string, chatId: number) {
     { reply_markup: { inline_keyboard: [
       [{ text: "➕ Add Admin", callback_data: "adm_add_admin", style: "success" }, { text: "➖ Remove Admin", callback_data: "adm_remove_admin", style: "danger" }],
       [{ text: "📋 List Admins", callback_data: "adm_list_admins", style: "primary" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
     ]}}
   );
 }
 
 // ===== SETTINGS MENU (20+ items) =====
 const SETTINGS_CATEGORIES = [
-  { text: "💳 Payment Settings", callback_data: "adm_set_payment" },
-  { text: "🎁 Bonus & Referral", callback_data: "adm_set_bonus" },
-  { text: "🏪 Store Settings", callback_data: "adm_set_store" },
-  { text: "🤖 Bot Settings", callback_data: "adm_set_bot" },
-  { text: "🔒 Security & Limits", callback_data: "adm_set_security" },
+  { text: "💳 Payment Settings", callback_data: "adm_set_payment", style: "primary" },
+  { text: "🎁 Bonus & Referral", callback_data: "adm_set_bonus", style: "primary" },
+  { text: "🏪 Store Settings", callback_data: "adm_set_store", style: "primary" },
+  { text: "🤖 Bot Settings", callback_data: "adm_set_bot", style: "primary" },
+  { text: "🔒 Security & Limits", callback_data: "adm_set_security", style: "danger" },
 ];
 
 export async function handleAdminSettingsMenu(token: string, chatId: number) {
   const buttons = SETTINGS_CATEGORIES.map(c => [c]);
-  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
+  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }]);
   
   await sendMessage(token, chatId,
     `⚙️ <b>Settings (20+ Configurable Items)</b>\n\nSelect a category:`,
@@ -200,8 +200,9 @@ export async function handleSettingsCategory(token: string, supabase: any, chatI
   const buttons = cat.settings.map(s => [{
     text: `${s.emoji} ${s.label}`,
     callback_data: `adm_edit_set_${s.key}`,
+    style: "primary",
   }]);
-  buttons.push([{ text: "⬅️ Back to Settings", callback_data: "adm_settings" }]);
+  buttons.push([{ text: "⬅️ Back to Settings", callback_data: "adm_settings", style: "secondary" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -239,7 +240,7 @@ export async function saveSetting(token: string, supabase: any, chatId: number, 
 
   await sendMessage(token, chatId,
     `✅ <b>${label} updated!</b>\n\n${emoji} New value: <code>${value}</code>`,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "adm_settings" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "adm_settings", style: "secondary" }]] } }
   );
 }
 
@@ -298,7 +299,7 @@ export async function handleReport(token: string, supabase: any, chatId: number)
     `💵 Total Wallet Balance: <b>₹${totalWalletBalance}</b>\n\n` +
     `📅 <b>Today:</b>\n• Orders: ${todayOrderCount || 0}\n• Revenue: ₹${todayRevenue}\n\n` +
     `📈 <b>All Time:</b>\n• Orders: ${allOrders || 0}\n• Revenue: ₹${allRevenue}`,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }]] } }
   );
 }
 
