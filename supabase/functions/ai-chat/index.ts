@@ -152,6 +152,7 @@ ${crossPlatformNote}
 4. **CRITICAL - PRODUCT LINKS**: ALWAYS use markdown links with the EXACT product URL from the catalog. Format: [Product Name](https://cheapest-premiums.in/products/slug). NEVER write plain URLs.
 5. When listing features, use bullet points with emojis
 6. When listing multiple products, each product MUST have its own clickable link
+7. **MULTI-PRODUCT LISTS**: When listing multiple products, put EACH product in its own section with a blank line between them. Include name, price, key feature, and link. NEVER combine multiple products into one paragraph.
 
 🎯 STRICT RULES:
 1. GREETINGS: Short warm intro (1 line). Only mention deals if asked.
