@@ -191,7 +191,7 @@ async function handleRedeemRequest(token: string, supabase: any, chatId: number,
     const needed = giveawayItem.points_required - pts;
     await sendMessage(token, chatId,
       `❌ <b>Not enough points!</b>\n\n🎯 Need: ${giveawayItem.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
-        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${giveawayItem.product_id}` }]] }
+        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${giveawayItem.product_id}`, color: "red" }]] }
       });
     return;
   }

@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
         const { data: recentOrders } = await supabase.from("child_bot_orders").select("product_name, total_price, owner_commission, status, created_at").eq("child_bot_id", botId).order("created_at", { ascending: false }).limit(5);
         let text = `📊 <b>Stats: @${bot.bot_username}</b>\n\n📦 Total Orders: ${bot.total_orders}\n💵 Total Earned: ₹${bot.total_earnings}\n👥 Bot Users: ${userCount || 0}\n💰 Revenue: ${bot.revenue_percent}%\n${bot.is_active ? "🟢 Active" : "🔴 Inactive"}\n`;
         if (recentOrders?.length) { text += `\n<b>Recent Orders:</b>\n`; for (const o of recentOrders) { text += `${o.status === "confirmed" ? "✅" : o.status === "pending" ? "⏳" : "❌"} ${o.product_name} — ₹${o.total_price} (Your: ₹${o.owner_commission})\n`; } }
-        await sendMsg(MOTHER_TOKEN, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: `mybot_manage_${botId}` }]] } });
+        await sendMsg(MOTHER_TOKEN, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: `mybot_manage_${botId}`, color: "red" }]] } });
         return jsonOk();
       }
 
