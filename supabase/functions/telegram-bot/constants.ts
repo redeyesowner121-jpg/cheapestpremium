@@ -17,8 +17,8 @@ export const corsHeaders = {
 // ===== TRANSLATIONS =====
 export const T: Record<string, Record<string, string>> = {
   welcome: {
-    en: "🛍️ <b>Welcome to RKR Premium Store!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments (UPI/Binance)\n💬 24/7 Support\n\nChoose an option below:",
-    bn: "🛍️ <b>RKR প্রিমিয়াম স্টোরে স্বাগতম!</b>\n\n✨ সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n⚡ তাৎক্ষণিক ডেলিভারি\n🔒 নিরাপদ পেমেন্ট (UPI/Binance)\n💬 ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:",
+    en: `${pe("shopping_bag", "🛍️")} <b>Welcome to RKR Premium Store!</b>\n\n${pe("sparkles", "✨")} Premium digital products at the cheapest prices\n${pe("lightning", "⚡")} Instant delivery\n${pe("lock", "🔒")} Secure payments (UPI/Binance)\n${pe("chat", "💬")} 24/7 Support\n\nChoose an option below:`,
+    bn: `${pe("shopping_bag", "🛍️")} <b>RKR প্রিমিয়াম স্টোরে স্বাগতম!</b>\n\n${pe("sparkles", "✨")} সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n${pe("lightning", "⚡")} তাৎক্ষণিক ডেলিভারি\n${pe("lock", "🔒")} নিরাপদ পেমেন্ট (UPI/Binance)\n${pe("chat", "💬")} ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:`,
   },
   choose_lang: {
     en: "🌐 <b>Choose Your Language / ভাষা নির্বাচন করুন</b>",
