@@ -136,8 +136,8 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
         const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
         let accessLink: string | undefined;
         if (order.product_id) {
-          const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
-          accessLink = product?.access_link || undefined;
+          const { data: product } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", order.product_id).single();
+          accessLink = (product?.show_link_in_website !== false && product?.access_link) ? product.access_link : undefined;
         }
         // skipWalletDeduct=true because payment was via UPI, not wallet
         await syncPurchaseToProfile(supabase, order.telegram_user_id, order.amount, order.product_name || "Product", order.product_id || undefined, accessLink, true);
