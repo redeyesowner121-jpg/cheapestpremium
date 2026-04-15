@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Heart, Wallet, ExternalLink, Copy, Check, Sparkles } from 'lucide-react';
+import { Heart, ShoppingCart, ExternalLink, Copy, Check, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useCart } from '@/hooks/useCart';
 
 const DONATION_AMOUNTS = [10, 25, 50, 100, 250, 500];
 
 const DonationCard: React.FC = () => {
-  const { user, profile, refreshProfile } = useAuth();
+  const { user } = useAuth();
+  const { addDonation } = useCart();
   const [showModal, setShowModal] = useState(false);
   const [tab, setTab] = useState<'wallet' | 'external'>('wallet');
   const [selectedAmount, setSelectedAmount] = useState<number>(25);
@@ -19,8 +20,8 @@ const DonationCard: React.FC = () => {
 
   const donationAmount = customAmount ? Number(customAmount) : selectedAmount;
 
-  const handleWalletDonate = async () => {
-    if (!user || !profile) {
+  const handleAddToCart = async () => {
+    if (!user) {
       toast.error('Please login to donate');
       return;
     }
@@ -28,38 +29,14 @@ const DonationCard: React.FC = () => {
       toast.error('Minimum donation is ₹1');
       return;
     }
-    if ((profile.wallet_balance || 0) < donationAmount) {
-      toast.error('Insufficient wallet balance');
-      return;
-    }
 
     setProcessing(true);
     try {
-      const newBalance = (profile.wallet_balance || 0) - donationAmount;
-      await supabase.from('profiles').update({ wallet_balance: newBalance }).eq('id', user.id);
-
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'donation',
-        amount: -donationAmount,
-        status: 'completed',
-        description: `Donation: ₹${donationAmount} — Thank you! ❤️`,
-      });
-
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: 'Thank You! ❤️',
-        message: `Your ₹${donationAmount} donation is greatly appreciated!`,
-        type: 'info',
-      });
-
-      await refreshProfile();
-      toast.success(`Thank you for your ₹${donationAmount} donation! ❤️`);
-      setShowModal(false);
-      setCustomAmount('');
-    } catch (err) {
-      console.error('Donation error:', err);
-      toast.error('Donation failed. Please try again.');
+      const success = await addDonation(donationAmount);
+      if (success) {
+        setShowModal(false);
+        setCustomAmount('');
+      }
     } finally {
       setProcessing(false);
     }
@@ -111,7 +88,7 @@ const DonationCard: React.FC = () => {
               Donate & Support
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              Your donation helps us keep running and improve our services!
+              Your donation will be added to cart. Checkout with your products or separately!
             </DialogDescription>
           </DialogHeader>
 
@@ -123,7 +100,7 @@ const DonationCard: React.FC = () => {
                 tab === 'wallet' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'
               }`}
             >
-              <Wallet className="w-3.5 h-3.5" /> Wallet
+              <ShoppingCart className="w-3.5 h-3.5" /> Add to Cart
             </button>
             <button
               onClick={() => setTab('external')}
@@ -173,22 +150,20 @@ const DonationCard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Balance info */}
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl">
-                <span className="text-xs text-muted-foreground">Your Balance</span>
-                <span className="text-sm font-bold text-primary">₹{(profile?.wallet_balance || 0).toFixed(2)}</span>
-              </div>
-
               <Button
-                onClick={handleWalletDonate}
+                onClick={handleAddToCart}
                 disabled={processing || donationAmount < 1}
                 className="w-full h-11 rounded-xl text-sm font-bold"
                 style={{
                   background: 'linear-gradient(135deg, hsl(340, 82%, 52%), hsl(20, 90%, 55%))',
                 }}
               >
-                {processing ? 'Processing...' : `Donate ₹${donationAmount} ❤️`}
+                {processing ? 'Adding...' : `Add ₹${donationAmount} Donation to Cart 🛒`}
               </Button>
+              
+              <p className="text-[10px] text-muted-foreground text-center">
+                Donation will be deducted from wallet at checkout
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
