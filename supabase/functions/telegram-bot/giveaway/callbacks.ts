@@ -5,6 +5,9 @@ import { ensureWallet } from "../db-helpers.ts";
 import { getPoints, getGiveawaySetting, checkGiveawayChannels } from "./helpers.ts";
 import { showGiveawayMainMenu, showGiveawayReferralLink } from "./menu.ts";
 
+const BUTTON_STYLES = ["primary", "success", "danger"] as const;
+function rotateStyle(index: number): string { return BUTTON_STYLES[index % BUTTON_STYLES.length]; }
+
 export async function handleGiveawayCallbacks(
   token: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, _lang: string
 ): Promise<boolean> {
@@ -50,7 +53,7 @@ export async function handleGiveawayCallbacks(
       return true;
     }
 
-    const buttons: any[][] = productRows.map((p: any) => [{ text: `🎁 ${p.name}`, callback_data: `gw_pdetail_${p.id}` }]);
+    const buttons: any[][] = productRows.map((p: any, i: number) => [{ text: `🎁 ${p.name}`, callback_data: `gw_pdetail_${p.id}`, style: rotateStyle(i) }]);
     buttons.push([{ text: "🔙 Back", callback_data: "gw_main" }]);
     await sendMessage(token, chatId, "🎁 <b>Giveaway Products</b>\n\nChoose a product:", { reply_markup: { inline_keyboard: buttons } });
     return true;
@@ -79,8 +82,8 @@ export async function handleGiveawayCallbacks(
     await sendMessage(token, chatId,
       `💰 <b>Your Points</b>\n\n🎯 Points: <b>${points?.points || 0}</b>\n👥 Total Referrals: <b>${points?.total_referrals || 0}</b>\n\n📌 Per Referral: <b>${ppr} points</b>`, {
       reply_markup: { inline_keyboard: [
-        [{ text: "📎 Refer & Earn", callback_data: "gw_referral" }],
-        [{ text: "🎁 Giveaway Products", callback_data: "gw_products" }],
+        [{ text: "📎 Refer & Earn", callback_data: "gw_referral", style: "success" }],
+        [{ text: "🎁 Giveaway Products", callback_data: "gw_products", style: "primary" }],
         [{ text: "🔙 Back", callback_data: "gw_main" }],
       ]}
     });
@@ -104,7 +107,7 @@ export async function handleGiveawayCallbacks(
       }
     }
     await sendMessage(token, chatId, histText, {
-      reply_markup: { inline_keyboard: [[{ text: "🎁 Giveaway Products", callback_data: "gw_products" }, { text: "🔙 Back", callback_data: "gw_main" }]] }
+      reply_markup: { inline_keyboard: [[{ text: "🎁 Giveaway Products", callback_data: "gw_products", style: "success" }, { text: "🔙 Back", callback_data: "gw_main" }]] }
     });
     return true;
   }
@@ -126,7 +129,7 @@ export async function handleGiveawayCallbacks(
     }
     reviewText += "\n🎁 You too can win free products by referring!";
     await sendMessage(token, chatId, reviewText, {
-      reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: "gw_main" }]] }
+      reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral", style: "success" }, { text: "🔙 Back", callback_data: "gw_main" }]] }
     });
     return true;
   }
@@ -153,7 +156,7 @@ async function handleProductDetail(token: string, supabase: any, chatId: number,
   const buttons: any[][] = items.map((item: any) => {
     const variationName = item.variation_id ? variationMap.get(item.variation_id) || "Selected variation" : "Standard";
     const stockText = item.stock !== null ? (item.stock > 0 ? `📦${item.stock}` : "❌Sold") : "∞";
-    return [{ text: `${variationName} — ${item.points_required} pts (${stockText})`, callback_data: `gw_redeem_${item.id}` }];
+    return [{ text: `${variationName} — ${item.points_required} pts (${stockText})`, callback_data: `gw_redeem_${item.id}`, style: "success" }];
   });
   buttons.push([{ text: "🔙 Back", callback_data: "gw_products" }]);
 
@@ -190,7 +193,7 @@ async function handleRedeemRequest(token: string, supabase: any, chatId: number,
     const needed = giveawayItem.points_required - pts;
     await sendMessage(token, chatId,
       `❌ <b>Not enough points!</b>\n\n🎯 Need: ${giveawayItem.points_required} pts\n💰 Yours: ${pts} pts\n📌 ${needed} more needed`, {
-        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: `gw_pdetail_${giveawayItem.product_id}` }]] }
+        reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral", style: "success" }, { text: "🔙 Back", callback_data: `gw_pdetail_${giveawayItem.product_id}` }]] }
       });
     return;
   }
@@ -253,7 +256,7 @@ async function handleRedeemConfirm(token: string, supabase: any, chatId: number,
   }
 
   await sendMessage(token, chatId, deliveryMsg, {
-    reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main" }]] }
+    reply_markup: { inline_keyboard: [[{ text: "🏠 Menu", callback_data: "gw_main", style: "primary" }]] }
   });
 
   const MAIN_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
