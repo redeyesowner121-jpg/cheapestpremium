@@ -42,9 +42,9 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
         : "📦 You have no orders yet.\n\nClick below to browse products!",
       {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: t("view_products", lang), callback_data: "view_products" }],
-            [{ text: t("back_main", lang), callback_data: "back_main" }],
+           inline_keyboard: [
+            [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products" }],
+            [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
           ],
         },
       }
@@ -85,9 +85,9 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: lang === "bn" ? "আরো কিনুন" : "Buy More", callback_data: "view_products" }],
-        [{ text: t("support", lang), callback_data: "support" }],
-        [{ text: t("back_main", lang), callback_data: "back_main" }],
+        [{ text: lang === "bn" ? "🛍️ আরো কিনুন" : "🛍️ Buy More", callback_data: "view_products" }],
+        [{ text: `📞 ${t("support", lang)}`, callback_data: "support" }],
+        [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
       ],
     },
   });
@@ -130,10 +130,10 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
     reply_markup: {
       inline_keyboard: [
         [
-          { text: lang === "bn" ? "টপ আপ" : "Deposit", callback_data: "wallet_deposit" },
-          { text: lang === "bn" ? "উইথড্র" : "Withdraw", callback_data: "wallet_withdraw" }
+          { text: lang === "bn" ? "➕ টপ আপ" : "➕ Deposit", callback_data: "wallet_deposit" },
+          { text: lang === "bn" ? "➖ উইথড্র" : "➖ Withdraw", callback_data: "wallet_withdraw" }
         ],
-        [{ text: t("back_main", lang), callback_data: "back_main" }],
+        [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
       ],
     },
   });
@@ -155,7 +155,7 @@ export async function handleReferEarn(token: string, supabase: any, chatId: numb
     : `Earn ₹${bonus} for every referral!\n\n🔗 Your referral link:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
 
   await sendMessage(token, chatId, text, {
-    reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },
+    reply_markup: { inline_keyboard: [[{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }]] },
   });
 }
 
@@ -199,8 +199,8 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: t("view_products", lang), callback_data: "view_products" }],
-        [{ text: t("back_main", lang), callback_data: "back_main" }],
+        [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products" }],
+        [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
       ],
     },
   });
@@ -234,8 +234,8 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
     await sendMessage(token, chatId, text, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: lang === "bn" ? "Open Website" : "Open Website", url: websiteUrl }],
-          [{ text: t("back_main", lang), callback_data: "back_main" }],
+          [{ text: "🌐 Open Website", url: websiteUrl }],
+          [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
         ],
       },
     });
@@ -262,7 +262,7 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
       ? `❌ আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹50 প্রয়োজন।\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>`
       : `❌ Insufficient balance. Minimum ₹50 required.\n\n💵 Current Balance: <b>₹${balance}</b>`;
     await sendMessage(token, chatId, text, {
-      reply_markup: { inline_keyboard: [[{ text: t("back", lang), callback_data: "my_wallet" }]] },
+      reply_markup: { inline_keyboard: [[{ text: `⬅️ ${t("back", lang)}`, callback_data: "my_wallet" }]] },
     });
     return;
   }
@@ -281,7 +281,7 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
           { text: "📱 UPI", callback_data: "withdraw_upi" },
           { text: "💎 Binance", callback_data: "withdraw_binance" },
         ],
-        [{ text: t("back", lang), callback_data: "my_wallet" }],
+        [{ text: `⬅️ ${t("back", lang)}`, callback_data: "my_wallet" }],
       ],
     },
   });
