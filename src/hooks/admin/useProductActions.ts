@@ -90,7 +90,8 @@ export async function handleAddProduct(
   } as any).select().single();
   
   if (error || !newProduct) {
-    toast.error('Failed to add product');
+    console.error('Add product error:', error);
+    toast.error(`Failed to add product: ${error?.message || 'Unknown error'}`);
     return false;
   }
 
@@ -148,7 +149,8 @@ export async function handleUpdateProduct(
   } as any).eq('id', productId).select().single();
 
   if (error) {
-    toast.error('Failed to update product');
+    console.error('Update product error:', error);
+    toast.error(`Failed to update product: ${error.message}`);
     return false;
   }
 

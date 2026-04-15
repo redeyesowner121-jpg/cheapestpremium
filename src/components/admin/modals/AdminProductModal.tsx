@@ -329,10 +329,12 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               <>
                 {deliveryType === 'link' ? (
                   <>
-                    <Input
-                      placeholder="Access Link (https://...)"
+                    <Textarea
+                      placeholder="Access Link (https://...) — supports long URLs"
                       value={productForm.access_link}
                       onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
+                      className="text-xs min-h-[60px] font-mono resize-y"
+                      rows={2}
                     />
                     {/* Show link visibility toggles only when a link is entered */}
                     {productForm.access_link?.trim() && (
@@ -402,11 +404,12 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                   <>
                     {/* Add new stock item */}
                     <div className="flex gap-2">
-                      <Input
-                        placeholder={deliveryType === 'credentials' ? 'ID: user | Password: pass' : 'https://link...'}
+                      <Textarea
+                        placeholder={deliveryType === 'credentials' ? 'ID: user | Password: pass' : 'https://link... (supports long URLs)'}
                         value={newStockLink}
                         onChange={(e) => setNewStockLink(e.target.value)}
-                        className="text-xs"
+                        className="text-xs min-h-[50px] font-mono resize-y"
+                        rows={2}
                       />
                       <Button size="sm" onClick={handleAddStockItem} className="shrink-0">
                         <Plus className="w-3.5 h-3.5" />
