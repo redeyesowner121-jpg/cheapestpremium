@@ -249,7 +249,13 @@ export async function showUpiPayment(
   const userId = telegramUser.id;
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount } = purchaseData;
+  const { productName, finalAmount, autoPayOnly } = purchaseData;
+
+  // If auto-only, skip manual option and go straight to Razorpay
+  if (autoPayOnly) {
+    await showRazorpayUpiPayment(token, supabase, chatId, telegramUser, purchaseData);
+    return;
+  }
 
   // Keep state for sub-choice
   await setConversationState(supabase, userId, "choose_upi_method", purchaseData);
