@@ -153,6 +153,7 @@ export const useAdminPageActions = (loadData: () => void) => {
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
       is_active: productForm.is_active,
+      delivery_mode: productForm.delivery_mode === 'unique' ? 'unique' : 'repeated',
       slug: productSlug
     }).select().single();
 
@@ -188,7 +189,8 @@ export const useAdminPageActions = (loadData: () => void) => {
       category: productForm.category, image_url: productForm.image_url,
       access_link: productForm.access_link || null,
       stock: productForm.stock ? parseInt(productForm.stock) : null,
-      is_active: productForm.is_active
+      is_active: productForm.is_active,
+      delivery_mode: productForm.delivery_mode === 'unique' ? 'unique' : 'repeated'
     }).eq('id', editingProduct.id);
 
     if (error) { toast.error('Failed to update product'); return; }
