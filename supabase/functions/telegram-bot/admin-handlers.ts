@@ -5,6 +5,10 @@ export {
   handleAdminProductsMenu, handleAdminUsersMenu, handleAdminWalletMenu,
   handleAdminChannelsMenu, handleAdminOwnerMenu,
   handleAdminSettingsMenu, handleSettingsCategory, promptSettingEdit, saveSetting,
+  // Child bot admin
+  isChildBotOwner, handleChildBotAdminMenu, handleChildBotSettingsMenu,
+  promptChildBotSettingEdit, saveChildBotSettingHandler,
+  handleChildBotAnalytics, handleChildBotUsers, handleChildBotOrders,
 } from "./admin/admin-menu.ts";
 export { handleEditPrice, handleOutStock } from "./admin/admin-products.ts";
 export {
