@@ -105,7 +105,7 @@ async function showPaymentMethodChoice(
     .single();
 
   const hasInstantDelivery = !!(productInfo?.access_link) || productInfo?.delivery_mode === "unique";
-  const autoPayOnly = price < 50 || hasInstantDelivery;
+  const autoPayOnly = false; // Manual payment always available
 
   // Store child bot context in conversation state data
   const childCtx = getChildBotContext();
