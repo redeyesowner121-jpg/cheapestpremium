@@ -36,6 +36,34 @@ const UserModal: React.FC<UserModalProps> = ({
   const [giftAmount, setGiftAmount] = React.useState('');
   const [rankBalanceInput, setRankBalanceInput] = React.useState('');
   const [walletBalanceInput, setWalletBalanceInput] = React.useState('');
+  const [ranks, setRanks] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    supabase.from('ranks').select('*').eq('is_active', true).order('sort_order', { ascending: true })
+      .then(({ data }) => { if (data) setRanks(data); });
+  }, []);
+
+  const getCurrentRank = () => {
+    if (!ranks.length || !user) return null;
+    const rb = user.rank_balance || 0;
+    let current = ranks[0];
+    for (const r of ranks) {
+      if (rb >= r.min_balance) current = r;
+    }
+    return current;
+  };
+
+  const handleSetRank = async (rankId: string) => {
+    const rank = ranks.find(r => r.id === rankId);
+    if (!rank || !user) return;
+    const { error } = await supabase.from('profiles')
+      .update({ rank_balance: rank.min_balance })
+      .eq('id', user.id);
+    if (error) { toast.error('Failed to set rank'); return; }
+    toast.success(`Rank set to ${rank.icon} ${rank.name}!`);
+    setUser({ ...user, rank_balance: rank.min_balance });
+    onRefresh();
+  };
 
   const handleGiftBlueTick = async (userId: string) => {
     const { error } = await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
