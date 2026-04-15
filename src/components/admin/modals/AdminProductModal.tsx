@@ -307,35 +307,19 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               </Button>
             </div>
 
-            {/* Delivery Mode: Repeated vs Unique */}
-            <div className="mb-3">
-              <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Delivery Mode</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-all border-2 ${
-                    deliveryMode === 'repeated'
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                      : 'bg-muted text-muted-foreground border-transparent hover:border-muted-foreground/30'
-                  }`}
-                  onClick={() => handleDeliveryModeChange('repeated')}
-                >
-                  <Repeat className="w-3.5 h-3.5" />
-                  Same for All
-                </button>
-                <button
-                  type="button"
-                  className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-all border-2 ${
-                    deliveryMode === 'unique'
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                      : 'bg-muted text-muted-foreground border-transparent hover:border-muted-foreground/30'
-                  }`}
-                  onClick={() => handleDeliveryModeChange('unique')}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  Unique per Order
-                </button>
+            {/* Delivery Mode: Unique Code Toggle */}
+            <div className="mb-3 flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-border">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-primary" />
+                <div>
+                  <label className="text-xs font-medium block">Unique Code Per Order</label>
+                  <p className="text-[10px] text-muted-foreground">Each order gets a unique code from stock</p>
+                </div>
               </div>
+              <Switch
+                checked={deliveryMode === 'unique'}
+                onCheckedChange={(checked) => handleDeliveryModeChange(checked ? 'unique' : 'repeated')}
+              />
             </div>
 
             {deliveryMode === 'repeated' ? (
