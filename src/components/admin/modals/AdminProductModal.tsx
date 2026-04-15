@@ -326,32 +326,60 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
             {deliveryMode === 'repeated' ? (
               // Repeated mode: single access link
-              deliveryType === 'link' ? (
-                <Input
-                  placeholder="Access Link (https://...)"
-                  value={productForm.access_link}
-                  onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
-                />
-              ) : (
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
+              <>
+                {deliveryType === 'link' ? (
+                  <>
                     <Input
-                      placeholder="user@example.com"
-                      value={credUsername}
-                      onChange={(e) => { setCredUsername(e.target.value); updateAccessLink('credentials', undefined, e.target.value, credPassword); }}
+                      placeholder="Access Link (https://...)"
+                      value={productForm.access_link}
+                      onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
                     />
+                    {/* Show link visibility toggles only when a link is entered */}
+                    {productForm.access_link?.trim() && (
+                      <div className="space-y-2 mt-2 p-3 rounded-xl bg-muted/50 border border-border">
+                        <p className="text-xs font-medium text-muted-foreground">Link Visibility</p>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium flex items-center gap-1.5">
+                            🤖 Show in Bot
+                          </label>
+                          <Switch
+                            checked={productForm.show_link_in_bot !== false}
+                            onCheckedChange={(v) => setProductForm({ ...productForm, show_link_in_bot: v })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium flex items-center gap-1.5">
+                            🌐 Show in Website
+                          </label>
+                          <Switch
+                            checked={productForm.show_link_in_website !== false}
+                            onCheckedChange={(v) => setProductForm({ ...productForm, show_link_in_website: v })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
+                      <Input
+                        placeholder="user@example.com"
+                        value={credUsername}
+                        onChange={(e) => { setCredUsername(e.target.value); updateAccessLink('credentials', undefined, e.target.value, credPassword); }}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
+                      <Input
+                        placeholder="••••••••"
+                        value={credPassword}
+                        onChange={(e) => { setCredPassword(e.target.value); updateAccessLink('credentials', undefined, credUsername, e.target.value); }}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
-                    <Input
-                      placeholder="••••••••"
-                      value={credPassword}
-                      onChange={(e) => { setCredPassword(e.target.value); updateAccessLink('credentials', undefined, credUsername, e.target.value); }}
-                    />
-                  </div>
-                </div>
-              )
+                )}
+              </>
             ) : (
               // Unique mode: stock items management
               <div className="space-y-3">
