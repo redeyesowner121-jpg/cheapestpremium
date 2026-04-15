@@ -54,16 +54,40 @@ const StreamingCursor = () => (
   <span className="inline-block w-[2px] h-4 bg-primary ml-0.5 animate-pulse align-text-bottom" />
 );
 
-const MarkdownContent = React.memo(({ content }: { content: string }) => (
+const MarkdownContent = React.memo(({ content, onNavigate }: { content: string; onNavigate?: (path: string) => void }) => (
   <ReactMarkdown
     remarkPlugins={[remarkGfm]}
     components={{
-      a: ({ href, children }) => (
-        <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary underline font-medium hover:opacity-80">
-          {children}
-          <ArrowRight className="w-3 h-3 inline" />
-        </a>
-      ),
+      a: ({ href, children }) => {
+        // Check if this is an internal product link
+        const isInternal = href && (
+          href.includes('cheapest-premiums.in/products/') ||
+          href.includes('cheapest-premiums.in/product/') ||
+          href.includes('cheapest-premiums.lovable.app/products/') ||
+          href.includes('cheapest-premiums.lovable.app/product/')
+        );
+        
+        if (isInternal && onNavigate) {
+          const url = new URL(href);
+          const path = url.pathname;
+          return (
+            <button
+              onClick={() => onNavigate(path)}
+              className="inline-flex items-center gap-1 text-primary underline font-semibold hover:opacity-80 bg-primary/5 px-1.5 py-0.5 rounded-md border border-primary/15 transition-all hover:bg-primary/10"
+            >
+              🔗 {children}
+              <ArrowRight className="w-3 h-3 inline" />
+            </button>
+          );
+        }
+        
+        return (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary underline font-medium hover:opacity-80">
+            {children}
+            <ExternalLink className="w-3 h-3 inline" />
+          </a>
+        );
+      },
       strong: ({ children }) => <strong className="font-bold text-foreground">{children}</strong>,
       em: ({ children }) => <em className="italic">{children}</em>,
       h1: ({ children }) => <h1 className="text-base font-bold mb-2 mt-3 first:mt-0 text-foreground">{children}</h1>,
