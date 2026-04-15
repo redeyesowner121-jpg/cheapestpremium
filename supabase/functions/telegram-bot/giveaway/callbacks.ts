@@ -5,8 +5,6 @@ import { ensureWallet } from "../db-helpers.ts";
 import { getPoints, getGiveawaySetting, checkGiveawayChannels } from "./helpers.ts";
 import { showGiveawayMainMenu, showGiveawayReferralLink } from "./menu.ts";
 
-const BUTTON_STYLES = ["primary", "success", "danger"] as const;
-function rotateStyle(index: number): string { return BUTTON_STYLES[index % BUTTON_STYLES.length]; }
 
 export async function handleGiveawayCallbacks(
   token: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, _lang: string

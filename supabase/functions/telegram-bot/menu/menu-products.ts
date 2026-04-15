@@ -28,7 +28,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
     const colorIdx = Math.floor(i / 2) % 2;
-    const catColors = ["primary", "success"];
+    
     const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}`}];
     if (categories[i + 1]) {
       row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`});
@@ -81,7 +81,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   });
 
   // Alternating blue-green pattern for product buttons
-  const altColors = ["primary", "success"]; // blue, green
+  
   const buttons: any[][] = [];
   for (let i = 0; i < products.length; i += 2) {
     const row: any[] = [];
@@ -167,7 +167,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     });
 
     // Alternating blue-green for variation buttons
-    const varColors = ["primary", "success"];
+    
     
     if (isReseller && !childCtx) {
       for (let ri = 0; ri < variations.length; ri++) {
