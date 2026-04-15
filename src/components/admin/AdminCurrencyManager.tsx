@@ -33,7 +33,7 @@ const AdminCurrencyManager: React.FC = () => {
 
   const handleAdd = async () => {
     if (!newCurrency.code || !newCurrency.name || !newCurrency.rate_to_inr) {
-      toast.error('Code, Name ও Rate পূরণ করুন');
+      toast.error('Code, Name & Rate are required');
       return;
     }
     const { error } = await supabase.from('currencies').insert({

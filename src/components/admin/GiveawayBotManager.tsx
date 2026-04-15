@@ -346,7 +346,7 @@ const GiveawayBotManager: React.FC = () => {
       {tab === 'channels' && (
         <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
           <h4 className="font-semibold flex items-center gap-2"><Radio className="w-4 h-4 text-primary" /> Required Channels</h4>
-          <p className="text-xs text-muted-foreground">গিভওয়ে বটের চ্যানেলগুলো কোডে হার্ডকোড করা আছে। পরিবর্তন করতে ডেভেলপারকে জানান।</p>
+          <p className="text-xs text-muted-foreground">Giveaway bot channels are hardcoded. Contact the developer to make changes.</p>
           {GIVEAWAY_CHANNELS.map((ch, i) => (
             <div key={i} className="flex items-center gap-2 p-2.5 bg-muted/30 rounded-xl">
               <Radio className="w-4 h-4 text-purple-500" />
@@ -370,7 +370,7 @@ const GiveawayBotManager: React.FC = () => {
               <Input type="number" value={pointsPerReferral} onChange={e => setPointsPerReferral(e.target.value)} className="rounded-xl" />
               <Button onClick={savePointsPerReferral} className="rounded-xl">Save</Button>
             </div>
-            <p className="text-xs text-muted-foreground">প্রতিটি সফল রেফারের জন্য কত পয়েন্ট দেওয়া হবে</p>
+            <p className="text-xs text-muted-foreground">Points awarded for each successful referral</p>
           </div>
         </div>
       )}

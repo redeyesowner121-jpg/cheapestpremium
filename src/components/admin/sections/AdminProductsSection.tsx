@@ -105,7 +105,7 @@ const AdminProductsSection: React.FC<AdminProductsSectionProps> = ({
             <DialogTitle>SEO Tags - {seoProduct?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">কমা দিয়ে আলাদা করে ট্যাগ লিখুন (e.g. netflix, premium, ott)</p>
+            <p className="text-xs text-muted-foreground">Enter tags separated by commas (e.g. netflix, premium, ott)</p>
             <Textarea
               value={seoTags}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setSeoTags(e.target.value)}

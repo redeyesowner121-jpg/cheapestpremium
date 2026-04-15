@@ -125,7 +125,7 @@ export const useAdminPageActions = (loadData: () => void) => {
     productForm: any, pendingVariations: any[], onDone: () => void
   ) => {
     if (!productForm.name || !productForm.category) {
-      toast.error('Product Name ও Category অবশ্যই পূরণ করুন'); return;
+      toast.error('Product Name & Category are required'); return;
     }
 
     const baseSlug = productForm.name
@@ -178,7 +178,7 @@ export const useAdminPageActions = (loadData: () => void) => {
     editingProduct: any, productForm: any, pendingVariations: any[], onDone: () => void
   ) => {
     if (!editingProduct || !productForm.name || !productForm.category) {
-      toast.error('Product Name ও Category অবশ্যই পূরণ করুন'); return;
+      toast.error('Product Name & Category are required'); return;
     }
 
     const { error } = await supabase.from('products').update({

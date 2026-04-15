@@ -85,7 +85,7 @@ const ProfileCard: React.FC<ProfileCardProps> = ({ profile, onEditProfile, refer
       {/* Rank Badge */}
       <div className="mt-4 p-3 bg-white/10 rounded-xl">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-primary-foreground/80">Your Rank (ক্লিক করুন)</span>
+          <span className="text-xs text-primary-foreground/80">Your Rank (tap to view)</span>
           <RankBadge rankBalance={profile?.rank_balance || 0} size="md" clickable={true} />
         </div>
       </div>

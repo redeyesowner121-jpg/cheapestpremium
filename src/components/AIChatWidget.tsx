@@ -395,12 +395,12 @@ const AIChatWidget: React.FC = () => {
   const generateFollowUps = useCallback((content: string) => {
     const suggestions: string[] = [];
     const lc = content.toLowerCase();
-    if (lc.includes('netflix')) suggestions.push('Netflix plans compare করো');
-    if (lc.includes('spotify')) suggestions.push('Spotify features বলো');
-    if (lc.includes('price') || content.includes('₹')) suggestions.push('Cheapest option দেখাও');
-    if (lc.includes('coupon') || lc.includes('discount')) suggestions.push('আর কোনো offer আছে?');
-    if (lc.includes('flash sale')) suggestions.push('Flash sale details দেখাও');
-    if (suggestions.length === 0) suggestions.push('আরো details দাও', 'Similar products দেখাও');
+    if (lc.includes('netflix')) suggestions.push('Compare Netflix plans');
+    if (lc.includes('spotify')) suggestions.push('Tell me Spotify features');
+    if (lc.includes('price') || content.includes('₹')) suggestions.push('Show cheapest option');
+    if (lc.includes('coupon') || lc.includes('discount')) suggestions.push('Any other offers?');
+    if (lc.includes('flash sale')) suggestions.push('Show flash sale details');
+    if (suggestions.length === 0) suggestions.push('Give more details', 'Show similar products');
     return suggestions.slice(0, 3);
   }, []);
 
