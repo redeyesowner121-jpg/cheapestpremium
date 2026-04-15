@@ -15,23 +15,21 @@ export const useCurrencyFormat = () => {
   const [displayCurrency, setDisplayCurrency] = useState<DisplayCurrency>(INR_DEFAULT);
 
   useEffect(() => {
-    loadDisplayCurrency();
-  }, [profile]);
-
-  const loadDisplayCurrency = async () => {
-    const code = (profile as any)?.display_currency || 'INR';
+    const code = profile?.display_currency || 'INR';
     if (code === 'INR') {
       setDisplayCurrency(INR_DEFAULT);
       return;
     }
-    const { data } = await supabase
+    supabase
       .from('currencies')
       .select('code, symbol, rate_to_inr')
       .eq('code', code)
-      .single();
-    if (data) setDisplayCurrency(data);
-    else setDisplayCurrency(INR_DEFAULT);
-  };
+      .single()
+      .then(({ data }) => {
+        if (data) setDisplayCurrency(data);
+        else setDisplayCurrency(INR_DEFAULT);
+      });
+  }, [profile?.display_currency]);
 
   const formatPrice = useCallback(
     (inrAmount: number, decimals: number = 2) => {

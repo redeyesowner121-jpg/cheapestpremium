@@ -23,6 +23,7 @@ export interface UserProfile {
   rank_balance: number;
   is_reseller: boolean;
   last_rank_decay?: string;
+  display_currency: string;
 }
 
 interface AuthContextType {
@@ -82,6 +83,7 @@ const normalizeProfile = (data: any): UserProfile => ({
   rank_balance: parseNumber(data?.rank_balance),
   is_reseller: parseBoolean(data?.is_reseller),
   last_rank_decay: typeof data?.last_rank_decay === 'string' ? data.last_rank_decay : undefined,
+  display_currency: parseString(data?.display_currency, 'INR'),
 });
 
 export const useAuth = () => {
