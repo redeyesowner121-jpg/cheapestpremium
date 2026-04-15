@@ -155,6 +155,7 @@ export type Database = {
       cart_items: {
         Row: {
           created_at: string
+          donation_amount: number | null
           id: string
           product_id: string | null
           quantity: number
@@ -164,6 +165,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          donation_amount?: number | null
           id?: string
           product_id?: string | null
           quantity?: number
@@ -173,6 +175,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          donation_amount?: number | null
           id?: string
           product_id?: string | null
           quantity?: number

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet, AlertTriangle, Sparkles, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Trash2, Minus, Plus, Package, Wallet, AlertTriangle, Sparkles, ArrowRight, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import BottomNav from '@/components/BottomNav';
 import { useCart } from '@/hooks/useCart';
@@ -64,11 +64,16 @@ const CartPage: React.FC = () => {
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;
 
+  // Separate product items and donation items
+  const productItems = useMemo(() => items.filter(i => i.product_id !== null), [items]);
+  const donationItem = useMemo(() => items.find(i => i.product_id === null && i.donation_amount), [items]);
+
   const cartSummary = useMemo(() => {
     let subtotal = 0;
     let totalSavings = 0;
+    let donationTotal = 0;
 
-    items.forEach(item => {
+    productItems.forEach(item => {
       const basePrice = item.variation?.price || item.product?.price || 0;
       const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
       const { finalPrice, savings } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
@@ -76,8 +81,12 @@ const CartPage: React.FC = () => {
       totalSavings += savings * item.quantity;
     });
 
-    return { subtotal, totalSavings };
-  }, [items, userRank, isReseller]);
+    if (donationItem) {
+      donationTotal = donationItem.donation_amount || 0;
+    }
+
+    return { subtotal, totalSavings, donationTotal, grandTotal: subtotal + donationTotal };
+  }, [productItems, donationItem, userRank, isReseller]);
 
   const handleCheckout = async () => {
     if (!user || !profile) {
@@ -92,7 +101,7 @@ const CartPage: React.FC = () => {
       return;
     }
 
-    if (items.length === 0) {
+    if (productItems.length === 0 && !donationItem) {
       toast.error('Your cart is empty');
       return;
     }
@@ -100,12 +109,12 @@ const CartPage: React.FC = () => {
     const walletBalance = profile.wallet_balance || 0;
 
     // Calculate needed amount
-    let neededAmount = cartSummary.subtotal;
+    let neededAmount = cartSummary.grandTotal;
     if (isAAX) {
-      neededAmount = cartSummary.subtotal;
+      neededAmount = cartSummary.grandTotal;
     } else if (isForeignCurrency && displayCurrency) {
-      const conversionFee = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
-      neededAmount = cartSummary.subtotal + conversionFee;
+      const conversionFee = cartSummary.grandTotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+      neededAmount = cartSummary.grandTotal + conversionFee;
     }
 
     if (walletBalance < neededAmount) {
@@ -118,8 +127,8 @@ const CartPage: React.FC = () => {
 
     setCheckingOut(true);
     try {
-      // Create orders for all cart items
-      const orders = await Promise.all(items.map(async (item) => {
+      // Create orders for product items only
+      const orders = productItems.length > 0 ? await Promise.all(productItems.map(async (item) => {
         const basePrice = item.variation?.price || item.product?.price || 0;
         const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
         const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
@@ -127,7 +136,6 @@ const CartPage: React.FC = () => {
           ? `${item.product?.name} - ${item.variation.name}`
           : item.product?.name || 'Unknown';
 
-        // Check for access_link for instant delivery
         let accessLink: string | null = null;
         if (item.product_id) {
           const { data: productData } = await supabase
@@ -151,40 +159,61 @@ const CartPage: React.FC = () => {
           status: isInstant ? 'confirmed' : 'pending',
           access_link: accessLink,
         };
-      }));
+      })) : [];
 
-      const { error: orderError } = await supabase.from('orders').insert(orders);
-      if (orderError) throw orderError;
+      if (orders.length > 0) {
+        const { error: orderError } = await supabase.from('orders').insert(orders);
+        if (orderError) throw orderError;
+      }
 
-      // Deduct wallet balance (AAX gets discount, other foreign currencies get fee)
-      let totalDeduction = cartSummary.subtotal;
+      // Deduct wallet balance
+      let totalDeduction = cartSummary.grandTotal;
       let conversionFeeAmount = 0;
       let aaxDiscountAmount = 0;
 
       if (isAAX) {
-        // AAX gets actual discount
-        aaxDiscountAmount = cartSummary.subtotal * (AAX_ACTUAL_DISCOUNT / 100);
-        totalDeduction = cartSummary.subtotal - aaxDiscountAmount;
+        aaxDiscountAmount = cartSummary.grandTotal * (AAX_ACTUAL_DISCOUNT / 100);
+        totalDeduction = cartSummary.grandTotal - aaxDiscountAmount;
       } else if (isForeignCurrency && displayCurrency) {
-        conversionFeeAmount = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
-        totalDeduction = cartSummary.subtotal + conversionFeeAmount;
+        conversionFeeAmount = cartSummary.grandTotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+        totalDeduction = cartSummary.grandTotal + conversionFeeAmount;
       }
 
       const newBalance = (profile.wallet_balance || 0) - totalDeduction;
-      const newTotalOrders = (profile.total_orders || 0) + items.length;
+      const newTotalOrders = (profile.total_orders || 0) + productItems.length;
       await supabase
         .from('profiles')
         .update({ wallet_balance: newBalance, total_orders: newTotalOrders, display_currency: 'INR' })
         .eq('id', user.id);
 
-      // Create purchase transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'purchase',
-        amount: -cartSummary.subtotal,
-        status: 'completed',
-        description: `Cart checkout: ${items.length} item(s)`,
-      });
+      // Create purchase transaction for products
+      if (cartSummary.subtotal > 0) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'purchase',
+          amount: -cartSummary.subtotal,
+          status: 'completed',
+          description: `Cart checkout: ${productItems.length} item(s)`,
+        });
+      }
+
+      // Create donation transaction
+      if (cartSummary.donationTotal > 0) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'donation',
+          amount: -cartSummary.donationTotal,
+          status: 'completed',
+          description: `Donation: ₹${cartSummary.donationTotal} — Thank you! ❤️`,
+        });
+
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Thank You! ❤️',
+          message: `Your ₹${cartSummary.donationTotal} donation is greatly appreciated!`,
+          type: 'info',
+        });
+      }
 
       // AAX discount transaction
       if (aaxDiscountAmount > 0) {
@@ -197,7 +226,7 @@ const CartPage: React.FC = () => {
         });
       }
 
-      // Create conversion fee transaction if applicable
+      // Conversion fee transaction
       if (conversionFeeAmount > 0) {
         await supabase.from('transactions').insert({
           user_id: user.id,
@@ -208,38 +237,43 @@ const CartPage: React.FC = () => {
         });
       }
 
-      // Increment sold counts
-      for (const item of items) {
+      // Increment sold counts for products only
+      for (const item of productItems) {
         const hasStock = item.product?.stock !== null && item.product?.stock !== undefined;
         await supabase.rpc('increment_product_sold_count', {
-          product_id: item.product_id,
+          product_id: item.product_id!,
           qty: item.quantity,
           has_stock: hasStock,
         });
       }
 
-      // Create notification
-      const instantCount = orders.filter(o => o.status === 'confirmed').length;
-      const pendingCount = orders.filter(o => o.status === 'pending').length;
-      const notifTitle = instantCount > 0 && pendingCount === 0
-        ? 'Orders Delivered! 🎉'
-        : instantCount > 0
-          ? 'Orders Placed! 🛒'
+      // Create notification for orders
+      if (orders.length > 0) {
+        const instantCount = orders.filter(o => o.status === 'confirmed').length;
+        const pendingCount = orders.filter(o => o.status === 'pending').length;
+        const notifTitle = instantCount > 0 && pendingCount === 0
+          ? 'Orders Delivered! 🎉'
           : 'Orders Placed! 🛒';
-      const notifMessage = instantCount > 0
-        ? `${instantCount} item(s) delivered instantly! ${pendingCount > 0 ? `${pendingCount} item(s) pending.` : ''} Total: ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`
-        : `You ordered ${items.length} item(s) for ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`;
+        const notifMessage = instantCount > 0
+          ? `${instantCount} item(s) delivered instantly! ${pendingCount > 0 ? `${pendingCount} item(s) pending.` : ''} Total: ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`
+          : `You ordered ${productItems.length} item(s) for ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`;
 
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: notifTitle,
-        message: notifMessage,
-        type: 'order',
-      });
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: notifTitle,
+          message: notifMessage,
+          type: 'order',
+        });
+      }
 
       await clearCart();
       await refreshProfile();
-      toast.success(`🎉 ${items.length} order(s) placed successfully!`);
+      const msg = orders.length > 0 && cartSummary.donationTotal > 0
+        ? `🎉 ${productItems.length} order(s) placed + ₹${cartSummary.donationTotal} donated! ❤️`
+        : cartSummary.donationTotal > 0
+          ? `❤️ ₹${cartSummary.donationTotal} donated successfully!`
+          : `🎉 ${productItems.length} order(s) placed successfully!`;
+      toast.success(msg);
       navigate('/orders');
     } catch (err) {
       console.error('Checkout error:', err);
@@ -308,7 +342,8 @@ const CartPage: React.FC = () => {
           <EmptyCartFun />
         ) : (
           <div className="space-y-3">
-            {items.map(item => {
+            {/* Product Items */}
+            {productItems.map(item => {
               const basePrice = item.variation?.price || item.product?.price || 0;
               const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
               const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
@@ -370,6 +405,35 @@ const CartPage: React.FC = () => {
                 </div>
               );
             })}
+
+            {/* Donation Item */}
+            {donationItem && (
+              <div className="bg-card rounded-2xl p-4 shadow-card border border-pink-500/20">
+                <div className="flex gap-3 items-center">
+                  <div 
+                    className="w-20 h-20 rounded-xl flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, hsl(340, 82%, 52%), hsl(20, 90%, 55%))' }}
+                  >
+                    <Heart className="w-8 h-8 text-white fill-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm">Support Us ❤️</h3>
+                    <p className="text-xs text-muted-foreground">Donation — Thank you!</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-primary font-bold">
+                        {formatPrice(donationItem.donation_amount || 0)}
+                      </span>
+                      <button
+                        onClick={() => removeItem(donationItem.id)}
+                        className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center active:scale-90"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -415,10 +479,18 @@ const CartPage: React.FC = () => {
                 </div>
               </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-              <span className="font-bold">{formatPrice(cartSummary.subtotal)}</span>
-            </div>
+            {cartSummary.subtotal > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Products ({productItems.reduce((s, i) => s + i.quantity, 0)} items)</span>
+                <span className="font-bold">{formatPrice(cartSummary.subtotal)}</span>
+              </div>
+            )}
+            {cartSummary.donationTotal > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1"><Heart className="w-3 h-3 text-pink-500 fill-pink-500" /> Donation</span>
+                <span className="font-bold">{formatPrice(cartSummary.donationTotal)}</span>
+              </div>
+            )}
             {cartSummary.totalSavings > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-success">Rank Savings</span>
@@ -428,43 +500,43 @@ const CartPage: React.FC = () => {
             {isAAX && (
               <div className="flex justify-between text-sm">
                 <span className="text-success">🔱 Apex Discount (up to {AAX_DISPLAY_DISCOUNT}%)</span>
-                <span className="text-success font-medium">-₹{(cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}</span>
+                <span className="text-success font-medium">-₹{(cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}</span>
               </div>
             )}
             {isForeignCurrency && !isAAX && (
               <div className="flex justify-between text-sm">
                 <span className="text-destructive">Conversion Fee ({FOREIGN_CONVERT_FEE_PERCENT}%)</span>
-                <span className="text-destructive font-medium">₹{(cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}</span>
+                <span className="text-destructive font-medium">₹{(cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold">
               <span>Total</span>
               <span className="text-primary text-lg">
                 {isAAX
-                  ? `₹${(cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
+                  ? `₹${(cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
                   : isForeignCurrency
-                    ? `₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                    : formatPrice(cartSummary.subtotal)}
+                    ? `₹${(cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                    : formatPrice(cartSummary.grandTotal)}
               </span>
             </div>
             <Button
               className="w-full h-12 btn-gradient rounded-xl text-base"
               onClick={handleCheckout}
-              disabled={checkingOut || items.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
+              disabled={checkingOut || productItems.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
             >
               {checkingOut ? 'Processing...' : isAAX
-                ? `🔱 Checkout - ₹${(cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
+                ? `🔱 Checkout - ₹${(cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
                 : isForeignCurrency
-                  ? `Convert & Checkout - ₹${(cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
-                  : `Checkout - ${formatPrice(cartSummary.subtotal)}`}
+                  ? `Convert & Checkout - ₹${(cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100).toFixed(2)}`
+                  : `Checkout - ${formatPrice(cartSummary.grandTotal)}`}
             </Button>
             {(() => {
               const balance = profile?.wallet_balance || 0;
               const needed = isAAX
-                ? cartSummary.subtotal - cartSummary.subtotal * AAX_ACTUAL_DISCOUNT / 100
+                ? cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100
                 : isForeignCurrency
-                  ? cartSummary.subtotal + cartSummary.subtotal * FOREIGN_CONVERT_FEE_PERCENT / 100
-                  : cartSummary.subtotal;
+                  ? cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100
+                  : cartSummary.grandTotal;
               return balance < needed ? (
                 <p className="text-xs text-destructive text-center">
                   Insufficient balance. <button onClick={() => { setAddMoneyAmount(Math.ceil(needed - balance).toString()); setShowAddMoney(true); }} className="underline font-medium">Add Money</button>
