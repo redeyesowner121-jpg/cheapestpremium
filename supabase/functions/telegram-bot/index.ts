@@ -4,6 +4,7 @@
 // Supports child bot mode via ?child=<id> query parameter.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { initPremiumEmoji } from "./premium-emoji.ts";
 import { corsHeaders, t, UPI_ID, UPI_NAME, BOT_USERNAME, RESALE_BOT_USERNAME } from "./constants.ts";
 import { answerCallbackQuery } from "./telegram-api.ts";
 import {
@@ -72,6 +73,9 @@ Deno.serve(async (req) => {
 
   // Clear child context from any previous request
   clearChildBotContext();
+
+  // Load premium emoji toggle from settings
+  await initPremiumEmoji(supabase);
 
   // ===== CHILD BOT MODE =====
   let BOT_TOKEN: string | null = null;

@@ -502,6 +502,15 @@ const AdminSettingsTab: React.FC<AdminSettingsTabProps> = ({ settings, onUpdateS
             }}
           />
         </SettingItem>
+        <SettingItem label="Telegram Premium Emoji" description="Use custom premium emoji in bot messages (requires Telegram Premium)">
+          <Switch
+            checked={localSettings.telegram_premium_emoji === 'true'}
+            onCheckedChange={(v) => {
+              updateLocal('telegram_premium_emoji', v.toString());
+              handleSave('telegram_premium_emoji', v.toString());
+            }}
+          />
+        </SettingItem>
       </SettingsSection>
 
       {/* Rank System */}
