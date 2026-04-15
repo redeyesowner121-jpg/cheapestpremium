@@ -822,6 +822,7 @@ const AIChatWidget: React.FC = () => {
                     isLoading={loading}
                     isStreaming={loading && originalIdx === messages.length - 1 && msg.role === 'assistant'}
                     searchTerm={searchTerm}
+                    onNavigate={(path) => { setOpen(false); window.location.href = path; }}
                   />
                 );
               })}
