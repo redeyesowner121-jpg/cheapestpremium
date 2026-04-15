@@ -34,9 +34,9 @@ export async function handleChildBotAdminMenu(token: string, supabase: any, chat
   const { count: orderCount } = await supabase.from("child_bot_orders").select("*", { count: "exact", head: true }).eq("child_bot_id", ctx.id);
 
   const buttons: any[][] = [
-    [{ text: "👥 My Bot Users", callback_data: "cadm_users", style: "primary" }, { text: "📦 My Orders", callback_data: "cadm_orders", style: "primary" }],
-    [{ text: "📊 My Analytics", callback_data: "cadm_analytics", style: "success" }],
-    [{ text: "⚙️ Bot Settings", callback_data: "cadm_settings", style: "primary" }],
+    [{ text: "👥 My Bot Users", callback_data: "cadm_users" }, { text: "📦 My Orders", callback_data: "cadm_orders" }],
+    [{ text: "📊 My Analytics", callback_data: "cadm_analytics" }],
+    [{ text: "⚙️ Bot Settings", callback_data: "cadm_settings" }],
   ];
 
   await sendMessage(token, chatId,
@@ -65,10 +65,10 @@ export async function handleChildBotSettingsMenu(token: string, supabase: any, c
   const buttons = CHILD_BOT_SETTINGS.map(s => [{
     text: `${s.emoji} ${s.label}`,
     callback_data: `cadm_edit_${s.key}`,
-    style: "primary",
+   
   }]);
-  buttons.push([{ text: "🔄 Reset All to Default", callback_data: "cadm_reset_settings", style: "danger" }]);
-  buttons.push([{ text: "⬅️ Back", callback_data: "cadm_back", style: "secondary" }]);
+  buttons.push([{ text: "🔄 Reset All to Default", callback_data: "cadm_reset_settings" }]);
+  buttons.push([{ text: "⬅️ Back", callback_data: "cadm_back" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -101,7 +101,7 @@ export async function saveChildBotSettingHandler(token: string, supabase: any, c
 
   await sendMessage(token, chatId,
     `✅ <b>${label} updated!</b>\n\n${emoji} New value: <code>${value}</code>\n\n<i>This change only affects your bot @${ctx.bot_username || ""}.</i>`,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings", style: "secondary" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings" }]] } }
   );
 }
 
@@ -121,7 +121,7 @@ export async function handleChildBotAnalytics(token: string, supabase: any, chat
     `⏳ Pending: <b>${pendingOrders || 0}</b>\n` +
     `💰 Total Earnings: <b>₹${totalEarnings}</b>\n` +
     `📈 Revenue %: <b>${ctx.revenue_percent}%</b>`,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back", style: "secondary" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back" }]] } }
   );
 }
 
@@ -131,7 +131,7 @@ export async function handleChildBotUsers(token: string, supabase: any, chatId: 
 
   if (!users?.length) {
     await sendMessage(token, chatId, "👥 No users yet in your bot.",
-      { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back", style: "secondary" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back" }]] } });
     return;
   }
 
@@ -141,7 +141,7 @@ export async function handleChildBotUsers(token: string, supabase: any, chatId: 
   });
 
   await sendMessage(token, chatId, text,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back", style: "secondary" }]] } });
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back" }]] } });
 }
 
 export async function handleChildBotOrders(token: string, supabase: any, chatId: number) {
@@ -150,7 +150,7 @@ export async function handleChildBotOrders(token: string, supabase: any, chatId:
 
   if (!orders?.length) {
     await sendMessage(token, chatId, "📦 No orders yet in your bot.",
-      { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back", style: "secondary" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back" }]] } });
     return;
   }
 
@@ -161,7 +161,7 @@ export async function handleChildBotOrders(token: string, supabase: any, chatId:
   });
 
   await sendMessage(token, chatId, text,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back", style: "secondary" }]] } });
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back", callback_data: "cadm_back" }]] } });
 }
 
 // ===== MAIN ADMIN MENU (Button-based) =====
@@ -176,14 +176,14 @@ export async function handleAdminMenu(token: string, supabase: any, chatId: numb
   const { count: pendingCount } = await supabase.from("telegram_orders").select("*", { count: "exact", head: true }).eq("status", "pending");
 
   const buttons: any[][] = [
-    [{ text: "📦 Products", callback_data: "adm_products", style: "primary" }, { text: "👥 Users", callback_data: "adm_users", style: "primary" }],
-    [{ text: "💰 Wallet", callback_data: "adm_wallet", style: "success" }, { text: "📊 Analytics", callback_data: "adm_analytics", style: "primary" }],
-    [{ text: "📢 Broadcast", callback_data: "adm_broadcast", style: "danger" }, { text: "📢 Channels", callback_data: "adm_channels", style: "primary" }],
-    [{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "success" }, { text: "⚙️ Settings", callback_data: "adm_settings", style: "primary" }],
+    [{ text: "📦 Products", callback_data: "adm_products" }, { text: "👥 Users", callback_data: "adm_users" }],
+    [{ text: "💰 Wallet", callback_data: "adm_wallet" }, { text: "📊 Analytics", callback_data: "adm_analytics" }],
+    [{ text: "📢 Broadcast", callback_data: "adm_broadcast" }, { text: "📢 Channels", callback_data: "adm_channels" }],
+    [{ text: "🧠 AI Training", callback_data: "adm_ai_training" }, { text: "⚙️ Settings", callback_data: "adm_settings" }],
   ];
 
   if (isSuperAdmin(userId)) {
-    buttons.push([{ text: "👑 Owner Panel", callback_data: "adm_owner", style: "danger" }]);
+    buttons.push([{ text: "👑 Owner Panel", callback_data: "adm_owner" }]);
   }
 
   await sendMessage(token, chatId,
@@ -199,9 +199,9 @@ export async function handleAdminProductsMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
     `📦 <b>Product Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
-      [{ text: "➕ Add Product", callback_data: "adm_add_product", style: "success" }],
-      [{ text: "✏️ Edit Price", callback_data: "adm_edit_price", style: "primary" }, { text: "❌ Out of Stock", callback_data: "adm_out_stock", style: "danger" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
+      [{ text: "➕ Add Product", callback_data: "adm_add_product" }],
+      [{ text: "✏️ Edit Price", callback_data: "adm_edit_price" }, { text: "❌ Out of Stock", callback_data: "adm_out_stock" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
     ]}}
   );
 }
@@ -211,10 +211,10 @@ export async function handleAdminUsersMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
     `👥 <b>User Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
-      [{ text: "👥 Recent Users", callback_data: "adm_recent_users", style: "primary" }, { text: "📋 All Users", callback_data: "adm_all_users", style: "primary" }],
-      [{ text: "📜 Order History", callback_data: "adm_history", style: "primary" }, { text: "🔄 Make Reseller", callback_data: "adm_make_reseller", style: "success" }],
-      [{ text: "🚫 Ban User", callback_data: "adm_ban", style: "danger" }, { text: "✅ Unban User", callback_data: "adm_unban", style: "success" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
+      [{ text: "👥 Recent Users", callback_data: "adm_recent_users" }, { text: "📋 All Users", callback_data: "adm_all_users" }],
+      [{ text: "📜 Order History", callback_data: "adm_history" }, { text: "🔄 Make Reseller", callback_data: "adm_make_reseller" }],
+      [{ text: "🚫 Ban User", callback_data: "adm_ban" }, { text: "✅ Unban User", callback_data: "adm_unban" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
     ]}}
   );
 }
@@ -224,8 +224,8 @@ export async function handleAdminWalletMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
     `💰 <b>Wallet Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
-      [{ text: "➕ Add Balance", callback_data: "adm_add_balance", style: "success" }, { text: "➖ Deduct Balance", callback_data: "adm_deduct_balance", style: "danger" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
+      [{ text: "➕ Add Balance", callback_data: "adm_add_balance" }, { text: "➖ Deduct Balance", callback_data: "adm_deduct_balance" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
     ]}}
   );
 }
@@ -235,9 +235,9 @@ export async function handleAdminChannelsMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
     `📢 <b>Channel Management</b>\n\nUse the buttons below:`,
     { reply_markup: { inline_keyboard: [
-      [{ text: "📋 List Channels", callback_data: "adm_list_channels", style: "primary" }],
-      [{ text: "➕ Add Channel", callback_data: "adm_add_channel", style: "success" }, { text: "➖ Remove Channel", callback_data: "adm_remove_channel", style: "danger" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
+      [{ text: "📋 List Channels", callback_data: "adm_list_channels" }],
+      [{ text: "➕ Add Channel", callback_data: "adm_add_channel" }, { text: "➖ Remove Channel", callback_data: "adm_remove_channel" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
     ]}}
   );
 }
@@ -247,25 +247,25 @@ export async function handleAdminOwnerMenu(token: string, chatId: number) {
   await sendMessage(token, chatId,
     `👑 <b>Owner Panel</b>\n\nSuper Admin only:`,
     { reply_markup: { inline_keyboard: [
-      [{ text: "➕ Add Admin", callback_data: "adm_add_admin", style: "success" }, { text: "➖ Remove Admin", callback_data: "adm_remove_admin", style: "danger" }],
-      [{ text: "📋 List Admins", callback_data: "adm_list_admins", style: "primary" }],
-      [{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }],
+      [{ text: "➕ Add Admin", callback_data: "adm_add_admin" }, { text: "➖ Remove Admin", callback_data: "adm_remove_admin" }],
+      [{ text: "📋 List Admins", callback_data: "adm_list_admins" }],
+      [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
     ]}}
   );
 }
 
 // ===== SETTINGS MENU (20+ items) =====
 const SETTINGS_CATEGORIES = [
-  { text: "💳 Payment Settings", callback_data: "adm_set_payment", style: "primary" },
-  { text: "🎁 Bonus & Referral", callback_data: "adm_set_bonus", style: "primary" },
-  { text: "🏪 Store Settings", callback_data: "adm_set_store", style: "primary" },
-  { text: "🤖 Bot Settings", callback_data: "adm_set_bot", style: "primary" },
-  { text: "🔒 Security & Limits", callback_data: "adm_set_security", style: "danger" },
+  { text: "💳 Payment Settings", callback_data: "adm_set_payment" },
+  { text: "🎁 Bonus & Referral", callback_data: "adm_set_bonus" },
+  { text: "🏪 Store Settings", callback_data: "adm_set_store" },
+  { text: "🤖 Bot Settings", callback_data: "adm_set_bot" },
+  { text: "🔒 Security & Limits", callback_data: "adm_set_security" },
 ];
 
 export async function handleAdminSettingsMenu(token: string, chatId: number) {
   const buttons = SETTINGS_CATEGORIES.map(c => [c]);
-  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }]);
+  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
   
   await sendMessage(token, chatId,
     `⚙️ <b>Settings (20+ Configurable Items)</b>\n\nSelect a category:`,
@@ -365,9 +365,9 @@ export async function handleSettingsCategory(token: string, supabase: any, chatI
   const buttons = cat.settings.map(s => [{
     text: `${s.emoji} ${s.label}`,
     callback_data: `adm_edit_set_${s.key}`,
-    style: "primary",
+   
   }]);
-  buttons.push([{ text: "⬅️ Back to Settings", callback_data: "adm_settings", style: "secondary" }]);
+  buttons.push([{ text: "⬅️ Back to Settings", callback_data: "adm_settings" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -405,7 +405,7 @@ export async function saveSetting(token: string, supabase: any, chatId: number, 
 
   await sendMessage(token, chatId,
     `✅ <b>${label} updated!</b>\n\n${emoji} New value: <code>${value}</code>`,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "adm_settings", style: "secondary" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "adm_settings" }]] } }
   );
 }
 
@@ -464,7 +464,7 @@ export async function handleReport(token: string, supabase: any, chatId: number)
     `💵 Total Wallet Balance: <b>₹${totalWalletBalance}</b>\n\n` +
     `📅 <b>Today:</b>\n• Orders: ${todayOrderCount || 0}\n• Revenue: ₹${todayRevenue}\n\n` +
     `📈 <b>All Time:</b>\n• Orders: ${allOrders || 0}\n• Revenue: ₹${allRevenue}`,
-    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Admin", callback_data: "adm_back", style: "secondary" }]] } }
+    { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]] } }
   );
 }
 

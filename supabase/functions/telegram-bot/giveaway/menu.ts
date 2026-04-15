@@ -18,18 +18,18 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "🎁 Giveaway Products", callback_data: "gw_products", style: "success" },
-          { text: "💰 My Points", callback_data: "gw_points", style: "primary" },
+          { text: "🎁 Giveaway Products", callback_data: "gw_products" },
+          { text: "💰 My Points", callback_data: "gw_points" },
         ],
         [
-          { text: "📜 Redemptions", callback_data: "gw_history", style: "primary" },
-          { text: "📎 Refer & Earn", callback_data: "gw_referral", style: "success" },
+          { text: "📜 Redemptions", callback_data: "gw_history" },
+          { text: "📎 Refer & Earn", callback_data: "gw_referral" },
         ],
         [
-          { text: "⭐ Reviews", callback_data: "gw_reviews", style: "primary" },
-          { text: "📞 Support", callback_data: "support", style: "danger" },
+          { text: "⭐ Reviews", callback_data: "gw_reviews" },
+          { text: "📞 Support", callback_data: "support" },
         ],
-        [{ text: "🌐 Website Login", callback_data: "website_login", style: "primary" }],
+        [{ text: "🌐 Website Login", callback_data: "website_login" }],
       ],
     },
   });
@@ -43,7 +43,7 @@ export async function showGiveawayJoinChannels(token: string, supabase: any, cha
   const buttons: any[][] = [
     ...channelButtons,
     [{ text: "🤖 Start Main Bot", url: MAIN_BOT_REF_LINK }],
-    [{ text: "✅ Verify", callback_data: "gw_verify_join", style: "success" }],
+    [{ text: "✅ Verify", callback_data: "gw_verify_join" }],
   ];
 
   const channelList = GIVEAWAY_REQUIRED_CHANNELS.map((ch, i) => `${i + 1}. Join ${ch.name}`).join("\n");
@@ -115,7 +115,7 @@ export async function showGiveawayStats(token: string, supabase: any, chatId: nu
   const statsText = `📊 <b>Your Stats</b>\n\n💰 Balance: ₹<b>${bal}</b>\n💵 Total Earned: ₹<b>${earned}</b>\n📦 Orders: <b>${orderCount || 0}</b>\n🎯 Giveaway Points: <b>${pts}</b>\n👥 Referrals: <b>${refs}</b>\n🏷️ Code: <code>${refCode}</code>`;
 
   await sendMessage(token, chatId, statsText, {
-    reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "gw_main", style: "primary" }]] }
+    reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "gw_main" }]] }
   });
 }
 
@@ -133,7 +133,7 @@ export async function showGiveawayReferralLink(token: string, supabase: any, cha
 
   await sendMessage(token, chatId, text, {
     reply_markup: { inline_keyboard: [
-      [{ text: "📤 Share", url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent("🎁 Join and win free products!")}`, style: "success" }],
+      [{ text: "📤 Share", url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent("🎁 Join and win free products!")}` }],
       [{ text: "🔙 Back", callback_data: "gw_main" }],
     ]}
   });

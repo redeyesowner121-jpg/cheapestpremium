@@ -154,7 +154,7 @@ async function showPaymentInfo(
       : "💳 Click the button below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
       reply_markup: {
-        inline_keyboard: [[{ text: lang === "bn" ? "💳 ওয়ালেট দিয়ে পে করুন" : "💳 Pay with Wallet", callback_data: "resale_walletpay_confirm", style: "success" }]],
+        inline_keyboard: [[{ text: lang === "bn" ? "💳 ওয়ালেট দিয়ে পে করুন" : "💳 Pay with Wallet", callback_data: "resale_walletpay_confirm" }]],
       },
     });
   } else {
@@ -197,7 +197,7 @@ async function showPaymentInfo(
       : "📸 After payment, send the <b>screenshot</b>.", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3", style: "primary" }],
+          [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
         ],
       },
     });
@@ -325,11 +325,11 @@ async function handleResaleScreenshot(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}`, style: "success" },
-          { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
+          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
+          { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
         ],
-        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}`, style: "primary" }],
-        [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
+        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+        [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
       ],
     },
   };

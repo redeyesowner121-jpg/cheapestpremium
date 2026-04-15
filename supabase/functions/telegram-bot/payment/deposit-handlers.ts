@@ -18,8 +18,8 @@ export async function handleDepositStart(token: string, supabase: any, chatId: n
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "💎 Binance", callback_data: "deposit_method_binance", style: "primary" },
-          { text: "📱 UPI", callback_data: "deposit_method_upi", style: "success" },
+          { text: "💎 Binance", callback_data: "deposit_method_binance" },
+          { text: "📱 UPI", callback_data: "deposit_method_upi" },
         ],
         [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
         [{ text: t("back", lang), callback_data: "my_wallet" }],
@@ -45,16 +45,16 @@ export async function showDepositAmountEntry(token: string, supabase: any, chatI
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "₹100", callback_data: "deposit_amt_100", style: "primary" },
-          { text: "₹200", callback_data: "deposit_amt_200", style: "primary" },
-          { text: "₹500", callback_data: "deposit_amt_500", style: "primary" },
+          { text: "₹100", callback_data: "deposit_amt_100" },
+          { text: "₹200", callback_data: "deposit_amt_200" },
+          { text: "₹500", callback_data: "deposit_amt_500" },
         ],
         [
-          { text: "₹1000", callback_data: "deposit_amt_1000", style: "success" },
-          { text: "₹2000", callback_data: "deposit_amt_2000", style: "success" },
-          { text: "₹5000", callback_data: "deposit_amt_5000", style: "success" },
+          { text: "₹1000", callback_data: "deposit_amt_1000" },
+          { text: "₹2000", callback_data: "deposit_amt_2000" },
+          { text: "₹5000", callback_data: "deposit_amt_5000" },
         ],
-        [{ text: t("back", lang), callback_data: "wallet_deposit", style: "secondary" }],
+        [{ text: t("back", lang), callback_data: "wallet_deposit" }],
       ],
     },
   });
@@ -98,8 +98,8 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💰 Type another amount", callback_data: "wallet_deposit", style: "primary" }],
-            [{ text: "Main Menu", callback_data: "back_main", style: "secondary" }],
+            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: "Main Menu", callback_data: "back_main" }],
           ],
         },
       }
@@ -152,7 +152,7 @@ export async function showDepositBinance(token: string, supabase: any, chatId: n
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }],
+        [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
       ],
     },
   });
@@ -171,8 +171,8 @@ export async function showDepositUpi(token: string, supabase: any, chatId: numbe
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "⚡ Automatic (Razorpay)", callback_data: "deposit_upi_auto", style: "success" }],
-        [{ text: "📋 Manual (Screenshot)", callback_data: "deposit_upi_manual", style: "primary" }],
+        [{ text: "⚡ Automatic (Razorpay)", callback_data: "deposit_upi_auto" }],
+        [{ text: "📋 Manual (Screenshot)", callback_data: "deposit_upi_manual" }],
         [{ text: t("back", lang), callback_data: "deposit_choose_method" }],
       ],
     },
@@ -248,8 +248,8 @@ export async function showDepositRazorpay(token: string, supabase: any, chatId: 
           reply_markup: {
             inline_keyboard: [
               [{ text: "💳 Pay Now", url: razorpayMeUrl }],
-              [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify", style: "success" }],
-              [{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }],
+              [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
+              [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
             ],
           },
         }),
@@ -263,8 +263,8 @@ export async function showDepositRazorpay(token: string, supabase: any, chatId: 
       reply_markup: {
         inline_keyboard: [
           [{ text: "💳 Pay Now", url: razorpayMeUrl }],
-          [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify", style: "success" }],
-          [{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }],
+          [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
+          [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
         ],
       },
     });
@@ -327,8 +327,8 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💰 Type another amount", callback_data: "wallet_deposit", style: "primary" }],
-            [{ text: "Main Menu", callback_data: "back_main", style: "secondary" }],
+            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
+            [{ text: "Main Menu", callback_data: "back_main" }],
           ],
         },
       }
@@ -374,7 +374,7 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
       await sendMessage(token, chatId, retryMsg, {
         reply_markup: {
           inline_keyboard: [
-             [{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }],
+             [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
           ],
         },
       });
@@ -382,7 +382,7 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
   } catch (err) {
     console.error("Deposit binance verify error:", err);
     await sendMessage(token, chatId, "Verification error. Send your Order ID again to retry.", {
-      reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }]] },
+      reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
     });
   }
 }
@@ -394,7 +394,7 @@ export async function verifyDepositBinance(token: string, supabase: any, chatId:
   await sendMessage(token, chatId, "📤 Please send your <b>Binance Order ID</b> as a message to verify payment.", {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }],
+        [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
       ],
     },
   });
@@ -428,8 +428,8 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit", style: "primary" }],
-              [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main", style: "secondary" }],
+              [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
+              [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
             ],
           },
         }
@@ -472,8 +472,8 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
         reply_markup: {
           inline_keyboard: [
             [{ text: "💳 Pay Now", url: razorpayMeUrl }],
-            [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify", style: "success" }],
-            [{ text: "❌ Cancel", callback_data: "deposit_cancel", style: "danger" }],
+            [{ text: "✅ Verify Payment", callback_data: "deposit_razorpay_verify" }],
+            [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
           ],
         },
       });
@@ -481,7 +481,7 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
   } catch (err) {
     console.error("Deposit razorpay verify error:", err);
     await sendMessage(token, chatId, "Verification error. Try again.", {
-      reply_markup: { inline_keyboard: [[{ text: "✅ Verify", callback_data: "deposit_razorpay_verify", style: "success" }]] },
+      reply_markup: { inline_keyboard: [[{ text: "✅ Verify", callback_data: "deposit_razorpay_verify" }]] },
     });
   }
 }
@@ -543,10 +543,10 @@ export async function handleDepositScreenshot(token: string, supabase: any, chat
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Approve", callback_data: `admin_confirm_${orderId}`, style: "success" },
-              { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
+              { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
+              { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
             ],
-            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
+            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
           ],
         },
       });

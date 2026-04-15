@@ -60,7 +60,7 @@ export async function handleMenuCallbacks(
     await setConversationState(supabase, userId, "chatting_with_admin", {});
     await notifyAllAdmins(BOT_TOKEN, supabase,
       `📩 User @${telegramUser.username || telegramUser.first_name} (${userId}) wants admin help.`,
-      { reply_markup: { inline_keyboard: [[{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }]] } }
     );
     await sendMessage(BOT_TOKEN, chatId, lang === "bn"
       ? "✅ আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন।\n\n💬 এখন আপনি সরাসরি মেসেজ পাঠাতে পারেন। চ্যাট শেষ করতে /endchat লিখুন।"
@@ -98,13 +98,13 @@ export async function handleMenuCallbacks(
       await supabase.from("telegram_ai_knowledge").update({ status: "approved" }).eq("id", knowledgeId);
       await sendMessage(BOT_TOKEN, chatId,
         `✅ <b>Knowledge Approved!</b>\n\n🧠 AI will now use this answer.`,
-        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }], [{ text: "⬅️ Back", callback_data: "adm_back", style: "secondary" }]] } }
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back" }]] } }
       );
     } else {
       await supabase.from("telegram_ai_knowledge").delete().eq("id", knowledgeId);
       await sendMessage(BOT_TOKEN, chatId,
         `❌ <b>Knowledge Rejected & Deleted</b>\n\nThis answer will not be added to AI knowledge.`,
-        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training", style: "primary" }], [{ text: "⬅️ Back", callback_data: "adm_back", style: "secondary" }]] } }
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back" }]] } }
       );
     }
     return true;
@@ -165,7 +165,7 @@ export async function handleMenuCallbacks(
         : `💎 <b>Binance Withdrawal</b>\n\n💵 Balance: <b>₹${balance}</b>\n\n✏️ Enter your Binance Pay ID`);
 
     await sendMessage(BOT_TOKEN, chatId, prompt, {
-      reply_markup: { inline_keyboard: [[{ text: lang === "bn" ? "বাতিল" : "Cancel", callback_data: "wallet_withdraw", style: "danger" }]] },
+      reply_markup: { inline_keyboard: [[{ text: lang === "bn" ? "বাতিল" : "Cancel", callback_data: "wallet_withdraw" }]] },
     });
     return true;
   }
@@ -199,7 +199,7 @@ export async function handleMenuCallbacks(
       ulang === "bn"
         ? `✅ <b>উইথড্র রিকোয়েস্ট জমা!</b>\n\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>\n\n⏳ অ্যাডমিন প্রসেস করবে।`
         : `✅ <b>Withdrawal Submitted!</b>\n\n💰 ₹${amount} | 💳 ${methodLabel}\n📋 <code>${convState.data.accountDetails}</code>\n\n⏳ Admin will process soon.`,
-      { reply_markup: { inline_keyboard: [[{ text: ulang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main", style: "secondary" }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: ulang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }]] } }
     );
     const { notifyAllAdmins: naa } = await import("../db-helpers.ts");
     const wdId = wdReq?.id?.slice(0, 8) || "N/A";
@@ -209,10 +209,10 @@ export async function handleMenuCallbacks(
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}`, style: "success" },
-              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}`, style: "danger" },
+              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}` },
+              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}` },
             ],
-            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}`, style: "primary" }],
+            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}` }],
           ],
         },
       }

@@ -80,8 +80,8 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
       await notifyAllAdmins(token, supabase,
         `🤖❓ <b>AI couldn't answer</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>\n\n📝 Reply to teach AI this answer. Click "Answer" below:`,
         { reply_markup: { inline_keyboard: [
-          [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}`, style: "success" }],
-          [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
+          [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}` }],
+          [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
         ]}}
       );
 
@@ -90,15 +90,15 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
         : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳");
 
       await sendMessage(token, chatId, forwardMsg, {
-        reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }]] }
+        reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] }
       });
     } else {
       const messageParts = splitMessage(answer);
       const actionButtons = {
         inline_keyboard: [
-          [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
-          [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
-          [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
+          [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products" }],
+          [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin" }],
+          [{ text: t("back_main", lang), callback_data: "back_main" }],
         ],
       };
 
@@ -115,15 +115,15 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
     await notifyAllAdmins(token, supabase,
       `🤖❌ <b>AI Error - Question forwarded</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>`,
       { reply_markup: { inline_keyboard: [
-        [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}`, style: "success" }],
-        [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
+        [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}` }],
+        [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
       ]}}
     );
     await sendMessage(token, chatId,
       lang === "bn"
         ? "🤔 আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হয়েছে। শীঘ্রই উত্তর পাবেন! ⏳"
         : "🤔 Your question has been forwarded to admin. You'll get a reply soon! ⏳",
-      { reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] } }
     );
   }
 }

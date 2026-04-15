@@ -86,11 +86,11 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}`, style: "success" },
-          { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
+          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
+          { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
         ],
-        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}`, style: "primary" }],
-        [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
+        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+        [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
       ],
     },
   };
