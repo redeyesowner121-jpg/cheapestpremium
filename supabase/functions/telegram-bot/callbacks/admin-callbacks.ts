@@ -73,7 +73,7 @@ export async function handleAdminCallbacks(
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "📦 Mark Delivered", callback_data: `wd_delivered_${wdId}`, style: "success" }],
+              [{ text: "📦 Mark Delivered", callback_data: `wd_delivered_${wdId}` }],
             ],
           },
         }
@@ -135,7 +135,7 @@ export async function handleAdminCallbacks(
       const ctx = getChildBotContext()!;
       await supabase.from("child_bot_settings").delete().eq("child_bot_id", ctx.id);
       await sendMessage(BOT_TOKEN, chatId, "✅ All custom settings have been reset to defaults.",
-        { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings", style: "secondary" }]] } });
+        { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings" }]] } });
       return true;
     }
 

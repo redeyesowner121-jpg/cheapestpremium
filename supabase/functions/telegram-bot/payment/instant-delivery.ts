@@ -144,7 +144,7 @@ export async function sendInstantDeliveryWithLoginCode(
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [[
-            { text: "🌐 View on Website", url: websiteUrl, style: "success" }
+            { text: "🌐 View on Website", url: websiteUrl }
           ]]
         }
       }),
@@ -171,7 +171,7 @@ export async function sendInstantDeliveryWithLoginCode(
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [[
-            { text: "🌐 View on Website", url: websiteUrl, style: "primary" }
+            { text: "🌐 View on Website", url: websiteUrl }
           ]]
         }
       }),

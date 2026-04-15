@@ -9,8 +9,8 @@ export async function showLanguageSelection(token: string, chatId: number) {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "English", callback_data: "lang_en", style: "primary" },
-          { text: "বাংলা", callback_data: "lang_bn", style: "success" },
+          { text: "English", callback_data: "lang_en" },
+          { text: "বাংলা", callback_data: "lang_bn" },
         ],
       ],
     },
@@ -21,9 +21,9 @@ export async function showJoinChannels(token: string, supabase: any, chatId: num
   const channels = await getRequiredChannels(supabase);
   const buttons: any[][] = channels.map((ch: string) => {
     const name = ch.startsWith("@") ? ch : `@${ch}`;
-    return [{ text: `Join ${name}`, url: `https://t.me/${name.replace("@", "")}`, style: "primary" }];
+    return [{ text: `Join ${name}`, url: `https://t.me/${name.replace("@", "")}` }];
   });
-  buttons.push([{ text: lang === "bn" ? "যাচাই করুন" : "Verify", callback_data: "verify_join", style: "success" }]);
+  buttons.push([{ text: lang === "bn" ? "যাচাই করুন" : "Verify", callback_data: "verify_join" }]);
 
   await sendMessage(token, chatId, t("join_channels", lang), {
     reply_markup: { inline_keyboard: buttons },
@@ -42,26 +42,26 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
     : `🛍️ <b>Welcome to ${storeName}!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments\n💬 24/7 Support\n\nChoose an option below:`;
 
   const buttons: any[][] = [
-    [{ text: t("view_products", lang), callback_data: "view_products", style: "success" }],
+    [{ text: t("view_products", lang), callback_data: "view_products" }],
     [
-      { text: t("my_orders", lang), callback_data: "my_orders", style: "primary" },
-      { text: t("my_wallet", lang), callback_data: "my_wallet", style: "primary" },
+      { text: t("my_orders", lang), callback_data: "my_orders" },
+      { text: t("my_wallet", lang), callback_data: "my_wallet" },
     ],
     [
-      { text: t("refer_earn", lang), callback_data: "refer_earn", style: "success" },
+      { text: t("refer_earn", lang), callback_data: "refer_earn" },
     ],
     [
-      { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs", style: "primary" },
-      { text: t("support", lang), callback_data: "support", style: "danger" },
+      { text: lang === "bn" ? "রিভিউ" : "Reviews", url: "https://t.me/RKRxProofs" },
+      { text: t("support", lang), callback_data: "support" },
     ],
   ];
 
   if (!isChild) {
-    buttons.push([{ text: "Website Login", callback_data: "website_login", style: "primary" }]);
+    buttons.push([{ text: "Website Login", callback_data: "website_login" }]);
   }
 
   if (isChild) {
-    buttons.push([{ text: "🤖 Make My Own Bot", url: "https://t.me/Botmother_selling_bot", style: "success" }]);
+    buttons.push([{ text: "🤖 Make My Own Bot", url: "https://t.me/Botmother_selling_bot" }]);
   }
 
   await sendMessage(token, chatId, welcomeText, {
@@ -80,10 +80,10 @@ export async function handleSupport(token: string, supabase: any, chatId: number
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}`, style: "success" }],
-          [{ text: "Telegram", url: `https://t.me/${supportNumber}`, style: "primary" }],
-          [{ text: lang === "bn" ? "অ্যাডমিনকে পাঠান" : "Forward to Admin", callback_data: "forward_to_admin", style: "primary" }],
-          [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
+          [{ text: "WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}` }],
+          [{ text: "Telegram", url: `https://t.me/${supportNumber}` }],
+          [{ text: lang === "bn" ? "অ্যাডমিনকে পাঠান" : "Forward to Admin", callback_data: "forward_to_admin" }],
+          [{ text: t("back_main", lang), callback_data: "back_main" }],
         ],
       },
     }
@@ -100,7 +100,7 @@ export async function forwardUserMessageToAdmin(token: string, supabase: any, ms
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "Chat", callback_data: `admin_chat_${telegramUser.id}`, style: "primary" }],
+          [{ text: "Chat", callback_data: `admin_chat_${telegramUser.id}` }],
         ],
       },
     }

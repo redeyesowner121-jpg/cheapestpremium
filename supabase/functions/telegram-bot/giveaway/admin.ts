@@ -31,8 +31,8 @@ export async function showGiveawayAdminMenu(token: string, supabase: any, chatId
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "📢 Manage Channels", callback_data: "gwa_channels", style: "danger" }],
-        [{ text: "📊 Top Users", callback_data: "gwa_top_users", style: "primary" }],
+        [{ text: "📢 Manage Channels", callback_data: "gwa_channels" }],
+        [{ text: "📊 Top Users", callback_data: "gwa_top_users" }],
         [{ text: "🔙 Main Menu", callback_data: "gw_main" }],
       ],
     },

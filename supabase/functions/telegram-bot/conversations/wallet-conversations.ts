@@ -63,11 +63,11 @@ export async function handleWithdrawSteps(token: string, supabase: any, chatId: 
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "₹100", callback_data: "withdraw_amt_100", style: "primary" },
-              { text: "₹500", callback_data: "withdraw_amt_500", style: "primary" },
-              { text: "₹1000", callback_data: "withdraw_amt_1000", style: "primary" },
+              { text: "₹100", callback_data: "withdraw_amt_100" },
+              { text: "₹500", callback_data: "withdraw_amt_500" },
+              { text: "₹1000", callback_data: "withdraw_amt_1000" },
             ],
-            [{ text: lang2 === "bn" ? "বাতিল" : "Cancel", callback_data: "my_wallet", style: "danger" }],
+            [{ text: lang2 === "bn" ? "বাতিল" : "Cancel", callback_data: "my_wallet" }],
           ],
         },
       }
@@ -102,7 +102,7 @@ export async function handleWithdrawSteps(token: string, supabase: any, chatId: 
       lang2 === "bn"
         ? `✅ <b>উইথড্র রিকোয়েস্ট জমা হয়েছে!</b>\n\n💰 পরিমাণ: <b>₹${amount}</b>\n💳 পদ্ধতি: <b>${methodLabel}</b>\n📋 ID: <code>${state.data.accountDetails}</code>\n\n⏳ অ্যাডমিন শীঘ্রই প্রসেস করবে। আপডেট পাবেন।`
         : `✅ <b>Withdrawal Request Submitted!</b>\n\n💰 Amount: <b>₹${amount}</b>\n💳 Method: <b>${methodLabel}</b>\n📋 ID: <code>${state.data.accountDetails}</code>\n\n⏳ Admin will process it soon. You'll be notified.`,
-      { reply_markup: { inline_keyboard: [[{ text: lang2 === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main", style: "primary" }]] } }
+      { reply_markup: { inline_keyboard: [[{ text: lang2 === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }]] } }
     );
 
     const wdId = wdReq?.id?.slice(0, 8) || "N/A";
@@ -112,10 +112,10 @@ export async function handleWithdrawSteps(token: string, supabase: any, chatId: 
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}`, style: "success" },
-              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}`, style: "danger" },
+              { text: "✅ Accept", callback_data: `wd_accept_${wdReq?.id}` },
+              { text: "❌ Reject", callback_data: `wd_reject_${wdReq?.id}` },
             ],
-            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}`, style: "primary" }],
+            [{ text: "📦 Delivered", callback_data: `wd_delivered_${wdReq?.id}` }],
           ],
         },
       }

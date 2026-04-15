@@ -144,8 +144,8 @@ export async function handleAllUsers(token: string, supabase: any, chatId: numbe
 
   const buttons: any[][] = [];
   const navRow: any[] = [];
-  if (page > 0) navRow.push({ text: "⬅️ Previous", callback_data: `allusers_page_${page - 1}`, style: "primary" });
-  if (page < totalPages - 1) navRow.push({ text: "Next ➡️", callback_data: `allusers_page_${page + 1}`, style: "primary" });
+  if (page > 0) navRow.push({ text: "⬅️ Previous", callback_data: `allusers_page_${page - 1}` });
+  if (page < totalPages - 1) navRow.push({ text: "Next ➡️", callback_data: `allusers_page_${page + 1}` });
   if (navRow.length) buttons.push(navRow);
 
   await sendMessage(token, chatId, text, buttons.length ? { reply_markup: { inline_keyboard: buttons } } : undefined);
