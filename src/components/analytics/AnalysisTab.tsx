@@ -1,13 +1,13 @@
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell,
 } from 'recharts';
 import {
   TrendingUp, Users, ShoppingBag, IndianRupee, Gift, Package,
-  Star, Award, BarChart3, Clock, Percent, Layers, ArrowUpRight,
+  Star, Award, BarChart3, Clock, Percent, Layers, ArrowUpRight, Globe,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import type { AnalyticsData } from './types';
 
 const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--accent))', 'hsl(var(--secondary))', 'hsl(var(--destructive))', '#f59e0b', '#8b5cf6', '#ec4899'];
@@ -16,8 +16,19 @@ const USER_VALUE = 10;
 const DEPOSIT_VALUE = 1;
 const ORDER_VALUE = 5;
 const PROFIT_VALUE = 0.5;
+const VISIT_VALUE = 0.2;
 
 const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transactions, selectedPeriod = '7d' }) => {
+  const [searchLogs, setSearchLogs] = useState<{ created_at: string }[]>([]);
+
+  useEffect(() => {
+    const fetchSearchLogs = async () => {
+      const { data } = await supabase.from('search_logs').select('created_at').order('created_at', { ascending: true });
+      if (data) setSearchLogs(data);
+    };
+    fetchSearchLogs();
+  }, []);
+
   // Combined graph data
   const combinedData = useMemo(() => {
     const days = selectedPeriod === '7d' ? 7 : selectedPeriod === '30d' ? 30 : 90;
@@ -32,6 +43,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
       const dayOrders = orders.filter(o => o.created_at?.split('T')[0] === dateStr);
       const orderCount = dayOrders.length;
       const profitGiven = dayOrders.reduce((s, o) => s + (o.discount_applied || 0), 0);
+      const visitCount = searchLogs.filter(s => s.created_at?.split('T')[0] === dateStr).length;
 
       return {
         date: new Date(dateStr).toLocaleDateString('en-US', { weekday: days <= 7 ? 'short' : undefined, day: 'numeric', month: days > 7 ? 'short' : undefined }),
@@ -39,14 +51,16 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
         deposit: depositAmount * DEPOSIT_VALUE,
         order: orderCount * ORDER_VALUE,
         profitGiven: profitGiven * PROFIT_VALUE,
+        visits: visitCount * VISIT_VALUE,
         // Raw counts
         _users: newUsers,
         _depositAmount: depositAmount,
         _orders: orderCount,
         _profit: profitGiven,
+        _visits: visitCount,
       };
     });
-  }, [orders, users, transactions, selectedPeriod]);
+  }, [orders, users, transactions, searchLogs, selectedPeriod]);
 
   // Totals for bottom summary
   const totals = useMemo(() => {
