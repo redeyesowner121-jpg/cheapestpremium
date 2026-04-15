@@ -715,7 +715,28 @@ async function handleMotherConversation(motherToken: string, mainToken: string, 
     return;
   }
 
-  // Admin: Set revenue percentage
+  // Owner: Edit own bot revenue
+  if (state.step === "mybot_setrev") {
+    const percent = parseFloat(text.trim());
+    if (isNaN(percent) || percent < 1 || percent > 60) {
+      await sendMsg(motherToken, chatId, "❌ Enter a number between 1 and 60.");
+      return;
+    }
+    const botId = state.data.bot_id;
+    // Verify ownership
+    const { data: bot } = await supabase.from("child_bots").select("id").eq("id", botId).eq("owner_telegram_id", userId).single();
+    if (!bot) {
+      await deleteConvState(supabase, userId);
+      await sendMsg(motherToken, chatId, "❌ Bot not found.");
+      return;
+    }
+    await supabase.from("child_bots").update({ revenue_percent: percent }).eq("id", botId);
+    await deleteConvState(supabase, userId);
+    await sendMsg(motherToken, chatId, `✅ Revenue for @${state.data.bot_username || "bot"} updated to ${percent}%`);
+    await showBotManagement(motherToken, supabase, chatId, userId, botId);
+    return;
+  }
+
   if (state.step === "mother_admin_setrev") {
     if (!isMotherOwner(userId)) return;
     const percent = parseFloat(text.trim());
