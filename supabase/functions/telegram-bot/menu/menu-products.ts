@@ -18,7 +18,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 
   if (!categories?.length) {
     await sendMessage(token, chatId, t("no_products", lang), {
-      reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main" }]] },
+      reply_markup: { inline_keyboard: [[{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }]] },
     });
     return;
   }
@@ -27,13 +27,15 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
-    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}` }];
+    const colorIdx = Math.floor(i / 2) % 2;
+    const catColors = ["primary", "success"];
+    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}`, style: catColors[colorIdx] }];
     if (categories[i + 1]) {
-      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}` });
+      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`, style: catColors[1 - colorIdx] });
     }
     buttons.push(row);
   }
-  buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
+  buttons.push([{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }]);
 
   await sendMessage(token, chatId, header, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -53,7 +55,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
 
   if (!products?.length) {
     await sendMessage(token, chatId, t("no_products", lang), {
-      reply_markup: { inline_keyboard: [[{ text: t("back_products", lang), callback_data: "back_products" }]] },
+      reply_markup: { inline_keyboard: [[{ text: t("back_products", lang), callback_data: "back_products", style: "secondary" }]] },
     });
     return;
   }
@@ -92,7 +94,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     }
     buttons.push(row);
   }
-  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+  buttons.push([{ text: t("back_products", lang), callback_data: "back_products", style: "secondary" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -191,7 +193,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         buttons.push(row);
       }
     }
-    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+    buttons.push([{ text: t("back_products", lang), callback_data: "back_products", style: "secondary" }]);
 
     if (primaryImage) {
       await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
@@ -236,7 +238,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       }
     }
 
-    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+    buttons.push([{ text: t("back_products", lang), callback_data: "back_products", style: "secondary" }]);
 
     if (primaryImage) {
       await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });

@@ -98,7 +98,7 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
         inline_keyboard: [
           [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
           [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
-          [{ text: t("back_main", lang), callback_data: "back_main" }],
+          [{ text: t("back_main", lang), callback_data: "back_main", style: "secondary" }],
         ],
       };
 
