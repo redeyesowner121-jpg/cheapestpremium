@@ -53,39 +53,62 @@ async function* parseSSEStream(response: Response): AsyncGenerator<string> {
   }
 }
 
-// Split long text into Telegram-friendly chunks (~3500 chars max to be safe)
-// Split into small chunks — prefer paragraph breaks (\n\n), then single newlines
+// Split long text into separate Telegram messages — each product/paragraph gets its own message
 function splitMessage(text: string): string[] {
-  // First split by double newline (paragraphs)
+  // Split by double newline (paragraphs/product blocks)
   const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
   
-  const parts: string[] = [];
-  
-  for (const para of paragraphs) {
-    // If paragraph is short enough (≤300 chars), keep as one part
-    if (para.length <= 300) {
-      parts.push(para);
-      continue;
-    }
+  // If 2+ paragraphs found, each becomes its own message
+  if (paragraphs.length >= 2) {
+    const parts: string[] = [];
     
-    // Split longer paragraphs by single newline
-    const lines = para.split(/\n/).map(l => l.trim()).filter(Boolean);
-    let currentChunk = "";
-    
-    for (const line of lines) {
-      if (currentChunk && (currentChunk + "\n" + line).length > 300) {
-        parts.push(currentChunk);
-        currentChunk = line;
+    for (const para of paragraphs) {
+      // If a paragraph is very long (>500 chars), split by single newlines
+      if (para.length > 500) {
+        const lines = para.split(/\n/).map(l => l.trim()).filter(Boolean);
+        let currentChunk = "";
+        for (const line of lines) {
+          if (currentChunk && (currentChunk + "\n" + line).length > 400) {
+            parts.push(currentChunk);
+            currentChunk = line;
+          } else {
+            currentChunk = currentChunk ? currentChunk + "\n" + line : line;
+          }
+        }
+        if (currentChunk) parts.push(currentChunk);
       } else {
-        currentChunk = currentChunk ? currentChunk + "\n" + line : line;
+        parts.push(para);
       }
     }
-    if (currentChunk) parts.push(currentChunk);
+    
+    return parts;
   }
   
-  // If only 1 part, no need to split
-  if (parts.length <= 1) return [text];
-  return parts;
+  // Single block — try splitting by product markers (📦, 🔥, ➡️, •, -, numbered items)
+  const productPattern = /\n(?=📦|🔥|➡️|•\s|[-]\s|\d+[\.\)]\s)/;
+  const productSplit = text.split(productPattern).map(p => p.trim()).filter(Boolean);
+  if (productSplit.length >= 2) return productSplit;
+  
+  // If still one block and very long, split by sentences
+  if (text.length > 400) {
+    const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length >= 3) {
+      const parts: string[] = [];
+      let chunk = "";
+      for (const line of lines) {
+        if (chunk && (chunk + "\n" + line).length > 300) {
+          parts.push(chunk);
+          chunk = line;
+        } else {
+          chunk = chunk ? chunk + "\n" + line : line;
+        }
+      }
+      if (chunk) parts.push(chunk);
+      if (parts.length >= 2) return parts;
+    }
+  }
+  
+  return [text];
 }
 
 // Fetch cross-platform web AI history
