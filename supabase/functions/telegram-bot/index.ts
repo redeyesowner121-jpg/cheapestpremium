@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
   // Clear child context from any previous request
   clearChildBotContext();
 
+  // Load premium emoji toggle from settings
+  await initPremiumEmoji(supabase);
+
   // ===== CHILD BOT MODE =====
   let BOT_TOKEN: string | null = null;
   let isChildMode = false;
