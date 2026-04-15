@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Package, Link, Key } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Package, Link, Key, Repeat, Layers, Copy } from 'lucide-react';
 import ImageUpload from '@/components/ui/image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
@@ -48,11 +49,20 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const [deliveryType, setDeliveryType] = useState<'link' | 'credentials'>('link');
   const [credUsername, setCredUsername] = useState('');
   const [credPassword, setCredPassword] = useState('');
+  const [deliveryMode, setDeliveryMode] = useState<'repeated' | 'unique'>('repeated');
+  const [stockItems, setStockItems] = useState<any[]>([]);
+  const [newStockLink, setNewStockLink] = useState('');
+  const [loadingStock, setLoadingStock] = useState(false);
 
-  // Auto-detect delivery type from existing access_link
-  React.useEffect(() => {
-    if (editingProduct?.access_link) {
-      const link = editingProduct.access_link;
+  // Auto-detect delivery type and mode from existing product
+  useEffect(() => {
+    if (editingProduct) {
+      // Set delivery mode
+      setDeliveryMode(editingProduct.delivery_mode === 'unique' ? 'unique' : 'repeated');
+      setProductForm((prev: any) => ({ ...prev, delivery_mode: editingProduct.delivery_mode || 'repeated' }));
+
+      // Detect delivery type from access_link
+      const link = editingProduct.access_link || '';
       if (link.includes('ID:') && link.includes('Password:')) {
         setDeliveryType('credentials');
         const idMatch = link.match(/ID:\s*(.+)/);
@@ -64,12 +74,30 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
         setCredUsername('');
         setCredPassword('');
       }
+
+      // Load stock items if unique mode
+      if (editingProduct.delivery_mode === 'unique') {
+        loadStockItems(editingProduct.id);
+      }
     } else {
       setDeliveryType('link');
+      setDeliveryMode('repeated');
       setCredUsername('');
       setCredPassword('');
+      setStockItems([]);
     }
   }, [editingProduct]);
+
+  const loadStockItems = async (productId: string) => {
+    setLoadingStock(true);
+    const { data } = await supabase
+      .from('product_stock_items' as any)
+      .select('*')
+      .eq('product_id', productId)
+      .order('created_at', { ascending: true });
+    setStockItems(data || []);
+    setLoadingStock(false);
+  };
 
   // Sync credentials back to productForm.access_link
   const updateAccessLink = (type: 'link' | 'credentials', link?: string, user?: string, pass?: string) => {
@@ -78,6 +106,56 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     } else {
       setProductForm({ ...productForm, access_link: link ?? productForm.access_link });
     }
+  };
+
+  const handleDeliveryModeChange = (mode: 'repeated' | 'unique') => {
+    setDeliveryMode(mode);
+    setProductForm({ ...productForm, delivery_mode: mode });
+    if (mode === 'unique' && editingProduct) {
+      loadStockItems(editingProduct.id);
+    }
+  };
+
+  const handleAddStockItem = async () => {
+    if (!newStockLink.trim()) {
+      toast.error('Please enter a link or credentials');
+      return;
+    }
+    if (!editingProduct) {
+      toast.error('Please save the product first, then add stock items');
+      return;
+    }
+
+    let accessValue = newStockLink.trim();
+    if (deliveryType === 'credentials') {
+      // For credentials mode, the input is already formatted
+      accessValue = newStockLink.trim();
+    }
+
+    const { error } = await (supabase as any)
+      .from('product_stock_items')
+      .insert({ product_id: editingProduct.id, access_link: accessValue });
+
+    if (error) {
+      toast.error('Failed to add stock item');
+      return;
+    }
+    toast.success('Stock item added!');
+    setNewStockLink('');
+    loadStockItems(editingProduct.id);
+  };
+
+  const handleDeleteStockItem = async (itemId: string) => {
+    const { error } = await (supabase as any)
+      .from('product_stock_items')
+      .delete()
+      .eq('id', itemId);
+    if (error) {
+      toast.error('Failed to delete');
+      return;
+    }
+    setStockItems(stockItems.filter(s => s.id !== itemId));
+    toast.success('Stock item removed');
   };
 
   const handleSave = () => {
@@ -92,6 +170,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     }
     onSave();
   };
+
   const handleAddModalVariation = () => {
     if (!newModalVariation.name || !newModalVariation.price) {
       toast.error('Please fill variation name and price');
@@ -149,6 +228,9 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     setPendingVariations(pendingVariations.filter((_, i) => i !== index));
   };
 
+  const availableStock = stockItems.filter(s => !s.is_used).length;
+  const usedStock = stockItems.filter(s => s.is_used).length;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onReset(); else onOpenChange(o); }}>
       <DialogContent className="max-w-md rounded-3xl max-h-[90vh] overflow-y-auto">
@@ -175,6 +257,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
               previewHeight="h-36"
             />
           </div>
+
           {/* Delivery Type for Access Link */}
           <div>
             <label className="text-sm font-medium mb-2 block">Auto-Delivery Type</label>
@@ -200,33 +283,139 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                 ID / Password
               </Button>
             </div>
-            {deliveryType === 'link' ? (
-              <Input
-                placeholder="Access Link (https://...)"
-                value={productForm.access_link}
-                onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
-              />
+
+            {/* Delivery Mode: Repeated vs Unique */}
+            <div className="mb-3">
+              <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Delivery Mode</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-all border-2 ${
+                    deliveryMode === 'repeated'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                      : 'bg-muted text-muted-foreground border-transparent hover:border-muted-foreground/30'
+                  }`}
+                  onClick={() => handleDeliveryModeChange('repeated')}
+                >
+                  <Repeat className="w-3.5 h-3.5" />
+                  Same for All
+                </button>
+                <button
+                  type="button"
+                  className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg font-medium transition-all border-2 ${
+                    deliveryMode === 'unique'
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                      : 'bg-muted text-muted-foreground border-transparent hover:border-muted-foreground/30'
+                  }`}
+                  onClick={() => handleDeliveryModeChange('unique')}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  Unique per Order
+                </button>
+              </div>
+            </div>
+
+            {deliveryMode === 'repeated' ? (
+              // Repeated mode: single access link
+              deliveryType === 'link' ? (
+                <Input
+                  placeholder="Access Link (https://...)"
+                  value={productForm.access_link}
+                  onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
+                    <Input
+                      placeholder="user@example.com"
+                      value={credUsername}
+                      onChange={(e) => { setCredUsername(e.target.value); updateAccessLink('credentials', undefined, e.target.value, credPassword); }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
+                    <Input
+                      placeholder="••••••••"
+                      value={credPassword}
+                      onChange={(e) => { setCredPassword(e.target.value); updateAccessLink('credentials', undefined, credUsername, e.target.value); }}
+                    />
+                  </div>
+                </div>
+              )
             ) : (
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs font-medium mb-1 block text-muted-foreground">Username / Email / ID</label>
-                  <Input
-                    placeholder="user@example.com"
-                    value={credUsername}
-                    onChange={(e) => { setCredUsername(e.target.value); updateAccessLink('credentials', undefined, e.target.value, credPassword); }}
-                  />
+              // Unique mode: stock items management
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    📦 Available: {availableStock}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    ✅ Used: {usedStock}
+                  </Badge>
                 </div>
-                <div>
-                  <label className="text-xs font-medium mb-1 block text-muted-foreground">Password</label>
-                  <Input
-                    placeholder="••••••••"
-                    value={credPassword}
-                    onChange={(e) => { setCredPassword(e.target.value); updateAccessLink('credentials', undefined, credUsername, e.target.value); }}
-                  />
-                </div>
+
+                {!editingProduct && (
+                  <p className="text-xs text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+                    ⚠️ প্রথমে প্রোডাক্ট সেভ করুন, তারপর স্টক আইটেম যোগ করুন
+                  </p>
+                )}
+
+                {editingProduct && (
+                  <>
+                    {/* Add new stock item */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={deliveryType === 'credentials' ? 'ID: user | Password: pass' : 'https://link...'}
+                        value={newStockLink}
+                        onChange={(e) => setNewStockLink(e.target.value)}
+                        className="text-xs"
+                      />
+                      <Button size="sm" onClick={handleAddStockItem} className="shrink-0">
+                        <Plus className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+
+                    {/* Stock items list */}
+                    {loadingStock ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">Loading...</p>
+                    ) : stockItems.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-2">No stock items yet</p>
+                    ) : (
+                      <div className="max-h-40 overflow-y-auto space-y-1.5">
+                        {stockItems.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border ${
+                              item.is_used
+                                ? 'bg-muted/50 border-border opacity-60'
+                                : 'bg-background border-border'
+                            }`}
+                          >
+                            <span className="text-muted-foreground w-5 shrink-0">#{idx + 1}</span>
+                            <span className="truncate flex-1 font-mono text-[11px]">
+                              {item.access_link}
+                            </span>
+                            {item.is_used ? (
+                              <Badge variant="secondary" className="text-[10px] shrink-0">Used</Badge>
+                            ) : (
+                              <button
+                                onClick={() => handleDeleteStockItem(item.id)}
+                                className="text-destructive hover:text-destructive/80 shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
           </div>
+
           <Input type="number" placeholder="Stock (empty=unlimited)" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
           
           {/* Bot Button Color */}
