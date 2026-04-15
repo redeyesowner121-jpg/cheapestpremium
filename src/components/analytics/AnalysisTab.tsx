@@ -49,7 +49,9 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
       const dayOrders = orders.filter(o => o.created_at?.split('T')[0] === dateStr);
       const orderCount = dayOrders.length;
       const profitGiven = dayOrders.reduce((s, o) => s + (o.discount_applied || 0), 0);
-      const visitCount = searchLogs.filter(s => s.created_at?.split('T')[0] === dateStr).length;
+      const searchVisits = searchLogs.filter(s => s.created_at?.split('T')[0] === dateStr).length;
+      const subdomainVisits = siteVisits.filter(s => s.created_at?.split('T')[0] === dateStr).length;
+      const visitCount = searchVisits + subdomainVisits;
 
       return {
         date: new Date(dateStr).toLocaleDateString('en-US', { weekday: days <= 7 ? 'short' : undefined, day: 'numeric', month: days > 7 ? 'short' : undefined }),
