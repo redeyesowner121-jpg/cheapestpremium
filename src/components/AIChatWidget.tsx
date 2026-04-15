@@ -516,20 +516,53 @@ const AIChatWidget: React.FC = () => {
         }
       }
 
-      // Set response time & save to DB
+      // Split long responses into multiple message bubbles
       const responseTime = Date.now() - streamStartTime.current;
-      const assistantMsg: Msg = { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: assistantSoFar.split(/\s+/).filter(Boolean).length, responseTime };
+      const splitWebMessage = (text: string): string[] => {
+        const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+        if (paragraphs.length >= 2) return paragraphs;
+        const productPattern = /\n(?=📦|🔥|➡️|•\s|[-]\s|\d+[\.\)]\s)/;
+        const productSplit = text.split(productPattern).map(p => p.trim()).filter(Boolean);
+        if (productSplit.length >= 2) return productSplit;
+        return [text];
+      };
+
+      const parts = splitWebMessage(assistantSoFar.trim());
       
-      // Save assistant message to DB
-      const savedId = await saveToDb(assistantMsg);
-      
-      setMessages(prev => {
-        const last = prev[prev.length - 1];
-        if (last?.role === 'assistant') {
-          return prev.map((m, i) => i === prev.length - 1 ? { ...m, id: savedId, responseTime } : m);
+      if (parts.length > 1) {
+        // Replace single streaming message with multiple split messages
+        const splitMsgs: Msg[] = parts.map((part, idx) => ({
+          role: 'assistant' as const,
+          content: part,
+          timestamp: Date.now() + idx,
+          wordCount: part.split(/\s+/).filter(Boolean).length,
+          responseTime: idx === parts.length - 1 ? responseTime : undefined,
+        }));
+        
+        // Save all parts to DB
+        const savedIds: (string | undefined)[] = [];
+        for (const msg of splitMsgs) {
+          const id = await saveToDb(msg);
+          savedIds.push(id);
         }
-        return prev;
-      });
+        
+        setMessages(prev => {
+          // Remove the streaming assistant message and add split messages
+          const withoutStreaming = prev.filter((m, i) => !(i === prev.length - 1 && m.role === 'assistant' && !m.id));
+          return [...withoutStreaming, ...splitMsgs.map((m, i) => ({ ...m, id: savedIds[i] }))];
+        });
+      } else {
+        // Single message - save normally
+        const assistantMsg: Msg = { role: 'assistant', content: assistantSoFar, timestamp: Date.now(), wordCount: assistantSoFar.split(/\s+/).filter(Boolean).length, responseTime };
+        const savedId = await saveToDb(assistantMsg);
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === 'assistant') {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, id: savedId, responseTime } : m);
+          }
+          return prev;
+        });
+      }
       setFollowUps(generateFollowUps(assistantSoFar));
     } catch (e: any) {
       if (e.name !== 'AbortError') {
