@@ -28,7 +28,7 @@ export async function handleRazorpayVerify(
     if (!paymentsRes.ok) {
       console.error("Razorpay payments fetch error:", await paymentsRes.text());
       await sendMessage(token, chatId, "Verification error. Please try again in a moment.", {
-        reply_markup: { inline_keyboard: [[{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }]] },
+        reply_markup: { inline_keyboard: [[{ text: "✅ Verify Payment", callback_data: "razorpay_verify", style: "success" }]] },
       });
       return;
     }
@@ -97,8 +97,8 @@ export async function handleRazorpayVerify(
       await sendMessage(token, chatId, `Payment not found yet.\n\nMake sure you paid exactly <b>₹${finalAmount}</b> and verify within 2 minutes of paying.`, {
         reply_markup: { inline_keyboard: [
           [{ text: "💳 Pay Now", url: "https://razorpay.me/@asifikbalrubaiulislam" }],
-          [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
-          [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
+           [{ text: "✅ Verify Payment", callback_data: "razorpay_verify", style: "success" }],
+           [{ text: "❌ Cancel", callback_data: "razorpay_cancel", style: "danger" }],
         ]},
       });
     }
