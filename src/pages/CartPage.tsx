@@ -372,6 +372,9 @@ const CartPage: React.FC = () => {
             })}
           </div>
         )}
+
+        {/* Donation Section */}
+        <DonationCard />
       </main>
 
       {/* Bottom Checkout Bar */}
