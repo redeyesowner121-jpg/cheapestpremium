@@ -68,7 +68,7 @@ const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transac
         _visits: visitCount,
       };
     });
-  }, [orders, users, transactions, searchLogs, selectedPeriod]);
+  }, [orders, users, transactions, searchLogs, siteVisits, selectedPeriod]);
 
   // Totals for bottom summary
   const totals = useMemo(() => {
