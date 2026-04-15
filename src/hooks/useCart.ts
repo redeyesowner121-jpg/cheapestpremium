@@ -163,5 +163,34 @@ export const useCart = () => {
     }
   };
 
-  return { items, loading, cartCount, addToCart, updateQuantity, removeItem, clearCart, refetch: fetchCart };
+  const addDonation = async (amount: number) => {
+    if (!user) {
+      toast.error('Please login to donate');
+      return false;
+    }
+    if (amount < 1) {
+      toast.error('Minimum donation is ₹1');
+      return false;
+    }
+    try {
+      // Remove existing donation if any
+      await supabase.from('cart_items').delete().eq('user_id', user.id).is('product_id', null).not('donation_amount', 'is', null);
+      
+      await supabase.from('cart_items').insert({
+        user_id: user.id,
+        product_id: null,
+        variation_id: null,
+        quantity: 1,
+        donation_amount: amount,
+      });
+      toast.success('Donation added to cart! ❤️🛒');
+      return true;
+    } catch (err) {
+      console.error('Add donation error:', err);
+      toast.error('Failed to add donation to cart');
+      return false;
+    }
+  };
+
+  return { items, loading, cartCount, addToCart, addDonation, updateQuantity, removeItem, clearCart, refetch: fetchCart };
 };
