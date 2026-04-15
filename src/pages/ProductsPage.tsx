@@ -183,7 +183,8 @@ const ProductsPage: React.FC = () => {
         ? `${selectedProduct.name} (${selectedVariation.name})`
         : selectedProduct.name;
 
-      const { error: orderError } = await supabase.from('orders').insert({
+      // Create order first as pending
+      const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
         user_id: user.id,
         product_id: selectedProduct.id,
         product_name: productNameWithVariation,
@@ -192,11 +193,39 @@ const ProductsPage: React.FC = () => {
         unit_price: priceToUse,
         total_price: totalPrice,
         user_note: orderNote || null,
-        access_link: selectedProduct.access_link || null,
-        status: selectedProduct.access_link ? 'confirmed' : 'pending'
-      });
+        status: 'pending'
+      }).select('id').single();
 
       if (orderError) throw orderError;
+
+      // Try instant delivery via RPC
+      let accessLink: string | null = null;
+      let isInstantDelivery = false;
+
+      if (insertedOrder?.id) {
+        // Check if product supports instant delivery
+        const { data: productData } = await supabase
+          .from('products')
+          .select('access_link, delivery_mode, show_link_in_website')
+          .eq('id', selectedProduct.id)
+          .single();
+
+        if (productData?.show_link_in_website !== false &&
+            (productData?.delivery_mode === 'unique' || productData?.access_link)) {
+          try {
+            const { data: claimedLink, error: rpcError } = await supabase.rpc('finalize_instant_delivery', {
+              p_product_id: selectedProduct.id,
+              p_order_id: insertedOrder.id,
+            });
+            if (!rpcError && claimedLink) {
+              accessLink = claimedLink;
+              isInstantDelivery = true;
+            }
+          } catch (e) {
+            console.error('Instant delivery error:', e);
+          }
+        }
+      }
 
       const hasStock = freshProduct?.stock !== null && freshProduct?.stock !== undefined;
       await supabase.rpc('increment_product_sold_count', { product_id: selectedProduct.id, qty: quantity, has_stock: hasStock });
@@ -208,14 +237,14 @@ const ProductsPage: React.FC = () => {
 
       await supabase.from('notifications').insert({
         user_id: user.id,
-        title: selectedProduct.access_link ? 'Order Delivered' : 'Order Placed Successfully',
-        message: selectedProduct.access_link
+        title: isInstantDelivery ? 'Order Delivered' : 'Order Placed Successfully',
+        message: isInstantDelivery
           ? `Your order for ${productNameWithVariation} has been delivered! Check your orders for the access link.`
           : `Your order for ${productNameWithVariation} has been placed.`,
         type: 'order'
       });
 
-      setSuccessOrderData({ productName: productNameWithVariation, totalPrice, accessLink: selectedProduct.access_link || null });
+      setSuccessOrderData({ productName: productNameWithVariation, totalPrice, accessLink });
       setShowBuyModal(false);
       setShowSuccessModal(true);
       refreshProfile();
