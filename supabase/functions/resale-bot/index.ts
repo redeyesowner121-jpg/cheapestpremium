@@ -154,7 +154,7 @@ async function showPaymentInfo(
       : "💳 Click the button below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
       reply_markup: {
-        inline_keyboard: [[{ text: lang === "bn" ? "💳 ওয়ালেট দিয়ে পে করুন" : "💳 Pay with Wallet", callback_data: "resale_walletpay_confirm" }]],
+        inline_keyboard: [[{ text: lang === "bn" ? "💳 ওয়ালেট দিয়ে পে করুন" : "💳 Pay with Wallet", callback_data: "resale_walletpay_confirm", style: "success" }]],
       },
     });
   } else {
@@ -197,7 +197,7 @@ async function showPaymentInfo(
       : "📸 After payment, send the <b>screenshot</b>.", {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
+          [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3", style: "primary" }],
         ],
       },
     });
