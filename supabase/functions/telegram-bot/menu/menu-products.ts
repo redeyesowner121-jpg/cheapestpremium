@@ -25,16 +25,18 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
 
   const header = lang === "bn" ? "📂 <b>ক্যাটাগরি নির্বাচন করুন:</b>" : "📂 <b>Choose a Category:</b>";
 
+  const catStyles = ["primary", "success", "primary", "success"] as const;
+  const catEmojis = ["📁", "📂", "🗂️", "📦", "🏷️", "🎯"];
+
   const buttons: any[][] = [];
   for (let i = 0; i < categories.length; i += 2) {
-    const colorIdx = Math.floor(i / 2) % 2;
-    
-    const catEmojis = ["📁", "📂", "🗂️", "📦", "🏷️", "🎯"];
     const emoji1 = catEmojis[i % catEmojis.length];
     const emoji2 = catEmojis[(i + 1) % catEmojis.length];
-    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}`}];
+    const style1 = catStyles[Math.floor(i / 2) % catStyles.length];
+    const style2 = catStyles[(Math.floor(i / 2) + 1) % catStyles.length];
+    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}`, style: style1 }];
     if (categories[i + 1]) {
-      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`});
+      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`, style: style2 });
     }
     buttons.push(row);
   }
@@ -71,7 +73,6 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   products.forEach((p: any) => {
     let displayPrice: number;
     if (childCtx) {
-      // Child bot: reseller_price + markup
       displayPrice = childBotPrice(p.reseller_price, p.price);
     } else {
       displayPrice = p.price;
@@ -83,18 +84,18 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     text += `• <b>${p.name}</b> — ${priceText}\n`;
   });
 
-  // Alternating blue-green pattern for product buttons
-  
+  const prodStyles = ["primary", "success"] as const;
+  const prodEmojis = ["🔹", "🔸", "💎", "⚡", "🌟", "✨"];
+
   const buttons: any[][] = [];
   for (let i = 0; i < products.length; i += 2) {
     const row: any[] = [];
-    const colorIdx = Math.floor(i / 2) % 2; // alternates per row
-    const prodEmojis = ["🔹", "🔸", "💎", "⚡", "🌟", "✨"];
+    const rowStyle = prodStyles[Math.floor(i / 2) % prodStyles.length];
     const p1 = products[i];
-    row.push({ text: `${prodEmojis[i % prodEmojis.length]} ${p1.name}`, callback_data: `product_${p1.id}`});
+    row.push({ text: `${prodEmojis[i % prodEmojis.length]} ${p1.name}`, callback_data: `product_${p1.id}`, style: rowStyle });
     if (products[i + 1]) {
       const p2 = products[i + 1];
-      row.push({ text: `${prodEmojis[(i+1) % prodEmojis.length]} ${p2.name}`, callback_data: `product_${p2.id}`});
+      row.push({ text: `${prodEmojis[(i+1) % prodEmojis.length]} ${p2.name}`, callback_data: `product_${p2.id}`, style: rowStyle === "primary" ? "success" : "primary" });
     }
     buttons.push(row);
   }
@@ -124,7 +125,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
   const childCtx = getChildBotContext();
 
   const wallet = await getWallet(supabase, userId);
-  const isReseller = !childCtx && wallet?.is_reseller === true; // No reseller features in child bots
+  const isReseller = !childCtx && wallet?.is_reseller === true;
 
   const { data: variations } = await supabase
     .from("product_variations")
@@ -170,29 +171,27 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
-    // Alternating blue-green for variation buttons
-    
-    
+    const varStyles = ["success", "primary"] as const;
+
     if (isReseller && !childCtx) {
       for (let ri = 0; ri < variations.length; ri++) {
         const v = variations[ri];
-        const colorIdx = ri % 2;
         buttons.push([
-          { text: `🛒 ${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`},
-          { text: `🔄 Resale`, callback_data: `resalevar_${v.id}`},
+          { text: `🛒 ${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`, style: "success" },
+          { text: `🔄 Resale`, callback_data: `resalevar_${v.id}`, style: "primary" },
         ]);
       }
     } else {
       for (let i = 0; i < variations.length; i += 2) {
         const row: any[] = [];
-        const colorIdx = Math.floor(i / 2) % 2;
+        const vStyle = varStyles[Math.floor(i / 2) % varStyles.length];
         const v1 = variations[i];
         const dp1 = childCtx ? childBotPrice(v1.reseller_price, v1.price) : v1.price;
-        row.push({ text: `🛒 ${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`});
+        row.push({ text: `🛒 ${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`, style: vStyle });
         if (variations[i + 1]) {
           const v2 = variations[i + 1];
           const dp2 = childCtx ? childBotPrice(v2.reseller_price, v2.price) : v2.price;
-          row.push({ text: `🛒 ${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`});
+          row.push({ text: `🛒 ${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`, style: vStyle === "success" ? "primary" : "success" });
         }
         buttons.push(row);
       }
@@ -231,14 +230,14 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
 
     if (product.stock === null || product.stock > 0) {
       if (childCtx) {
-        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" }]);
       } else if (isReseller) {
         buttons.push([
-          { text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
-          { text: lang === "bn" ? "🔄 রিসেল" : "🔄 Resale", callback_data: `resale_${productId}` },
+          { text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" },
+          { text: lang === "bn" ? "🔄 রিসেল" : "🔄 Resale", callback_data: `resale_${productId}`, style: "primary" },
         ]);
       } else {
-        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" }]);
       }
     }
 

@@ -26,10 +26,10 @@ async function notifyMainAdminsForChildOrder(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
-          { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
+          { text: "✅ Approve", callback_data: `admin_confirm_${orderId}`, style: "success" },
+          { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
         ],
-        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+        [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}`, style: "primary" }],
       ],
     },
   };
@@ -127,7 +127,7 @@ async function showPaymentMethodChoice(
     text += "\nClick below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
       reply_markup: {
-        inline_keyboard: [[{ text: `💳 ${t("pay_with_wallet", lang)}`, callback_data: "walletpay_confirm" }]],
+        inline_keyboard: [[{ text: `💳 ${t("pay_with_wallet", lang)}`, callback_data: "walletpay_confirm", style: "success" }]],
       },
     });
     return;
@@ -147,8 +147,8 @@ async function showPaymentMethodChoice(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "💎 Binance", callback_data: "paymethod_binance" },
-          { text: "📱 UPI", callback_data: "paymethod_upi" },
+          { text: "💎 Binance", callback_data: "paymethod_binance", style: "success" },
+          { text: "📱 UPI", callback_data: "paymethod_upi", style: "primary" },
         ],
         [{ text: "📖 How to Pay (Tutorial)", url: "https://t.me/Cheapest_premiums_Help/3" }],
       ],
@@ -206,7 +206,7 @@ export async function showBinancePayment(
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "❌ Cancel", callback_data: "binance_cancel" }],
+        [{ text: "❌ Cancel", callback_data: "binance_cancel", style: "danger" }],
       ],
     },
   });
@@ -238,10 +238,10 @@ export async function showUpiPayment(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "⚡ Automatic (Razorpay)", callback_data: "upi_auto" },
+          { text: "⚡ Automatic (Razorpay)", callback_data: "upi_auto", style: "success" },
         ],
         [
-          { text: "📋 Manual (Screenshot)", callback_data: "upi_manual" },
+          { text: "📋 Manual (Screenshot)", callback_data: "upi_manual", style: "primary" },
         ],
       ],
     },
@@ -294,9 +294,9 @@ export async function showRazorpayUpiPayment(
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: "💳 Pay Now", url: razorpayMeUrl }],
-        [{ text: "✅ Verify Payment", callback_data: "razorpay_verify" }],
-        [{ text: "❌ Cancel", callback_data: "razorpay_cancel" }],
+        [{ text: "💳 Pay Now", url: razorpayMeUrl, style: "success" }],
+        [{ text: "✅ Verify Payment", callback_data: "razorpay_verify", style: "primary" }],
+        [{ text: "❌ Cancel", callback_data: "razorpay_cancel", style: "danger" }],
       ],
     },
   });

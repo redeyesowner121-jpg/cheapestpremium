@@ -11,7 +11,6 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
   let orders: any[] = [];
 
   if (isChildBotMode() && childCtx) {
-    // In child bot mode, show only orders placed through this child bot
     const { data: childOrders } = await supabase
       .from("child_bot_orders")
       .select("id, product_name, total_price, status, created_at")
@@ -19,7 +18,6 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
       .eq("buyer_telegram_id", userId)
       .order("created_at", { ascending: false })
       .limit(10);
-    // Map to same shape as telegram_orders
     orders = (childOrders || []).map((o: any) => ({
       ...o,
       amount: o.total_price,
@@ -43,7 +41,7 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
       {
         reply_markup: {
            inline_keyboard: [
-            [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products" }],
+            [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products", style: "primary" }],
             [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
           ],
         },
@@ -85,8 +83,8 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: lang === "bn" ? "🛍️ আরো কিনুন" : "🛍️ Buy More", callback_data: "view_products" }],
-        [{ text: `📞 ${t("support", lang)}`, callback_data: "support" }],
+        [{ text: lang === "bn" ? "🛍️ আরো কিনুন" : "🛍️ Buy More", callback_data: "view_products", style: "primary" }],
+        [{ text: `📞 ${t("support", lang)}`, callback_data: "support", style: "danger" }],
         [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
       ],
     },
@@ -130,8 +128,8 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
     reply_markup: {
       inline_keyboard: [
         [
-          { text: lang === "bn" ? "➕ টপ আপ" : "➕ Deposit", callback_data: "wallet_deposit" },
-          { text: lang === "bn" ? "➖ উইথড্র" : "➖ Withdraw", callback_data: "wallet_withdraw" }
+          { text: lang === "bn" ? "➕ টপ আপ" : "➕ Deposit", callback_data: "wallet_deposit", style: "success" },
+          { text: lang === "bn" ? "➖ উইথড্র" : "➖ Withdraw", callback_data: "wallet_withdraw", style: "danger" }
         ],
         [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
       ],
@@ -199,7 +197,7 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products" }],
+        [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products", style: "primary" }],
         [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
       ],
     },
@@ -234,7 +232,7 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
     await sendMessage(token, chatId, text, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🌐 Open Website", url: websiteUrl }],
+          [{ text: "🌐 Open Website", url: websiteUrl, style: "primary" }],
           [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
         ],
       },
@@ -278,8 +276,8 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "📱 UPI", callback_data: "withdraw_upi" },
-          { text: "💎 Binance", callback_data: "withdraw_binance" },
+          { text: "📱 UPI", callback_data: "withdraw_upi", style: "primary" },
+          { text: "💎 Binance", callback_data: "withdraw_binance", style: "success" },
         ],
         [{ text: `⬅️ ${t("back", lang)}`, callback_data: "my_wallet" }],
       ],

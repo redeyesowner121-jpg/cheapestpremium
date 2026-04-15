@@ -18,18 +18,18 @@ export async function showGiveawayMainMenu(token: string, supabase: any, chatId:
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "🎁 Giveaway Products", callback_data: "gw_products" },
-          { text: "💰 My Points", callback_data: "gw_points" },
+          { text: "🎁 Giveaway Products", callback_data: "gw_products", style: "success" },
+          { text: "💰 My Points", callback_data: "gw_points", style: "primary" },
         ],
         [
-          { text: "📜 Redemptions", callback_data: "gw_history" },
-          { text: "📎 Refer & Earn", callback_data: "gw_referral" },
+          { text: "📜 Redemptions", callback_data: "gw_history", style: "primary" },
+          { text: "📎 Refer & Earn", callback_data: "gw_referral", style: "success" },
         ],
         [
-          { text: "⭐ Reviews", callback_data: "gw_reviews" },
-          { text: "📞 Support", callback_data: "support" },
+          { text: "⭐ Reviews", callback_data: "gw_reviews", style: "primary" },
+          { text: "📞 Support", callback_data: "support", style: "danger" },
         ],
-        [{ text: "🌐 Website Login", callback_data: "website_login" }],
+        [{ text: "🌐 Website Login", callback_data: "website_login", style: "primary" }],
       ],
     },
   });
