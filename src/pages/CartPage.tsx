@@ -127,8 +127,8 @@ const CartPage: React.FC = () => {
 
     setCheckingOut(true);
     try {
-      // Create orders for all cart items
-      const orders = await Promise.all(items.map(async (item) => {
+      // Create orders for product items only
+      const orders = productItems.length > 0 ? await Promise.all(productItems.map(async (item) => {
         const basePrice = item.variation?.price || item.product?.price || 0;
         const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
         const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
@@ -136,7 +136,6 @@ const CartPage: React.FC = () => {
           ? `${item.product?.name} - ${item.variation.name}`
           : item.product?.name || 'Unknown';
 
-        // Check for access_link for instant delivery
         let accessLink: string | null = null;
         if (item.product_id) {
           const { data: productData } = await supabase
@@ -160,40 +159,61 @@ const CartPage: React.FC = () => {
           status: isInstant ? 'confirmed' : 'pending',
           access_link: accessLink,
         };
-      }));
+      })) : [];
 
-      const { error: orderError } = await supabase.from('orders').insert(orders);
-      if (orderError) throw orderError;
+      if (orders.length > 0) {
+        const { error: orderError } = await supabase.from('orders').insert(orders);
+        if (orderError) throw orderError;
+      }
 
-      // Deduct wallet balance (AAX gets discount, other foreign currencies get fee)
-      let totalDeduction = cartSummary.subtotal;
+      // Deduct wallet balance
+      let totalDeduction = cartSummary.grandTotal;
       let conversionFeeAmount = 0;
       let aaxDiscountAmount = 0;
 
       if (isAAX) {
-        // AAX gets actual discount
-        aaxDiscountAmount = cartSummary.subtotal * (AAX_ACTUAL_DISCOUNT / 100);
-        totalDeduction = cartSummary.subtotal - aaxDiscountAmount;
+        aaxDiscountAmount = cartSummary.grandTotal * (AAX_ACTUAL_DISCOUNT / 100);
+        totalDeduction = cartSummary.grandTotal - aaxDiscountAmount;
       } else if (isForeignCurrency && displayCurrency) {
-        conversionFeeAmount = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
-        totalDeduction = cartSummary.subtotal + conversionFeeAmount;
+        conversionFeeAmount = cartSummary.grandTotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+        totalDeduction = cartSummary.grandTotal + conversionFeeAmount;
       }
 
       const newBalance = (profile.wallet_balance || 0) - totalDeduction;
-      const newTotalOrders = (profile.total_orders || 0) + items.length;
+      const newTotalOrders = (profile.total_orders || 0) + productItems.length;
       await supabase
         .from('profiles')
         .update({ wallet_balance: newBalance, total_orders: newTotalOrders, display_currency: 'INR' })
         .eq('id', user.id);
 
-      // Create purchase transaction
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: 'purchase',
-        amount: -cartSummary.subtotal,
-        status: 'completed',
-        description: `Cart checkout: ${items.length} item(s)`,
-      });
+      // Create purchase transaction for products
+      if (cartSummary.subtotal > 0) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'purchase',
+          amount: -cartSummary.subtotal,
+          status: 'completed',
+          description: `Cart checkout: ${productItems.length} item(s)`,
+        });
+      }
+
+      // Create donation transaction
+      if (cartSummary.donationTotal > 0) {
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'donation',
+          amount: -cartSummary.donationTotal,
+          status: 'completed',
+          description: `Donation: ₹${cartSummary.donationTotal} — Thank you! ❤️`,
+        });
+
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Thank You! ❤️',
+          message: `Your ₹${cartSummary.donationTotal} donation is greatly appreciated!`,
+          type: 'info',
+        });
+      }
 
       // AAX discount transaction
       if (aaxDiscountAmount > 0) {
@@ -206,7 +226,7 @@ const CartPage: React.FC = () => {
         });
       }
 
-      // Create conversion fee transaction if applicable
+      // Conversion fee transaction
       if (conversionFeeAmount > 0) {
         await supabase.from('transactions').insert({
           user_id: user.id,
@@ -217,38 +237,43 @@ const CartPage: React.FC = () => {
         });
       }
 
-      // Increment sold counts
-      for (const item of items) {
+      // Increment sold counts for products only
+      for (const item of productItems) {
         const hasStock = item.product?.stock !== null && item.product?.stock !== undefined;
         await supabase.rpc('increment_product_sold_count', {
-          product_id: item.product_id,
+          product_id: item.product_id!,
           qty: item.quantity,
           has_stock: hasStock,
         });
       }
 
-      // Create notification
-      const instantCount = orders.filter(o => o.status === 'confirmed').length;
-      const pendingCount = orders.filter(o => o.status === 'pending').length;
-      const notifTitle = instantCount > 0 && pendingCount === 0
-        ? 'Orders Delivered! 🎉'
-        : instantCount > 0
-          ? 'Orders Placed! 🛒'
+      // Create notification for orders
+      if (orders.length > 0) {
+        const instantCount = orders.filter(o => o.status === 'confirmed').length;
+        const pendingCount = orders.filter(o => o.status === 'pending').length;
+        const notifTitle = instantCount > 0 && pendingCount === 0
+          ? 'Orders Delivered! 🎉'
           : 'Orders Placed! 🛒';
-      const notifMessage = instantCount > 0
-        ? `${instantCount} item(s) delivered instantly! ${pendingCount > 0 ? `${pendingCount} item(s) pending.` : ''} Total: ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`
-        : `You ordered ${items.length} item(s) for ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`;
+        const notifMessage = instantCount > 0
+          ? `${instantCount} item(s) delivered instantly! ${pendingCount > 0 ? `${pendingCount} item(s) pending.` : ''} Total: ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`
+          : `You ordered ${productItems.length} item(s) for ${settings.currency_symbol}${cartSummary.subtotal.toFixed(2)}`;
 
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: notifTitle,
-        message: notifMessage,
-        type: 'order',
-      });
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: notifTitle,
+          message: notifMessage,
+          type: 'order',
+        });
+      }
 
       await clearCart();
       await refreshProfile();
-      toast.success(`🎉 ${items.length} order(s) placed successfully!`);
+      const msg = orders.length > 0 && cartSummary.donationTotal > 0
+        ? `🎉 ${productItems.length} order(s) placed + ₹${cartSummary.donationTotal} donated! ❤️`
+        : cartSummary.donationTotal > 0
+          ? `❤️ ₹${cartSummary.donationTotal} donated successfully!`
+          : `🎉 ${productItems.length} order(s) placed successfully!`;
+      toast.success(msg);
       navigate('/orders');
     } catch (err) {
       console.error('Checkout error:', err);
