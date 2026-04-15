@@ -34,6 +34,8 @@ interface ProductForm {
   is_active: boolean;
   button_style?: string;
   delivery_mode?: string;
+  show_link_in_bot?: boolean;
+  show_link_in_website?: boolean;
 }
 
 export async function handleAddProduct(
@@ -82,7 +84,9 @@ export async function handleAddProduct(
     is_active: productForm.is_active,
     slug: productSlug,
     button_style: productForm.button_style || 'primary',
-    delivery_mode: productForm.delivery_mode || 'repeated'
+    delivery_mode: productForm.delivery_mode || 'repeated',
+    show_link_in_bot: productForm.show_link_in_bot !== false,
+    show_link_in_website: productForm.show_link_in_website !== false
   } as any).select().single();
   
   if (error || !newProduct) {
@@ -138,7 +142,9 @@ export async function handleUpdateProduct(
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,
     button_style: productForm.button_style || 'primary',
-    delivery_mode: productForm.delivery_mode || 'repeated'
+    delivery_mode: productForm.delivery_mode || 'repeated',
+    show_link_in_bot: productForm.show_link_in_bot !== false,
+    show_link_in_website: productForm.show_link_in_website !== false
   } as any).eq('id', productId).select().single();
 
   if (error) {
