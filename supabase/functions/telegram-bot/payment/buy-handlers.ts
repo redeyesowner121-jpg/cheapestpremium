@@ -127,6 +127,16 @@ async function showPaymentMethodChoice(
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
 
+  // Check if product has instant delivery or price < 50 → auto-only
+  const { data: productInfo } = await supabase
+    .from("products")
+    .select("delivery_mode, access_link")
+    .eq("id", productId)
+    .single();
+
+  const hasInstantDelivery = !!(productInfo?.access_link) || productInfo?.delivery_mode === "unique";
+  const autoPayOnly = price < 50 || hasInstantDelivery;
+
   // Store child bot context in conversation state data
   const childCtx = getChildBotContext();
   const childBotData = childCtx ? { childBotId: childCtx.id, childBotRevenue: childCtx.revenue_percent } : {};
@@ -155,10 +165,13 @@ async function showPaymentMethodChoice(
 
   // Store purchase data for later
   await setConversationState(supabase, userId, "choose_payment_method", {
-    productName, price, finalAmount, productId, variationId, walletDeduction, ...childBotData,
+    productName, price, finalAmount, productId, variationId, walletDeduction, autoPayOnly, ...childBotData,
   });
 
   text += "\nChoose payment method:";
+  if (autoPayOnly) {
+    text += "\n<i>⚡ This product requires automatic payment verification.</i>";
+  }
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
@@ -236,7 +249,13 @@ export async function showUpiPayment(
   const userId = telegramUser.id;
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount } = purchaseData;
+  const { productName, finalAmount, autoPayOnly } = purchaseData;
+
+  // If auto-only, skip manual option and go straight to Razorpay
+  if (autoPayOnly) {
+    await showRazorpayUpiPayment(token, supabase, chatId, telegramUser, purchaseData);
+    return;
+  }
 
   // Keep state for sub-choice
   await setConversationState(supabase, userId, "choose_upi_method", purchaseData);
