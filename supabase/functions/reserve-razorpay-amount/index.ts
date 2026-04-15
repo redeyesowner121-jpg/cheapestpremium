@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveProfileUserId } from "../_shared/profile-id-resolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,9 @@ Deno.serve(async (req) => {
 
   try {
     const { userId, baseAmount } = await req.json();
-    if (!userId || !baseAmount || baseAmount < 1) {
+    const normalizedBaseAmount = Number(baseAmount);
+
+    if (!userId || !Number.isFinite(normalizedBaseAmount) || normalizedBaseAmount < 1) {
       return new Response(JSON.stringify({ error: "Missing userId or baseAmount" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -28,7 +31,14 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const intBase = Math.floor(baseAmount);
+    const resolvedUserId = await resolveProfileUserId(supabase, userId);
+    if (!resolvedUserId) {
+      return new Response(JSON.stringify({ error: "Could not resolve a linked user account" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const intBase = Math.floor(normalizedBaseAmount);
 
     // Try up to 10 times to find a unique amount not already reserved
     let uniqueAmount = 0;
@@ -60,7 +70,7 @@ Deno.serve(async (req) => {
     const { data: depReq, error: depError } = await supabase
       .from("manual_deposit_requests")
       .insert({
-        user_id: userId,
+        user_id: resolvedUserId,
         amount: uniqueAmount,
         transaction_id: `RAZORPAY-${Date.now()}`,
         sender_name: "Razorpay Auto",
@@ -82,7 +92,7 @@ Deno.serve(async (req) => {
     const { data: reservation, error: resError } = await supabase
       .from("razorpay_amount_reservations")
       .insert({
-        user_id: userId,
+        user_id: resolvedUserId,
         amount: uniqueAmount,
         base_amount: intBase,
         status: "reserved",
