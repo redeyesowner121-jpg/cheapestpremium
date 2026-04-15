@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Sparkles, ChevronDown, Mic, MicOff, Search, Clock, MessageSquare, Zap, ArrowRight, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Send, Bot, Maximize2, Minimize2, Copy, Check, RotateCcw, Trash2, Sparkles, ChevronDown, Mic, MicOff, Search, Clock, MessageSquare, Zap, ArrowRight, Image as ImageIcon, Loader2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
