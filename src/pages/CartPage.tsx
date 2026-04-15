@@ -101,7 +101,7 @@ const CartPage: React.FC = () => {
       return;
     }
 
-    if (items.length === 0) {
+    if (productItems.length === 0 && !donationItem) {
       toast.error('Your cart is empty');
       return;
     }
@@ -109,12 +109,12 @@ const CartPage: React.FC = () => {
     const walletBalance = profile.wallet_balance || 0;
 
     // Calculate needed amount
-    let neededAmount = cartSummary.subtotal;
+    let neededAmount = cartSummary.grandTotal;
     if (isAAX) {
-      neededAmount = cartSummary.subtotal;
+      neededAmount = cartSummary.grandTotal;
     } else if (isForeignCurrency && displayCurrency) {
-      const conversionFee = cartSummary.subtotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
-      neededAmount = cartSummary.subtotal + conversionFee;
+      const conversionFee = cartSummary.grandTotal * (FOREIGN_CONVERT_FEE_PERCENT / 100);
+      neededAmount = cartSummary.grandTotal + conversionFee;
     }
 
     if (walletBalance < neededAmount) {
