@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, MessageCircle, Gift, Shield, Wallet } from 'lucide-react';
+import { Award, MessageCircle, Gift, Shield, Wallet, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -35,6 +36,34 @@ const UserModal: React.FC<UserModalProps> = ({
   const [giftAmount, setGiftAmount] = React.useState('');
   const [rankBalanceInput, setRankBalanceInput] = React.useState('');
   const [walletBalanceInput, setWalletBalanceInput] = React.useState('');
+  const [ranks, setRanks] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    supabase.from('ranks').select('*').eq('is_active', true).order('sort_order', { ascending: true })
+      .then(({ data }) => { if (data) setRanks(data); });
+  }, []);
+
+  const getCurrentRank = () => {
+    if (!ranks.length || !user) return null;
+    const rb = user.rank_balance || 0;
+    let current = ranks[0];
+    for (const r of ranks) {
+      if (rb >= r.min_balance) current = r;
+    }
+    return current;
+  };
+
+  const handleSetRank = async (rankId: string) => {
+    const rank = ranks.find(r => r.id === rankId);
+    if (!rank || !user) return;
+    const { error } = await supabase.from('profiles')
+      .update({ rank_balance: rank.min_balance })
+      .eq('id', user.id);
+    if (error) { toast.error('Failed to set rank'); return; }
+    toast.success(`Rank set to ${rank.icon} ${rank.name}!`);
+    setUser({ ...user, rank_balance: rank.min_balance });
+    onRefresh();
+  };
 
   const handleGiftBlueTick = async (userId: string) => {
     const { error } = await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
@@ -301,6 +330,31 @@ const UserModal: React.FC<UserModalProps> = ({
                 Update
               </Button>
             </div>
+          </div>
+
+          {/* Set Rank Directly */}
+          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50 rounded-xl p-3 space-y-2">
+            <p className="text-sm font-medium flex items-center gap-2">
+              <Crown className="w-4 h-4 text-yellow-600" />
+              Set Rank
+              {getCurrentRank() && (
+                <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 rounded-full">
+                  Current: {getCurrentRank()?.icon} {getCurrentRank()?.name}
+                </span>
+              )}
+            </p>
+            <Select onValueChange={handleSetRank} value={getCurrentRank()?.id || ''}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select rank..." />
+              </SelectTrigger>
+              <SelectContent>
+                {ranks.map((rank) => (
+                  <SelectItem key={rank.id} value={rank.id}>
+                    {rank.icon} {rank.name} (Min: ₹{rank.min_balance})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex gap-2">
