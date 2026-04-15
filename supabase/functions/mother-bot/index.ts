@@ -93,11 +93,18 @@ async function notifyAdminsViaMainBot(mainToken: string, supabase: any, text: st
 }
 
 async function getRequiredChannels(supabase: any): Promise<string[]> {
-  const { data } = await supabase.from("app_settings").select("value").eq("key", "required_channels").maybeSingle();
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "mother_required_channels").maybeSingle();
   if (data?.value) {
     try { const ch = JSON.parse(data.value); if (Array.isArray(ch)) return ch; } catch {}
   }
   return [];
+}
+
+async function saveRequiredChannels(supabase: any, channels: string[]) {
+  await supabase.from("app_settings").upsert(
+    { key: "mother_required_channels", value: JSON.stringify(channels), updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
 }
 
 async function upsertMotherUser(supabase: any, user: any) {
@@ -242,6 +249,39 @@ Deno.serve(async (req) => {
           return jsonOk();
         }
         await showAdminPanel(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      // ===== CHANNEL MANAGEMENT =====
+      if (data === "mother_admin_channels") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        await showChannelManager(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      if (data === "mother_add_channel") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        await setConvState(supabase, userId, "mother_add_channel", {});
+        await sendMsg(MOTHER_TOKEN, chatId,
+          "📢 <b>Add Channel</b>\n\n" +
+          "Send the channel username (e.g. <code>@mychannel</code> or <code>mychannel</code>)\n\n" +
+          "⚠️ Make sure the <b>main selling bot</b> is an admin in this channel.\n\n" +
+          "Send /cancel to abort.",
+          { reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "mother_admin_channels", style: "danger" }]] } }
+        );
+        return jsonOk();
+      }
+
+      if (data.startsWith("mother_rmch_")) {
+        if (!isMotherOwner(userId)) return jsonOk();
+        const idx = parseInt(data.replace("mother_rmch_", ""));
+        const channels = await getRequiredChannels(supabase);
+        if (idx >= 0 && idx < channels.length) {
+          const removed = channels.splice(idx, 1)[0];
+          await saveRequiredChannels(supabase, channels);
+          await sendMsg(MOTHER_TOKEN, chatId, `✅ Channel <b>${removed}</b> removed!`);
+        }
+        await showChannelManager(MOTHER_TOKEN, supabase, chatId);
         return jsonOk();
       }
 
@@ -555,6 +595,30 @@ async function handleMotherConversation(motherToken: string, mainToken: string, 
     await showAdminBots(motherToken, supabase, chatId);
     return;
   }
+
+  // Admin: Add channel
+  if (state.step === "mother_add_channel") {
+    if (!isMotherOwner(userId)) return;
+    const channelInput = text.trim().replace(/^@/, "").replace(/^https?:\/\/t\.me\//, "");
+    if (!channelInput || channelInput.length < 3) {
+      await sendMsg(motherToken, chatId, "❌ Invalid channel username. Try again or send /cancel.");
+      return;
+    }
+    const channels = await getRequiredChannels(supabase);
+    const channelName = channelInput.startsWith("@") ? channelInput : `@${channelInput}`;
+    if (channels.includes(channelName)) {
+      await sendMsg(motherToken, chatId, `⚠️ Channel ${channelName} is already in the list.`);
+      await deleteConvState(supabase, userId);
+      await showChannelManager(motherToken, supabase, chatId);
+      return;
+    }
+    channels.push(channelName);
+    await saveRequiredChannels(supabase, channels);
+    await deleteConvState(supabase, userId);
+    await sendMsg(motherToken, chatId, `✅ Channel <b>${channelName}</b> added successfully!`);
+    await showChannelManager(motherToken, supabase, chatId);
+    return;
+  }
 }
 
 async function createChildBot(token: string, supabase: any, chatId: number, creatorId: number, data: Record<string, any>) {
@@ -618,7 +682,7 @@ async function showAdminPanel(token: string, supabase: any, chatId: number) {
       reply_markup: {
         inline_keyboard: [
           [{ text: "🤖 Manage Bots", callback_data: "mother_admin_bots", style: "primary" }],
-          [{ text: "👥 View Users", callback_data: "mother_admin_users", style: "primary" }],
+          [{ text: "📢 Channels", callback_data: "mother_admin_channels", style: "primary" }, { text: "👥 Users", callback_data: "mother_admin_users", style: "primary" }],
           [{ text: "📊 Full Stats", callback_data: "mother_admin_stats", style: "success" }],
           [{ text: "🏠 Main Menu", callback_data: "mother_main", style: "danger" }],
         ],
@@ -651,6 +715,30 @@ async function showAdminBots(token: string, supabase: any, chatId: number) {
     ]);
   }
 
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+}
+
+async function showChannelManager(token: string, supabase: any, chatId: number) {
+  const channels = await getRequiredChannels(supabase);
+  
+  let text = "📢 <b>Required Channels</b>\n\n";
+  const buttons: any[][] = [];
+
+  if (channels.length === 0) {
+    text += "No required channels set.\nUsers can access the bot without joining any channel.";
+  } else {
+    text += "Users must join these channels before using the bot:\n\n";
+    channels.forEach((ch, i) => {
+      text += `${i + 1}. ${ch}\n`;
+      buttons.push([
+        { text: `🔗 ${ch}`, url: `https://t.me/${ch.replace("@", "")}` },
+        { text: `🗑 Remove`, callback_data: `mother_rmch_${i}`, style: "danger" },
+      ]);
+    });
+  }
+
+  buttons.push([{ text: "➕ Add Channel", callback_data: "mother_add_channel", style: "success" }]);
   buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
