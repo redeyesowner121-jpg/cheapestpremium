@@ -18,14 +18,21 @@ function normalizeBackButtons(replyMarkup?: any) {
           normalizedText.includes("⬅️") ||
           normalizedText.includes("◀️") ||
           normalizedText.includes("🔙") ||
-          /(^|_)(back|main)$/.test(callbackData) ||
+          /back/i.test(callbackData) ||
           callbackData === "back_main" ||
+          callbackData === "back_products" ||
           callbackData === "adm_back" ||
           callbackData === "cadm_back" ||
           callbackData === "gw_main" ||
           callbackData === "mother_admin" ||
           callbackData === "mother_my_bots" ||
-          callbackData === "third_back";
+          callbackData === "third_back" ||
+          callbackData === "my_wallet" ||
+          callbackData === "view_products" ||
+          callbackData === "gwa_admin" ||
+          callbackData === "cadm_settings" ||
+          callbackData === "adm_ai_training" ||
+          callbackData === "gw_products";
 
         if (!isBackButton) return button;
 
