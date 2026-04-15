@@ -33,8 +33,8 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 
   const isChildBotOrder = !!effectiveChildBotId;
 
-  // Child bot orders go as "pending" to main admin; regular orders auto-confirm
-  const orderStatus = isChildBotOrder ? "pending" : "confirmed";
+  // All orders auto-confirm (including child bot)
+  const orderStatus = "confirmed";
   const orderUsername = isChildBotOrder ? `child_bot:${effectiveChildBotId}` : `wallet_pay`;
 
   const { data: order } = await supabase.from("telegram_orders").insert({
@@ -53,65 +53,42 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
       product_name: productName,
       total_price: amount,
       owner_commission: commission,
-      status: "pending",
+      status: "confirmed",
     });
+    // Update child bot stats
+    await supabase.from("child_bots").update({
+      total_orders: (await supabase.from("child_bots").select("total_orders").eq("id", effectiveChildBotId).single()).data?.total_orders + 1 || 1,
+      total_earnings: (await supabase.from("child_bots").select("total_earnings").eq("id", effectiveChildBotId).single()).data?.total_earnings + commission || commission,
+    }).eq("id", effectiveChildBotId);
   }
 
-  if (isChildBotOrder) {
-    // Tell child bot user their order is pending
-    await sendMessage(token, chatId,
-      lang === "bn"
-        ? `✅ <b>অর্ডার সফলভাবে জমা হয়েছে!</b>\n\n📦 প্রোডাক্ট: <b>${productName}</b>\n💵 মূল্য: ₹${amount}\n\n⏳ অ্যাডমিন যাচাই করছে। শীঘ্রই আপডেট পাবেন।`
-        : `✅ <b>Order Placed!</b>\n\n📦 Product: <b>${productName}</b>\n💵 Amount: ₹${amount}\n\n⏳ Admin is processing your order. You'll get an update soon.`
-    );
+  // Auto-confirmed - send delivery
+  await sendMessage(token, chatId,
+    t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
+  );
 
-    // Notify main bot admins with approve/reject buttons
-    const mainToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || token;
-    const orderId = order?.id || "unknown";
-    const adminMsg = `💰 <b>Child Bot Wallet Payment</b>\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n💵 Amount: <b>₹${amount}</b>\n🤖 Child Bot: <code>${effectiveChildBotId}</code>\n🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>\n✅ Wallet balance already deducted`;
-
-    const adminButtons = {
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: "✅ Approve", callback_data: `admin_confirm_${orderId}`, style: "success" },
-            { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
-          ],
-          [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}`, style: "primary" }],
-        ],
-      },
-    };
-
-    await notifyAllAdmins(mainToken, supabase, adminMsg, adminButtons);
-  } else {
-    // Regular wallet pay - auto confirmed
-    await sendMessage(token, chatId,
-      t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
-    );
-
-    if (productId) {
-      const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolved = await resolveAccessLink(supabase, productId, order?.id);
-      if (resolved.link && resolved.showInBot) {
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, productName, lang);
-      }
+  if (productId) {
+    const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+    const resolved = await resolveAccessLink(supabase, productId, order?.id);
+    if (resolved.link && resolved.showInBot) {
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, productName, lang);
     }
-
-    await notifyAllAdmins(token, supabase,
-      `💰 <b>Wallet Payment</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
-    );
-
-    // Sync purchase to website profile
-    let accessLink: string | undefined;
-    if (productId) {
-      const { data: prod } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
-      // Only pass access_link to website sync if show_link_in_website is true
-      accessLink = (prod?.show_link_in_website !== false && prod?.access_link) ? prod.access_link : undefined;
-    }
-    await syncPurchaseToProfile(supabase, userId, amount, productName, productId, accessLink);
-
-    await processReferralBonus(supabase, userId, token, amount);
   }
+
+  const mainToken = isChildBotOrder ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+  await notifyAllAdmins(mainToken, supabase,
+    `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+  );
+
+  // Sync purchase to website profile
+  let accessLink: string | undefined;
+  if (productId) {
+    const { data: prod } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
+    accessLink = (prod?.show_link_in_website !== false && prod?.access_link) ? prod.access_link : undefined;
+  }
+  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, accessLink);
+
+  await processReferralBonus(supabase, userId, token, amount);
 
   // Log proof to channel
   try { await logProof(token, formatOrderPlaced(userId, `wallet_pay`, productName, amount, "Wallet")); } catch {}
