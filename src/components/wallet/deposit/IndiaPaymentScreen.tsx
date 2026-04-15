@@ -222,6 +222,17 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
 
   const baseAmt = depositAmount ? Math.floor(parseFloat(depositAmount)) : 0;
 
+  // ≤₹20: auto only; >₹20: auto + manual
+  const parsedAmount = depositAmount ? parseFloat(depositAmount) : 0;
+  const showManualTab = parsedAmount > 20;
+
+  // If manual tab is hidden but selected, switch to auto
+  React.useEffect(() => {
+    if (!showManualTab && depositTab === 'manual') {
+      onTabChange('auto');
+    }
+  }, [showManualTab, depositTab]);
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetAutoState(); onOpenChange(v); }}>
       <DialogContent className="max-w-sm mx-auto rounded-3xl max-h-[90vh] overflow-y-auto">
@@ -231,13 +242,15 @@ const IndiaPaymentScreen: React.FC<IndiaPaymentScreenProps> = ({
         </DialogHeader>
 
         <Tabs value={depositTab} onValueChange={(v) => { onTabChange(v as any); resetAutoState(); }} className="mt-4">
-          <TabsList className="grid w-full grid-cols-2 rounded-xl">
+          <TabsList className={`grid w-full ${showManualTab ? 'grid-cols-2' : 'grid-cols-1'} rounded-xl`}>
             <TabsTrigger value="auto" className="rounded-lg text-xs">
               <Smartphone className="w-3.5 h-3.5 mr-1" />Auto
             </TabsTrigger>
-            <TabsTrigger value="manual" className="rounded-lg text-xs">
-              <QrCode className="w-3.5 h-3.5 mr-1" />Manual
-            </TabsTrigger>
+            {showManualTab && (
+              <TabsTrigger value="manual" className="rounded-lg text-xs">
+                <QrCode className="w-3.5 h-3.5 mr-1" />Manual
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="auto" className="mt-4 space-y-4">
