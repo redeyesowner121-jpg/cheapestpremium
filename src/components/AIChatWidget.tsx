@@ -132,8 +132,8 @@ const MarkdownContent = React.memo(({ content, onNavigate }: { content: string; 
 ));
 MarkdownContent.displayName = 'MarkdownContent';
 
-const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isStreaming, searchTerm }: {
-  msg: Msg; onCopy: () => void; onRetry?: () => void; isLast: boolean; isLoading: boolean; isStreaming: boolean; searchTerm: string;
+const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isStreaming, searchTerm, onNavigate }: {
+  msg: Msg; onCopy: () => void; onRetry?: () => void; isLast: boolean; isLoading: boolean; isStreaming: boolean; searchTerm: string; onNavigate?: (path: string) => void;
 }) => {
   const isUser = msg.role === 'user';
 
@@ -191,7 +191,7 @@ const MessageBubble = React.memo(({ msg, onCopy, onRetry, isLast, isLoading, isS
           
           {msg.role === 'assistant' ? (
             <div className="prose-chat max-w-none break-words text-sm">
-              <MarkdownContent content={searchTerm ? highlightContent(msg.content) : msg.content} />
+              <MarkdownContent content={searchTerm ? highlightContent(msg.content) : msg.content} onNavigate={onNavigate} />
               {isStreaming && isLast && <StreamingCursor />}
             </div>
           ) : (
