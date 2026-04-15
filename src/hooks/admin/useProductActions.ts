@@ -29,6 +29,7 @@ interface ProductForm {
   reseller_price: string;
   category: string;
   image_url: string;
+  images?: string[];
   access_link: string;
   stock: string;
   is_active: boolean;
@@ -79,6 +80,7 @@ export async function handleAddProduct(
     reseller_price: productForm.reseller_price ? parseFloat(productForm.reseller_price) : null,
     category: productForm.category,
     image_url: productForm.image_url,
+    images: productForm.images || [],
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,
@@ -139,6 +141,7 @@ export async function handleUpdateProduct(
     reseller_price: productForm.reseller_price ? parseFloat(productForm.reseller_price) : null,
     category: productForm.category,
     image_url: productForm.image_url,
+    images: productForm.images || [],
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,

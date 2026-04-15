@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Star, Share2, Heart, Edit, Tag, Package, Link as LinkIcon, Zap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import ProductImageGallery from '@/components/product/ProductImageGallery';
 import { Button } from '@/components/ui/button';
 import { ProductVariationSelector, ProductFeatures } from '@/components/product';
 import ShareButtons from '@/components/ShareButtons';
@@ -59,7 +60,19 @@ export const ProductImage: React.FC<Pick<ProductDetailUIProps, 'displayProduct' 
   displayProduct, currentPrice, basePrice, savings, discountType, actualFlashSalePrice, formatPrice, profile
 }) => (
   <div className="relative overflow-hidden">
-    <img src={displayProduct.image_url || displayProduct.image || 'https://via.placeholder.com/400'} alt={displayProduct.name} className="w-full h-80 object-cover" />
+    <ProductImageGallery 
+      images={(() => {
+        const imgs: string[] = [];
+        if (displayProduct.image_url) imgs.push(displayProduct.image_url);
+        if (displayProduct.images?.length) {
+          displayProduct.images.forEach((img: string) => {
+            if (img && !imgs.includes(img)) imgs.push(img);
+          });
+        }
+        return imgs;
+      })()}
+      name={displayProduct.name}
+    />
     <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
     <div className="absolute bottom-4 left-4 right-4">
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-xl">
