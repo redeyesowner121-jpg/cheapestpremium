@@ -79,8 +79,6 @@ const IndexRedirect = () => {
 const AppContent = () => {
   const { settings, loading: settingsLoading } = useAppSettingsContext();
   const { isAdmin, isTempAdmin, loading: authLoading } = useAuth();
-  const [splashDone, setSplashDone] = useState(false);
-
   const isReady = !authLoading && !settingsLoading;
 
   useEffect(() => {
@@ -89,9 +87,8 @@ const AppContent = () => {
     }
   }, [settings.app_name]);
 
-  // Show splash screen until both auth & settings are ready AND splash animation finishes
-  if (!isReady || !splashDone) {
-    return <SplashScreen onComplete={() => setSplashDone(true)} />;
+  if (!isReady) {
+    return null;
   }
 
   if (settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
