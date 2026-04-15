@@ -60,9 +60,10 @@ const ProductDetailPage: React.FC = () => {
     setLoadingProduct(true);
     const productColumns = 'id,name,price,original_price,image_url,category,description,rating,sold_count,stock,is_active,created_at,updated_at,reseller_price,seo_tags,slug';
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const slugLower = id.toLowerCase();
     const query = isUUID
       ? supabase.from('products').select(productColumns).eq('id', id).single()
-      : supabase.from('products').select(productColumns).eq('slug', id).single();
+      : supabase.from('products').select(productColumns).ilike('slug', slugLower).single();
     const { data, error } = await query;
     if (error || !data) { toast.error('Product not found'); navigate('/products'); return; }
     setProduct(data);
