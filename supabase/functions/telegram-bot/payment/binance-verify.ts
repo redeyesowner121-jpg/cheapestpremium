@@ -83,7 +83,7 @@ export async function handleBinanceVerify(
       } catch (e) { console.error("Sync error:", e); }
 
       await processReferralBonus(supabase, telegramUser.id, token, price);
-      try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Binance")); } catch {}
+      try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.first_name || "User", productName, price, "Binance")); } catch {}
     } else {
       const debugOrderId = result.debug?.expectedOrderId || binanceOrderId;
       const debugAmt = result.debug?.expectedAmount || amountUsd;
