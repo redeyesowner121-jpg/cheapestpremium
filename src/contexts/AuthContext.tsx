@@ -285,6 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleSendPhoneOTP = async (phoneNumber: string, recaptchaContainerId: string) => {
     try {
+      const { setupRecaptcha, sendPhoneOTP } = await import('@/lib/firebase');
       const recaptchaVerifier = setupRecaptcha(recaptchaContainerId);
       const confirmationResult = await sendPhoneOTP(phoneNumber, recaptchaVerifier);
       toast.success('OTP sent to your phone');
