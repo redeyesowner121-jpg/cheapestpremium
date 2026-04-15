@@ -35,8 +35,9 @@ export async function resolveAccessLink(
   const showInWebsite = product.show_link_in_website !== false;
 
   if (product.delivery_mode === "unique") {
+    console.log("[UNIQUE-DELIVERY] Product", productId, "delivery_mode=unique, attempting stock claim");
     for (let attempt = 0; attempt < 3; attempt++) {
-      const { data: stockItems } = await supabase
+      const { data: stockItems, error: fetchErr } = await supabase
         .from("product_stock_items")
         .select("id, access_link")
         .eq("product_id", productId)
@@ -44,8 +45,10 @@ export async function resolveAccessLink(
         .order("created_at", { ascending: true })
         .limit(1);
 
+      console.log("[UNIQUE-DELIVERY] Attempt", attempt, "stockItems:", stockItems?.length, "fetchErr:", fetchErr);
+
       if (!stockItems?.length) {
-        console.log("No stock items available for product:", productId);
+        console.log("[UNIQUE-DELIVERY] No stock items available for product:", productId);
         return { link: null, showInBot, showInWebsite };
       }
 
@@ -57,18 +60,21 @@ export async function resolveAccessLink(
         .eq("is_used", false)
         .select("access_link");
 
+      console.log("[UNIQUE-DELIVERY] Delete result - consumedRows:", JSON.stringify(consumedRows), "error:", consumeError);
+
       if (consumeError) {
-        console.error("Unique stock consume failed:", consumeError);
+        console.error("[UNIQUE-DELIVERY] Unique stock consume failed:", consumeError);
         return { link: null, showInBot, showInWebsite };
       }
 
       const consumedLink = consumedRows?.[0]?.access_link;
       if (consumedLink) {
+        console.log("[UNIQUE-DELIVERY] Successfully consumed stock item, link:", consumedLink.substring(0, 30) + "...");
         return { link: consumedLink, showInBot, showInWebsite };
       }
     }
 
-    console.log("Unique stock item race detected, retries exhausted for product:", productId);
+    console.log("[UNIQUE-DELIVERY] Retries exhausted for product:", productId);
     return { link: null, showInBot, showInWebsite };
   }
 
