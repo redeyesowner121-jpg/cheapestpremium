@@ -354,6 +354,38 @@ export type Database = {
           },
         ]
       }
+      child_bot_settings: {
+        Row: {
+          child_bot_id: string
+          id: string
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          child_bot_id: string
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          child_bot_id?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "child_bot_settings_child_bot_id_fkey"
+            columns: ["child_bot_id"]
+            isOneToOne: false
+            referencedRelation: "child_bots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       child_bot_users: {
         Row: {
           child_bot_id: string

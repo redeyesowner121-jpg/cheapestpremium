@@ -139,7 +139,36 @@ export async function getSettings(supabase: any): Promise<Record<string, string>
   const { data } = await supabase.from("app_settings").select("key, value");
   const settings: Record<string, string> = {};
   data?.forEach((s: any) => (settings[s.key] = s.value));
+
+  // Override with child bot settings if in child mode
+  const childCtx = getChildBotContext();
+  if (childCtx) {
+    const { data: childSettings } = await supabase
+      .from("child_bot_settings")
+      .select("key, value")
+      .eq("child_bot_id", childCtx.id);
+    childSettings?.forEach((s: any) => {
+      if (s.value !== null && s.value !== undefined) settings[s.key] = s.value;
+    });
+  }
   return settings;
+}
+
+export async function getChildBotSettings(supabase: any, childBotId: string): Promise<Record<string, string>> {
+  const { data } = await supabase
+    .from("child_bot_settings")
+    .select("key, value")
+    .eq("child_bot_id", childBotId);
+  const settings: Record<string, string> = {};
+  data?.forEach((s: any) => (settings[s.key] = s.value));
+  return settings;
+}
+
+export async function saveChildBotSetting(supabase: any, childBotId: string, key: string, value: string) {
+  await supabase.from("child_bot_settings").upsert(
+    { child_bot_id: childBotId, key, value, updated_at: new Date().toISOString() },
+    { onConflict: "child_bot_id,key" }
+  );
 }
 
 // ===== USER HELPERS =====
