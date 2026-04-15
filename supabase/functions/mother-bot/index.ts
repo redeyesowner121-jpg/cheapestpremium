@@ -576,6 +576,44 @@ async function showEarnings(token: string, supabase: any, chatId: number, userId
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } });
 }
 
+async function showBotManagement(token: string, supabase: any, chatId: number, userId: number, botId: string) {
+  const { data: bot } = await supabase.from("child_bots").select("*").eq("id", botId).eq("owner_telegram_id", userId).single();
+  if (!bot) {
+    await sendMsg(token, chatId, "❌ Bot not found.", { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots" }]] } });
+    return;
+  }
+
+  const { count: userCount } = await supabase.from("child_bot_users").select("id", { count: "exact", head: true }).eq("child_bot_id", botId);
+  const status = bot.is_active ? "🟢 Active" : "🔴 Inactive";
+
+  const text =
+    `⚙️ <b>Manage: @${bot.bot_username}</b>\n\n` +
+    `${status}\n` +
+    `💰 Revenue: ${bot.revenue_percent}%\n` +
+    `📦 Orders: ${bot.total_orders}\n` +
+    `💵 Earned: ₹${bot.total_earnings}\n` +
+    `👥 Users: ${userCount || 0}\n` +
+    `📅 Created: ${new Date(bot.created_at).toLocaleDateString("en-IN")}`;
+
+  await sendMsg(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: bot.is_active ? "⏸ Deactivate" : "▶️ Activate", callback_data: `mybot_toggle_${botId}`, style: bot.is_active ? "danger" : "success" },
+          { text: "📊 Stats", callback_data: `mybot_stats_${botId}`, style: "primary" },
+        ],
+        [
+          { text: "📝 Edit Revenue %", callback_data: `mybot_editrev_${botId}`, style: "primary" },
+        ],
+        [
+          { text: "🗑 Delete Bot", callback_data: `mybot_delete_${botId}`, style: "danger" },
+        ],
+        [{ text: "◀️ My Bots", callback_data: "mother_my_bots" }],
+      ],
+    },
+  });
+}
+
 async function handleMotherConversation(motherToken: string, mainToken: string, supabase: any, chatId: number, userId: number, text: string, msg: any, state: { step: string; data: Record<string, any> }) {
   if (text === "/cancel") {
     await deleteConvState(supabase, userId);
