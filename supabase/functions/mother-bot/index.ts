@@ -93,11 +93,18 @@ async function notifyAdminsViaMainBot(mainToken: string, supabase: any, text: st
 }
 
 async function getRequiredChannels(supabase: any): Promise<string[]> {
-  const { data } = await supabase.from("app_settings").select("value").eq("key", "required_channels").maybeSingle();
+  const { data } = await supabase.from("app_settings").select("value").eq("key", "mother_required_channels").maybeSingle();
   if (data?.value) {
     try { const ch = JSON.parse(data.value); if (Array.isArray(ch)) return ch; } catch {}
   }
   return [];
+}
+
+async function saveRequiredChannels(supabase: any, channels: string[]) {
+  await supabase.from("app_settings").upsert(
+    { key: "mother_required_channels", value: JSON.stringify(channels), updated_at: new Date().toISOString() },
+    { onConflict: "key" }
+  );
 }
 
 async function upsertMotherUser(supabase: any, user: any) {
