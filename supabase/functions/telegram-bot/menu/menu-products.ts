@@ -78,11 +78,21 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     text += `• <b>${p.name}</b> — ${priceText}\n`;
   });
 
-  const buttons: any[][] = products.map((p: any) => {
-    const btn: any = { text: p.name, callback_data: `product_${p.id}` };
-    if (p.button_style && p.button_style !== 'default') btn.style = p.button_style;
-    return [btn];
-  });
+  const buttons: any[][] = [];
+  for (let i = 0; i < products.length; i += 2) {
+    const row: any[] = [];
+    const p1 = products[i];
+    const btn1: any = { text: p1.name, callback_data: `product_${p1.id}` };
+    if (p1.button_style && p1.button_style !== 'default') btn1.style = p1.button_style;
+    row.push(btn1);
+    if (products[i + 1]) {
+      const p2 = products[i + 1];
+      const btn2: any = { text: p2.name, callback_data: `product_${p2.id}` };
+      if (p2.button_style && p2.button_style !== 'default') btn2.style = p2.button_style;
+      row.push(btn2);
+    }
+    buttons.push(row);
+  }
   buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
