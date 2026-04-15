@@ -3,6 +3,7 @@
 import { t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet } from "../db-helpers.ts";
+import { pe } from "../premium-emoji.ts";
 
 export async function handleMyOrders(token: string, supabase: any, chatId: number, userId: number, lang: string) {
   const { getChildBotContext, isChildBotMode } = await import("../child-context.ts");
@@ -36,8 +37,8 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
   if (!orders?.length) {
     await sendMessage(token, chatId,
       lang === "bn"
-        ? "📦 আপনার কোনো অর্ডার নেই।\n\nপ্রোডাক্ট কিনতে নিচের বাটনে ক্লিক করুন!"
-        : "📦 You have no orders yet.\n\nClick below to browse products!",
+        ? `${pe("package", "📦")} আপনার কোনো অর্ডার নেই।\n\nপ্রোডাক্ট কিনতে নিচের বাটনে ক্লিক করুন!`
+        : `${pe("package", "📦")} You have no orders yet.\n\nClick below to browse products!`,
       {
         reply_markup: {
            inline_keyboard: [
@@ -50,7 +51,13 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
     return;
   }
 
-  const statusEmoji: Record<string, string> = { pending: "⏳", confirmed: "✅", rejected: "❌", shipped: "📦", delivered: "🎉" };
+  const statusEmoji: Record<string, string> = {
+    pending: pe("hourglass", "⏳"),
+    confirmed: pe("check_green", "✅"),
+    rejected: pe("cross_red", "❌"),
+    shipped: pe("package", "📦"),
+    delivered: pe("gift", "🎉"),
+  };
   const statusText: Record<string, Record<string, string>> = {
     pending: { en: "Pending", bn: "অপেক্ষমান" },
     confirmed: { en: "Confirmed", bn: "নিশ্চিত" },
@@ -60,8 +67,8 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
   };
 
   let text = lang === "bn"
-    ? "📦 <b>আমার অর্ডারসমূহ</b> (সর্বশেষ ১০টি)\n\n"
-    : "📦 <b>My Orders</b> (Last 10)\n\n";
+    ? `${pe("package", "📦")} <b>আমার অর্ডারসমূহ</b> (সর্বশেষ ১০টি)\n\n`
+    : `${pe("package", "📦")} <b>My Orders</b> (Last 10)\n\n`;
 
   orders.forEach((o: any, i: number) => {
     const emoji = statusEmoji[o.status] || "📋";
@@ -70,15 +77,15 @@ export async function handleMyOrders(token: string, supabase: any, chatId: numbe
       day: "numeric", month: "short", year: "numeric",
     });
     text += `${i + 1}. ${emoji} <b>${o.product_name || "N/A"}</b>\n`;
-    text += `   💵 ₹${o.amount} | ${lang === "bn" ? "স্ট্যাটাস" : "Status"}: <b>${status}</b>\n`;
+    text += `   ${pe("dollar", "💵")} ₹${o.amount} | ${lang === "bn" ? "স্ট্যাটাস" : "Status"}: <b>${status}</b>\n`;
     text += `   📅 ${date}\n`;
-    if (o.status === "shipped") text += `   ${lang === "bn" ? "🎉 শীঘ্রই ডেলিভারি হবে!" : "🎉 Arriving soon!"}\n`;
+    if (o.status === "shipped") text += `   ${lang === "bn" ? `${pe("gift", "🎉")} শীঘ্রই ডেলিভারি হবে!` : `${pe("gift", "🎉")} Arriving soon!`}\n`;
     text += "\n";
   });
 
   text += lang === "bn"
-    ? "💡 <i>সমস্যা থাকলে সাপোর্টে যোগাযোগ করুন।</i>"
-    : "💡 <i>Contact support if you have any issues.</i>";
+    ? `${pe("sparkles", "💡")} <i>সমস্যা থাকলে সাপোর্টে যোগাযোগ করুন।</i>`
+    : `${pe("sparkles", "💡")} <i>Contact support if you have any issues.</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
@@ -109,16 +116,16 @@ export async function handleMyWallet(token: string, supabase: any, chatId: numbe
     .order("created_at", { ascending: false })
     .limit(5);
 
-  let text = `${t("wallet_header", lang)}\n\n`;
-  text += `💵 ${lang === "bn" ? "ব্যালেন্স" : "Balance"}: <b>₹${balance}</b>\n`;
-  text += `📈 ${lang === "bn" ? "মোট আয়" : "Total Earned"}: <b>₹${totalEarned}</b>\n`;
-  text += `🔗 ${lang === "bn" ? "রেফারেল কোড" : "Referral Code"}: <code>${refCode}</code>\n`;
-  text += `📎 ${lang === "bn" ? "রেফারেল লিংক" : "Referral Link"}: https://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n`;
+  let text = `${pe("money_bag", "💰")} <b>${lang === "bn" ? "আমার বট ওয়ালেট" : "My Bot Wallet"}</b>\n\n`;
+  text += `${pe("dollar", "💵")} ${lang === "bn" ? "ব্যালেন্স" : "Balance"}: <b>₹${balance}</b>\n`;
+  text += `${pe("chart_up", "📈")} ${lang === "bn" ? "মোট আয়" : "Total Earned"}: <b>₹${totalEarned}</b>\n`;
+  text += `${pe("link", "🔗")} ${lang === "bn" ? "রেফারেল কোড" : "Referral Code"}: <code>${refCode}</code>\n`;
+  text += `${pe("pin", "📎")} ${lang === "bn" ? "রেফারেল লিংক" : "Referral Link"}: https://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n`;
 
   if (recent?.length) {
     text += `\n<b>${lang === "bn" ? "সাম্প্রতিক লেনদেন:" : "Recent Transactions:"}</b>\n`;
     for (const tx of recent) {
-      const emoji = tx.amount > 0 ? "🟢" : "🔴";
+      const emoji = tx.amount > 0 ? pe("check_green", "🟢") : pe("cross_red", "🔴");
       const sign = tx.amount > 0 ? "+" : "";
       text += `${emoji} ${sign}₹${tx.amount} - ${tx.description || tx.type}\n`;
     }
@@ -147,10 +154,10 @@ export async function handleReferEarn(token: string, supabase: any, chatId: numb
   const childCtx = getChildBotContext();
   const botUsername = childCtx?.bot_username || settings.bot_username || "Air1_Premium_bot";
 
-  let text = `${t("referral_header", lang)}\n\n`;
+  let text = `${pe("gift", "🎁")} <b>${lang === "bn" ? "রেফার ও আয়" : "Refer & Earn"}</b>\n\n`;
   text += lang === "bn"
-    ? `প্রতিটি রেফারেলের জন্য ₹${bonus} বোনাস পান!\n\n🔗 আপনার রেফারেল লিংক:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 কোড: <code>${refCode}</code>\n\n1️⃣ লিংক শেয়ার করুন\n2️⃣ বন্ধু যোগ দিক\n3️⃣ তারা কেনাকাটা করলে আপনি বোনাস পাবেন!`
-    : `Earn ₹${bonus} for every referral!\n\n🔗 Your referral link:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
+    ? `প্রতিটি রেফারেলের জন্য ₹${bonus} বোনাস পান!\n\n${pe("link", "🔗")} আপনার রেফারেল লিংক:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 কোড: <code>${refCode}</code>\n\n1️⃣ লিংক শেয়ার করুন\n2️⃣ বন্ধু যোগ দিক\n3️⃣ তারা কেনাকাটা করলে আপনি বোনাস পাবেন!`
+    : `Earn ₹${bonus} for every referral!\n\n${pe("link", "🔗")} Your referral link:\nhttps://t.me/${botUsername}?start=ref_${encodeURIComponent(refCode)}\n\n📋 Code: <code>${refCode}</code>\n\n1️⃣ Share the link\n2️⃣ Friend joins\n3️⃣ When they purchase, you get a bonus!`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: { inline_keyboard: [[{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }]] },
@@ -171,10 +178,10 @@ export async function handleGetOffers(token: string, supabase: any, chatId: numb
     .eq("is_active", true)
     .limit(5);
 
-  let text = lang === "bn" ? "🔥 <b>অফার ও ডিসকাউন্ট</b>\n\n" : "🔥 <b>Offers & Discounts</b>\n\n";
+  let text = lang === "bn" ? `${pe("fire", "🔥")} <b>অফার ও ডিসকাউন্ট</b>\n\n` : `${pe("fire", "🔥")} <b>Offers & Discounts</b>\n\n`;
 
   if (flashSales?.length) {
-    text += lang === "bn" ? "<b>⚡ ফ্ল্যাশ সেল:</b>\n" : "<b>⚡ Flash Sales:</b>\n";
+    text += lang === "bn" ? `<b>${pe("lightning", "⚡")} ফ্ল্যাশ সেল:</b>\n` : `<b>${pe("lightning", "⚡")} Flash Sales:</b>\n`;
     flashSales.forEach((s: any) => {
       const name = s.products?.name || "Product";
       text += `• ${name}: <b>₹${s.sale_price}</b> (was ₹${s.products?.price || "?"})\n`;
@@ -226,13 +233,13 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
     const websiteUrl = "https://cheapest-premiums.in";
 
     const text = lang === "bn"
-      ? `🔐 <b>ওয়েবসাইট লগইন</b>\n\n📋 আপনার লগইন কোড:\n<code>${code}</code>\n(ট্যাপ করলে কপি হবে)\n\n⏰ কোডটি ৩০ মিনিট সক্রিয় থাকবে।\n\n📖 <b>কিভাবে লগইন করবেন:</b>\n1️⃣ নিচের লিংকে ক্লিক করুন\n2️⃣ "Telegram Login" অপশনে ক্লিক করুন\n3️⃣ উপরের কোডটি পেস্ট করুন\n4️⃣ Login বাটনে ক্লিক করুন\n\n✅ আপনার ওয়ালেট, অর্ডার সব অটোমেটিক সিঙ্ক হয়ে যাবে!\n\n⚠️ এই কোড কাউকে শেয়ার করবেন না।`
-      : `🔐 <b>Website Login</b>\n\n📋 Your login code:\n<code>${code}</code>\n(Tap to copy)\n\n⏰ Code is active for 30 minutes.\n\n📖 <b>How to login:</b>\n1️⃣ Click the link below\n2️⃣ Click "Telegram Login" option\n3️⃣ Paste the code above\n4️⃣ Click the Login button\n\n✅ Your wallet, orders will auto-sync!\n\n⚠️ Do not share this code with anyone.`;
+      ? `${pe("key", "🔐")} <b>ওয়েবসাইট লগইন</b>\n\n📋 আপনার লগইন কোড:\n<code>${code}</code>\n(ট্যাপ করলে কপি হবে)\n\n${pe("clock", "⏰")} কোডটি ৩০ মিনিট সক্রিয় থাকবে।\n\n📖 <b>কিভাবে লগইন করবেন:</b>\n1️⃣ নিচের লিংকে ক্লিক করুন\n2️⃣ "Telegram Login" অপশনে ক্লিক করুন\n3️⃣ উপরের কোডটি পেস্ট করুন\n4️⃣ Login বাটনে ক্লিক করুন\n\n${pe("check_green", "✅")} আপনার ওয়ালেট, অর্ডার সব অটোমেটিক সিঙ্ক হয়ে যাবে!\n\n${pe("warning", "⚠️")} এই কোড কাউকে শেয়ার করবেন না।`
+      : `${pe("key", "🔐")} <b>Website Login</b>\n\n📋 Your login code:\n<code>${code}</code>\n(Tap to copy)\n\n${pe("clock", "⏰")} Code is active for 30 minutes.\n\n📖 <b>How to login:</b>\n1️⃣ Click the link below\n2️⃣ Click "Telegram Login" option\n3️⃣ Paste the code above\n4️⃣ Click the Login button\n\n${pe("check_green", "✅")} Your wallet, orders will auto-sync!\n\n${pe("warning", "⚠️")} Do not share this code with anyone.`;
 
     await sendMessage(token, chatId, text, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🌐 Open Website", url: websiteUrl, style: "primary" }],
+          [{ text: `${pe("globe", "🌐")} Open Website`, url: websiteUrl, style: "primary" }],
           [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
         ],
       },
@@ -240,8 +247,8 @@ export async function handleLoginCode(token: string, supabase: any, chatId: numb
   } catch (e) {
     console.error("Login code error:", e);
     const text = lang === "bn"
-      ? `❌ কোড তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।`
-      : `❌ Failed to generate code. Please try again.`;
+      ? `${pe("cross_red", "❌")} কোড তৈরিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।`
+      : `${pe("cross_red", "❌")} Failed to generate code. Please try again.`;
     await sendMessage(token, chatId, text);
   }
 }
@@ -257,8 +264,8 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
 
   if (balance < 50) {
     const text = lang === "bn"
-      ? `❌ আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹50 প্রয়োজন।\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>`
-      : `❌ Insufficient balance. Minimum ₹50 required.\n\n💵 Current Balance: <b>₹${balance}</b>`;
+      ? `${pe("cross_red", "❌")} আপনার ব্যালেন্স অপর্যাপ্ত। কমপক্ষে ₹50 প্রয়োজন।\n\n${pe("dollar", "💵")} বর্তমান ব্যালেন্স: <b>₹${balance}</b>`
+      : `${pe("cross_red", "❌")} Insufficient balance. Minimum ₹50 required.\n\n${pe("dollar", "💵")} Current Balance: <b>₹${balance}</b>`;
     await sendMessage(token, chatId, text, {
       reply_markup: { inline_keyboard: [[{ text: `⬅️ ${t("back", lang)}`, callback_data: "my_wallet" }]] },
     });
@@ -269,15 +276,15 @@ export async function handleWalletWithdraw(token: string, supabase: any, chatId:
   await setConversationState(supabase, userId, "withdraw_choose_method", {});
 
   const text = lang === "bn"
-    ? `➖ <b>ওয়ালেট উইথড্র</b>\n\n💵 বর্তমান ব্যালেন্স: <b>₹${balance}</b>\n\n💳 পেমেন্ট পদ্ধতি বেছে নিন:`
-    : `➖ <b>Wallet Withdrawal</b>\n\n💵 Current Balance: <b>₹${balance}</b>\n\n💳 Choose payment method:`;
+    ? `➖ <b>ওয়ালেট উইথড্র</b>\n\n${pe("dollar", "💵")} বর্তমান ব্যালেন্স: <b>₹${balance}</b>\n\n${pe("credit_card", "💳")} পেমেন্ট পদ্ধতি বেছে নিন:`
+    : `➖ <b>Wallet Withdrawal</b>\n\n${pe("dollar", "💵")} Current Balance: <b>₹${balance}</b>\n\n${pe("credit_card", "💳")} Choose payment method:`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
       inline_keyboard: [
         [
           { text: "📱 UPI", callback_data: "withdraw_upi", style: "primary" },
-          { text: "💎 Binance", callback_data: "withdraw_binance", style: "success" },
+          { text: `${pe("diamond", "💎")} Binance`, callback_data: "withdraw_binance", style: "success" },
         ],
         [{ text: `⬅️ ${t("back", lang)}`, callback_data: "my_wallet" }],
       ],
