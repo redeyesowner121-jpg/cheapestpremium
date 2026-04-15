@@ -19,18 +19,20 @@ export async function resolveAccessLink(
   productId: string,
   orderId?: string,
   telegramOrderId?: string
-): Promise<string | null> {
-  // Fetch product delivery_mode and access_link
+): Promise<{ link: string | null; showInBot: boolean; showInWebsite: boolean }> {
+  // Fetch product delivery_mode, access_link, and visibility flags
   const { data: product } = await supabase
     .from("products")
-    .select("access_link, delivery_mode")
+    .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website")
     .eq("id", productId)
     .single();
 
-  if (!product) return null;
+  if (!product) return { link: null, showInBot: true, showInWebsite: true };
+
+  const showInBot = product.show_link_in_bot !== false;
+  const showInWebsite = product.show_link_in_website !== false;
 
   if (product.delivery_mode === "unique") {
-    // Pick the first unused stock item
     const { data: stockItems } = await supabase
       .from("product_stock_items")
       .select("id, access_link")
@@ -41,12 +43,11 @@ export async function resolveAccessLink(
 
     if (!stockItems?.length) {
       console.log("No stock items available for product:", productId);
-      return null;
+      return { link: null, showInBot, showInWebsite };
     }
 
     const stockItem = stockItems[0];
 
-    // Mark as used
     const updateData: any = {
       is_used: true,
       used_at: new Date().toISOString(),
@@ -59,11 +60,11 @@ export async function resolveAccessLink(
       .update(updateData)
       .eq("id", stockItem.id);
 
-    return stockItem.access_link;
+    return { link: stockItem.access_link, showInBot, showInWebsite };
   }
 
   // Default: repeated mode
-  return product.access_link || null;
+  return { link: product.access_link || null, showInBot, showInWebsite };
 }
 
 /**

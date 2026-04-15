@@ -492,7 +492,7 @@ export async function handleRazorpayVerify(
       } else {
         // Regular flow - auto confirmed
         const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
+        const resolved = await resolveAccessLink(supabase, productId, order?.id);
 
         let successText = `<b>✅ Payment Verified!</b>\n\n`;
         successText += `Product: <b>${productName}</b>\n`;
@@ -500,8 +500,8 @@ export async function handleRazorpayVerify(
 
         await sendMessage(token, chatId, successText);
 
-        if (resolvedLink) {
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolvedLink, productName, "en");
+        if (resolved.link && resolved.showInBot) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
       }
@@ -615,7 +615,7 @@ export async function handleBinanceVerify(
         await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Binance Pay");
       } else {
         const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
+        const resolved = await resolveAccessLink(supabase, productId, order?.id);
 
         let successText = `✅ <b>Order Successful!</b>\n\n`;
         successText += `📦 Product: <b>${productName}</b>\n`;
@@ -627,8 +627,8 @@ export async function handleBinanceVerify(
 
         await sendMessage(token, chatId, successText);
 
-        if (resolvedLink) {
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolvedLink, productName, "en");
+        if (resolved.link && resolved.showInBot) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
 
@@ -639,7 +639,9 @@ export async function handleBinanceVerify(
         } catch (e) { console.error("Admin notify error:", e); }
 
         try {
-          await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, product?.access_link || undefined);
+          const { data: prodVis } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
+          const websiteLink = (prodVis?.show_link_in_website !== false && prodVis?.access_link) ? prodVis.access_link : undefined;
+          await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
         } catch (e) { console.error("Sync error:", e); }
 
         await processReferralBonus(supabase, telegramUser.id, token, price);

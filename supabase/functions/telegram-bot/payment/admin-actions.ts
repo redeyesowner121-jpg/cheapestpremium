@@ -136,8 +136,8 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
         const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
         let accessLink: string | undefined;
         if (order.product_id) {
-          const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
-          accessLink = product?.access_link || undefined;
+          const { data: product } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", order.product_id).single();
+          accessLink = (product?.show_link_in_website !== false && product?.access_link) ? product.access_link : undefined;
         }
         // skipWalletDeduct=true because payment was via UPI, not wallet
         await syncPurchaseToProfile(supabase, order.telegram_user_id, order.amount, order.product_name || "Product", order.product_id || undefined, accessLink, true);
@@ -148,9 +148,9 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
     if (order.product_id) {
       const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolvedLink = await resolveAccessLink(supabase, order.product_id, order.id);
-      if (resolvedLink) {
-        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolvedLink, order.product_name || "Product", userLang);
+      const resolved = await resolveAccessLink(supabase, order.product_id, order.id);
+      if (resolved.link && resolved.showInBot) {
+        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolved.link, order.product_name || "Product", userLang);
       }
     }
 
