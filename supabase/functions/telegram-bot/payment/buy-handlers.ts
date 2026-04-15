@@ -583,8 +583,8 @@ export async function handleBinanceVerify(
         }
       }
 
-      // Child bot orders → pending; regular orders → confirmed
-      const orderStatus = isChildBot ? "pending" : "confirmed";
+      // All orders auto-confirm (including child bot)
+      const orderStatus = "confirmed";
       const orderUsername = isChildBot ? `child_bot:${childBotId}` : (telegramUser.username || telegramUser.first_name);
 
       const { data: order } = await supabase.from("telegram_orders").insert({
@@ -606,48 +606,52 @@ export async function handleBinanceVerify(
           product_name: productName,
           total_price: price,
           owner_commission: commission,
-          status: "pending",
+          status: "confirmed",
         });
+        try {
+          const { data: cb } = await supabase.from("child_bots").select("total_orders, total_earnings").eq("id", childBotId).single();
+          if (cb) {
+            await supabase.from("child_bots").update({
+              total_orders: (cb.total_orders || 0) + 1,
+              total_earnings: (cb.total_earnings || 0) + commission,
+            }).eq("id", childBotId);
+          }
+        } catch {}
       }
 
-      if (isChildBot) {
-        await sendMessage(token, chatId,
-          `✅ <b>Payment Verified!</b>\n\n📦 Product: <b>${productName}</b>\n💵 Amount: $${amountUsd} (₹${price})\n\n⏳ Admin is processing your order. You'll get an update soon.`
+      // Auto-confirmed - deliver instantly
+      const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+      const resolved = await resolveAccessLink(supabase, productId, order?.id);
+
+      let successText = `✅ <b>Order Successful!</b>\n\n`;
+      successText += `📦 Product: <b>${productName}</b>\n`;
+      successText += `💵 Amount: <b>$${amountUsd}</b> (₹${price})\n`;
+      successText += `🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
+      if (walletDeduction > 0) {
+        successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
+      }
+      await sendMessage(token, chatId, successText);
+
+      if (resolved.link && resolved.showInBot) {
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
+      }
+      await setConversationState(supabase, telegramUser.id, "idle", {});
+
+      // Notify admins
+      const mainToken = isChildBot ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+      try {
+        await notifyAllAdmins(mainToken, supabase,
+          `💰 <b>Binance Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Order ID: ${binanceOrderId})${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
         );
-        await setConversationState(supabase, telegramUser.id, "idle", {});
-        await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Binance Pay");
-      } else {
-        const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        const resolved = await resolveAccessLink(supabase, productId, order?.id);
+      } catch (e) { console.error("Admin notify error:", e); }
 
-        let successText = `✅ <b>Order Successful!</b>\n\n`;
-        successText += `📦 Product: <b>${productName}</b>\n`;
-        successText += `💵 Amount: <b>$${amountUsd}</b> (₹${price})\n`;
-        successText += `🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
-        if (walletDeduction > 0) {
-          successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
-        }
+      try {
+        const { data: prodVis } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
+        const websiteLink = (prodVis?.show_link_in_website !== false && prodVis?.access_link) ? prodVis.access_link : undefined;
+        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
+      } catch (e) { console.error("Sync error:", e); }
 
-        await sendMessage(token, chatId, successText);
-
-        if (resolved.link && resolved.showInBot) {
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
-        }
-        await setConversationState(supabase, telegramUser.id, "idle", {});
-
-        try {
-          await notifyAllAdmins(token, supabase,
-            `💰 <b>Binance Payment</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Order ID: ${binanceOrderId})\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
-          );
-        } catch (e) { console.error("Admin notify error:", e); }
-
-        try {
-          const { data: prodVis } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
-          const websiteLink = (prodVis?.show_link_in_website !== false && prodVis?.access_link) ? prodVis.access_link : undefined;
-          await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
-        } catch (e) { console.error("Sync error:", e); }
-
-        await processReferralBonus(supabase, telegramUser.id, token, price);
+      await processReferralBonus(supabase, telegramUser.id, token, price);
       }
 
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Binance")); } catch {}
