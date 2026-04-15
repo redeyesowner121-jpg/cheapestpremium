@@ -78,18 +78,17 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     text += `• <b>${p.name}</b> — ${priceText}\n`;
   });
 
+  // Alternating blue-green pattern for product buttons
+  const altColors = ["primary", "success"]; // blue, green
   const buttons: any[][] = [];
   for (let i = 0; i < products.length; i += 2) {
     const row: any[] = [];
+    const colorIdx = Math.floor(i / 2) % 2; // alternates per row
     const p1 = products[i];
-    const btn1: any = { text: p1.name, callback_data: `product_${p1.id}` };
-    if (p1.button_style && p1.button_style !== 'default') btn1.style = p1.button_style;
-    row.push(btn1);
+    row.push({ text: p1.name, callback_data: `product_${p1.id}`, style: altColors[colorIdx] });
     if (products[i + 1]) {
       const p2 = products[i + 1];
-      const btn2: any = { text: p2.name, callback_data: `product_${p2.id}` };
-      if (p2.button_style && p2.button_style !== 'default') btn2.style = p2.button_style;
-      row.push(btn2);
+      row.push({ text: p2.name, callback_data: `product_${p2.id}`, style: altColors[1 - colorIdx] });
     }
     buttons.push(row);
   }
@@ -165,33 +164,29 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       text += `• <b>${v.name}</b> — ${priceLabel}\n`;
     });
 
-    const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : undefined;
+    // Alternating blue-green for variation buttons
+    const varColors = ["primary", "success"];
     
     if (isReseller && !childCtx) {
-      // Resellers: buy + resale side by side per variation (keep 1 per row)
-      for (const v of variations) {
-        const buyBtn: any = { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}` };
-        if (btnStyle) buyBtn.style = btnStyle;
+      for (let ri = 0; ri < variations.length; ri++) {
+        const v = variations[ri];
+        const colorIdx = ri % 2;
         buttons.push([
-          buyBtn,
-          { text: `Resale`, callback_data: `resalevar_${v.id}`, style: "danger" },
+          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`, style: varColors[colorIdx] },
+          { text: `Resale`, callback_data: `resalevar_${v.id}`, style: varColors[1 - colorIdx] },
         ]);
       }
     } else {
-      // Normal users & child bots: 2 variations per row
       for (let i = 0; i < variations.length; i += 2) {
         const row: any[] = [];
+        const colorIdx = Math.floor(i / 2) % 2;
         const v1 = variations[i];
         const dp1 = childCtx ? childBotPrice(v1.reseller_price, v1.price) : v1.price;
-        const btn1: any = { text: `${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}` };
-        if (btnStyle) btn1.style = btnStyle;
-        row.push(btn1);
+        row.push({ text: `${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`, style: varColors[colorIdx] });
         if (variations[i + 1]) {
           const v2 = variations[i + 1];
           const dp2 = childCtx ? childBotPrice(v2.reseller_price, v2.price) : v2.price;
-          const btn2: any = { text: `${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}` };
-          if (btnStyle) btn2.style = btnStyle;
-          row.push(btn2);
+          row.push({ text: `${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`, style: varColors[1 - colorIdx] });
         }
         buttons.push(row);
       }
@@ -229,16 +224,15 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     }
 
     if (product.stock === null || product.stock > 0) {
-      const btnStyle = product.button_style && product.button_style !== 'default' ? product.button_style : "success";
       if (childCtx) {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "primary" }]);
       } else if (isReseller) {
         buttons.push([
-          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle },
-          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}`, style: "danger" },
+          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "primary" },
+          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}`, style: "success" },
         ]);
       } else {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: btnStyle }]);
+        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "primary" }]);
       }
     }
 
