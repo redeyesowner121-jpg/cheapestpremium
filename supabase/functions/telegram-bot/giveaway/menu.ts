@@ -115,7 +115,7 @@ export async function showGiveawayStats(token: string, supabase: any, chatId: nu
   const statsText = `📊 <b>Your Stats</b>\n\n💰 Balance: ₹<b>${bal}</b>\n💵 Total Earned: ₹<b>${earned}</b>\n📦 Orders: <b>${orderCount || 0}</b>\n🎯 Giveaway Points: <b>${pts}</b>\n👥 Referrals: <b>${refs}</b>\n🏷️ Code: <code>${refCode}</code>`;
 
   await sendMessage(token, chatId, statsText, {
-    reply_markup: { inline_keyboard: [[{ text: "Main Menu", callback_data: "gw_main" }]] }
+    reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "gw_main", style: "primary" }]] }
   });
 }
 
