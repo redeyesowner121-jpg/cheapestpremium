@@ -237,14 +237,14 @@ const ProductsPage: React.FC = () => {
 
       await supabase.from('notifications').insert({
         user_id: user.id,
-        title: selectedProduct.access_link ? 'Order Delivered' : 'Order Placed Successfully',
-        message: selectedProduct.access_link
+        title: isInstantDelivery ? 'Order Delivered' : 'Order Placed Successfully',
+        message: isInstantDelivery
           ? `Your order for ${productNameWithVariation} has been delivered! Check your orders for the access link.`
           : `Your order for ${productNameWithVariation} has been placed.`,
         type: 'order'
       });
 
-      setSuccessOrderData({ productName: productNameWithVariation, totalPrice, accessLink: selectedProduct.access_link || null });
+      setSuccessOrderData({ productName: productNameWithVariation, totalPrice, accessLink });
       setShowBuyModal(false);
       setShowSuccessModal(true);
       refreshProfile();
