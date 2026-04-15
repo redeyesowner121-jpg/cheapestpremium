@@ -1,4 +1,5 @@
 // ===== CONSTANTS & TRANSLATIONS =====
+import { pe } from "./premium-emoji.ts";
 
 export const SUPER_ADMIN_ID = 6898461453;
 export const BOT_USERNAME = "Air1_Premium_bot";
