@@ -1753,6 +1753,30 @@ export type Database = {
         }
         Relationships: []
       }
+      site_visits: {
+        Row: {
+          created_at: string
+          id: string
+          page: string
+          referrer: string | null
+          subdomain: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          page: string
+          referrer?: string | null
+          subdomain?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          page?: string
+          referrer?: string | null
+          subdomain?: string | null
+        }
+        Relationships: []
+      }
       telegram_ai_knowledge: {
         Row: {
           added_by: number

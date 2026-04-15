@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Download, MessageCircle, Send, ExternalLink, ArrowRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SubdomainConfig {
   title: string;
@@ -74,6 +75,18 @@ export function getSubdomainConfig(): SubdomainConfig | null {
 
 const SubdomainLanding: React.FC<{ config: SubdomainConfig }> = ({ config }) => {
   const [countdown, setCountdown] = useState(config.autoRedirectSeconds);
+
+  // Track visit
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    const sub = parts.length >= 3 ? parts[0].toLowerCase() : 'unknown';
+    supabase.from('site_visits').insert({
+      page: window.location.pathname,
+      subdomain: sub,
+      referrer: document.referrer || null,
+    }).then(() => {});
+  }, []);
 
   useEffect(() => {
     if (countdown <= 0) {
