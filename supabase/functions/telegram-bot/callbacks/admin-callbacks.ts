@@ -113,7 +113,43 @@ export async function handleAdminCallbacks(
     return true;
   }
 
+  // ===== CHILD BOT ADMIN CALLBACKS =====
+  if (data.startsWith("cadm_")) {
+    if (!isChildBotMode() || !isChildBotOwner(userId)) return true;
+
+    if (data === "cadm_back") { await handleChildBotAdminMenu(BOT_TOKEN, supabase, chatId, userId); return true; }
+    if (data === "cadm_settings") { await handleChildBotSettingsMenu(BOT_TOKEN, supabase, chatId); return true; }
+    if (data === "cadm_analytics") { await handleChildBotAnalytics(BOT_TOKEN, supabase, chatId); return true; }
+    if (data === "cadm_users") { await handleChildBotUsers(BOT_TOKEN, supabase, chatId); return true; }
+    if (data === "cadm_orders") { await handleChildBotOrders(BOT_TOKEN, supabase, chatId); return true; }
+
+    if (data.startsWith("cadm_edit_")) {
+      const settingKey = data.replace("cadm_edit_", "");
+      await setConversationState(supabase, userId, "child_bot_edit_setting", { settingKey });
+      await promptChildBotSettingEdit(BOT_TOKEN, supabase, chatId, settingKey);
+      return true;
+    }
+
+    if (data === "cadm_reset_settings") {
+      const { getChildBotContext } = await import("../child-context.ts");
+      const ctx = getChildBotContext()!;
+      await supabase.from("child_bot_settings").delete().eq("child_bot_id", ctx.id);
+      await sendMessage(BOT_TOKEN, chatId, "✅ All custom settings have been reset to defaults.",
+        { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings", style: "secondary" }]] } });
+      return true;
+    }
+
+    return true;
+  }
+
   if (!data.startsWith("adm_")) return false;
+
+  // Block child bot owners from accessing main admin functions
+  if (isChildBotMode() && isChildBotOwner(userId) && !isSuperAdmin(userId)) {
+    await sendMessage(BOT_TOKEN, chatId, "❌ Access denied. Use your Child Bot admin panel.");
+    return true;
+  }
+
   if (!await isAdminBot(supabase, userId)) return true;
 
   if (data === "adm_back") { await handleAdminMenu(BOT_TOKEN, supabase, chatId, userId); return true; }
