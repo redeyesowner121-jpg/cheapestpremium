@@ -151,7 +151,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
   const handleAddProduct = async () => {
     if (!productForm.name || !productForm.category) {
-      toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
+      toast.error('Product Name & Category are required');
       return;
     }
     
@@ -220,7 +220,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
 
   const handleUpdateProduct = async () => {
     if (!editingProduct || !productForm.name || !productForm.category) {
-      toast.error('Product Name ও Category অবশ্যই পূরণ করুন');
+      toast.error('Product Name & Category are required');
       return;
     }
     
@@ -449,7 +449,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
               className="text-xs"
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              এই keywords দিয়ে ইউজাররা সার্চ করলে এই প্রোডাক্ট দেখাবে
+              Users can find this product by searching these keywords
             </p>
           </div>
           

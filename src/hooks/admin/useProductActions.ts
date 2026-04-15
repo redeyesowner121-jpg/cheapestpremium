@@ -42,7 +42,7 @@ export async function handleAddProduct(
   onComplete: () => void
 ) {
   if (!productForm.name || !productForm.image_url || !productForm.category) {
-    toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
+    toast.error('Product Name, Image URL & Category are required');
     return false;
   }
   
@@ -115,7 +115,7 @@ export async function handleUpdateProduct(
   onComplete: () => void
 ) {
   if (!productForm.name || !productForm.image_url || !productForm.category) {
-    toast.error('Product Name, Image URL ও Category অবশ্যই পূরণ করুন');
+    toast.error('Product Name, Image URL & Category are required');
     return false;
   }
   

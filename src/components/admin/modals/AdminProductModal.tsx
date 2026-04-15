@@ -165,7 +165,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     if (!productForm.category.trim()) newErrors.category = true;
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
-      toast.error('Product Name, Image ও Category অবশ্যই পূরণ করুন');
+      toast.error('Product Name, Image & Category are required');
       return;
     }
     onSave();
@@ -357,7 +357,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
                 {!editingProduct && (
                   <p className="text-xs text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
-                    ⚠️ প্রথমে প্রোডাক্ট সেভ করুন, তারপর স্টক আইটেম যোগ করুন
+                    ⚠️ Save the product first, then add stock items
                   </p>
                 )}
 
