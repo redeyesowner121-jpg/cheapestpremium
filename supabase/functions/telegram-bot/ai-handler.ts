@@ -54,32 +54,37 @@ async function* parseSSEStream(response: Response): AsyncGenerator<string> {
 }
 
 // Split long text into Telegram-friendly chunks (~3500 chars max to be safe)
-function splitMessage(text: string, maxLen = 3500): string[] {
-  if (text.length <= maxLen) return [text];
-
+// Split into small chunks — prefer paragraph breaks (\n\n), then single newlines
+function splitMessage(text: string): string[] {
+  // First split by double newline (paragraphs)
+  const paragraphs = text.split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  
   const parts: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > maxLen) {
-    // Try to split at paragraph boundary
-    let splitIdx = remaining.lastIndexOf("\n\n", maxLen);
-    if (splitIdx < maxLen * 0.3) {
-      // Try single newline
-      splitIdx = remaining.lastIndexOf("\n", maxLen);
+  
+  for (const para of paragraphs) {
+    // If paragraph is short enough (≤300 chars), keep as one part
+    if (para.length <= 300) {
+      parts.push(para);
+      continue;
     }
-    if (splitIdx < maxLen * 0.3) {
-      // Try space
-      splitIdx = remaining.lastIndexOf(" ", maxLen);
+    
+    // Split longer paragraphs by single newline
+    const lines = para.split(/\n/).map(l => l.trim()).filter(Boolean);
+    let currentChunk = "";
+    
+    for (const line of lines) {
+      if (currentChunk && (currentChunk + "\n" + line).length > 300) {
+        parts.push(currentChunk);
+        currentChunk = line;
+      } else {
+        currentChunk = currentChunk ? currentChunk + "\n" + line : line;
+      }
     }
-    if (splitIdx < maxLen * 0.3) {
-      splitIdx = maxLen;
-    }
-
-    parts.push(remaining.slice(0, splitIdx).trim());
-    remaining = remaining.slice(splitIdx).trim();
+    if (currentChunk) parts.push(currentChunk);
   }
-
-  if (remaining) parts.push(remaining);
+  
+  // If only 1 part, no need to split
+  if (parts.length <= 1) return [text];
   return parts;
 }
 
@@ -391,7 +396,7 @@ STRICT RULES:
           await sendMessage(token, chatId, `🤖 ${messageParts[0]}`, { reply_markup: actionButtons });
         }
       } else {
-        // Multiple parts — edit first, send rest as new messages
+        // Multiple parts — edit first, send rest with small delay
         if (thinkingMsgId) {
           await editMessageText(token, chatId, thinkingMsgId, `🤖 ${messageParts[0]}`, { parse_mode: "" });
         } else {
@@ -399,8 +404,9 @@ STRICT RULES:
         }
 
         for (let i = 1; i < messageParts.length; i++) {
+          await new Promise(r => setTimeout(r, 400)); // small delay for natural feel
           const isLast = i === messageParts.length - 1;
-          await sendMessage(token, chatId, messageParts[i], isLast ? { reply_markup: actionButtons } : undefined);
+          await sendMessage(token, chatId, `${messageParts[i]}`, isLast ? { reply_markup: actionButtons } : undefined);
         }
       }
     }
