@@ -2,6 +2,39 @@
 
 const TELEGRAM_API = (token: string) => `https://api.telegram.org/bot${token}`;
 
+function normalizeBackButtons(replyMarkup?: any) {
+  if (!replyMarkup?.inline_keyboard) return replyMarkup;
+
+  return {
+    ...replyMarkup,
+    inline_keyboard: replyMarkup.inline_keyboard.map((row: any[]) =>
+      row.map((button: any) => {
+        if (!button?.text) return button;
+
+        const normalizedText = String(button.text).trim();
+        const isBackButton =
+          /back/i.test(normalizedText) ||
+          normalizedText.includes("⬅️") ||
+          normalizedText.includes("◀️") ||
+          normalizedText.includes("🔙");
+
+        if (!isBackButton) return button;
+
+        const strippedText = normalizedText
+          .replace(/^🔴\s*/u, "")
+          .replace(/^🟥\s*/u, "")
+          .trim();
+
+        return {
+          ...button,
+          text: `🔴 ${strippedText}`,
+          color: "red",
+        };
+      })
+    ),
+  };
+}
+
 export async function sendMessage(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
   try {
     const res = await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
@@ -11,7 +44,7 @@ export async function sendMessage(token: string, chatId: number, text: string, o
         chat_id: chatId,
         text,
         parse_mode: opts?.parse_mode || "HTML",
-        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
+        ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
       }),
     });
     const result = await res.json();
@@ -103,7 +136,7 @@ export async function sendMessageWithId(token: string, chatId: number, text: str
         chat_id: chatId,
         text,
         parse_mode: opts?.parse_mode || "HTML",
-        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
+        ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
       }),
     });
     const result = await res.json();
@@ -122,7 +155,7 @@ export async function editMessageText(token: string, chatId: number, messageId: 
     };
     // Only add parse_mode if it's a valid non-empty value
     if (opts?.parse_mode) body.parse_mode = opts.parse_mode;
-    if (opts?.reply_markup) body.reply_markup = opts.reply_markup;
+    if (opts?.reply_markup) body.reply_markup = normalizeBackButtons(opts.reply_markup);
 
     const res = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
       method: "POST",

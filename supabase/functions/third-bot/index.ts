@@ -17,6 +17,39 @@ const corsHeaders = {
 const UPI_ID = "8900684167@ibl";
 const UPI_NAME = "Asif Ikbal Rubaiul Islam";
 
+function normalizeBackButtons(replyMarkup?: any) {
+  if (!replyMarkup?.inline_keyboard) return replyMarkup;
+
+  return {
+    ...replyMarkup,
+    inline_keyboard: replyMarkup.inline_keyboard.map((row: any[]) =>
+      row.map((button: any) => {
+        if (!button?.text) return button;
+
+        const normalizedText = String(button.text).trim();
+        const isBackButton =
+          /back/i.test(normalizedText) ||
+          normalizedText.includes("⬅️") ||
+          normalizedText.includes("◀️") ||
+          normalizedText.includes("🔙");
+
+        if (!isBackButton) return button;
+
+        const strippedText = normalizedText
+          .replace(/^🔴\s*/u, "")
+          .replace(/^🟥\s*/u, "")
+          .trim();
+
+        return {
+          ...button,
+          text: `🔴 ${strippedText}`,
+          color: "red",
+        };
+      })
+    ),
+  };
+}
+
 // ===== HELPER: Send Telegram Message =====
 async function sendMessage(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string; disable_web_page_preview?: boolean }) {
   try {
@@ -28,7 +61,7 @@ async function sendMessage(token: string, chatId: number, text: string, opts?: {
         text,
         parse_mode: opts?.parse_mode || "HTML",
         disable_web_page_preview: opts?.disable_web_page_preview || false,
-        ...(opts?.reply_markup && { reply_markup: opts.reply_markup }),
+        ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
       }),
     });
   } catch (e) {
