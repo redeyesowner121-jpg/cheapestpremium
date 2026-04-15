@@ -110,7 +110,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
 
   const handleDeliveryModeChange = (mode: 'repeated' | 'unique') => {
     setDeliveryMode(mode);
-    setProductForm({ ...productForm, delivery_mode: mode });
+    setProductForm((prev: any) => ({ ...prev, delivery_mode: mode }));
     if (mode === 'unique' && editingProduct) {
       loadStockItems(editingProduct.id);
     }
