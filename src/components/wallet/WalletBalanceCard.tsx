@@ -57,8 +57,8 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
     }
     await supabase.from('profiles').update({ display_currency: currency.code }).eq('id', user.id);
     toast.success(`Currency changed to ${currency.code}`);
-    await refreshProfile();
     setShowDropdown(false);
+    window.location.reload();
   };
 
   const displayBalance = (walletBalance / displayCurrency.rate_to_inr).toFixed(2);
