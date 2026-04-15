@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveProfileUserId } from "../_shared/profile-id-resolver.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +11,9 @@ Deno.serve(async (req) => {
 
   try {
     const { amount, paymentId, userId, depositRequestId, reservationId, payClickedAt } = await req.json();
-    if (!amount) {
+    const normalizedAmount = Number(amount);
+
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
       return new Response(JSON.stringify({ error: "Missing amount" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -29,16 +32,29 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const resolvedUserId = userId ? await resolveProfileUserId(supabase, userId) : null;
+    let reservationUserId: string | null = null;
+    let reservationDepositRequestId: string | null = null;
+
     // If reservationId provided, check reservation status
     if (reservationId) {
       const { data: reservation } = await supabase
         .from("razorpay_amount_reservations")
-        .select("*")
+        .select("status, expires_at, user_id, deposit_request_id")
         .eq("id", reservationId)
         .single();
 
+      reservationUserId = reservation?.user_id || null;
+      reservationDepositRequestId = reservation?.deposit_request_id || null;
+
       if (reservation?.status === "completed") {
         return new Response(JSON.stringify({ success: false, message: "This deposit was already processed." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (reservation && resolvedUserId && reservation.user_id !== resolvedUserId) {
+        return new Response(JSON.stringify({ success: false, message: "This reservation belongs to another user." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -105,7 +121,7 @@ Deno.serve(async (req) => {
     const paymentsData = await paymentsRes.json();
     const payments = paymentsData.items || [];
 
-    const amountPaise = Math.round(amount * 100);
+    const amountPaise = Math.round(normalizedAmount * 100);
 
     // Match by exact amount + captured/authorized status
     const candidatePayments = payments.filter((p: any) => {
@@ -138,14 +154,20 @@ Deno.serve(async (req) => {
       if (existingBotPayment) continue;
 
       // Check if this amount belongs to a DIFFERENT user's active reservation
-      const { data: otherReservation } = await supabase
+      let reservationQuery = supabase
         .from("razorpay_amount_reservations")
         .select("id, user_id")
-        .eq("amount", amount)
+        .eq("amount", normalizedAmount)
         .eq("status", "reserved")
-        .gt("expires_at", new Date().toISOString())
-        .neq("user_id", userId || "00000000-0000-0000-0000-000000000000")
-        .maybeSingle();
+        .gt("expires_at", new Date().toISOString());
+
+      if (reservationId) {
+        reservationQuery = reservationQuery.neq("id", reservationId);
+      } else if (resolvedUserId || reservationUserId) {
+        reservationQuery = reservationQuery.neq("user_id", resolvedUserId || reservationUserId);
+      }
+
+      const { data: otherReservation } = await reservationQuery.maybeSingle();
 
       if (otherReservation) continue; // Reserved by another user
 
@@ -155,7 +177,7 @@ Deno.serve(async (req) => {
 
     if (matchingPayment) {
       const rzpPayId = matchingPayment.id;
-      const baseAmount = Math.floor(amount);
+      const baseAmount = Math.floor(normalizedAmount);
 
       // Update payment record if exists (bot flow)
       if (paymentId) {
@@ -173,16 +195,21 @@ Deno.serve(async (req) => {
         }).eq("id", reservationId);
       }
 
-      // Website flow: credit wallet and update deposit request
-      const effectiveDepositId = depositRequestId || (reservationId ? (
-        await supabase.from("razorpay_amount_reservations").select("deposit_request_id").eq("id", reservationId).single()
-      ).data?.deposit_request_id : null);
+      const effectiveDepositId = depositRequestId || reservationDepositRequestId;
 
-      if (userId && effectiveDepositId) {
+      if (effectiveDepositId) {
+        await supabase.from("manual_deposit_requests").update({
+          status: "approved",
+          admin_note: `Auto-verified via Razorpay (${rzpPayId})`,
+          transaction_id: `RZP:${rzpPayId}`,
+        }).eq("id", effectiveDepositId);
+      }
+
+      if (resolvedUserId && effectiveDepositId) {
         const { data: profile } = await supabase
           .from("profiles")
           .select("wallet_balance, rank_balance, total_deposit, name")
-          .eq("id", userId)
+          .eq("id", resolvedUserId)
           .single();
 
         if (profile) {
@@ -200,10 +227,10 @@ Deno.serve(async (req) => {
             rank_balance: newRankBalance,
             total_deposit: newTotalDeposit,
             has_blue_check: baseAmount >= 1000 ? true : undefined,
-          }).eq("id", userId);
+          }).eq("id", resolvedUserId);
 
           await supabase.from("transactions").insert({
-            user_id: userId,
+            user_id: resolvedUserId,
             type: "deposit",
             amount: baseAmount,
             status: "completed",
@@ -212,7 +239,7 @@ Deno.serve(async (req) => {
 
           if (bonusAmount > 0) {
             await supabase.from("transactions").insert({
-              user_id: userId,
+              user_id: resolvedUserId,
               type: "bonus",
               amount: bonusAmount,
               status: "completed",
@@ -220,14 +247,8 @@ Deno.serve(async (req) => {
             });
           }
 
-          await supabase.from("manual_deposit_requests").update({
-            status: "approved",
-            admin_note: `Auto-verified via Razorpay (${rzpPayId})`,
-            transaction_id: `RZP:${rzpPayId}`,
-          }).eq("id", effectiveDepositId);
-
           await supabase.from("notifications").insert({
-            user_id: userId,
+            user_id: resolvedUserId,
             title: "Deposit Successful! 💰",
             message: `₹${baseAmount} has been added to your wallet${bonusAmount > 0 ? ` + ₹${bonusAmount} bonus!` : '.'}`,
             type: "wallet",
