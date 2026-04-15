@@ -91,37 +91,46 @@ const Index: React.FC = () => {
     setSearchLoading(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('smart-search', {
-          body: { query: homeSearchQuery.trim() },
-        });
-        if (error) throw error;
-        if (data?.products) {
-          setSearchResults(data.products.map((p: any) => ({
-            id: p.id, name: p.name, price: p.price,
-            image: p.image_url || 'https://via.placeholder.com/200',
-            originalPrice: p.original_price, reseller_price: p.reseller_price,
-            soldCount: p.sold_count || 0, rating: p.rating || 4.5,
-          })));
-        }
-      } catch {
         const query = homeSearchQuery.trim().toLowerCase();
-        const { data } = await supabase
+        
+        // Step 1: Normal exact/partial match first
+        const { data: exactData } = await supabase
           .from('products')
-          .select('id, name, price, image_url, original_price, reseller_price, sold_count, rating')
+          .select('id, name, price, image_url, original_price, reseller_price, sold_count, rating, slug')
           .eq('is_active', true)
           .or(`name.ilike.%${query}%,seo_tags.ilike.%${query}%`)
           .limit(8);
-        if (data) {
-          setSearchResults(data.map(p => ({
-            id: p.id, name: p.name, price: p.price,
-            image: p.image_url || 'https://via.placeholder.com/200',
-            originalPrice: p.original_price, reseller_price: p.reseller_price,
-            soldCount: p.sold_count || 0, rating: p.rating || 4.5,
-          })));
+
+        const mapResults = (items: any[]) => items.map(p => ({
+          id: p.id, name: p.name, price: p.price, slug: p.slug,
+          image: p.image_url || 'https://via.placeholder.com/200',
+          originalPrice: p.original_price, reseller_price: p.reseller_price,
+          soldCount: p.sold_count || 0, rating: p.rating || 4.5,
+        }));
+
+        if (exactData && exactData.length > 0) {
+          setSearchResults(mapResults(exactData));
+        } else {
+          // Step 2: Only use smart-search (fuzzy/AI) when no exact matches
+          const { data, error } = await supabase.functions.invoke('smart-search', {
+            body: { query: homeSearchQuery.trim() },
+          });
+          if (!error && data?.products?.length) {
+            setSearchResults(data.products.map((p: any) => ({
+              id: p.id, name: p.name, price: p.price, slug: p.slug,
+              image: p.image_url || 'https://via.placeholder.com/200',
+              originalPrice: p.original_price, reseller_price: p.reseller_price,
+              soldCount: p.sold_count || 0, rating: p.rating || 4.5,
+            })));
+          } else {
+            setSearchResults([]);
+          }
         }
+      } catch {
+        setSearchResults([]);
       }
       setSearchLoading(false);
-    }, 500);
+    }, 400);
 
     return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
   }, [homeSearchQuery]);
