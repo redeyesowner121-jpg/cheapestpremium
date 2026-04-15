@@ -1,45 +1,10 @@
 // ===== WALLET DEPOSIT HANDLERS =====
-// Handles Binance and UPI (Auto Razorpay + Manual) deposit flows for wallet top-up
 
 import { t } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState, deleteConversationState, notifyAllAdmins } from "../db-helpers.ts";
 import { logProof, formatDepositSuccess } from "../proof-logger.ts";
-
-const INR_TO_USD_RATE = 60;
-
-function generatePaymentNote(): string {
-  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  const digits = '23456789';
-  let note = '';
-  for (let i = 0; i < 8; i++) {
-    if (i === 3 || i === 6) {
-      note += digits[Math.floor(Math.random() * digits.length)];
-    } else {
-      note += letters[Math.floor(Math.random() * letters.length)];
-    }
-  }
-  return note;
-}
-
-// Removed: paise generation now handled by reserve-razorpay-amount edge function
-
-function inrToUsd(inrAmount: number): number {
-  const usd = inrAmount / INR_TO_USD_RATE;
-  return Math.max(0.01, Math.round(usd * 100) / 100);
-}
-
-function generatePayUrl(upiId: string, upiName: string, amount: number): string {
-  return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR`;
-}
-
-function generateUpiQrUrl(upiId: string, upiName: string, amount: number): string {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(generatePayUrl(upiId, upiName, amount))}`;
-}
-
-function generateFallbackQrUrl(upiId: string, upiName: string, amount: number): string {
-  return `https://quickchart.io/qr?size=300&text=${encodeURIComponent(generatePayUrl(upiId, upiName, amount))}`;
-}
+import { generatePayUrl, generateUpiQrUrl, generateFallbackQrUrl, inrToUsd } from "./payment-utils.ts";
 
 // Step 1: Show payment method choice FIRST (Binance / UPI)
 export async function handleDepositStart(token: string, supabase: any, chatId: number, userId: number, lang: string) {
