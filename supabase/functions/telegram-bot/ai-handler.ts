@@ -302,7 +302,60 @@ STRICT RULES:
         });
       } catch { /* ignore delete errors */ }
     }
-...
+
+    // Save user question and AI answer to history
+    await supabase.from("telegram_ai_messages").insert([
+      { telegram_id: userId, role: "user", content: question },
+      ...(answer ? [{ telegram_id: userId, role: "assistant", content: answer }] : []),
+    ]);
+
+    // Clean old messages (keep last 20 per user)
+    const { data: oldMessages } = await supabase
+      .from("telegram_ai_messages")
+      .select("id")
+      .eq("telegram_id", userId)
+      .order("created_at", { ascending: false })
+      .range(20, 1000);
+    if (oldMessages?.length) {
+      await supabase.from("telegram_ai_messages").delete().in("id", oldMessages.map((m: any) => m.id));
+    }
+
+    // Check if AI wants to forward to admin
+    const shouldForward = !answer || answer.startsWith("[FORWARD_TO_ADMIN]");
+
+    if (shouldForward) {
+      const cleanAnswer = answer?.replace("[FORWARD_TO_ADMIN]", "").trim();
+
+      await setConversationState(supabase, userId, "awaiting_admin_answer", {
+        originalQuestion: question,
+        questionLang: lang,
+      });
+
+      await notifyAllAdmins(token, supabase,
+        `🤖❓ <b>AI couldn't answer</b>\n\n👤 User: <code>${userId}</code>\n💬 Question: <b>${question}</b>\n\n📝 Reply to teach AI this answer. Click "Answer" below:`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "📝 Answer & Teach AI", callback_data: `ai_teach_${userId}`, style: "success" }],
+              [{ text: "💬 Chat", callback_data: `admin_chat_${userId}`, style: "primary" }],
+            ],
+          },
+        }
+      );
+
+      const forwardMsg = cleanAnswer || (lang === "bn"
+        ? "🤔 আমি এই প্রশ্নের উত্তর দিতে পারছি না। আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হচ্ছে। শীঘ্রই উত্তর পাবেন! ⏳"
+        : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳");
+
+      await sendMessage(token, chatId, forwardMsg, {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: t("back_main", lang), callback_data: "back_main", style: "primary" }],
+          ],
+        },
+      });
+    } else {
+      // Split answer into multiple small messages
       const messageParts = splitMessage(answer);
       const actionButtons = {
         inline_keyboard: [
@@ -312,7 +365,6 @@ STRICT RULES:
         ],
       };
 
-      // Send each part as a separate message
       for (let i = 0; i < messageParts.length; i++) {
         if (i > 0) await new Promise(r => setTimeout(r, 400));
         const isFirst = i === 0;
