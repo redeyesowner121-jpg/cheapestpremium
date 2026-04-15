@@ -548,9 +548,22 @@ export async function handleDepositScreenshot(token: string, supabase: any, chat
     : `✅ <b>Screenshot received!</b>\n\n💰 Amount: ₹${amount}\n⏳ Admin is verifying. You'll get an update soon.`
   );
 
-  // Forward to admins
-  const { forwardToAllAdmins } = await import("../db-helpers.ts");
-  try { await forwardToAllAdmins(token, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
+  // Forward to admins — handle child bot properly
+  const { forwardToAllAdmins, resendPhotoToAllAdmins } = await import("../db-helpers.ts");
+  const { getChildBotContext } = await import("../child-context.ts");
+  const childCtx = getChildBotContext();
+  const mainToken = childCtx ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+
+  if (childCtx) {
+    const fileId = msg.photo[msg.photo.length - 1]?.file_id;
+    if (fileId) {
+      await resendPhotoToAllAdmins(token, mainToken, supabase, fileId,
+        `💰 <b>Deposit Screenshot</b> (via Child Bot)\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount}`
+      );
+    }
+  } else {
+    try { await forwardToAllAdmins(token, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
+  }
 
   const adminMsg = `💰 <b>Wallet Deposit Request (Manual UPI)</b>\n\n` +
     `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
