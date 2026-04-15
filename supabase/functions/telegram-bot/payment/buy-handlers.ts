@@ -639,7 +639,8 @@ export async function handleBinanceVerify(
         } catch (e) { console.error("Admin notify error:", e); }
 
         try {
-          await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, product?.access_link || undefined);
+          const websiteLink = (product?.show_link_in_website !== false && product?.access_link) ? product.access_link : undefined;
+          await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
         } catch (e) { console.error("Sync error:", e); }
 
         await processReferralBonus(supabase, telegramUser.id, token, price);
