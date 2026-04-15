@@ -1298,6 +1298,8 @@ export type Database = {
           rating: number | null
           reseller_price: number | null
           seo_tags: string | null
+          show_link_in_bot: boolean
+          show_link_in_website: boolean
           slug: string
           sold_count: number | null
           stock: number | null
@@ -1319,6 +1321,8 @@ export type Database = {
           rating?: number | null
           reseller_price?: number | null
           seo_tags?: string | null
+          show_link_in_bot?: boolean
+          show_link_in_website?: boolean
           slug: string
           sold_count?: number | null
           stock?: number | null
@@ -1340,6 +1344,8 @@ export type Database = {
           rating?: number | null
           reseller_price?: number | null
           seo_tags?: string | null
+          show_link_in_bot?: boolean
+          show_link_in_website?: boolean
           slug?: string
           sold_count?: number | null
           stock?: number | null
