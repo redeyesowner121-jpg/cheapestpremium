@@ -2238,13 +2238,13 @@ export type Database = {
         Args: { _order_id: string; _user_id: string }
         Returns: Json
       }
-      claim_stock_item: {
-        Args: { p_order_id?: string; p_product_id: string }
-        Returns: string
-      }
       confirm_seller_receipt: {
         Args: { _buyer_id: string; _order_id: string }
         Returns: Json
+      }
+      finalize_instant_delivery: {
+        Args: { p_order_id: string; p_product_id: string }
+        Returns: string
       }
       has_role: {
         Args: {
