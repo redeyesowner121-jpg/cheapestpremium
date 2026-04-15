@@ -71,16 +71,17 @@ serve(async (req) => {
       if (p.original_price && p.original_price > p.price) info += ` (MRP: ₹${p.original_price}, ${Math.round((1 - p.price / p.original_price) * 100)}% OFF)`;
       if (p.stock !== null && p.stock !== undefined) info += ` | Stock: ${p.stock > 0 ? p.stock : "OUT OF STOCK ❌"}`;
       info += ` | Category: ${p.category}`;
-      if (p.description) info += ` | ${p.description.slice(0, 80)}`;
+      if (p.description) info += `\n   Description: ${p.description}`;
       if (vars.length > 0) {
-        info += `\n   Variations: ${vars.map((v: any) => {
-          let vInfo = `${v.name}: ₹${v.price}`;
-          if (v.original_price && v.original_price > v.price) vInfo += ` (was ₹${v.original_price})`;
-          return vInfo;
-        }).join(" | ")}`;
+        info += `\n   Variations:`;
+        vars.forEach((v: any) => {
+          let vInfo = `\n   • ${v.name}: ₹${v.price}`;
+          if (v.original_price && v.original_price > v.price) vInfo += ` (MRP: ₹${v.original_price}, ${Math.round((1 - v.price / v.original_price) * 100)}% OFF)`;
+          info += vInfo;
+        });
       }
       return info;
-    }).join("\n");
+    }).join("\n\n");
 
     const categoryList = (categoriesRes.data || []).map((c: any) => c.name).join(", ");
 
