@@ -273,9 +273,13 @@ const Index: React.FC = () => {
           </div>
         )}
 
+        {user && (
+          <Suspense fallback={<div className="h-48 rounded-2xl bg-muted animate-pulse" />}>
+            <QuickStats />
+          </Suspense>
+        )}
+
         {deferredReady && (
-          <Suspense fallback={<LazyFallback />}>
-            <FlashSaleSlider items={flashSales} onItemClick={handleFlashSaleClick} />
           </Suspense>
         )}
         
