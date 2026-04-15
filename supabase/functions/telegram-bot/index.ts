@@ -415,6 +415,19 @@ Deno.serve(async (req) => {
               await handleAdminMenu(BOT_TOKEN, supabase, chatId, userId);
             }
             break;
+          case "/chat": {
+            if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
+            const targetId = parseInt(parts[1]);
+            if (!targetId) {
+              await sendMessage(BOT_TOKEN, chatId, "⚠️ Usage: <code>/chat {user_id}</code>\n\nExample: <code>/chat 123456789</code>");
+              break;
+            }
+            await setConversationState(supabase, userId, "admin_reply", { targetUserId: targetId });
+            await sendMessage(BOT_TOKEN, chatId,
+              `💬 <b>Chat Mode</b>\n\nYou are now chatting with user <code>${targetId}</code>.\n\nType your message or send a photo.\nSend /endchat to stop.`
+            );
+            break;
+          }
           case "/broadcast":
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await setConversationState(supabase, userId, "broadcast_message", {});
