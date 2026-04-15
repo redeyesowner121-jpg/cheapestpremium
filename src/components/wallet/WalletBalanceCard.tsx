@@ -31,7 +31,7 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
   onWithdraw
 }) => {
   const { settings } = useAppSettingsContext();
-  const { displayCurrency, formatPrice } = useCurrencyFormat();
+  const { displayCurrency } = useCurrencyFormat();
   const { user, refreshProfile } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
@@ -58,7 +58,7 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
     await supabase.from('profiles').update({ display_currency: currency.code }).eq('id', user.id);
     toast.success(`Currency changed to ${currency.code}`);
     setShowDropdown(false);
-    window.location.reload();
+    await refreshProfile();
   };
 
   const displayBalance = (walletBalance / displayCurrency.rate_to_inr).toFixed(2);
@@ -72,7 +72,6 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
     >
       <p className="text-primary-foreground/80 text-sm">Available Balance</p>
       
-      {/* Balance + Currency Selector */}
       <div className="flex items-center justify-center gap-2 mt-2">
         <h1 className="text-4xl font-bold text-primary-foreground">
           {displayCurrency.symbol}{displayBalance}
@@ -86,7 +85,6 @@ const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
         </button>
       </div>
 
-      {/* Currency Dropdown */}
       <AnimatePresence>
         {showDropdown && (
           <>
