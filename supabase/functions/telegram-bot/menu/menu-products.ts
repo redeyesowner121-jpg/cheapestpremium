@@ -4,6 +4,7 @@ import { t } from "../constants.ts";
 import { sendMessage, sendPhoto } from "../telegram-api.ts";
 import { getSettings, getWallet } from "../db-helpers.ts";
 import { getChildBotContext, childBotPrice, isChildBotMode } from "../child-context.ts";
+import { pe } from "../premium-emoji.ts";
 
 export async function handleViewCategories(token: string, supabase: any, chatId: number, lang: string) {
   const { data: categories, error } = await supabase
@@ -23,7 +24,7 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
     return;
   }
 
-  const header = lang === "bn" ? "📂 <b>ক্যাটাগরি নির্বাচন করুন:</b>" : "📂 <b>Choose a Category:</b>";
+  const header = lang === "bn" ? `${pe("folder", "📂")} <b>ক্যাটাগরি নির্বাচন করুন:</b>` : `${pe("folder", "📂")} <b>Choose a Category:</b>`;
 
   const catStyles = ["primary", "success", "primary", "success"] as const;
   const catEmojis = ["📁", "📂", "🗂️", "📦", "🏷️", "🎯"];
@@ -68,7 +69,7 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
   const childCtx = getChildBotContext();
-  let text = `📂 <b>${categoryName}</b>\n\n`;
+  let text = `${pe("folder", "📂")} <b>${categoryName}</b>\n\n`;
 
   products.forEach((p: any) => {
     let displayPrice: number;
@@ -177,7 +178,7 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
       for (let ri = 0; ri < variations.length; ri++) {
         const v = variations[ri];
         buttons.push([
-          { text: `🛒 ${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`, style: "success" },
+          { text: `${pe("cart", "🛒")} ${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`, style: "success" },
           { text: `🔄 Resale`, callback_data: `resalevar_${v.id}`, style: "primary" },
         ]);
       }
@@ -187,11 +188,11 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         const vStyle = varStyles[Math.floor(i / 2) % varStyles.length];
         const v1 = variations[i];
         const dp1 = childCtx ? childBotPrice(v1.reseller_price, v1.price) : v1.price;
-        row.push({ text: `🛒 ${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`, style: vStyle });
+        row.push({ text: `${pe("cart", "🛒")} ${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`, style: vStyle });
         if (variations[i + 1]) {
           const v2 = variations[i + 1];
           const dp2 = childCtx ? childBotPrice(v2.reseller_price, v2.price) : v2.price;
-          row.push({ text: `🛒 ${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`, style: vStyle === "success" ? "primary" : "success" });
+          row.push({ text: `${pe("cart", "🛒")} ${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`, style: vStyle === "success" ? "primary" : "success" });
         }
         buttons.push(row);
       }
@@ -225,19 +226,19 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
     text += `\n${lang === "bn" ? "মূল্য" : "Price"}: ${priceLabel}`;
 
     if (product.stock !== null && product.stock <= 0) {
-      text += `\n\n❌ ${lang === "bn" ? "স্টক শেষ" : "Out of Stock"}`;
+      text += `\n\n${pe("cross_red", "❌")} ${lang === "bn" ? "স্টক শেষ" : "Out of Stock"}`;
     }
 
     if (product.stock === null || product.stock > 0) {
       if (childCtx) {
-        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" }]);
+        buttons.push([{ text: `${pe("cart", "🛒")} ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" }]);
       } else if (isReseller) {
         buttons.push([
-          { text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" },
+          { text: `${pe("cart", "🛒")} ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" },
           { text: lang === "bn" ? "🔄 রিসেল" : "🔄 Resale", callback_data: `resale_${productId}`, style: "primary" },
         ]);
       } else {
-        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" }]);
+        buttons.push([{ text: `${pe("cart", "🛒")} ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}`, style: "success" }]);
       }
     }
 

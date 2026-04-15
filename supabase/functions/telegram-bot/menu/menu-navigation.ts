@@ -3,9 +3,10 @@
 import { T, t } from "../constants.ts";
 import { sendMessage } from "../telegram-api.ts";
 import { getRequiredChannels, getSettings } from "../db-helpers.ts";
+import { pe } from "../premium-emoji.ts";
 
 export async function showLanguageSelection(token: string, chatId: number) {
-  await sendMessage(token, chatId, T.choose_lang.en, {
+  await sendMessage(token, chatId, `${pe("globe", "🌐")} <b>Choose Your Language / ভাষা নির্বাচন করুন</b>`, {
     reply_markup: {
       inline_keyboard: [
         [
@@ -23,7 +24,7 @@ export async function showJoinChannels(token: string, supabase: any, chatId: num
     const name = ch.startsWith("@") ? ch : `@${ch}`;
     return [{ text: `Join ${name}`, url: `https://t.me/${name.replace("@", "")}`, style: "primary" }];
   });
-  buttons.push([{ text: lang === "bn" ? "✅ যাচাই করুন" : "✅ Verify", callback_data: "verify_join", style: "success" }]);
+  buttons.push([{ text: lang === "bn" ? `${pe("check_green", "✅")} যাচাই করুন` : `${pe("check_green", "✅")} Verify`, callback_data: "verify_join", style: "success" }]);
 
   await sendMessage(token, chatId, t("join_channels", lang), {
     reply_markup: { inline_keyboard: buttons },
@@ -38,8 +39,8 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
   const isChild = isChildBotMode();
 
   const welcomeText = lang === "bn"
-    ? `🛍️ <b>${storeName}-এ স্বাগতম!</b>\n\n✨ সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n⚡ তাৎক্ষণিক ডেলিভারি\n🔒 নিরাপদ পেমেন্ট\n💬 ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:`
-    : `🛍️ <b>Welcome to ${storeName}!</b>\n\n✨ Premium digital products at the cheapest prices\n⚡ Instant delivery\n🔒 Secure payments\n💬 24/7 Support\n\nChoose an option below:`;
+    ? `${pe("shopping_bag", "🛍️")} <b>${storeName}-এ স্বাগতম!</b>\n\n${pe("sparkles", "✨")} সবচেয়ে কম দামে প্রিমিয়াম ডিজিটাল পণ্য\n${pe("lightning", "⚡")} তাৎক্ষণিক ডেলিভারি\n${pe("lock", "🔒")} নিরাপদ পেমেন্ট\n${pe("chat", "💬")} ২৪/৭ সাপোর্ট\n\nনিচে একটি অপশন বেছে নিন:`
+    : `${pe("shopping_bag", "🛍️")} <b>Welcome to ${storeName}!</b>\n\n${pe("sparkles", "✨")} Premium digital products at the cheapest prices\n${pe("lightning", "⚡")} Instant delivery\n${pe("lock", "🔒")} Secure payments\n${pe("chat", "💬")} 24/7 Support\n\nChoose an option below:`;
 
   const buttons: any[][] = [
     [{ text: `🛍️ ${t("view_products", lang)}`, callback_data: "view_products", style: "primary" }],
@@ -75,8 +76,8 @@ export async function handleSupport(token: string, supabase: any, chatId: number
 
   await sendMessage(token, chatId,
     lang === "bn"
-      ? `📞 <b>সাপোর্ট</b>\n\nযেকোনো সমস্যায় নিচের মাধ্যমে যোগাযোগ করুন:\n\n📱 WhatsApp: ${supportNumber}\n📱 Telegram: ${supportNumber}\n\nঅথবা নিচের বাটনে ক্লিক করুন:`
-      : `📞 <b>Support</b>\n\nContact us for any issues:\n\n📱 WhatsApp: ${supportNumber}\n📱 Telegram: ${supportNumber}\n\nOr click a button below:`,
+      ? `${pe("phone", "📞")} <b>সাপোর্ট</b>\n\nযেকোনো সমস্যায় নিচের মাধ্যমে যোগাযোগ করুন:\n\n📱 WhatsApp: ${supportNumber}\n${pe("airplane", "✈️")} Telegram: ${supportNumber}\n\nঅথবা নিচের বাটনে ক্লিক করুন:`
+      : `${pe("phone", "📞")} <b>Support</b>\n\nContact us for any issues:\n\n📱 WhatsApp: ${supportNumber}\n${pe("airplane", "✈️")} Telegram: ${supportNumber}\n\nOr click a button below:`,
     {
       reply_markup: {
         inline_keyboard: [
@@ -96,7 +97,7 @@ export async function forwardUserMessageToAdmin(token: string, supabase: any, ms
 
   await forwardToAllAdmins(token, supabase, msg.chat.id, msg.message_id);
   await notifyAllAdmins(token, supabase,
-    `📸 <b>Photo from</b> ${username} (<code>${telegramUser.id}</code>)`,
+    `${pe("camera", "📸")} <b>Photo from</b> ${username} (<code>${telegramUser.id}</code>)`,
     {
       reply_markup: {
         inline_keyboard: [
@@ -108,7 +109,7 @@ export async function forwardUserMessageToAdmin(token: string, supabase: any, ms
 
   await sendMessage(token, msg.chat.id,
     lang === "bn"
-      ? "✅ আপনার মেসেজ অ্যাডমিনের কাছে ফরোয়ার্ড করা হয়েছে।"
-      : "✅ Your message has been forwarded to admin."
+      ? `${pe("check_green", "✅")} আপনার মেসেজ অ্যাডমিনের কাছে ফরোয়ার্ড করা হয়েছে।`
+      : `${pe("check_green", "✅")} Your message has been forwarded to admin.`
   );
 }
