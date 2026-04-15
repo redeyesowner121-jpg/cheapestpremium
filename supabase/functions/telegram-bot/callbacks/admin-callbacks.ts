@@ -2,6 +2,7 @@
 import { sendMessage } from "../telegram-api.ts";
 import { isSuperAdmin, isAdminBot, setConversationState } from "../db-helpers.ts";
 import { logProof, formatWithdrawalUpdate } from "../proof-logger.ts";
+import { isChildBotMode } from "../child-context.ts";
 import {
   handleAdminMenu, handleReport,
   handleAdminProductsMenu, handleAdminUsersMenu, handleAdminWalletMenu,
@@ -10,6 +11,9 @@ import {
   handleAITrainingMenu, startTrainingCategory, handleViewKnowledge,
   startDeleteKnowledge, executeDeleteKnowledge,
   handleUsersCommand, handleAllUsers, handleListChannels, handleListAdmins,
+  // Child bot admin
+  isChildBotOwner, handleChildBotAdminMenu, handleChildBotSettingsMenu,
+  promptChildBotSettingEdit, handleChildBotAnalytics, handleChildBotUsers, handleChildBotOrders,
 } from "../admin-handlers.ts";
 
 export async function handleAdminCallbacks(
