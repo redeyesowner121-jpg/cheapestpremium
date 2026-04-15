@@ -29,13 +29,16 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   for (let i = 0; i < categories.length; i += 2) {
     const colorIdx = Math.floor(i / 2) % 2;
     
-    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}`}];
+    const catEmojis = ["📁", "📂", "🗂️", "📦", "🏷️", "🎯"];
+    const emoji1 = catEmojis[i % catEmojis.length];
+    const emoji2 = catEmojis[(i + 1) % catEmojis.length];
+    const row: any[] = [{ text: `${emoji1} ${categories[i].name}`, callback_data: `cat_${encodeURIComponent(categories[i].name)}`}];
     if (categories[i + 1]) {
-      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`});
+      row.push({ text: `${emoji2} ${categories[i + 1].name}`, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`});
     }
     buttons.push(row);
   }
-  buttons.push([{ text: t("back_main", lang), callback_data: "back_main" }]);
+  buttons.push([{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }]);
 
   await sendMessage(token, chatId, header, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -86,15 +89,16 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
   for (let i = 0; i < products.length; i += 2) {
     const row: any[] = [];
     const colorIdx = Math.floor(i / 2) % 2; // alternates per row
+    const prodEmojis = ["🔹", "🔸", "💎", "⚡", "🌟", "✨"];
     const p1 = products[i];
-    row.push({ text: p1.name, callback_data: `product_${p1.id}`});
+    row.push({ text: `${prodEmojis[i % prodEmojis.length]} ${p1.name}`, callback_data: `product_${p1.id}`});
     if (products[i + 1]) {
       const p2 = products[i + 1];
-      row.push({ text: p2.name, callback_data: `product_${p2.id}`});
+      row.push({ text: `${prodEmojis[(i+1) % prodEmojis.length]} ${p2.name}`, callback_data: `product_${p2.id}`});
     }
     buttons.push(row);
   }
-  buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+  buttons.push([{ text: `⬅️ ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -174,8 +178,8 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         const v = variations[ri];
         const colorIdx = ri % 2;
         buttons.push([
-          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`},
-          { text: `Resale`, callback_data: `resalevar_${v.id}`},
+          { text: `🛒 ${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`},
+          { text: `🔄 Resale`, callback_data: `resalevar_${v.id}`},
         ]);
       }
     } else {
@@ -184,16 +188,16 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         const colorIdx = Math.floor(i / 2) % 2;
         const v1 = variations[i];
         const dp1 = childCtx ? childBotPrice(v1.reseller_price, v1.price) : v1.price;
-        row.push({ text: `${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`});
+        row.push({ text: `🛒 ${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`});
         if (variations[i + 1]) {
           const v2 = variations[i + 1];
           const dp2 = childCtx ? childBotPrice(v2.reseller_price, v2.price) : v2.price;
-          row.push({ text: `${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`});
+          row.push({ text: `🛒 ${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`});
         }
         buttons.push(row);
       }
     }
-    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+    buttons.push([{ text: `⬅️ ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
     if (primaryImage) {
       await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
@@ -227,18 +231,18 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
 
     if (product.stock === null || product.stock > 0) {
       if (childCtx) {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
       } else if (isReseller) {
         buttons.push([
-          { text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
-          { text: lang === "bn" ? "রিসেল" : "Resale", callback_data: `resale_${productId}` },
+          { text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` },
+          { text: lang === "bn" ? "🔄 রিসেল" : "🔄 Resale", callback_data: `resale_${productId}` },
         ]);
       } else {
-        buttons.push([{ text: `${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
+        buttons.push([{ text: `🛒 ${t("buy_now", lang)} - ${currency}${displayPrice}`, callback_data: `buy_${productId}` }]);
       }
     }
 
-    buttons.push([{ text: t("back_products", lang), callback_data: "back_products" }]);
+    buttons.push([{ text: `⬅️ ${t("back_products", lang)}`, callback_data: "back_products" }]);
 
     if (primaryImage) {
       await sendPhoto(token, chatId, primaryImage, text, { inline_keyboard: buttons });
