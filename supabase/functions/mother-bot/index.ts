@@ -252,6 +252,39 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // ===== CHANNEL MANAGEMENT =====
+      if (data === "mother_admin_channels") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        await showChannelManager(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
+      if (data === "mother_add_channel") {
+        if (!isMotherOwner(userId)) return jsonOk();
+        await setConvState(supabase, userId, "mother_add_channel", {});
+        await sendMsg(MOTHER_TOKEN, chatId,
+          "📢 <b>Add Channel</b>\n\n" +
+          "Send the channel username (e.g. <code>@mychannel</code> or <code>mychannel</code>)\n\n" +
+          "⚠️ Make sure the <b>main selling bot</b> is an admin in this channel.\n\n" +
+          "Send /cancel to abort.",
+          { reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "mother_admin_channels", style: "danger" }]] } }
+        );
+        return jsonOk();
+      }
+
+      if (data.startsWith("mother_rmch_")) {
+        if (!isMotherOwner(userId)) return jsonOk();
+        const idx = parseInt(data.replace("mother_rmch_", ""));
+        const channels = await getRequiredChannels(supabase);
+        if (idx >= 0 && idx < channels.length) {
+          const removed = channels.splice(idx, 1)[0];
+          await saveRequiredChannels(supabase, channels);
+          await sendMsg(MOTHER_TOKEN, chatId, `✅ Channel <b>${removed}</b> removed!`);
+        }
+        await showChannelManager(MOTHER_TOKEN, supabase, chatId);
+        return jsonOk();
+      }
+
       if (data === "mother_admin_bots") {
         if (!isMotherOwner(userId)) return jsonOk();
         await showAdminBots(MOTHER_TOKEN, supabase, chatId);
