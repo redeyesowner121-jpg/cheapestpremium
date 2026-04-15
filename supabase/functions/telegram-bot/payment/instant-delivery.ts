@@ -9,6 +9,64 @@ function isDriveLink(url: string): boolean {
 }
 
 /**
+ * Resolve access link for a product:
+ * - If delivery_mode === 'unique': pick an unused stock item and mark it as used
+ * - If delivery_mode === 'repeated' (default): use product.access_link directly
+ * Returns the access link string or null if unavailable
+ */
+export async function resolveAccessLink(
+  supabase: any,
+  productId: string,
+  orderId?: string,
+  telegramOrderId?: string
+): Promise<string | null> {
+  // Fetch product delivery_mode and access_link
+  const { data: product } = await supabase
+    .from("products")
+    .select("access_link, delivery_mode")
+    .eq("id", productId)
+    .single();
+
+  if (!product) return null;
+
+  if (product.delivery_mode === "unique") {
+    // Pick the first unused stock item
+    const { data: stockItems } = await supabase
+      .from("product_stock_items")
+      .select("id, access_link")
+      .eq("product_id", productId)
+      .eq("is_used", false)
+      .order("created_at", { ascending: true })
+      .limit(1);
+
+    if (!stockItems?.length) {
+      console.log("No stock items available for product:", productId);
+      return null;
+    }
+
+    const stockItem = stockItems[0];
+
+    // Mark as used
+    const updateData: any = {
+      is_used: true,
+      used_at: new Date().toISOString(),
+    };
+    if (orderId) updateData.order_id = orderId;
+    if (telegramOrderId) updateData.telegram_order_id = telegramOrderId;
+
+    await supabase
+      .from("product_stock_items")
+      .update(updateData)
+      .eq("id", stockItem.id);
+
+    return stockItem.access_link;
+  }
+
+  // Default: repeated mode
+  return product.access_link || null;
+}
+
+/**
  * Generate a 6-digit login code, save to DB, and send delivery to user.
  * - Drive links: Only show "View on Website" button (no direct link) — UNLESS child bot mode
  * - Other links: Send directly in bot message
