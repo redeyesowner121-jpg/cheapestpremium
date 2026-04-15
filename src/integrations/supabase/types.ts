@@ -1185,6 +1185,61 @@ export type Database = {
           },
         ]
       }
+      product_stock_items: {
+        Row: {
+          access_link: string
+          created_at: string
+          id: string
+          is_used: boolean
+          order_id: string | null
+          product_id: string
+          telegram_order_id: string | null
+          used_at: string | null
+        }
+        Insert: {
+          access_link: string
+          created_at?: string
+          id?: string
+          is_used?: boolean
+          order_id?: string | null
+          product_id: string
+          telegram_order_id?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          access_link?: string
+          created_at?: string
+          id?: string
+          is_used?: boolean
+          order_id?: string | null
+          product_id?: string
+          telegram_order_id?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_stock_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stock_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_stock_items_telegram_order_id_fkey"
+            columns: ["telegram_order_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_variations: {
         Row: {
           created_at: string | null
@@ -1232,6 +1287,7 @@ export type Database = {
           button_style: string | null
           category: string
           created_at: string | null
+          delivery_mode: string
           description: string | null
           id: string
           image_url: string | null
@@ -1252,6 +1308,7 @@ export type Database = {
           button_style?: string | null
           category: string
           created_at?: string | null
+          delivery_mode?: string
           description?: string | null
           id?: string
           image_url?: string | null
@@ -1272,6 +1329,7 @@ export type Database = {
           button_style?: string | null
           category?: string
           created_at?: string | null
+          delivery_mode?: string
           description?: string | null
           id?: string
           image_url?: string | null
