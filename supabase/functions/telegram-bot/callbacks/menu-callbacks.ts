@@ -51,6 +51,15 @@ export async function handleMenuCallbacks(
     } else {
       await sendMessage(BOT_TOKEN, chatId, t("verified", lang));
       await ensureWallet(supabase, userId);
+
+      // Auto-create website account for this telegram user
+      try {
+        const { resolveProfileUserId } = await import("../../_shared/profile-id-resolver.ts");
+        await resolveProfileUserId(supabase, userId);
+      } catch (e) {
+        console.error("Auto-create website profile failed:", e);
+      }
+
       await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
     }
     return true;
