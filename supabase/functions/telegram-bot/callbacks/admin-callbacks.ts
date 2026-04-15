@@ -75,8 +75,8 @@ export async function handleAdminCallbacks(
         }
       );
 
-      // Log proof
-      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "accepted", wd.account_details)); } catch {}
+      let wName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", wd.telegram_id).single(); if (bu?.first_name) wName = bu.first_name; } catch {}
+      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "accepted", wd.account_details, wName)); } catch {}
 
       // Notify other admins
       const { notifyAllAdmins } = await import("../db-helpers.ts");
@@ -103,8 +103,8 @@ export async function handleAdminCallbacks(
 
       await sendMessage(BOT_TOKEN, chatId, `📦 Withdrawal ₹${wd.amount} for user <code>${wd.telegram_id}</code> marked as delivered.`);
 
-      // Log proof
-      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "delivered", wd.account_details)); } catch {}
+      let wdName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", wd.telegram_id).single(); if (bu?.first_name) wdName = bu.first_name; } catch {}
+      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "delivered", wd.account_details, wdName)); } catch {}
     }
     return true;
   }

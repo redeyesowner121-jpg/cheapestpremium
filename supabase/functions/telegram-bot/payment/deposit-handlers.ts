@@ -364,7 +364,8 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
       await notifyAllAdmins(token, supabase,
         `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n🆔 Order ID: ${binanceOrderId}\n✅ Auto-verified`
       );
-      try { await logProof(token, formatDepositSuccess(userId, amount, "Binance Auto")); } catch {}
+      let dName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", userId).single(); if (bu?.first_name) dName = bu.first_name; } catch {}
+      try { await logProof(token, formatDepositSuccess(userId, amount, "Binance Auto", dName)); } catch {}
     } else {
       const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
       let retryMsg = `${result.message || "Payment not found."}\n\n`;
@@ -462,7 +463,8 @@ export async function verifyDepositRazorpay(token: string, supabase: any, chatId
       await notifyAllAdmins(token, supabase,
         `💰 <b>Wallet Deposit (Razorpay Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${baseAmount} (paid ₹${verifyAmount})\n✅ Auto-verified`
       );
-      try { await logProof(token, formatDepositSuccess(userId, baseAmount, "Razorpay Auto")); } catch {}
+      let rName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", userId).single(); if (bu?.first_name) rName = bu.first_name; } catch {}
+      try { await logProof(token, formatDepositSuccess(userId, baseAmount, "Razorpay Auto", rName)); } catch {}
     } else {
       const settingsForLink = await getSettings(supabase);
       const razorpayMeUrl = settingsForLink.payment_link || "https://razorpay.me/@asifikbalrubaiulislam";
