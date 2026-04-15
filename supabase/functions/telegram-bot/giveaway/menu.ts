@@ -133,7 +133,7 @@ export async function showGiveawayReferralLink(token: string, supabase: any, cha
 
   await sendMessage(token, chatId, text, {
     reply_markup: { inline_keyboard: [
-      [{ text: "📤 Share", url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent("🎁 Join and win free products!")}` }],
+      [{ text: "📤 Share", url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent("🎁 Join and win free products!")}`, style: "success" }],
       [{ text: "🔙 Back", callback_data: "gw_main" }],
     ]}
   });
