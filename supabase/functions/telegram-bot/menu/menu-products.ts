@@ -29,9 +29,9 @@ export async function handleViewCategories(token: string, supabase: any, chatId:
   for (let i = 0; i < categories.length; i += 2) {
     const colorIdx = Math.floor(i / 2) % 2;
     const catColors = ["primary", "success"];
-    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}`, style: catColors[colorIdx] }];
+    const row: any[] = [{ text: categories[i].name, callback_data: `cat_${encodeURIComponent(categories[i].name)}`}];
     if (categories[i + 1]) {
-      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`, style: catColors[1 - colorIdx] });
+      row.push({ text: categories[i + 1].name, callback_data: `cat_${encodeURIComponent(categories[i + 1].name)}`});
     }
     buttons.push(row);
   }
@@ -87,10 +87,10 @@ export async function handleCategoryProducts(token: string, supabase: any, chatI
     const row: any[] = [];
     const colorIdx = Math.floor(i / 2) % 2; // alternates per row
     const p1 = products[i];
-    row.push({ text: p1.name, callback_data: `product_${p1.id}`, style: altColors[colorIdx] });
+    row.push({ text: p1.name, callback_data: `product_${p1.id}`});
     if (products[i + 1]) {
       const p2 = products[i + 1];
-      row.push({ text: p2.name, callback_data: `product_${p2.id}`, style: altColors[1 - colorIdx] });
+      row.push({ text: p2.name, callback_data: `product_${p2.id}`});
     }
     buttons.push(row);
   }
@@ -174,8 +174,8 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         const v = variations[ri];
         const colorIdx = ri % 2;
         buttons.push([
-          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`, style: varColors[colorIdx] },
-          { text: `Resale`, callback_data: `resalevar_${v.id}`, style: varColors[1 - colorIdx] },
+          { text: `${v.name} - ${currency}${v.reseller_price || v.price}`, callback_data: `buyvar_${v.id}`},
+          { text: `Resale`, callback_data: `resalevar_${v.id}`},
         ]);
       }
     } else {
@@ -184,11 +184,11 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
         const colorIdx = Math.floor(i / 2) % 2;
         const v1 = variations[i];
         const dp1 = childCtx ? childBotPrice(v1.reseller_price, v1.price) : v1.price;
-        row.push({ text: `${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`, style: varColors[colorIdx] });
+        row.push({ text: `${v1.name} - ${currency}${dp1}`, callback_data: `buyvar_${v1.id}`});
         if (variations[i + 1]) {
           const v2 = variations[i + 1];
           const dp2 = childCtx ? childBotPrice(v2.reseller_price, v2.price) : v2.price;
-          row.push({ text: `${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`, style: varColors[1 - colorIdx] });
+          row.push({ text: `${v2.name} - ${currency}${dp2}`, callback_data: `buyvar_${v2.id}`});
         }
         buttons.push(row);
       }

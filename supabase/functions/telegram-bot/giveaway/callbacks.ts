@@ -53,7 +53,7 @@ export async function handleGiveawayCallbacks(
       return true;
     }
 
-    const buttons: any[][] = productRows.map((p: any, i: number) => [{ text: `🎁 ${p.name}`, callback_data: `gw_pdetail_${p.id}`, style: rotateStyle(i) }]);
+    const buttons: any[][] = productRows.map((p: any, i: number) => [{ text: `🎁 ${p.name}`, callback_data: `gw_pdetail_${p.id}`}]);
     buttons.push([{ text: "🔙 Back", callback_data: "gw_main" }]);
     await sendMessage(token, chatId, "🎁 <b>Giveaway Products</b>\n\nChoose a product:", { reply_markup: { inline_keyboard: buttons } });
     return true;
