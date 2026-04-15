@@ -139,6 +139,12 @@ const AppContent = () => {
 };
 
 const App = () => {
+  // Check subdomain BEFORE rendering the full app
+  const subdomainConfig = getSubdomainConfig();
+  if (subdomainConfig) {
+    return <SubdomainLanding config={subdomainConfig} />;
+  }
+
   return (
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
