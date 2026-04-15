@@ -218,7 +218,16 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   };
 
   const handleDeleteVariation = async (variationId: string) => {
-    await supabase.from('product_variations').delete().eq('id', variationId);
+    // Clean up FK references before deleting
+    await supabase.from('price_history').delete().eq('variation_id', variationId);
+    await supabase.from('cart_items').delete().eq('variation_id', variationId);
+    
+    const { error } = await supabase.from('product_variations').delete().eq('id', variationId);
+    if (error) {
+      console.error('Delete variation error:', error);
+      toast.error('Failed to delete variation: ' + error.message);
+      return;
+    }
     setExistingVariations(existingVariations.filter(v => v.id !== variationId));
     toast.success('Variation deleted!');
   };

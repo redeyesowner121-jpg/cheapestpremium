@@ -59,7 +59,8 @@ const AdminPage: React.FC = () => {
   // Product form
   const [productForm, setProductForm] = useState({
     name: '', description: '', price: '', original_price: '', reseller_price: '',
-    category: '', image_url: '', access_link: '', stock: '', is_active: true, button_style: 'primary'
+    category: '', image_url: '', access_link: '', stock: '', is_active: true, button_style: 'primary',
+    delivery_mode: 'repeated'
   });
   const [pendingVariations, setPendingVariations] = useState<any[]>([]);
   const [existingVariations, setExistingVariations] = useState<any[]>([]);
