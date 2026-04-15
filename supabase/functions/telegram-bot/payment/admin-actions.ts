@@ -259,16 +259,21 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
   const statusLabel: Record<string, string> = { confirmed: "CONFIRMED", rejected: "REJECTED", shipped: "SHIPPED" };
   await sendMessage(token, adminChatId, `${emoji[newStatus] || "📋"} Order <b>${orderId.slice(0, 8)}</b> → <b>${statusLabel[newStatus] || newStatus.toUpperCase()}</b>`);
 
-  // Log proof to channel
+  // Log proof to channel (show name, not username)
   try {
+    let proofName = "User";
+    try {
+      const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", order.telegram_user_id).single();
+      if (bu?.first_name) proofName = bu.first_name;
+    } catch {}
     if (newStatus === "confirmed") {
       if (order.product_name?.startsWith("Wallet Deposit")) {
-        await logProof(token, formatDepositSuccess(order.telegram_user_id, order.amount, "manual_upi"));
+        await logProof(token, formatDepositSuccess(order.telegram_user_id, order.amount, "manual_upi", proofName));
       } else {
-        await logProof(token, formatOrderConfirmed(order.telegram_user_id, order.product_name || "N/A", order.amount));
+        await logProof(token, formatOrderConfirmed(order.telegram_user_id, order.product_name || "N/A", order.amount, proofName));
       }
     } else if (newStatus === "shipped") {
-      await logProof(token, formatOrderDelivered(order.telegram_user_id, order.product_name || "N/A", order.amount));
+      await logProof(token, formatOrderDelivered(order.telegram_user_id, order.product_name || "N/A", order.amount, proofName));
     }
   } catch { /* proof log non-critical */ }
 
