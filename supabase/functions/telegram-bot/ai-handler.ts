@@ -1,4 +1,4 @@
-// ===== AI QUERY HANDLER (Streaming) =====
+// ===== AI QUERY HANDLER (Streaming + Cross-Platform) =====
 
 import { t, BOT_USERNAME } from "./constants.ts";
 import { sendMessage, sendMessageWithId, editMessageText, sendChatAction } from "./telegram-api.ts";
@@ -53,6 +53,60 @@ async function* parseSSEStream(response: Response): AsyncGenerator<string> {
   }
 }
 
+// Split long text into Telegram-friendly chunks (~3500 chars max to be safe)
+function splitMessage(text: string, maxLen = 3500): string[] {
+  if (text.length <= maxLen) return [text];
+
+  const parts: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > maxLen) {
+    // Try to split at paragraph boundary
+    let splitIdx = remaining.lastIndexOf("\n\n", maxLen);
+    if (splitIdx < maxLen * 0.3) {
+      // Try single newline
+      splitIdx = remaining.lastIndexOf("\n", maxLen);
+    }
+    if (splitIdx < maxLen * 0.3) {
+      // Try space
+      splitIdx = remaining.lastIndexOf(" ", maxLen);
+    }
+    if (splitIdx < maxLen * 0.3) {
+      splitIdx = maxLen;
+    }
+
+    parts.push(remaining.slice(0, splitIdx).trim());
+    remaining = remaining.slice(splitIdx).trim();
+  }
+
+  if (remaining) parts.push(remaining);
+  return parts;
+}
+
+// Fetch cross-platform web AI history
+async function getWebAIHistory(supabase: any, telegramId: number): Promise<{ role: string; content: string }[]> {
+  try {
+    // Check if this telegram user has a web account (email: tg_XXXXX@telegram.user)
+    const email = `tg_${telegramId}@telegram.user`;
+    const { data: users } = await supabase.auth.admin.listUsers({ filter: `email.eq.${email}`, perPage: 1 });
+    
+    if (!users?.users?.length) return [];
+    
+    const userId = users.users[0].id;
+    const { data: webMessages } = await supabase
+      .from("ai_chat_messages")
+      .select("role, content")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(6);
+
+    if (!webMessages?.length) return [];
+    return webMessages.reverse().map((m: any) => ({ role: m.role, content: m.content }));
+  } catch {
+    return [];
+  }
+}
+
 export async function handleAIQuery(token: string, supabase: any, chatId: number, userId: number, question: string, lang: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -61,13 +115,14 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
   }
 
   // Fetch all context in parallel
-  const [productsRes, categoriesRes, flashSalesRes, couponsRes, walletRes, knowledgeContext] = await Promise.all([
+  const [productsRes, categoriesRes, flashSalesRes, couponsRes, walletRes, knowledgeContext, webHistory] = await Promise.all([
     supabase.from("products").select("name, price, original_price, category, description, stock, reseller_price, is_active").eq("is_active", true).limit(100),
     supabase.from("categories").select("name").eq("is_active", true).order("sort_order"),
     supabase.from("flash_sales").select("sale_price, products(name, price)").eq("is_active", true).gt("end_time", new Date().toISOString()).limit(10),
     supabase.from("coupons").select("code, description, discount_type, discount_value").eq("is_active", true).limit(10),
     supabase.from("telegram_wallets").select("balance, referral_code").eq("telegram_id", userId).single(),
     getKnowledgeContext(supabase),
+    getWebAIHistory(supabase, userId),
   ]);
 
   // Fetch variations for all products
@@ -111,36 +166,35 @@ export async function handleAIQuery(token: string, supabase: any, chatId: number
   const appName = settings.app_name || "RKR Premium Store";
   const supportNumber = "+201556690444";
 
-  const systemPrompt = `You are "RKR AI" — the ULTIMATE bestie and tech guru for "${appName}" on Telegram. You're NOT an assistant — you're their CLOSE FRIEND who happens to know EVERYTHING about premium apps. You're hilarious, savage (in a fun way), and always got their back.
+  // Build cross-platform context
+  const crossPlatformNote = webHistory.length > 0
+    ? `\n\n🔗 CROSS-PLATFORM CONTEXT: This user also chats with you on the website. Here's their recent web conversation:\n${webHistory.map(m => `${m.role === "user" ? "User" : "You"}: ${m.content.slice(0, 200)}`).join("\n")}\n\nUse this context naturally — don't mention "website" explicitly.`
+    : "";
 
-🗣️ PERSONALITY & TONE (THIS IS YOUR SOUL — FOLLOW STRICTLY):
+  const systemPrompt = `You are "RKR AI" — the ULTIMATE bestie and tech guru for "${appName}" on Telegram. You're NOT an assistant — you're their CLOSE FRIEND who happens to know EVERYTHING about premium apps.
+
+⚡ EFFICIENCY RULES (CRITICAL — FOLLOW STRICTLY):
+1. **BE ULTRA CONCISE**: Answer in MINIMUM words. No filler, no padding.
+2. **ONE MESSAGE**: Complete your answer in a SINGLE response. Don't ask unnecessary follow-ups.
+3. **DIRECT ANSWERS**: "Price of X?" → "₹XX bro! /Buy_X 🔥". Done.
+4. **MAX 6-8 LINES** for simple queries. Only go longer for comparisons or detailed guides.
+5. **GREETINGS**: Keep to 1 line. "Yo bro! 🔥 What do you need?"
+6. **NO OVER-EXPLAINING**: Simple question → simple answer. Elaborate only if asked.
+
+🗣️ PERSONALITY & TONE:
 - You're the friend who texts at 3am about crazy deals 😂
 - DEFAULT LANGUAGE IS ENGLISH. Always reply in English unless the user writes in Bengali or Hindi.
 - If user writes in Bengali → reply in Bengali/Banglish
 - If user writes in Hindi → reply in Hindi/Hinglish  
 - If user writes in English → reply in English ONLY. Do NOT mix Bengali/Hindi words.
-- In English mode: Use "bro", "dude", "boss", "king", "fam" etc.
-- In Bengali mode: Use "তুই/তুমি" (NEVER আপনি), "ভাই", "রে", "মামা", "ব্রো" etc.
-- Fun expressions (English): "trust me bro", "no cap 🔥", "this is literally a STEAL 😤🔥", "ayo real talk 💯", "W decision bro"
-- Fun expressions (Bengali, ONLY when user writes Bengali): "আরে ভাই!", "ওহো দারুণ!", "একদম জস! 🔥", "পাগল নাকি?! এত সস্তায়!"
-- Be HYPED about products: "trust me, worth every rupee!", "bro this is literally a STEAL 😤🔥"
-- Sad/frustrated user? Be their bestie: "chill bro, I got you! 💪", "relax, we'll solve it 🤝"
-- Tease playfully: "still on free version? legend 😭💀"
-- Celebrate: "LET'S GOOO! 🎉🔥", "nice choice king! 👑"
-- Use gen-z vibes: "no cap", "fr fr", "lowkey fire", "based choice", "W decision bro"
-- Throw in fun reactions: "💀", "😭", "🫡", "😤", "🤌", "💯", "🔥", "😎", "🤝"
-- NEVER be robotic or formal. NO "Dear customer". NO "How may I assist you today". That's CRINGE.
-- You LOVE memes, pop culture references, and making people laugh
-- If someone just says random stuff (like "bored", "what's up"), chat with them like a friend — suggest products casually, share a joke, or vibe
+- In English mode: Use "bro", "dude", "boss", "king", "fam"
+- In Bengali mode: Use "তুই/তুমি" (NEVER আপনি), "ভাই", "রে", "মামা", "ব্রো"
+- Be HYPED but CONCISE
+- Use emojis naturally, not excessively
+- NEVER be robotic or formal
 
-🧠 SUPER INTELLIGENCE — PREMIUM APP EXPERT:
-You know EVERYTHING about premium apps. When someone asks about ANY app's premium features:
-- List benefits with emojis, point by point
-- Compare Free vs Premium clearly
-- Explain activation/setup if asked (e.g., "login korle auto activate hobe", "email dibo 24hr er moddhe")
-- Know about: Netflix, Spotify, YouTube, Disney+, Canva, ChatGPT Plus, Adobe, NordVPN, Telegram Premium, Discord Nitro, Microsoft 365, Grammarly, Midjourney, Coursera, Duolingo, LinkedIn, and 100+ more
-- If user asks "how to use" or "kivabe activate korbo", give step-by-step guide
-- Always connect back to your store: "amader store e matro ₹XX te pabi! 🔥"
+🧠 PREMIUM APP EXPERT:
+You know EVERYTHING about premium apps. Keep explanations SHORT unless asked for detail.
 
 📋 PRODUCT CATALOG:
 ${productCatalog || "No products available"}
@@ -148,7 +202,6 @@ ${productCatalog || "No products available"}
 📂 CATEGORIES: ${categoryList || "None"}
 
 ${flashSaleInfo !== "No active flash sales" ? `🔥 FLASH SALES:\n${flashSaleInfo}` : ""}
-
 ${couponInfo !== "No active coupons" ? `🎟️ ACTIVE COUPONS:\n${couponInfo}` : ""}
 
 👤 THIS USER'S WALLET: ₹${walletBalance}
@@ -156,27 +209,23 @@ ${refCode ? `🔗 Their Referral Code: ${refCode}` : ""}
 
 📞 Support WhatsApp/Telegram: ${supportNumber}
 ${knowledgeContext}
+${crossPlatformNote}
 
 STRICT RULES:
-1. GREETINGS: Warm, fun intro + highlight 2-3 best deals
-2. PRODUCT QUERIES: EXACT price, variations, stock, discount. Never guess.
-3. COMPARISONS: Smart side-by-side with clear winner recommendation
-4. PRICE/BUDGET: Recommend within range, be creative with combos
-5. STOCK: If out = say clearly + suggest same-category alternatives
-6. OFFERS: Proactively mention flash sales/coupons
-7. WALLET: Tell balance (₹${walletBalance})
-8. REFERRAL: Explain system + share their code
-9. RETURNS: "No-Return Policy. All sales are final." (say it casually though)
-10. LANGUAGE: DEFAULT is ENGLISH. Only switch to Bengali if user writes in Bengali, Hindi if user writes in Hindi. NEVER use Bengali/Hindi words when user is writing in English.
-11. CONCISE: Max 8-10 lines. Emojis everywhere.
-12. BUYING: Always use /{ProductName} format for tappable commands
-13. NO external links. Only products and bot commands.
-14. UPSELL: Suggest complementary products using /{name}
-15. KNOWLEDGE BASE: Use LEARNED KNOWLEDGE answers FIRST if relevant
-16. UNKNOWN: If you truly CANNOT answer → start with "[FORWARD_TO_ADMIN]" + friendly message
-17. Never make up product info
-18. Order status → contact admin via Support button
-19. CASUAL CHAT: If user just wants to chat/joke around, BE FUN! But casually weave in product mentions`;
+1. GREETINGS: 1-line warm intro. Only mention deals if asked.
+2. PRODUCT QUERIES: EXACT price + /{ProductName} command. Keep it short.
+3. COMPARISONS: Concise side-by-side
+4. PRICE/BUDGET: Recommend within range briefly
+5. STOCK: If out → say clearly + suggest alternative
+6. OFFERS: Mention flash sales/coupons when relevant
+7. WALLET: Tell balance (₹${walletBalance}) only if asked
+8. RETURNS: "No-Return Policy" (say casually)
+9. LANGUAGE: DEFAULT is ENGLISH. Match user's language.
+10. BUYING: Always use /{ProductName} format for tappable commands
+11. NO external links. Only products and bot commands.
+12. KNOWLEDGE BASE: Use LEARNED KNOWLEDGE answers FIRST
+13. UNKNOWN: If you truly CANNOT answer → start with "[FORWARD_TO_ADMIN]"
+14. Never make up product info`;
 
 
   try {
@@ -223,10 +272,9 @@ STRICT RULES:
     // TRUE real-time streaming: edit message as tokens arrive
     let fullAnswer = "";
     let lastEditTime = 0;
-    const MIN_EDIT_INTERVAL = 300; // ms between edits — fast streaming like ChatGPT
+    const MIN_EDIT_INTERVAL = 300;
     let pendingEdit = false;
 
-    // Keep sending typing action periodically
     const typingInterval = setInterval(() => {
       sendChatAction(token, chatId, "typing");
     }, 4000);
@@ -239,8 +287,9 @@ STRICT RULES:
         const elapsed = now - lastEditTime;
 
         if (thinkingMsgId && elapsed >= MIN_EDIT_INTERVAL) {
-          // Edit immediately
-          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`, { parse_mode: "" });
+          // For streaming, only show first 3500 chars in the edit (Telegram limit)
+          const displayText = fullAnswer.length > 3500 ? fullAnswer.slice(0, 3500) + "..." : fullAnswer;
+          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${displayText}▍`, { parse_mode: "" });
           lastEditTime = Date.now();
           pendingEdit = false;
         } else {
@@ -248,9 +297,9 @@ STRICT RULES:
         }
       }
 
-      // Final pending edit if tokens arrived after last edit
       if (pendingEdit && thinkingMsgId && fullAnswer) {
-        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${fullAnswer}▍`, { parse_mode: "" });
+        const displayText = fullAnswer.length > 3500 ? fullAnswer.slice(0, 3500) + "..." : fullAnswer;
+        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${displayText}▍`, { parse_mode: "" });
       }
     } finally {
       clearInterval(typingInterval);
@@ -298,7 +347,6 @@ STRICT RULES:
         }
       );
 
-      // Final edit with forward message
       const forwardMsg = cleanAnswer || (lang === "bn"
         ? "🤔 আমি এই প্রশ্নের উত্তর দিতে পারছি না। আপনার প্রশ্ন অ্যাডমিনের কাছে পাঠানো হচ্ছে। শীঘ্রই উত্তর পাবেন! ⏳"
         : "🤔 I'm not sure about this. Your question has been forwarded to admin. You'll get a reply soon! ⏳");
@@ -322,28 +370,38 @@ STRICT RULES:
         });
       }
     } else {
-      // Final edit with complete answer + action buttons
-      if (thinkingMsgId) {
-        await editMessageText(token, chatId, thinkingMsgId, `🤖 ${answer}`, {
-          parse_mode: "",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
-              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
-              [{ text: t("back_main", lang), callback_data: "back_main" }],
-            ],
-          },
-        });
+      // Split long answers into multiple messages
+      const messageParts = splitMessage(answer);
+      const actionButtons = {
+        inline_keyboard: [
+          [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
+          [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
+          [{ text: t("back_main", lang), callback_data: "back_main" }],
+        ],
+      };
+
+      if (messageParts.length === 1) {
+        // Single message — edit the thinking message
+        if (thinkingMsgId) {
+          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${messageParts[0]}`, {
+            parse_mode: "",
+            reply_markup: actionButtons,
+          });
+        } else {
+          await sendMessage(token, chatId, `🤖 ${messageParts[0]}`, { reply_markup: actionButtons });
+        }
       } else {
-        await sendMessage(token, chatId, `🤖 ${answer}`, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: lang === "bn" ? "প্রোডাক্ট দেখুন" : "View Products", callback_data: "view_products", style: "success" }],
-              [{ text: lang === "bn" ? "অ্যাডমিনকে জিজ্ঞাসা করুন" : "Ask Admin", callback_data: "forward_to_admin", style: "primary" }],
-              [{ text: t("back_main", lang), callback_data: "back_main" }],
-            ],
-          },
-        });
+        // Multiple parts — edit first, send rest as new messages
+        if (thinkingMsgId) {
+          await editMessageText(token, chatId, thinkingMsgId, `🤖 ${messageParts[0]}`, { parse_mode: "" });
+        } else {
+          await sendMessage(token, chatId, `🤖 ${messageParts[0]}`);
+        }
+
+        for (let i = 1; i < messageParts.length; i++) {
+          const isLast = i === messageParts.length - 1;
+          await sendMessage(token, chatId, messageParts[i], isLast ? { reply_markup: actionButtons } : undefined);
+        }
       }
     }
   } catch (error) {
