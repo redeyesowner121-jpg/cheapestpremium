@@ -12,6 +12,7 @@ import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import IndiaPaymentScreen from '@/components/wallet/deposit/IndiaPaymentScreen';
 import EmptyCartFun from '@/components/EmptyCartFun';
+import DonationCard from '@/components/DonationCard';
 
 const FOREIGN_CONVERT_FEE_PERCENT = 30;
 const AAX_CODE = 'AAX';
