@@ -159,6 +159,98 @@ Deno.serve(async (req) => {
         return jsonOk();
       }
 
+      // ===== MY BOT MANAGEMENT (for bot owners) =====
+      if (data.startsWith("mybot_manage_")) {
+        const botId = data.replace("mybot_manage_", "");
+        await showBotManagement(MOTHER_TOKEN, supabase, chatId, userId, botId);
+        return jsonOk();
+      }
+
+      if (data.startsWith("mybot_stats_")) {
+        const botId = data.replace("mybot_stats_", "");
+        const { data: bot } = await supabase.from("child_bots").select("*").eq("id", botId).eq("owner_telegram_id", userId).single();
+        if (!bot) { await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot not found."); return jsonOk(); }
+        const { count: userCount } = await supabase.from("child_bot_users").select("id", { count: "exact", head: true }).eq("child_bot_id", botId);
+        const { data: recentOrders } = await supabase.from("child_bot_orders").select("product_name, total_price, owner_commission, status, created_at").eq("child_bot_id", botId).order("created_at", { ascending: false }).limit(5);
+
+        let text = `📊 <b>Stats: @${bot.bot_username}</b>\n\n`;
+        text += `📦 Total Orders: ${bot.total_orders}\n`;
+        text += `💵 Total Earned: ₹${bot.total_earnings}\n`;
+        text += `👥 Bot Users: ${userCount || 0}\n`;
+        text += `💰 Revenue: ${bot.revenue_percent}%\n`;
+        text += `${bot.is_active ? "🟢 Active" : "🔴 Inactive"}\n`;
+
+        if (recentOrders?.length) {
+          text += `\n<b>Recent Orders:</b>\n`;
+          for (const o of recentOrders) {
+            const emoji = o.status === "confirmed" ? "✅" : o.status === "pending" ? "⏳" : "❌";
+            text += `${emoji} ${o.product_name} — ₹${o.total_price} (Your: ₹${o.owner_commission})\n`;
+          }
+        }
+
+        await sendMsg(MOTHER_TOKEN, chatId, text, {
+          reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: `mybot_manage_${botId}` }]] }
+        });
+        return jsonOk();
+      }
+
+      if (data.startsWith("mybot_toggle_")) {
+        const botId = data.replace("mybot_toggle_", "");
+        const { data: bot } = await supabase.from("child_bots").select("is_active, owner_telegram_id").eq("id", botId).eq("owner_telegram_id", userId).single();
+        if (bot) {
+          await supabase.from("child_bots").update({ is_active: !bot.is_active }).eq("id", botId);
+          await sendMsg(MOTHER_TOKEN, chatId, bot.is_active ? "⏸ Bot deactivated." : "▶️ Bot activated.");
+          await showBotManagement(MOTHER_TOKEN, supabase, chatId, userId, botId);
+        } else {
+          await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot not found.");
+        }
+        return jsonOk();
+      }
+
+      if (data.startsWith("mybot_editrev_")) {
+        const botId = data.replace("mybot_editrev_", "");
+        const { data: bot } = await supabase.from("child_bots").select("id, owner_telegram_id, bot_username, revenue_percent").eq("id", botId).eq("owner_telegram_id", userId).single();
+        if (!bot) { await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot not found."); return jsonOk(); }
+        await setConvState(supabase, userId, "mybot_setrev", { bot_id: botId, bot_username: bot.bot_username });
+        await sendMsg(MOTHER_TOKEN, chatId,
+          `📊 <b>Edit Revenue — @${bot.bot_username}</b>\n\nCurrent: ${bot.revenue_percent}%\n\nEnter new percentage (1-60):\n\nSend /cancel to abort.`
+        );
+        return jsonOk();
+      }
+
+      if (data.startsWith("mybot_confirmdelete_")) {
+        const botId = data.replace("mybot_confirmdelete_", "");
+        const { data: bot } = await supabase.from("child_bots").select("id, bot_token, bot_username, owner_telegram_id").eq("id", botId).eq("owner_telegram_id", userId).single();
+        if (!bot) { await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot not found."); return jsonOk(); }
+        // Remove webhook
+        try { await fetch(`https://api.telegram.org/bot${bot.bot_token}/deleteWebhook`); } catch {}
+        // Delete related data
+        await supabase.from("child_bot_users").delete().eq("child_bot_id", botId);
+        await supabase.from("child_bot_earnings").delete().eq("child_bot_id", botId);
+        await supabase.from("child_bot_orders").delete().eq("child_bot_id", botId);
+        await supabase.from("child_bots").delete().eq("id", botId);
+        await sendMsg(MOTHER_TOKEN, chatId, `🗑 Bot @${bot.bot_username} has been deleted.`);
+        await showMyBots(MOTHER_TOKEN, supabase, chatId, userId);
+        return jsonOk();
+      }
+
+      if (data.startsWith("mybot_delete_")) {
+        const botId = data.replace("mybot_delete_", "");
+        const { data: bot } = await supabase.from("child_bots").select("bot_username, owner_telegram_id").eq("id", botId).eq("owner_telegram_id", userId).single();
+        if (!bot) { await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot not found."); return jsonOk(); }
+        await sendMsg(MOTHER_TOKEN, chatId,
+          `⚠️ <b>Delete @${bot.bot_username}?</b>\n\nThis will permanently remove the bot, all its users, orders, and earnings data.\n\n<b>This action cannot be undone!</b>`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "🗑 Yes, Delete", callback_data: `mybot_confirmdelete_${botId}`, style: "danger" }],
+                [{ text: "❌ Cancel", callback_data: `mybot_manage_${botId}` }],
+              ],
+            },
+          }
+        );
+        return jsonOk();
+      }
       if (data === "mother_earnings") {
         await showEarnings(MOTHER_TOKEN, supabase, chatId, userId);
         return jsonOk();
@@ -442,14 +534,18 @@ async function showMyBots(token: string, supabase: any, chatId: number, userId: 
 
   for (const bot of bots) {
     const status = bot.is_active ? "🟢 Active" : "🔴 Inactive";
-    text += `• @${bot.bot_username || "unknown"} — ${status}\n`;
-    text += `  Revenue: ${bot.revenue_percent}% | Orders: ${bot.total_orders} | Earned: ₹${bot.total_earnings}\n\n`;
-    buttons.push([{
-      text: `${bot.is_active ? "⏸ Deactivate" : "▶️ Activate"} @${bot.bot_username || "bot"}`,
-      callback_data: `mother_toggle_${bot.id}`
-    }]);
+    // Count users for this bot
+    const { count: botUsers } = await supabase.from("child_bot_users").select("id", { count: "exact", head: true }).eq("child_bot_id", bot.id);
+    text += `🤖 <b>@${bot.bot_username || "unknown"}</b> — ${status}\n`;
+    text += `   💰 Revenue: ${bot.revenue_percent}% | 📦 Orders: ${bot.total_orders}\n`;
+    text += `   💵 Earned: ₹${bot.total_earnings} | 👥 Users: ${botUsers || 0}\n`;
+    text += `   📅 Created: ${new Date(bot.created_at).toLocaleDateString("en-IN")}\n\n`;
+    buttons.push([
+      { text: `⚙️ Manage @${bot.bot_username || "bot"}`, callback_data: `mybot_manage_${bot.id}`, style: "primary" },
+    ]);
   }
 
+  buttons.push([{ text: "➕ Create New Bot", callback_data: "mother_create_bot", style: "success" }]);
   buttons.push([{ text: "🏠 Main Menu", callback_data: "mother_main" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -478,6 +574,44 @@ async function showEarnings(token: string, supabase: any, chatId: number, userId
   text += `📊 <b>Total:</b> ${totalOrders} orders | ₹${totalEarnings} earned`;
 
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } });
+}
+
+async function showBotManagement(token: string, supabase: any, chatId: number, userId: number, botId: string) {
+  const { data: bot } = await supabase.from("child_bots").select("*").eq("id", botId).eq("owner_telegram_id", userId).single();
+  if (!bot) {
+    await sendMsg(token, chatId, "❌ Bot not found.", { reply_markup: { inline_keyboard: [[{ text: "🤖 My Bots", callback_data: "mother_my_bots" }]] } });
+    return;
+  }
+
+  const { count: userCount } = await supabase.from("child_bot_users").select("id", { count: "exact", head: true }).eq("child_bot_id", botId);
+  const status = bot.is_active ? "🟢 Active" : "🔴 Inactive";
+
+  const text =
+    `⚙️ <b>Manage: @${bot.bot_username}</b>\n\n` +
+    `${status}\n` +
+    `💰 Revenue: ${bot.revenue_percent}%\n` +
+    `📦 Orders: ${bot.total_orders}\n` +
+    `💵 Earned: ₹${bot.total_earnings}\n` +
+    `👥 Users: ${userCount || 0}\n` +
+    `📅 Created: ${new Date(bot.created_at).toLocaleDateString("en-IN")}`;
+
+  await sendMsg(token, chatId, text, {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: bot.is_active ? "⏸ Deactivate" : "▶️ Activate", callback_data: `mybot_toggle_${botId}`, style: bot.is_active ? "danger" : "success" },
+          { text: "📊 Stats", callback_data: `mybot_stats_${botId}`, style: "primary" },
+        ],
+        [
+          { text: "📝 Edit Revenue %", callback_data: `mybot_editrev_${botId}`, style: "primary" },
+        ],
+        [
+          { text: "🗑 Delete Bot", callback_data: `mybot_delete_${botId}`, style: "danger" },
+        ],
+        [{ text: "◀️ My Bots", callback_data: "mother_my_bots" }],
+      ],
+    },
+  });
 }
 
 async function handleMotherConversation(motherToken: string, mainToken: string, supabase: any, chatId: number, userId: number, text: string, msg: any, state: { step: string; data: Record<string, any> }) {
@@ -581,7 +715,28 @@ async function handleMotherConversation(motherToken: string, mainToken: string, 
     return;
   }
 
-  // Admin: Set revenue percentage
+  // Owner: Edit own bot revenue
+  if (state.step === "mybot_setrev") {
+    const percent = parseFloat(text.trim());
+    if (isNaN(percent) || percent < 1 || percent > 60) {
+      await sendMsg(motherToken, chatId, "❌ Enter a number between 1 and 60.");
+      return;
+    }
+    const botId = state.data.bot_id;
+    // Verify ownership
+    const { data: bot } = await supabase.from("child_bots").select("id").eq("id", botId).eq("owner_telegram_id", userId).single();
+    if (!bot) {
+      await deleteConvState(supabase, userId);
+      await sendMsg(motherToken, chatId, "❌ Bot not found.");
+      return;
+    }
+    await supabase.from("child_bots").update({ revenue_percent: percent }).eq("id", botId);
+    await deleteConvState(supabase, userId);
+    await sendMsg(motherToken, chatId, `✅ Revenue for @${state.data.bot_username || "bot"} updated to ${percent}%`);
+    await showBotManagement(motherToken, supabase, chatId, userId, botId);
+    return;
+  }
+
   if (state.step === "mother_admin_setrev") {
     if (!isMotherOwner(userId)) return;
     const percent = parseFloat(text.trim());
