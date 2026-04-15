@@ -3,7 +3,7 @@
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import {
   deleteConversationState, setConversationState, getUserLang,
-  notifyAllAdmins, forwardToAllAdmins,
+  notifyAllAdmins, forwardToAllAdmins, resendPhotoToAllAdmins,
 } from "../db-helpers.ts";
 import { showMainMenu } from "../menu/menu-navigation.ts";
 import { executeBroadcast } from "../admin/admin-menu.ts";
