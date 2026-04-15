@@ -111,13 +111,22 @@ export const handleProductPurchase = async (
 
     // Finalize instant delivery via secure RPC (handles both unique & repeated)
     if (isInstantDelivery && insertedOrder?.id) {
-      const { data: claimedLink } = await supabase.rpc('finalize_instant_delivery', {
-        p_product_id: displayProduct.id,
-        p_order_id: insertedOrder.id,
-      });
-      if (claimedLink) {
-        accessLink = claimedLink;
-      } else {
+      try {
+        const { data: claimedLink, error: rpcError } = await supabase.rpc('finalize_instant_delivery', {
+          p_product_id: displayProduct.id,
+          p_order_id: insertedOrder.id,
+        });
+        console.log('Instant delivery RPC result:', { claimedLink, rpcError, productId: displayProduct.id, orderId: insertedOrder.id });
+        if (rpcError) {
+          console.error('Instant delivery RPC error:', rpcError);
+          isInstantDelivery = false;
+        } else if (claimedLink) {
+          accessLink = claimedLink;
+        } else {
+          isInstantDelivery = false;
+        }
+      } catch (rpcErr) {
+        console.error('Instant delivery exception:', rpcErr);
         isInstantDelivery = false;
       }
     }
