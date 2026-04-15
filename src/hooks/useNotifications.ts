@@ -22,6 +22,7 @@ export const useNotifications = () => {
 
     const initFCM = async () => {
       try {
+        const { initializeMessaging, onPushMessage } = await import('@/lib/firebase');
         await initializeMessaging();
         
         // Register service worker for background notifications
