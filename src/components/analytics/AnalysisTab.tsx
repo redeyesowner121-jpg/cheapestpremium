@@ -15,8 +15,8 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--accent)
 const USER_VALUE = 10;
 const DEPOSIT_VALUE = 1;
 const ORDER_VALUE = 5;
-const PROFIT_VALUE = 0.5;
-const VISIT_VALUE = 0.2;
+const PROFIT_VALUE = 2;
+const VISIT_VALUE = 1;
 
 const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transactions, selectedPeriod = '7d' }) => {
   const [searchLogs, setSearchLogs] = useState<{ created_at: string }[]>([]);
