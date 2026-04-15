@@ -91,7 +91,7 @@ export async function showBotManagement(token: string, supabase: any, chatId: nu
     reply_markup: {
       inline_keyboard: [
         [
-          { text: bot.is_active ? "⏸ Deactivate" : "▶️ Activate", callback_data: `mybot_toggle_${botId}`, style: bot.is_active ? "danger" : "success" },
+          { text: bot.is_active ? "⏸ Deactivate" : "▶️ Activate", callback_data: `mybot_toggle_${botId}` },
           { text: "📊 Stats", callback_data: `mybot_stats_${botId}` },
         ],
         [{ text: "📝 Edit Revenue %", callback_data: `mybot_editrev_${botId}` }],
@@ -138,7 +138,7 @@ export async function showAdminBots(token: string, supabase: any, chatId: number
     const status = bot.is_active ? "🟢" : "🔴";
     text += `${status} @${bot.bot_username || "unknown"}\n   Owner: <code>${bot.owner_telegram_id}</code> | Rev: ${bot.revenue_percent}%\n   Orders: ${bot.total_orders} | Earned: ₹${bot.total_earnings}\n\n`;
     buttons.push([
-      { text: `${bot.is_active ? "⏸" : "▶️"} @${bot.bot_username || "bot"}`, callback_data: `mother_toggle_${bot.id}`, style: bot.is_active ? "danger" : "success" },
+      { text: `${bot.is_active ? "⏸" : "▶️"} @${bot.bot_username || "bot"}`, callback_data: `mother_toggle_${bot.id}` },
       { text: `📊 Rev%`, callback_data: `mother_setrev_${bot.id}` },
       { text: `🗑`, callback_data: `mother_delete_${bot.id}` },
     ]);
