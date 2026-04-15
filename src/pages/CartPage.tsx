@@ -536,7 +536,7 @@ const CartPage: React.FC = () => {
                 ? cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100
                 : isForeignCurrency
                   ? cartSummary.grandTotal + cartSummary.grandTotal * FOREIGN_CONVERT_FEE_PERCENT / 100
-                  : cartSummary.subtotal;
+                  : cartSummary.grandTotal;
               return balance < needed ? (
                 <p className="text-xs text-destructive text-center">
                   Insufficient balance. <button onClick={() => { setAddMoneyAmount(Math.ceil(needed - balance).toString()); setShowAddMoney(true); }} className="underline font-medium">Add Money</button>
