@@ -88,7 +88,7 @@ const EmptyCartFun: React.FC = () => {
 
       {/* Floating emojis */}
       {floatingEmojis.map(e => (
-        <span key={e.id} className="absolute pointer-events-none" style={{ left: `${e.left}%`, fontSize: `${e.size}px`, animation: `floatUp ${4 + Math.random() * 3}s ease-in-out ${e.delay}s infinite`, top: '85%', opacity: 0.3 }}>
+        <span key={e.id} className="absolute pointer-events-none" style={{ left: `${e.left}%`, fontSize: `${e.size}px`, animation: `floatUp ${4 + Math.random() * 3}s ease-in-out ${e.delay}s infinite`, bottom: '0%', opacity: 0.3 }}>
           {e.emoji}
         </span>
       ))}
@@ -170,7 +170,7 @@ const EmptyCartFun: React.FC = () => {
       <style>{`
         @keyframes floatUp {
           0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.2; }
-          50% { transform: translateY(-140px) rotate(25deg); opacity: 0.5; }
+          50% { transform: translateY(-60px) rotate(25deg); opacity: 0.5; }
         }
         @keyframes cartBounce {
           0%, 100% { transform: translateY(0); }
