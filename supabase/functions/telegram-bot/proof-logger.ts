@@ -1,6 +1,9 @@
 // ===== PROOF CHANNEL LOGGER =====
 // Sends automatic proof/log messages to @RKRxProofs channel
 
+import { getChildBotContext } from "./child-context.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const PROOF_CHANNEL = "@RKRxProofs";
 
 const PROMO_FOOTER = `\n\n┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n🤖 <b>@Air1_Premium_bot</b>\n💎 Cheapest Premium Subscriptions\n🔒 100% Trusted · Instant Delivery\n🛒 Start Shopping → @Air1_Premium_bot`;
@@ -14,14 +17,47 @@ function maskName(name: string): string {
   return name[0] + "•".repeat(Math.min(name.length - 2, 4)) + name[name.length - 1];
 }
 
+async function getChildBotFooter(): Promise<string> {
+  const ctx = getChildBotContext();
+  if (!ctx) return "";
+
+  let ownerUsername = "unknown";
+  try {
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    // Try telegram_bot_users first, then mother_bot_users
+    const { data: botUser } = await supabase
+      .from("telegram_bot_users")
+      .select("username")
+      .eq("telegram_id", ctx.owner_telegram_id)
+      .maybeSingle();
+    
+    if (botUser?.username) {
+      ownerUsername = botUser.username;
+    } else {
+      const { data: motherUser } = await supabase
+        .from("mother_bot_users")
+        .select("username")
+        .eq("telegram_id", ctx.owner_telegram_id)
+        .maybeSingle();
+      if (motherUser?.username) ownerUsername = motherUser.username;
+    }
+  } catch {}
+
+  return `\n\n🤖 <b>Via Child Bot:</b> @${ctx.bot_username || "unknown"}\n👤 <b>Bot Owner:</b> @${ownerUsername}`;
+}
+
 export async function logProof(token: string, text: string) {
   try {
+    const childFooter = await getChildBotFooter();
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: PROOF_CHANNEL,
-        text: text + PROMO_FOOTER,
+        text: text + childFooter + PROMO_FOOTER,
         parse_mode: "HTML",
       }),
     });
@@ -34,13 +70,14 @@ export async function logProof(token: string, text: string) {
 
 export async function logProofPhoto(token: string, fileId: string, caption: string) {
   try {
+    const childFooter = await getChildBotFooter();
     const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: PROOF_CHANNEL,
         photo: fileId,
-        caption: caption + PROMO_FOOTER,
+        caption: caption + childFooter + PROMO_FOOTER,
         parse_mode: "HTML",
       }),
     });
