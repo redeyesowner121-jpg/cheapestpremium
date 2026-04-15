@@ -126,9 +126,13 @@ const AppContent = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
-        <RecentOrderNotification />
+        <Suspense fallback={null}>
+          <RecentOrderNotification />
+        </Suspense>
       </BrowserRouter>
-      <AIChatWidget />
+      <Suspense fallback={null}>
+        <AIChatWidget />
+      </Suspense>
     </>
   );
 };
