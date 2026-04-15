@@ -64,13 +64,26 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
       original_price: data.original_price ? parseFloat(data.original_price) : null,
       reseller_price: data.reseller_price ? parseFloat(data.reseller_price) : null,
     }).eq('id', id);
-    if (error) { toast.error('Failed to update variation'); return; }
+    if (error) {
+      console.error('Update variation error:', error);
+      toast.error('Failed to update variation: ' + error.message);
+      return;
+    }
     toast.success('Variation updated!');
     loadVariations();
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('product_variations').delete().eq('id', id);
+    // First clean up references in other tables
+    await supabase.from('price_history').delete().eq('variation_id', id);
+    await supabase.from('cart_items').delete().eq('variation_id', id);
+    
+    const { error } = await supabase.from('product_variations').delete().eq('id', id);
+    if (error) {
+      console.error('Delete variation error:', error);
+      toast.error('Failed to delete variation: ' + error.message);
+      return;
+    }
     toast.success('Variation deleted!');
     loadVariations();
   };
