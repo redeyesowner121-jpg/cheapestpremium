@@ -5,12 +5,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "AIzaSyARhUjJ45a6XKuD54P2IxWGf30cowwL2Ac",
+  apiKey: "AIzaSyAUeAgooPulNk3r3s7mshgy94fnRIm7vQw",
   authDomain: "cheap-premium-14086.firebaseapp.com",
   projectId: "cheap-premium-14086",
   storageBucket: "cheap-premium-14086.firebasestorage.app",
   messagingSenderId: "896807949890",
-  appId: "1:896807949890:web:f0968ca056c5c9c2f27fdb"
+  appId: "1:896807949890:web:98e4f78e2cba53a2f27fdb"
 });
 
 const messaging = firebase.messaging();
