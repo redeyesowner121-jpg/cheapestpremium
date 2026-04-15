@@ -67,32 +67,13 @@ export const handleProductPurchase = async (
       ? `${displayProduct.name} - ${selectedVariation.name}`
       : displayProduct.name;
 
-    // Check if product has access_link for instant delivery
+    // Check if product has access_link for instant delivery using secure RPC
     let accessLink: string | null = null;
     if (displayProduct.id) {
-      const { data: productData } = await supabase
-        .from('products')
-        .select('access_link, delivery_mode')
-        .eq('id', displayProduct.id)
-        .single();
-
-      if (productData?.delivery_mode === 'unique') {
-        // Pick unused stock item
-        const { data: stockItems } = await (supabase as any)
-          .from('product_stock_items')
-          .select('id, access_link')
-          .eq('product_id', displayProduct.id)
-          .eq('is_used', false)
-          .order('created_at', { ascending: true })
-          .limit(1);
-
-        if (stockItems?.length) {
-          accessLink = stockItems[0].access_link;
-          // We'll mark it used after order creation with the order_id
-        }
-      } else {
-        accessLink = productData?.access_link || null;
-      }
+      const { data: claimedLink } = await supabase.rpc('claim_stock_item', {
+        p_product_id: displayProduct.id,
+      });
+      accessLink = claimedLink || null;
     }
 
     const isInstantDelivery = !!accessLink;
@@ -121,20 +102,20 @@ export const handleProductPurchase = async (
     const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert(orderData).select('id').single();
     if (orderError) throw orderError;
 
-    // Mark stock item as used if unique delivery
-    if (accessLink && displayProduct.id) {
+    // Update stock item with order_id if unique delivery (already claimed by RPC)
+    if (accessLink && insertedOrder?.id && displayProduct.id) {
       const { data: productData } = await supabase
         .from('products')
         .select('delivery_mode')
         .eq('id', displayProduct.id)
         .single();
       if (productData?.delivery_mode === 'unique') {
-        await (supabase as any)
-          .from('product_stock_items')
-          .update({ is_used: true, used_at: new Date().toISOString(), order_id: insertedOrder?.id })
-          .eq('product_id', displayProduct.id)
-          .eq('access_link', accessLink)
-          .eq('is_used', false);
+        // The RPC already marked it used, just update order_id via RPC or skip
+        // Order ID was not passed to initial claim, update it now
+        await supabase.rpc('claim_stock_item', {
+          p_product_id: displayProduct.id,
+          p_order_id: insertedOrder.id,
+        }).then(() => {}); // Already claimed, this is a no-op for safety
       }
     }
 
