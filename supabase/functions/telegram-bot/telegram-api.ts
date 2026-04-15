@@ -36,7 +36,7 @@ function normalizeBackButtons(replyMarkup?: any) {
 
         return {
           ...button,
-          text: `🔴 ${strippedText}`,
+          text: strippedText,
           color: "red",
         };
       })
