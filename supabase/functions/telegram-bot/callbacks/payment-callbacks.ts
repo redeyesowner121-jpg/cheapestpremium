@@ -21,10 +21,10 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
     .maybeSingle();
 
   if (lastOrder?.product_id) {
-    const { data: product } = await supabase.from("products").select("access_link").eq("id", lastOrder.product_id).single();
-    if (product?.access_link) {
-      const { sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
-      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, product.access_link, lastOrder.product_name || "Product", lang);
+    const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
+    const resolvedLink = await resolveAccessLink(supabase, lastOrder.product_id, lastOrder.id);
+    if (resolvedLink) {
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolvedLink, lastOrder.product_name || "Product", lang);
       return;
     }
   }

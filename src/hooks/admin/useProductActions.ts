@@ -33,6 +33,7 @@ interface ProductForm {
   stock: string;
   is_active: boolean;
   button_style?: string;
+  delivery_mode?: string;
 }
 
 export async function handleAddProduct(
@@ -80,7 +81,8 @@ export async function handleAddProduct(
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,
     slug: productSlug,
-    button_style: productForm.button_style || 'primary'
+    button_style: productForm.button_style || 'primary',
+    delivery_mode: productForm.delivery_mode || 'repeated'
   } as any).select().single();
   
   if (error || !newProduct) {
@@ -135,7 +137,8 @@ export async function handleUpdateProduct(
     access_link: productForm.access_link || null,
     stock: productForm.stock ? parseInt(productForm.stock) : null,
     is_active: productForm.is_active,
-    button_style: productForm.button_style || 'primary'
+    button_style: productForm.button_style || 'primary',
+    delivery_mode: productForm.delivery_mode || 'repeated'
   } as any).eq('id', productId).select().single();
 
   if (error) {
