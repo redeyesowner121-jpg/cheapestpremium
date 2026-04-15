@@ -64,11 +64,16 @@ const CartPage: React.FC = () => {
   const userRank = useMemo(() => getUserRank(profile?.rank_balance || 0), [profile?.rank_balance]);
   const isReseller = profile?.is_reseller || false;
 
+  // Separate product items and donation items
+  const productItems = useMemo(() => items.filter(i => i.product_id !== null), [items]);
+  const donationItem = useMemo(() => items.find(i => i.product_id === null && i.donation_amount), [items]);
+
   const cartSummary = useMemo(() => {
     let subtotal = 0;
     let totalSavings = 0;
+    let donationTotal = 0;
 
-    items.forEach(item => {
+    productItems.forEach(item => {
       const basePrice = item.variation?.price || item.product?.price || 0;
       const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
       const { finalPrice, savings } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
@@ -76,8 +81,12 @@ const CartPage: React.FC = () => {
       totalSavings += savings * item.quantity;
     });
 
-    return { subtotal, totalSavings };
-  }, [items, userRank, isReseller]);
+    if (donationItem) {
+      donationTotal = donationItem.donation_amount || 0;
+    }
+
+    return { subtotal, totalSavings, donationTotal, grandTotal: subtotal + donationTotal };
+  }, [productItems, donationItem, userRank, isReseller]);
 
   const handleCheckout = async () => {
     if (!user || !profile) {
