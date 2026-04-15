@@ -8,7 +8,7 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettingsContext";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
-import SplashScreen from "@/components/SplashScreen";
+
 import SubdomainLanding, { getSubdomainConfig } from "@/components/SubdomainLanding";
 import { Construction, Settings } from "lucide-react";
 
