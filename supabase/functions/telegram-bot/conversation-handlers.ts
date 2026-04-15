@@ -17,6 +17,14 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Child bot setting edit
+  if (state.step === "child_bot_edit_setting" && text.trim()) {
+    const { saveChildBotSettingHandler } = await import("./admin-handlers.ts");
+    await saveChildBotSettingHandler(token, supabase, chatId, state.data.settingKey, text.trim());
+    await deleteConversationState(supabase, userId);
+    return;
+  }
+
   // Binance Order ID step (purchase flow)
   if (state.step === "binance_awaiting_order_id" && text.trim()) {
     const binanceOrderId = text.trim();
