@@ -46,7 +46,7 @@ export async function handleGiveawayAdminCallbacks(
     const channelList = GIVEAWAY_REQUIRED_CHANNELS.map((ch, i) => `${i + 1}. ${ch.name}`).join("\n");
     const text = `📢 <b>Required Channels</b>\n\n${channelList || "None"}\n\n` +
       `To add/remove channels, use:\n<code>/gw_add_channel @channel</code>\n<code>/gw_remove_channel @channel</code>`;
-    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gwa_admin" }]] } });
+    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gwa_admin", color: "red" }]] } });
     return true;
   }
 
@@ -65,7 +65,7 @@ export async function handleGiveawayAdminCallbacks(
         text += `${i + 1}. ${name} — 🎯${u.points} pts, 👥${u.total_referrals} refs\n`;
       }
     }
-    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gwa_admin" }]] } });
+    await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gwa_admin", color: "red" }]] } });
     return true;
   }
 

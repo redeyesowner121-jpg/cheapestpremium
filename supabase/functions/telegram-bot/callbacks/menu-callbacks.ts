@@ -98,13 +98,13 @@ export async function handleMenuCallbacks(
       await supabase.from("telegram_ai_knowledge").update({ status: "approved" }).eq("id", knowledgeId);
       await sendMessage(BOT_TOKEN, chatId,
         `✅ <b>Knowledge Approved!</b>\n\n🧠 AI will now use this answer.`,
-        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back" }]] } }
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back", color: "red" }]] } }
       );
     } else {
       await supabase.from("telegram_ai_knowledge").delete().eq("id", knowledgeId);
       await sendMessage(BOT_TOKEN, chatId,
         `❌ <b>Knowledge Rejected & Deleted</b>\n\nThis answer will not be added to AI knowledge.`,
-        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back" }]] } }
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back", color: "red" }]] } }
       );
     }
     return true;

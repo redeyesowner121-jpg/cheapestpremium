@@ -128,7 +128,7 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
               { text: "✅ Approve Knowledge", callback_data: `knowledge_approve_${knowledgeId}` },
               { text: "❌ Reject", callback_data: `knowledge_reject_${knowledgeId}` },
             ],
-            [{ text: "⬅️ Back to Admin", callback_data: "adm_back" }],
+            [{ text: "⬅️ Back to Admin", callback_data: "adm_back", color: "red" }],
           ],
         },
       }

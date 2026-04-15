@@ -41,18 +41,18 @@ export async function handleGiveawayCallbacks(
     const productIds = Array.from(new Set((giveawayItems || []).map((item: any) => item.product_id).filter(Boolean)));
 
     if (productIds.length === 0) {
-      await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main" }]] } });
+      await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main", color: "red" }]] } });
       return true;
     }
 
     const { data: productRows } = await supabase.from("products").select("id, name").in("id", productIds).order("name", { ascending: true });
     if (!productRows?.length) {
-      await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main" }]] } });
+      await sendMessage(token, chatId, "😔 <b>No giveaway products available.</b>", { reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "gw_main", color: "red" }]] } });
       return true;
     }
 
     const buttons: any[][] = productRows.map((p: any, i: number) => [{ text: `🎁 ${p.name}`, callback_data: `gw_pdetail_${p.id}`}]);
-    buttons.push([{ text: "🔙 Back", callback_data: "gw_main" }]);
+    buttons.push([{ text: "🔙 Back", callback_data: "gw_main", color: "red" }]);
     await sendMessage(token, chatId, "🎁 <b>Giveaway Products</b>\n\nChoose a product:", { reply_markup: { inline_keyboard: buttons } });
     return true;
   }
@@ -82,7 +82,7 @@ export async function handleGiveawayCallbacks(
       reply_markup: { inline_keyboard: [
         [{ text: "📎 Refer & Earn", callback_data: "gw_referral" }],
         [{ text: "🎁 Giveaway Products", callback_data: "gw_products" }],
-        [{ text: "🔙 Back", callback_data: "gw_main" }],
+        [{ text: "🔙 Back", callback_data: "gw_main", color: "red" }],
       ]}
     });
     return true;
@@ -105,7 +105,7 @@ export async function handleGiveawayCallbacks(
       }
     }
     await sendMessage(token, chatId, histText, {
-      reply_markup: { inline_keyboard: [[{ text: "🎁 Giveaway Products", callback_data: "gw_products" }, { text: "🔙 Back", callback_data: "gw_main" }]] }
+      reply_markup: { inline_keyboard: [[{ text: "🎁 Giveaway Products", callback_data: "gw_products" }, { text: "🔙 Back", callback_data: "gw_main", color: "red" }]] }
     });
     return true;
   }
@@ -127,7 +127,7 @@ export async function handleGiveawayCallbacks(
     }
     reviewText += "\n🎁 You too can win free products by referring!";
     await sendMessage(token, chatId, reviewText, {
-      reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: "gw_main" }]] }
+      reply_markup: { inline_keyboard: [[{ text: "📎 Refer & Earn", callback_data: "gw_referral" }, { text: "🔙 Back", callback_data: "gw_main", color: "red" }]] }
     });
     return true;
   }
@@ -156,7 +156,7 @@ async function handleProductDetail(token: string, supabase: any, chatId: number,
     const stockText = item.stock !== null ? (item.stock > 0 ? `📦${item.stock}` : "❌Sold") : "∞";
     return [{ text: `${variationName} — ${item.points_required} pts (${stockText})`, callback_data: `gw_redeem_${item.id}` }];
   });
-  buttons.push([{ text: "🔙 Back", callback_data: "gw_products" }]);
+  buttons.push([{ text: "🔙 Back", callback_data: "gw_products", color: "red" }]);
 
   const caption = `🎁 <b>${product.name}</b>\n\n${product.description || ""}\n\nChoose a variation to redeem:`;
 
