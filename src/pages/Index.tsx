@@ -280,6 +280,8 @@ const Index: React.FC = () => {
         )}
 
         {deferredReady && (
+          <Suspense fallback={<LazyFallback />}>
+            <FlashSaleSlider items={flashSales} onItemClick={handleFlashSaleClick} />
           </Suspense>
         )}
         
