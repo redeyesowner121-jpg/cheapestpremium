@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Package, Link, Key, Repeat, Layers, Copy } from 'lucide-react';
-import ImageUpload from '@/components/ui/image-upload';
+import MultiImageUpload from '@/components/ui/multi-image-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -256,14 +256,28 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
             </SelectContent>
           </Select>
           <div className={errors.image_url ? '[&_div]:border-destructive [&_div]:ring-destructive/30 [&_div]:ring-2' : ''}>
-            <ImageUpload
-              value={productForm.image_url}
-              onChange={(url) => { setProductForm({ ...productForm, image_url: url }); if (url.trim()) setErrors(prev => ({ ...prev, image_url: false })); }}
-              useStorage
+            <MultiImageUpload
+              values={(() => {
+                const imgs: string[] = [];
+                if (productForm.image_url) imgs.push(productForm.image_url);
+                if (productForm.images?.length) {
+                  productForm.images.forEach((img: string) => {
+                    if (img && !imgs.includes(img)) imgs.push(img);
+                  });
+                }
+                return imgs;
+              })()}
+              onChange={(urls) => {
+                setProductForm({ 
+                  ...productForm, 
+                  image_url: urls[0] || '', 
+                  images: urls.slice(1)
+                });
+                if (urls.length > 0) setErrors(prev => ({ ...prev, image_url: false }));
+              }}
+              maxImages={8}
               bucket="product-images"
               folder="products"
-              placeholder="Click or drag to upload image *"
-              previewHeight="h-36"
             />
           </div>
 
