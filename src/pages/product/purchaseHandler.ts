@@ -67,16 +67,28 @@ export const handleProductPurchase = async (
       ? `${displayProduct.name} - ${selectedVariation.name}`
       : displayProduct.name;
 
-    // Check if product has access_link for instant delivery using secure RPC
+    // First check delivery mode to decide instant delivery
     let accessLink: string | null = null;
+    let isInstantDelivery = false;
+    
     if (displayProduct.id) {
-      const { data: claimedLink } = await supabase.rpc('claim_stock_item', {
-        p_product_id: displayProduct.id,
-      });
-      accessLink = claimedLink || null;
-    }
+      // Check product delivery settings (products table has public SELECT)
+      const { data: productData } = await supabase
+        .from('products')
+        .select('access_link, delivery_mode, show_link_in_website')
+        .eq('id', displayProduct.id)
+        .single();
 
-    const isInstantDelivery = !!accessLink;
+      if (productData?.show_link_in_website !== false) {
+        if (productData?.delivery_mode === 'unique') {
+          // Will claim stock item after order creation via RPC
+          isInstantDelivery = true; // tentative, will verify after claim
+        } else if (productData?.access_link) {
+          accessLink = productData.access_link;
+          isInstantDelivery = true;
+        }
+      }
+    }
 
     const orderData: any = {
       product_id: displayProduct.id,
@@ -86,10 +98,14 @@ export const handleProductPurchase = async (
       total_price: totalPrice,
       quantity,
       user_note: userNote + (donationAmount > 0 ? ` [Donation: ₹${donationAmount}]` : ''),
-      status: isInstantDelivery ? 'confirmed' : 'pending',
+      status: 'pending', // Will update after claiming stock item
       discount_applied: discount,
-      access_link: accessLink,
     };
+
+    if (accessLink) {
+      orderData.access_link = accessLink;
+      orderData.status = 'confirmed';
+    }
 
     if (isGuestCheckout) {
       orderData.guest_name = guestDetails.name;
@@ -102,20 +118,21 @@ export const handleProductPurchase = async (
     const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert(orderData).select('id').single();
     if (orderError) throw orderError;
 
-    // Update stock item with order_id if unique delivery (already claimed by RPC)
-    if (accessLink && insertedOrder?.id && displayProduct.id) {
-      const { data: productData } = await supabase
-        .from('products')
-        .select('delivery_mode')
-        .eq('id', displayProduct.id)
-        .single();
-      if (productData?.delivery_mode === 'unique') {
-        // The RPC already marked it used, just update order_id via RPC or skip
-        // Order ID was not passed to initial claim, update it now
-        await supabase.rpc('claim_stock_item', {
-          p_product_id: displayProduct.id,
-          p_order_id: insertedOrder.id,
-        }).then(() => {}); // Already claimed, this is a no-op for safety
+    // For unique delivery mode, claim stock item with order_id via secure RPC
+    if (isInstantDelivery && !accessLink && insertedOrder?.id) {
+      const { data: claimedLink } = await supabase.rpc('claim_stock_item', {
+        p_product_id: displayProduct.id,
+        p_order_id: insertedOrder.id,
+      });
+      if (claimedLink) {
+        accessLink = claimedLink;
+        // Update order with access link and confirmed status
+        await supabase.from('orders').update({ 
+          access_link: claimedLink, 
+          status: 'confirmed' 
+        }).eq('id', insertedOrder.id);
+      } else {
+        isInstantDelivery = false; // No stock available
       }
     }
 
