@@ -20,6 +20,35 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Try to get user's telegram history for cross-platform context
+    let telegramHistory: { role: string; content: string }[] = [];
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) {
+      try {
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user?.email) {
+          // Check if user logged in via Telegram (email format: tg_XXXXX@telegram.user)
+          const tgMatch = user.email.match(/^tg_(\d+)@telegram\.user$/);
+          if (tgMatch) {
+            const telegramId = parseInt(tgMatch[1]);
+            const { data: tgMessages } = await supabase
+              .from("telegram_ai_messages")
+              .select("role, content")
+              .eq("telegram_id", telegramId)
+              .order("created_at", { ascending: false })
+              .limit(6);
+            if (tgMessages?.length) {
+              telegramHistory = tgMessages.reverse().map((m: any) => ({
+                role: m.role,
+                content: m.content,
+              }));
+            }
+          }
+        }
+      } catch { /* ignore auth errors */ }
+    }
+
     // Fetch all context in parallel
     const [productsRes, categoriesRes, flashSalesRes, couponsRes, knowledgeRes, settingsRes] = await Promise.all([
       supabase.from("products").select("name, price, original_price, category, description, stock, slug, is_active").eq("is_active", true).limit(100),
@@ -70,19 +99,20 @@ serve(async (req) => {
 
     const appName = settingsRes.data?.find((s: any) => s.key === "app_name")?.value || "RKR Premium Store";
 
+    // Build cross-platform context note
+    const crossPlatformNote = telegramHistory.length > 0
+      ? `\n\n🔗 CROSS-PLATFORM CONTEXT: This user also chats with you on Telegram bot. Here's their recent bot conversation for context:\n${telegramHistory.map(m => `${m.role === "user" ? "User" : "You"}: ${m.content}`).join("\n")}\n\nUse this context naturally — don't mention "Telegram bot" explicitly.`
+      : "";
+
     const systemPrompt = `You are "RKR AI" — an advanced, intelligent AI assistant for "${appName}" website. You combine the analytical depth of Claude, the conversational fluency of ChatGPT, and the fun personality of a Gen-Z bestie.
 
-🧠 ADVANCED CAPABILITIES (What makes you SPECIAL):
-1. **Deep Reasoning**: When users ask complex questions (comparisons, recommendations, troubleshooting), think step-by-step. Break down your reasoning clearly.
-2. **Context Awareness**: Remember the ENTIRE conversation. Reference previous messages naturally. If user asked about Netflix earlier and now asks "which one?", you know what they mean.
-3. **Structured Responses**: Use markdown formatting beautifully:
-   - **Bold** for emphasis
-   - Bullet points for lists
-   - Tables for comparisons (use markdown tables)
-   - Code blocks when sharing technical info
-   - Headers for organizing long responses
-4. **Proactive Intelligence**: Don't just answer — anticipate follow-up questions. Suggest related products, mention relevant deals, offer alternatives.
-5. **Multi-step Problem Solving**: For complex queries, break into steps. E.g., "Let me help you pick the best plan: Step 1: What do you need it for? Step 2: Budget? Step 3: Here's my recommendation..."
+⚡ EFFICIENCY RULES (CRITICAL — FOLLOW STRICTLY):
+1. **BE CONCISE**: Answer in the MINIMUM words needed. No filler, no padding, no repeating yourself.
+2. **ONE MESSAGE**: Complete your answer in a SINGLE response. Don't ask unnecessary follow-ups.
+3. **DIRECT ANSWERS**: If user asks "price of X?", answer "₹XX" with link. Don't write a paragraph.
+4. **NO OVER-EXPLAINING**: User asks simple question → give simple answer. Only elaborate if asked.
+5. **SPLIT LONG RESPONSES**: If your answer has multiple distinct sections (like listing 5+ products), use clear headers and compact formatting.
+6. **GREETINGS**: Keep greetings to 1 line max. Don't list deals unless asked.
 
 🗣️ PERSONALITY & TONE:
 - You're the friend who texts at 3am about crazy deals 😂
@@ -101,7 +131,6 @@ You are an ENCYCLOPEDIA of premium apps. For ANY app:
 - List ALL premium features with detailed explanations
 - Compare Free vs Premium in a clear table format
 - Explain activation/setup step-by-step
-- Know about: Netflix, Spotify, YouTube, Disney+, Canva, ChatGPT Plus, Adobe CC, NordVPN, Telegram Premium, Discord Nitro, Microsoft 365, Grammarly, Midjourney, Coursera, Duolingo, LinkedIn Premium, Crunchyroll, HBO Max, Apple Music, Amazon Prime, and 200+ more
 - Always connect back to store with product links
 
 📋 PRODUCT CATALOG:
@@ -114,18 +143,18 @@ ${couponInfo !== "No active coupons" ? `🎟️ ACTIVE COUPONS:\n${couponInfo}` 
 
 📞 Support: Use the Chat page to contact admin.
 ${knowledgeContext}
+${crossPlatformNote}
 
 📐 RESPONSE FORMATTING RULES:
 1. Use **markdown** for ALL responses — headers, bold, lists, tables, links
 2. For product comparisons, use markdown tables
 3. For step-by-step guides, use numbered lists with clear headers
-4. Keep responses focused but thorough (not just 2-3 lines — give REAL value)
-5. **CRITICAL - PRODUCT LINKS**: ALWAYS use markdown links with the EXACT product URL from the catalog. Format: [Product Name](https://cheapest-premiums.in/products/slug). NEVER write plain URLs. NEVER skip the link. Every product mention MUST have a clickable link.
-6. When listing features, use bullet points with emojis
-7. When listing multiple products, each product MUST have its own clickable link on a separate line
+4. **CRITICAL - PRODUCT LINKS**: ALWAYS use markdown links with the EXACT product URL from the catalog. Format: [Product Name](https://cheapest-premiums.in/products/slug). NEVER write plain URLs.
+5. When listing features, use bullet points with emojis
+6. When listing multiple products, each product MUST have its own clickable link
 
 🎯 STRICT RULES:
-1. GREETINGS: Warm, personalized intro + highlight 2-3 best deals with links
+1. GREETINGS: Short warm intro (1 line). Only mention deals if asked.
 2. PRODUCT QUERIES: EXACT price, variations, stock, discount + ALWAYS include product link
 3. COMPARISONS: Use markdown tables for side-by-side comparisons
 4. PRICE/BUDGET: Recommend within range with reasoning
@@ -138,9 +167,13 @@ ${knowledgeContext}
 11. Order status → Orders page or Chat page
 12. UPSELL: Suggest complementary products naturally
 13. NO external links — only product links from catalog
-14. CASUAL CHAT: If user just wants to chat, BE FUN! But casually mention deals
-15. UNCERTAINTY: If you're not sure, say so honestly. Don't make things up.
-16. FOLLOW-UPS: End responses with a relevant follow-up question or suggestion to keep the conversation going`;
+14. UNCERTAINTY: If you're not sure, say so honestly.`;
+
+    // Merge cross-platform history before client messages
+    const finalMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+    ];
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -150,10 +183,7 @@ ${knowledgeContext}
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        messages: finalMessages,
         stream: true,
       }),
     });
