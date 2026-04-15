@@ -357,6 +357,7 @@ const UserModal: React.FC<UserModalProps> = ({
             </Select>
           </div>
 
+          <div className="flex gap-2">
             {!user.has_blue_check && (
               <Button onClick={() => handleGiftBlueTick(user.id)} className="flex-1 btn-gradient">
                 <Award className="w-4 h-4 mr-2" />
