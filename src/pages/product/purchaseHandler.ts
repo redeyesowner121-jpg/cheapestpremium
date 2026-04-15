@@ -72,10 +72,27 @@ export const handleProductPurchase = async (
     if (displayProduct.id) {
       const { data: productData } = await supabase
         .from('products')
-        .select('access_link')
+        .select('access_link, delivery_mode')
         .eq('id', displayProduct.id)
         .single();
-      accessLink = productData?.access_link || null;
+
+      if (productData?.delivery_mode === 'unique') {
+        // Pick unused stock item
+        const { data: stockItems } = await (supabase as any)
+          .from('product_stock_items')
+          .select('id, access_link')
+          .eq('product_id', displayProduct.id)
+          .eq('is_used', false)
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        if (stockItems?.length) {
+          accessLink = stockItems[0].access_link;
+          // We'll mark it used after order creation with the order_id
+        }
+      } else {
+        accessLink = productData?.access_link || null;
+      }
     }
 
     const isInstantDelivery = !!accessLink;
