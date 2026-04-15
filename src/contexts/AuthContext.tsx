@@ -14,6 +14,7 @@ export interface UserProfile {
   wallet_balance: number;
   total_deposit: number;
   total_orders: number;
+  total_savings: number;
   has_blue_check: boolean;
   referral_code: string;
   referred_by?: string;
@@ -72,6 +73,7 @@ const normalizeProfile = (data: any): UserProfile => ({
   wallet_balance: parseNumber(data?.wallet_balance),
   total_deposit: parseNumber(data?.total_deposit),
   total_orders: parseNumber(data?.total_orders),
+  total_savings: parseNumber(data?.total_savings),
   has_blue_check: parseBoolean(data?.has_blue_check),
   referral_code: parseString(data?.referral_code),
   referred_by: typeof data?.referred_by === 'string' ? data.referred_by : undefined,
