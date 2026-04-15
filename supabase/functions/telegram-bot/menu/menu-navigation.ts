@@ -83,7 +83,7 @@ export async function handleSupport(token: string, supabase: any, chatId: number
           [{ text: "📱 WhatsApp", url: `https://wa.me/${supportNumber.replace("+", "")}`, style: "success" }],
           [{ text: "✈️ Telegram", url: `https://t.me/${supportNumber}`, style: "primary" }],
           [{ text: lang === "bn" ? "📩 অ্যাডমিনকে পাঠান" : "📩 Forward to Admin", callback_data: "forward_to_admin", style: "danger" }],
-          [{ text: `⬅️ ${t("back_main", lang)}`, callback_data: "back_main" }],
+          [{ text: `🔴 ⬅️ ${t("back_main", lang)}`, callback_data: "back_main", color: "red" }],
         ],
       },
     }
