@@ -135,7 +135,7 @@ export async function handleAdminCallbacks(
       const ctx = getChildBotContext()!;
       await supabase.from("child_bot_settings").delete().eq("child_bot_id", ctx.id);
       await sendMessage(BOT_TOKEN, chatId, "✅ All custom settings have been reset to defaults.",
-        { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings" }]] } });
+        { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings", color: "red" }]] } });
       return true;
     }
 

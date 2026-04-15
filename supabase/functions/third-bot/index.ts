@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
               [{ text: "🛍️ Products", callback_data: "third_products", style: "success" }, { text: "👥 Users", callback_data: "third_users", style: "primary" }],
               [{ text: "💰 Wallet", callback_data: "third_wallet", style: "success" }, { text: "📢 Channels", callback_data: "third_channels", style: "primary" }],
               [{ text: "⚙️ Settings", callback_data: "third_settings", style: "success" }],
-              [{ text: "⬅️ Back", callback_data: "third_back" }],
+              [{ text: "⬅️ Back", callback_data: "third_back", color: "red" }],
             ],
           },
         };

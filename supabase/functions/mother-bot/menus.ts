@@ -127,7 +127,7 @@ export async function showAdminBots(token: string, supabase: any, chatId: number
 
   if (!bots?.length) {
     await sendMsg(token, chatId, "🤖 No child bots exist yet.",
-      { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin" }]] } });
+      { reply_markup: { inline_keyboard: [[{ text: "◀️ Back", callback_data: "mother_admin", color: "red" }]] } });
     return;
   }
 
@@ -144,7 +144,7 @@ export async function showAdminBots(token: string, supabase: any, chatId: number
     ]);
   }
 
-  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin", color: "red" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
@@ -167,7 +167,7 @@ export async function showChannelManager(token: string, supabase: any, chatId: n
   }
 
   buttons.push([{ text: "➕ Add Channel", callback_data: "mother_add_channel" }]);
-  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin", color: "red" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
 
