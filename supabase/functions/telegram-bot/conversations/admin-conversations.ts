@@ -115,12 +115,12 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
     // Show approve/reject to admin
     const knowledgeId = inserted?.id || "";
     await sendMessage(token, chatId,
-      `✅ <b>উত্তর পাঠানো হয়েছে!</b>\n\n` +
-      `📩 User <code>${targetUserId}</code> কে উত্তর দেওয়া হয়েছে\n\n` +
+      `✅ <b>Answer sent!</b>\n\n` +
+      `📩 Answered user <code>${targetUserId}</code>\n\n` +
       `❓ <b>Q:</b> ${originalQuestion}\n` +
       `✅ <b>A:</b> ${text}\n\n` +
-      `🧠 <b>এটাকে AI নলেজ হিসেবে সেভ করবেন?</b>\n` +
-      `এপ্রুভ করলে ভবিষ্যতে AI এই উত্তর অন্য ইউজারদের দিতে পারবে।`,
+      `🧠 <b>Save as AI knowledge?</b>\n` +
+      `If approved, AI will use this answer for similar questions in future.`,
       {
         reply_markup: {
           inline_keyboard: [
@@ -195,28 +195,28 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
     admin_history: async () => {
       await deleteConversationState(supabase, userId);
       const tgId = parseInt(text);
-      if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+      if (!tgId) { await sendMessage(token, chatId, "⚠️ Enter a valid User ID."); return; }
       const { handleHistoryCommand } = await import("../admin/admin-users.ts");
       await handleHistoryCommand(token, supabase, chatId, tgId);
     },
     admin_make_reseller: async () => {
       await deleteConversationState(supabase, userId);
       const tgId = parseInt(text);
-      if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+      if (!tgId) { await sendMessage(token, chatId, "⚠️ Enter a valid User ID."); return; }
       const { handleMakeReseller } = await import("../admin/admin-users.ts");
       await handleMakeReseller(token, supabase, chatId, tgId);
     },
     admin_ban_user: async () => {
       await deleteConversationState(supabase, userId);
       const tgId = parseInt(text);
-      if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+      if (!tgId) { await sendMessage(token, chatId, "⚠️ Enter a valid User ID."); return; }
       const { handleBanCommand } = await import("../admin/admin-users.ts");
       await handleBanCommand(token, supabase, chatId, tgId, true);
     },
     admin_unban_user: async () => {
       await deleteConversationState(supabase, userId);
       const tgId = parseInt(text);
-      if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+      if (!tgId) { await sendMessage(token, chatId, "⚠️ Enter a valid User ID."); return; }
       const { handleBanCommand } = await import("../admin/admin-users.ts");
       await handleBanCommand(token, supabase, chatId, tgId, false);
     },
@@ -245,14 +245,14 @@ export async function handleAdminConversationSteps(token: string, supabase: any,
     admin_add_admin: async () => {
       await deleteConversationState(supabase, userId);
       const tgId = parseInt(text);
-      if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+      if (!tgId) { await sendMessage(token, chatId, "⚠️ Enter a valid User ID."); return; }
       const { handleAddAdmin } = await import("../admin/admin-users.ts");
       await handleAddAdmin(token, supabase, chatId, tgId);
     },
     admin_remove_admin: async () => {
       await deleteConversationState(supabase, userId);
       const tgId = parseInt(text);
-      if (!tgId) { await sendMessage(token, chatId, "⚠️ সঠিক User ID লিখুন।"); return; }
+      if (!tgId) { await sendMessage(token, chatId, "⚠️ Enter a valid User ID."); return; }
       const { handleRemoveAdmin } = await import("../admin/admin-users.ts");
       await handleRemoveAdmin(token, supabase, chatId, tgId);
     },
