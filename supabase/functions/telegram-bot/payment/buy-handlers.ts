@@ -652,7 +652,6 @@ export async function handleBinanceVerify(
       } catch (e) { console.error("Sync error:", e); }
 
       await processReferralBonus(supabase, telegramUser.id, token, price);
-      }
 
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.username || telegramUser.first_name, productName, price, "Binance")); } catch {}
     } else {
