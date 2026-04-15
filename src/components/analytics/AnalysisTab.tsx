@@ -20,13 +20,19 @@ const VISIT_VALUE = 0.2;
 
 const AnalysisTab: React.FC<AnalyticsData> = ({ orders, products, users, transactions, selectedPeriod = '7d' }) => {
   const [searchLogs, setSearchLogs] = useState<{ created_at: string }[]>([]);
+  const [siteVisits, setSiteVisits] = useState<{ created_at: string; subdomain: string | null }[]>([]);
 
   useEffect(() => {
     const fetchSearchLogs = async () => {
       const { data } = await supabase.from('search_logs').select('created_at').order('created_at', { ascending: true });
       if (data) setSearchLogs(data);
     };
+    const fetchSiteVisits = async () => {
+      const { data } = await supabase.from('site_visits').select('created_at, subdomain').order('created_at', { ascending: true });
+      if (data) setSiteVisits(data as any);
+    };
     fetchSearchLogs();
+    fetchSiteVisits();
   }, []);
 
   // Combined graph data
