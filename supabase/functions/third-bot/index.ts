@@ -132,10 +132,10 @@ Deno.serve(async (req) => {
         const keyboard = {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "📊 Analytics", callback_data: "third_analytics" }],
-              [{ text: "🛍️ Products", callback_data: "third_products" }, { text: "👥 Users", callback_data: "third_users" }],
-              [{ text: "💰 Wallet", callback_data: "third_wallet" }, { text: "📢 Channels", callback_data: "third_channels" }],
-              [{ text: "⚙️ Settings", callback_data: "third_settings" }],
+              [{ text: "📊 Analytics", callback_data: "third_analytics", style: "primary" }],
+              [{ text: "🛍️ Products", callback_data: "third_products", style: "success" }, { text: "👥 Users", callback_data: "third_users", style: "primary" }],
+              [{ text: "💰 Wallet", callback_data: "third_wallet", style: "success" }, { text: "📢 Channels", callback_data: "third_channels", style: "primary" }],
+              [{ text: "⚙️ Settings", callback_data: "third_settings", style: "success" }],
               [{ text: "⬅️ Back", callback_data: "third_back" }],
             ],
           },
@@ -187,8 +187,8 @@ Deno.serve(async (req) => {
         const keyboard = {
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🔧 Admin Panel", callback_data: "third_admin_menu" }],
-              [{ text: "📦 Store", callback_data: "third_store" }],
+              [{ text: "🔧 Admin Panel", callback_data: "third_admin_menu", style: "danger" }],
+              [{ text: "📦 Store", callback_data: "third_store", style: "primary" }],
               [{ text: "ℹ️ Help", callback_data: "third_help" }],
             ],
           },
@@ -215,9 +215,9 @@ Deno.serve(async (req) => {
       const keyboard = {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🛍️ View Store", callback_data: "third_store" }],
-            [{ text: "📦 My Orders", callback_data: "third_orders" }],
-            [{ text: "💰 My Wallet", callback_data: "third_wallet_user" }],
+            [{ text: "🛍️ View Store", callback_data: "third_store", style: "primary" }],
+            [{ text: "📦 My Orders", callback_data: "third_orders", style: "success" }],
+            [{ text: "💰 My Wallet", callback_data: "third_wallet_user", style: "success" }],
             [{ text: "ℹ️ Help", callback_data: "third_help" }],
           ],
         },
@@ -235,10 +235,10 @@ Deno.serve(async (req) => {
       const keyboard = {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "📊 Analytics", callback_data: "third_analytics" }],
-            [{ text: "🛍️ Products", callback_data: "third_products" }, { text: "👥 Users", callback_data: "third_users" }],
-            [{ text: "💰 Wallet", callback_data: "third_wallet" }, { text: "📢 Channels", callback_data: "third_channels" }],
-            [{ text: "⚙️ Settings", callback_data: "third_settings" }],
+            [{ text: "📊 Analytics", callback_data: "third_analytics", style: "primary" }],
+            [{ text: "🛍️ Products", callback_data: "third_products", style: "success" }, { text: "👥 Users", callback_data: "third_users", style: "primary" }],
+            [{ text: "💰 Wallet", callback_data: "third_wallet", style: "success" }, { text: "📢 Channels", callback_data: "third_channels", style: "primary" }],
+            [{ text: "⚙️ Settings", callback_data: "third_settings", style: "success" }],
           ],
         },
       };

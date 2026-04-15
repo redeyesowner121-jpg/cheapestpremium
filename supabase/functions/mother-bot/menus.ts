@@ -11,10 +11,10 @@ export async function showMotherMenu(token: string, chatId: number) {
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "➕ Create a Bot", callback_data: "mother_create_bot" }],
-          [{ text: "🤖 My Bots", callback_data: "mother_my_bots" }],
-          [{ text: "💰 Earnings", callback_data: "mother_earnings" }],
-          [{ text: "❓ Help", callback_data: "mother_help" }],
+          [{ text: "➕ Create a Bot", callback_data: "mother_create_bot", style: "success" }],
+          [{ text: "🤖 My Bots", callback_data: "mother_my_bots", style: "primary" }],
+          [{ text: "💰 Earnings", callback_data: "mother_earnings", style: "success" }],
+          [{ text: "❓ Help", callback_data: "mother_help", style: "primary" }],
         ],
       },
     }
@@ -91,11 +91,11 @@ export async function showBotManagement(token: string, supabase: any, chatId: nu
     reply_markup: {
       inline_keyboard: [
         [
-          { text: bot.is_active ? "⏸ Deactivate" : "▶️ Activate", callback_data: `mybot_toggle_${botId}` },
-          { text: "📊 Stats", callback_data: `mybot_stats_${botId}` },
+          { text: bot.is_active ? "⏸ Deactivate" : "▶️ Activate", callback_data: `mybot_toggle_${botId}`, style: bot.is_active ? "danger" : "success" },
+          { text: "📊 Stats", callback_data: `mybot_stats_${botId}`, style: "primary" },
         ],
-        [{ text: "📝 Edit Revenue %", callback_data: `mybot_editrev_${botId}` }],
-        [{ text: "🗑 Delete Bot", callback_data: `mybot_delete_${botId}` }],
+        [{ text: "📝 Edit Revenue %", callback_data: `mybot_editrev_${botId}`, style: "primary" }],
+        [{ text: "🗑 Delete Bot", callback_data: `mybot_delete_${botId}`, style: "danger" }],
         [{ text: "◀️ My Bots", callback_data: "mother_my_bots" }],
       ],
     },
@@ -112,9 +112,9 @@ export async function showAdminPanel(token: string, supabase: any, chatId: numbe
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🤖 Manage Bots", callback_data: "mother_admin_bots" }],
-          [{ text: "📢 Channels", callback_data: "mother_admin_channels" }, { text: "👥 Users", callback_data: "mother_admin_users" }],
-          [{ text: "📊 Full Stats", callback_data: "mother_admin_stats" }],
+          [{ text: "🤖 Manage Bots", callback_data: "mother_admin_bots", style: "primary" }],
+          [{ text: "📢 Channels", callback_data: "mother_admin_channels", style: "success" }, { text: "👥 Users", callback_data: "mother_admin_users", style: "primary" }],
+          [{ text: "📊 Full Stats", callback_data: "mother_admin_stats", style: "success" }],
           [{ text: "🏠 Main Menu", callback_data: "mother_main" }],
         ],
       },
