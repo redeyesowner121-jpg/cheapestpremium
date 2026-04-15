@@ -8,11 +8,13 @@ import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-route
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppSettingsProvider, useAppSettingsContext } from "@/contexts/AppSettingsContext";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
-import AIChatWidget from "@/components/AIChatWidget";
-import RecentOrderNotification from "@/components/RecentOrderNotification";
 import SplashScreen from "@/components/SplashScreen";
-import Index from "./pages/Index";
 import { Construction, Settings } from "lucide-react";
+
+// Lazy load ALL pages including Index
+const Index = lazy(() => import("./pages/Index"));
+const AIChatWidget = lazy(() => import("@/components/AIChatWidget"));
+const RecentOrderNotification = lazy(() => import("@/components/RecentOrderNotification"));
 
 // Lazy load all pages except Index
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -124,9 +126,13 @@ const AppContent = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
-        <RecentOrderNotification />
+        <Suspense fallback={null}>
+          <RecentOrderNotification />
+        </Suspense>
       </BrowserRouter>
-      <AIChatWidget />
+      <Suspense fallback={null}>
+        <AIChatWidget />
+      </Suspense>
     </>
   );
 };

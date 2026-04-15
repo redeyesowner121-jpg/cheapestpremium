@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { initializeMessaging, requestPushNotificationPermission, onPushMessage } from '@/lib/firebase';
 import { toast } from 'sonner';
 
 export const useNotifications = () => {
@@ -23,6 +22,7 @@ export const useNotifications = () => {
 
     const initFCM = async () => {
       try {
+        const { initializeMessaging, onPushMessage } = await import('@/lib/firebase');
         await initializeMessaging();
         
         // Register service worker for background notifications
@@ -68,6 +68,7 @@ export const useNotifications = () => {
 
       if (result === 'granted') {
         // Request FCM token for push notifications
+        const { requestPushNotificationPermission } = await import('@/lib/firebase');
         const token = await requestPushNotificationPermission();
         if (token) {
           setFcmToken(token);

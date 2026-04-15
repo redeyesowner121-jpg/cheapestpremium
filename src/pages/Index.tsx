@@ -63,26 +63,18 @@ const Index: React.FC = () => {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  // Prefetch other page chunks after home loads
+  // Prefetch critical pages only, after idle
   useEffect(() => {
     const timer = setTimeout(() => {
-      const prefetchPages = [
-        () => import('@/pages/ProductsPage'),
-        () => import('@/pages/WalletPage'),
-        () => import('@/pages/OrdersPage'),
-        () => import('@/pages/ProfilePage'),
-        () => import('@/pages/CartPage'),
-        () => import('@/pages/ProductDetailPage'),
-        () => import('@/pages/ChatPage'),
-        () => import('@/pages/NotificationHistoryPage'),
-        () => import('@/pages/TransactionsPage'),
-        () => import('@/pages/AuthPage'),
-      ];
-      // Stagger prefetches to avoid blocking
-      prefetchPages.forEach((load, i) => {
-        setTimeout(() => load().catch(() => {}), i * 200);
-      });
-    }, 2000); // Start after 2s when home is interactive
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => {
+          import('@/pages/ProductsPage').catch(() => {});
+          setTimeout(() => import('@/pages/ProductDetailPage').catch(() => {}), 500);
+        });
+      } else {
+        import('@/pages/ProductsPage').catch(() => {});
+      }
+    }, 4000);
     return () => clearTimeout(timer);
   }, []);
 
