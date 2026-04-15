@@ -147,10 +147,10 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     await processReferralBonus(supabase, order.telegram_user_id, token, order.amount);
 
     if (order.product_id) {
-      const { data: product } = await supabase.from("products").select("access_link").eq("id", order.product_id).single();
-      if (product?.access_link) {
-        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, product.access_link, order.product_name || "Product", userLang);
+      const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+      const resolvedLink = await resolveAccessLink(supabase, order.product_id, order.id);
+      if (resolvedLink) {
+        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolvedLink, order.product_name || "Product", userLang);
       }
     }
 

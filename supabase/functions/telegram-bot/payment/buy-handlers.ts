@@ -472,7 +472,8 @@ export async function handleRazorpayVerify(
         await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Razorpay UPI");
       } else {
         // Regular flow - auto confirmed
-        const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
+        const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+        const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
 
         let successText = `<b>✅ Payment Verified!</b>\n\n`;
         successText += `Product: <b>${productName}</b>\n`;
@@ -480,9 +481,8 @@ export async function handleRazorpayVerify(
 
         await sendMessage(token, chatId, successText);
 
-        if (product?.access_link) {
-          const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+        if (resolvedLink) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolvedLink, productName, "en");
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
       }
@@ -595,7 +595,8 @@ export async function handleBinanceVerify(
         await setConversationState(supabase, telegramUser.id, "idle", {});
         await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Binance Pay");
       } else {
-        const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
+        const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+        const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
 
         let successText = `✅ <b>Order Successful!</b>\n\n`;
         successText += `📦 Product: <b>${productName}</b>\n`;
@@ -607,9 +608,8 @@ export async function handleBinanceVerify(
 
         await sendMessage(token, chatId, successText);
 
-        if (product?.access_link) {
-          const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, product.access_link, productName, "en");
+        if (resolvedLink) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolvedLink, productName, "en");
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
 

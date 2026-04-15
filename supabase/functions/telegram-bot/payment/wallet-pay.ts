@@ -90,10 +90,10 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     );
 
     if (productId) {
-      const { data: product } = await supabase.from("products").select("access_link").eq("id", productId).single();
-      if (product?.access_link) {
-        const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, product.access_link, productName, lang);
+      const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+      const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
+      if (resolvedLink) {
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolvedLink, productName, lang);
       }
     }
 
