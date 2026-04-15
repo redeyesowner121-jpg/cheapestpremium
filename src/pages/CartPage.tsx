@@ -435,7 +435,6 @@ const CartPage: React.FC = () => {
               </div>
             )}
           </div>
-          </div>
         )}
 
         {/* Donation Section */}
