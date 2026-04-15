@@ -3,14 +3,14 @@ import { getAuth, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber }
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyARhUjJ45a6XKuD54P2IxWGf30cowwL2Ac",
+  apiKey: "AIzaSyAUeAgooPulNk3r3s7mshgy94fnRIm7vQw",
   authDomain: "cheap-premium-14086.firebaseapp.com",
   databaseURL: "https://cheap-premium-14086-default-rtdb.firebaseio.com",
   projectId: "cheap-premium-14086",
   storageBucket: "cheap-premium-14086.firebasestorage.app",
   messagingSenderId: "896807949890",
-  appId: "1:896807949890:web:f0968ca056c5c9c2f27fdb",
-  measurementId: "G-3WN23EXK6Y"
+  appId: "1:896807949890:web:98e4f78e2cba53a2f27fdb",
+  measurementId: "G-2RTK8KRK4L"
 };
 
 // Initialize Firebase
