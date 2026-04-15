@@ -39,5 +39,21 @@ export default defineConfig(({ mode }) => {
       },
       dedupe: ['react', 'react-dom'],
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-supabase': ['@supabase/supabase-js'],
+            'vendor-ui': ['@radix-ui/react-tooltip', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
+            'vendor-motion': ['framer-motion'],
+            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/messaging'],
+            'vendor-charts': ['recharts'],
+          },
+        },
+      },
+      target: 'es2020',
+      minify: 'esbuild',
+    },
   };
 });
