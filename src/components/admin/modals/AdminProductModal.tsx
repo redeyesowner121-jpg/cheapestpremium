@@ -49,17 +49,19 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   const [deliveryType, setDeliveryType] = useState<'link' | 'credentials'>('link');
   const [credUsername, setCredUsername] = useState('');
   const [credPassword, setCredPassword] = useState('');
-  const [deliveryMode, setDeliveryMode] = useState<'repeated' | 'unique'>('repeated');
   const [stockItems, setStockItems] = useState<any[]>([]);
   const [newStockLink, setNewStockLink] = useState('');
   const [loadingStock, setLoadingStock] = useState(false);
+  const deliveryMode = productForm.delivery_mode === 'unique' ? 'unique' : 'repeated';
 
   // Auto-detect delivery type and mode from existing product
   useEffect(() => {
     if (editingProduct) {
       // Set delivery mode
-      setDeliveryMode(editingProduct.delivery_mode === 'unique' ? 'unique' : 'repeated');
-      setProductForm((prev: any) => ({ ...prev, delivery_mode: editingProduct.delivery_mode || 'repeated' }));
+      setProductForm((prev: any) => ({
+        ...prev,
+        delivery_mode: editingProduct.delivery_mode === 'unique' ? 'unique' : 'repeated',
+      }));
 
       // Detect delivery type from access_link
       const link = editingProduct.access_link || '';
@@ -81,7 +83,6 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
       }
     } else {
       setDeliveryType('link');
-      setDeliveryMode('repeated');
       setCredUsername('');
       setCredPassword('');
       setStockItems([]);
@@ -109,7 +110,6 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
   };
 
   const handleDeliveryModeChange = (mode: 'repeated' | 'unique') => {
-    setDeliveryMode(mode);
     setProductForm((prev: any) => ({ ...prev, delivery_mode: mode }));
     if (mode === 'unique' && editingProduct) {
       loadStockItems(editingProduct.id);
