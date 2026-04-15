@@ -68,6 +68,7 @@ export const useNotifications = () => {
 
       if (result === 'granted') {
         // Request FCM token for push notifications
+        const { requestPushNotificationPermission } = await import('@/lib/firebase');
         const token = await requestPushNotificationPermission();
         if (token) {
           setFcmToken(token);
