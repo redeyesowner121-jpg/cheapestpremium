@@ -214,12 +214,6 @@ const Index: React.FC = () => {
         )}
         
         <BannerSlider banners={banners} />
-        
-        {user && (
-          <Suspense fallback={<div className="h-48 rounded-2xl bg-muted animate-pulse" />}>
-            <QuickStats />
-          </Suspense>
-        )}
 
         {/* Search Bar */}
         <div className="-mx-4 px-4 py-1">
@@ -277,6 +271,12 @@ const Index: React.FC = () => {
               <p className="text-center text-sm text-muted-foreground py-4">No products found</p>
             )}
           </div>
+        )}
+
+        {user && (
+          <Suspense fallback={<div className="h-48 rounded-2xl bg-muted animate-pulse" />}>
+            <QuickStats />
+          </Suspense>
         )}
 
         {deferredReady && (
