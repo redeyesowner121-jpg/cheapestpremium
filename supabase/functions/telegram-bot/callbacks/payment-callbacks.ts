@@ -22,9 +22,9 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
 
   if (lastOrder?.product_id) {
     const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
-    const resolvedLink = await resolveAccessLink(supabase, lastOrder.product_id, lastOrder.id);
-    if (resolvedLink) {
-      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolvedLink, lastOrder.product_name || "Product", lang);
+    const resolved = await resolveAccessLink(supabase, lastOrder.product_id, lastOrder.id);
+    if (resolved.link && resolved.showInBot) {
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, lastOrder.product_name || "Product", lang);
       return;
     }
   }

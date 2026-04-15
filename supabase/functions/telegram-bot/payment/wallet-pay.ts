@@ -91,9 +91,9 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 
     if (productId) {
       const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
-      if (resolvedLink) {
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolvedLink, productName, lang);
+      const resolved = await resolveAccessLink(supabase, productId, order?.id);
+      if (resolved.link && resolved.showInBot) {
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, productName, lang);
       }
     }
 
@@ -104,8 +104,9 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     // Sync purchase to website profile
     let accessLink: string | undefined;
     if (productId) {
-      const { data: prod } = await supabase.from("products").select("access_link").eq("id", productId).single();
-      accessLink = prod?.access_link || undefined;
+      const { data: prod } = await supabase.from("products").select("access_link, show_link_in_website").eq("id", productId).single();
+      // Only pass access_link to website sync if show_link_in_website is true
+      accessLink = (prod?.show_link_in_website !== false && prod?.access_link) ? prod.access_link : undefined;
     }
     await syncPurchaseToProfile(supabase, userId, amount, productName, productId, accessLink);
 

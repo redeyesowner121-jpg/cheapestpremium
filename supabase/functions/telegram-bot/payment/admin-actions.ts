@@ -148,9 +148,9 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
     if (order.product_id) {
       const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolvedLink = await resolveAccessLink(supabase, order.product_id, order.id);
-      if (resolvedLink) {
-        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolvedLink, order.product_name || "Product", userLang);
+      const resolved = await resolveAccessLink(supabase, order.product_id, order.id);
+      if (resolved.link && resolved.showInBot) {
+        await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolved.link, order.product_name || "Product", userLang);
       }
     }
 

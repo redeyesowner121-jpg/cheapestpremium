@@ -492,7 +492,7 @@ export async function handleRazorpayVerify(
       } else {
         // Regular flow - auto confirmed
         const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
+        const resolved = await resolveAccessLink(supabase, productId, order?.id);
 
         let successText = `<b>✅ Payment Verified!</b>\n\n`;
         successText += `Product: <b>${productName}</b>\n`;
@@ -500,8 +500,8 @@ export async function handleRazorpayVerify(
 
         await sendMessage(token, chatId, successText);
 
-        if (resolvedLink) {
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolvedLink, productName, "en");
+        if (resolved.link && resolved.showInBot) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
       }
@@ -615,7 +615,7 @@ export async function handleBinanceVerify(
         await notifyMainAdminsForChildOrder(supabase, order?.id || "unknown", telegramUser.id, productName, price, childBotId, "Binance Pay");
       } else {
         const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-        const resolvedLink = await resolveAccessLink(supabase, productId, order?.id);
+        const resolved = await resolveAccessLink(supabase, productId, order?.id);
 
         let successText = `✅ <b>Order Successful!</b>\n\n`;
         successText += `📦 Product: <b>${productName}</b>\n`;
@@ -627,8 +627,8 @@ export async function handleBinanceVerify(
 
         await sendMessage(token, chatId, successText);
 
-        if (resolvedLink) {
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolvedLink, productName, "en");
+        if (resolved.link && resolved.showInBot) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
         }
         await setConversationState(supabase, telegramUser.id, "idle", {});
 
