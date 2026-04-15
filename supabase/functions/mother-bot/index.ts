@@ -718,3 +718,27 @@ async function showAdminBots(token: string, supabase: any, chatId: number) {
   buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
+
+async function showChannelManager(token: string, supabase: any, chatId: number) {
+  const channels = await getRequiredChannels(supabase);
+  
+  let text = "📢 <b>Required Channels</b>\n\n";
+  const buttons: any[][] = [];
+
+  if (channels.length === 0) {
+    text += "No required channels set.\nUsers can access the bot without joining any channel.";
+  } else {
+    text += "Users must join these channels before using the bot:\n\n";
+    channels.forEach((ch, i) => {
+      text += `${i + 1}. ${ch}\n`;
+      buttons.push([
+        { text: `🔗 ${ch}`, url: `https://t.me/${ch.replace("@", "")}` },
+        { text: `🗑 Remove`, callback_data: `mother_rmch_${i}`, style: "danger" },
+      ]);
+    });
+  }
+
+  buttons.push([{ text: "➕ Add Channel", callback_data: "mother_add_channel", style: "success" }]);
+  buttons.push([{ text: "◀️ Back", callback_data: "mother_admin" }]);
+  await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
+}
