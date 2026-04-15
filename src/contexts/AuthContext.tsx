@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { firebaseAuth, googleProvider, setupRecaptcha, sendPhoneOTP } from '@/lib/firebase';
-import { signInWithPopup, ConfirmationResult } from 'firebase/auth';
+import type { ConfirmationResult } from 'firebase/auth';
 import { toast } from 'sonner';
 
 export interface UserProfile {
