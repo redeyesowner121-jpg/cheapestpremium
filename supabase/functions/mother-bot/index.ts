@@ -442,14 +442,18 @@ async function showMyBots(token: string, supabase: any, chatId: number, userId: 
 
   for (const bot of bots) {
     const status = bot.is_active ? "🟢 Active" : "🔴 Inactive";
-    text += `• @${bot.bot_username || "unknown"} — ${status}\n`;
-    text += `  Revenue: ${bot.revenue_percent}% | Orders: ${bot.total_orders} | Earned: ₹${bot.total_earnings}\n\n`;
-    buttons.push([{
-      text: `${bot.is_active ? "⏸ Deactivate" : "▶️ Activate"} @${bot.bot_username || "bot"}`,
-      callback_data: `mother_toggle_${bot.id}`
-    }]);
+    // Count users for this bot
+    const { count: botUsers } = await supabase.from("child_bot_users").select("id", { count: "exact", head: true }).eq("child_bot_id", bot.id);
+    text += `🤖 <b>@${bot.bot_username || "unknown"}</b> — ${status}\n`;
+    text += `   💰 Revenue: ${bot.revenue_percent}% | 📦 Orders: ${bot.total_orders}\n`;
+    text += `   💵 Earned: ₹${bot.total_earnings} | 👥 Users: ${botUsers || 0}\n`;
+    text += `   📅 Created: ${new Date(bot.created_at).toLocaleDateString("en-IN")}\n\n`;
+    buttons.push([
+      { text: `⚙️ Manage @${bot.bot_username || "bot"}`, callback_data: `mybot_manage_${bot.id}`, style: "primary" },
+    ]);
   }
 
+  buttons.push([{ text: "➕ Create New Bot", callback_data: "mother_create_bot", style: "success" }]);
   buttons.push([{ text: "🏠 Main Menu", callback_data: "mother_main" }]);
   await sendMsg(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }

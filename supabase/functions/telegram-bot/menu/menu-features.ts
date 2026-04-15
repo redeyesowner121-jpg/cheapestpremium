@@ -5,12 +5,35 @@ import { sendMessage } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet } from "../db-helpers.ts";
 
 export async function handleMyOrders(token: string, supabase: any, chatId: number, userId: number, lang: string) {
-  const { data: orders } = await supabase
-    .from("telegram_orders")
-    .select("*")
-    .eq("telegram_user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(10);
+  const { getChildBotContext, isChildBotMode } = await import("../child-context.ts");
+  const childCtx = getChildBotContext();
+
+  let orders: any[] = [];
+
+  if (isChildBotMode() && childCtx) {
+    // In child bot mode, show only orders placed through this child bot
+    const { data: childOrders } = await supabase
+      .from("child_bot_orders")
+      .select("id, product_name, total_price, status, created_at")
+      .eq("child_bot_id", childCtx.id)
+      .eq("buyer_telegram_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    // Map to same shape as telegram_orders
+    orders = (childOrders || []).map((o: any) => ({
+      ...o,
+      amount: o.total_price,
+      product_name: o.product_name,
+    }));
+  } else {
+    const { data: mainOrders } = await supabase
+      .from("telegram_orders")
+      .select("*")
+      .eq("telegram_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+    orders = mainOrders || [];
+  }
 
   if (!orders?.length) {
     await sendMessage(token, chatId,
