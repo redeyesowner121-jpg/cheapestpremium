@@ -572,7 +572,7 @@ export async function handleDepositScreenshot(token: string, supabase: any, chat
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await notifyAllAdmins(token, supabase, adminMsg, {
+      await notifyAllAdmins(mainToken, supabase, adminMsg, {
         reply_markup: {
           inline_keyboard: [
             [
