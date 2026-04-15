@@ -118,8 +118,25 @@ export const handleProductPurchase = async (
       orderData.user_id = user.id;
     }
 
-    const { error: orderError } = await supabase.from('orders').insert(orderData);
+    const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert(orderData).select('id').single();
     if (orderError) throw orderError;
+
+    // Mark stock item as used if unique delivery
+    if (accessLink && displayProduct.id) {
+      const { data: productData } = await supabase
+        .from('products')
+        .select('delivery_mode')
+        .eq('id', displayProduct.id)
+        .single();
+      if (productData?.delivery_mode === 'unique') {
+        await (supabase as any)
+          .from('product_stock_items')
+          .update({ is_used: true, used_at: new Date().toISOString(), order_id: insertedOrder?.id })
+          .eq('product_id', displayProduct.id)
+          .eq('access_link', accessLink)
+          .eq('is_used', false);
+      }
+    }
 
     if (user) {
       await supabase.from('transactions').insert({
