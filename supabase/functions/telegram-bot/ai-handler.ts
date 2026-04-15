@@ -396,7 +396,7 @@ STRICT RULES:
           await sendMessage(token, chatId, `🤖 ${messageParts[0]}`, { reply_markup: actionButtons });
         }
       } else {
-        // Multiple parts — edit first, send rest as new messages
+        // Multiple parts — edit first, send rest with small delay
         if (thinkingMsgId) {
           await editMessageText(token, chatId, thinkingMsgId, `🤖 ${messageParts[0]}`, { parse_mode: "" });
         } else {
@@ -404,8 +404,9 @@ STRICT RULES:
         }
 
         for (let i = 1; i < messageParts.length; i++) {
+          await new Promise(r => setTimeout(r, 400)); // small delay for natural feel
           const isLast = i === messageParts.length - 1;
-          await sendMessage(token, chatId, messageParts[i], isLast ? { reply_markup: actionButtons } : undefined);
+          await sendMessage(token, chatId, `${messageParts[i]}`, isLast ? { reply_markup: actionButtons } : undefined);
         }
       }
     }
