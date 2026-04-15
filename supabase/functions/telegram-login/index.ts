@@ -213,11 +213,25 @@ Deno.serve(async (req: Request) => {
     const mergedBalance = Math.max(botBalance, webBalance);
     const mergedTotalDeposit = Math.max(botTotalDeposit, webTotalDeposit);
 
+    // Check if user is a reseller in the bot (has active resale links)
+    const { count: resaleLinkCount } = await supabase
+      .from("telegram_resale_links")
+      .select("id", { count: "exact", head: true })
+      .eq("reseller_telegram_id", telegramId)
+      .eq("is_active", true);
+
+    const isBotReseller = (resaleLinkCount || 0) > 0;
+
     const profileUpdate: any = {
       name,
       wallet_balance: mergedBalance,
       total_deposit: mergedTotalDeposit,
     };
+
+    // Sync reseller status from bot to website
+    if (isBotReseller) {
+      profileUpdate.is_reseller = true;
+    }
 
     // Always update avatar if we got one from Telegram
     if (avatarUrl) {
