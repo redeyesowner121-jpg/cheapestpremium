@@ -595,6 +595,30 @@ async function handleMotherConversation(motherToken: string, mainToken: string, 
     await showAdminBots(motherToken, supabase, chatId);
     return;
   }
+
+  // Admin: Add channel
+  if (state.step === "mother_add_channel") {
+    if (!isMotherOwner(userId)) return;
+    const channelInput = text.trim().replace(/^@/, "").replace(/^https?:\/\/t\.me\//, "");
+    if (!channelInput || channelInput.length < 3) {
+      await sendMsg(motherToken, chatId, "❌ Invalid channel username. Try again or send /cancel.");
+      return;
+    }
+    const channels = await getRequiredChannels(supabase);
+    const channelName = channelInput.startsWith("@") ? channelInput : `@${channelInput}`;
+    if (channels.includes(channelName)) {
+      await sendMsg(motherToken, chatId, `⚠️ Channel ${channelName} is already in the list.`);
+      await deleteConvState(supabase, userId);
+      await showChannelManager(motherToken, supabase, chatId);
+      return;
+    }
+    channels.push(channelName);
+    await saveRequiredChannels(supabase, channels);
+    await deleteConvState(supabase, userId);
+    await sendMsg(motherToken, chatId, `✅ Channel <b>${channelName}</b> added successfully!`);
+    await showChannelManager(motherToken, supabase, chatId);
+    return;
+  }
 }
 
 async function createChildBot(token: string, supabase: any, chatId: number, creatorId: number, data: Record<string, any>) {
