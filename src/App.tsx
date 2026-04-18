@@ -11,9 +11,8 @@ import AppErrorBoundary from "@/components/AppErrorBoundary";
 
 import SubdomainLanding, { getSubdomainConfig } from "@/components/SubdomainLanding";
 import { Construction, Settings } from "lucide-react";
+import Index from "./pages/Index";
 
-// Lazy load ALL pages including Index
-const Index = lazy(() => import("./pages/Index"));
 const AIChatWidget = lazy(() => import("@/components/AIChatWidget"));
 const RecentOrderNotification = lazy(() => import("@/components/RecentOrderNotification"));
 
