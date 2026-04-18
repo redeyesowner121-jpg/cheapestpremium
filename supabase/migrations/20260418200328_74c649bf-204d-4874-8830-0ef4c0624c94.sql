@@ -1,0 +1,1 @@
+UPDATE public.child_bot_settings SET value='false', updated_at=now() WHERE child_bot_id='ca1e8942-c85d-407a-b643-5e17f97fc3e5' AND key='premium_emoji';
