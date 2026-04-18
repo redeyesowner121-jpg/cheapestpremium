@@ -76,19 +76,14 @@ const IndexRedirect = () => {
 
 // App Content with Settings Applied
 const AppContent = () => {
-  const { settings, loading: settingsLoading } = useAppSettingsContext();
-  const { isAdmin, isTempAdmin, loading: authLoading } = useAuth();
-  const isReady = !authLoading && !settingsLoading;
+  const { settings } = useAppSettingsContext();
+  const { isAdmin, isTempAdmin } = useAuth();
 
   useEffect(() => {
     if (settings.app_name) {
       document.title = settings.app_name;
     }
   }, [settings.app_name]);
-
-  if (!isReady) {
-    return null;
-  }
 
   if (settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
     return <MaintenanceScreen />;
