@@ -60,10 +60,24 @@ const EMOJI_IDS: Record<string, string> = {
 let premiumEnabled = false;
 
 /**
- * Call once per request to load the toggle from app_settings
+ * Call once per request to load the toggle.
+ * In child bot mode, checks `child_bot_settings.premium_emoji` first (per-bot override).
+ * Otherwise falls back to global `app_settings.telegram_premium_emoji`.
  */
-export async function initPremiumEmoji(supabase: any): Promise<void> {
+export async function initPremiumEmoji(supabase: any, childBotId?: string | null): Promise<void> {
   try {
+    if (childBotId) {
+      const { data: childSetting } = await supabase
+        .from("child_bot_settings")
+        .select("value")
+        .eq("child_bot_id", childBotId)
+        .eq("key", "premium_emoji")
+        .maybeSingle();
+      if (childSetting?.value != null) {
+        premiumEnabled = childSetting.value === "true";
+        return;
+      }
+    }
     const { data } = await supabase
       .from("app_settings")
       .select("value")
