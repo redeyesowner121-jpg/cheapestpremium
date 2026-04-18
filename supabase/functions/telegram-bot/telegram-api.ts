@@ -44,20 +44,57 @@ function normalizeBackButtons(replyMarkup?: any) {
   };
 }
 
+function stripPremiumEmojiTags(content: string): string {
+  return String(content).replace(/<tg-emoji\b[^>]*>(.*?)<\/tg-emoji>/gisu, "$1");
+}
+
+function shouldRetryWithoutPremiumEmoji(result: any, content?: string): boolean {
+  const description = String(result?.description || "");
+  return description.includes("DOCUMENT_INVALID") && content !== stripPremiumEmojiTags(content || "");
+}
+
+async function telegramRequest(token: string, method: string, body: Record<string, unknown>) {
+  const res = await fetch(`${TELEGRAM_API(token)}/${method}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+async function retryWithoutPremiumEmoji(
+  token: string,
+  method: string,
+  body: Record<string, unknown>,
+  contentField: "text" | "caption",
+) {
+  const sanitizedBody = {
+    ...body,
+    [contentField]: stripPremiumEmojiTags(String(body[contentField] || "")),
+  };
+
+  const retryResult = await telegramRequest(token, method, sanitizedBody);
+  if (!retryResult.ok) {
+    console.error(`${method} retry failed:`, JSON.stringify(retryResult));
+  }
+  return retryResult;
+}
+
 export async function sendMessage(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }) {
   try {
-    const res = await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: opts?.parse_mode || "HTML",
-        ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
-      }),
-    });
-    const result = await res.json();
+    const body = {
+      chat_id: chatId,
+      text,
+      parse_mode: opts?.parse_mode || "HTML",
+      ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
+    };
+
+    const result = await telegramRequest(token, "sendMessage", body);
     if (!result.ok) {
+      if (shouldRetryWithoutPremiumEmoji(result, text)) {
+        await retryWithoutPremiumEmoji(token, "sendMessage", body, "text");
+        return;
+      }
       console.error("sendMessage failed:", JSON.stringify(result));
     }
   } catch (e) {
@@ -66,17 +103,26 @@ export async function sendMessage(token: string, chatId: number, text: string, o
 }
 
 export async function sendPhoto(token: string, chatId: number, photoUrl: string, caption: string, replyMarkup?: any) {
-  await fetch(`${TELEGRAM_API(token)}/sendPhoto`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  try {
+    const body = {
       chat_id: chatId,
       photo: photoUrl,
       caption,
       parse_mode: "HTML",
       ...(replyMarkup && { reply_markup: normalizeBackButtons(replyMarkup) }),
-    }),
-  });
+    };
+
+    const result = await telegramRequest(token, "sendPhoto", body);
+    if (!result.ok) {
+      if (shouldRetryWithoutPremiumEmoji(result, caption)) {
+        await retryWithoutPremiumEmoji(token, "sendPhoto", body, "caption");
+        return;
+      }
+      console.error("sendPhoto failed:", JSON.stringify(result));
+    }
+  } catch (e) {
+    console.error("sendPhoto error:", e);
+  }
 }
 
 export async function forwardMessage(token: string, chatId: number, fromChatId: number, messageId: number) {
@@ -138,17 +184,23 @@ export async function getUserProfilePhotos(token: string, userId: number): Promi
 
 export async function sendMessageWithId(token: string, chatId: number, text: string, opts?: { reply_markup?: any; parse_mode?: string }): Promise<number | null> {
   try {
-    const res = await fetch(`${TELEGRAM_API(token)}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: opts?.parse_mode || "HTML",
-        ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
-      }),
-    });
-    const result = await res.json();
+    const body = {
+      chat_id: chatId,
+      text,
+      parse_mode: opts?.parse_mode || "HTML",
+      ...(opts?.reply_markup && { reply_markup: normalizeBackButtons(opts.reply_markup) }),
+    };
+
+    let result = await telegramRequest(token, "sendMessage", body);
+    if (!result.ok && shouldRetryWithoutPremiumEmoji(result, text)) {
+      result = await retryWithoutPremiumEmoji(token, "sendMessage", body, "text");
+    }
+
+    if (!result.ok) {
+      console.error("sendMessageWithId failed:", JSON.stringify(result));
+      return null;
+    }
+
     return result?.result?.message_id || null;
   } catch {
     return null;
@@ -162,16 +214,14 @@ export async function editMessageText(token: string, chatId: number, messageId: 
       message_id: messageId,
       text,
     };
-    // Only add parse_mode if it's a valid non-empty value
     if (opts?.parse_mode) body.parse_mode = opts.parse_mode;
     if (opts?.reply_markup) body.reply_markup = normalizeBackButtons(opts.reply_markup);
 
-    const res = await fetch(`https://api.telegram.org/bot${token}/editMessageText`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const result = await res.json();
+    let result = await telegramRequest(token, "editMessageText", body);
+    if (!result.ok && shouldRetryWithoutPremiumEmoji(result, text)) {
+      result = await retryWithoutPremiumEmoji(token, "editMessageText", body, "text");
+    }
+
     if (!result.ok) {
       console.error("editMessageText failed:", JSON.stringify(result));
     }
