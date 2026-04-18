@@ -11,9 +11,8 @@ import AppErrorBoundary from "@/components/AppErrorBoundary";
 
 import SubdomainLanding, { getSubdomainConfig } from "@/components/SubdomainLanding";
 import { Construction, Settings } from "lucide-react";
+import Index from "./pages/Index";
 
-// Lazy load ALL pages including Index
-const Index = lazy(() => import("./pages/Index"));
 const AIChatWidget = lazy(() => import("@/components/AIChatWidget"));
 const RecentOrderNotification = lazy(() => import("@/components/RecentOrderNotification"));
 
@@ -77,19 +76,14 @@ const IndexRedirect = () => {
 
 // App Content with Settings Applied
 const AppContent = () => {
-  const { settings, loading: settingsLoading } = useAppSettingsContext();
-  const { isAdmin, isTempAdmin, loading: authLoading } = useAuth();
-  const isReady = !authLoading && !settingsLoading;
+  const { settings } = useAppSettingsContext();
+  const { isAdmin, isTempAdmin } = useAuth();
 
   useEffect(() => {
     if (settings.app_name) {
       document.title = settings.app_name;
     }
   }, [settings.app_name]);
-
-  if (!isReady) {
-    return null;
-  }
 
   if (settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
     return <MaintenanceScreen />;
