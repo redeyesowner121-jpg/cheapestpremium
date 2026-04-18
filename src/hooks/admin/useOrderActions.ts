@@ -37,6 +37,39 @@ export async function handleUpdateOrderStatus(
 
   // Send notification to user
   if (order) {
+    // Fire-and-forget email via Outlook (only for key statuses)
+    if (['confirmed', 'completed', 'processing', 'cancelled', 'refunded'].includes(status)) {
+      try {
+        let recipientEmail: string | null = order.guest_email || null;
+        let recipientName: string | null = order.guest_name || null;
+        if (!recipientEmail && order.user_id) {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('email, name')
+            .eq('id', order.user_id)
+            .maybeSingle();
+          recipientEmail = prof?.email || null;
+          recipientName = prof?.name || null;
+        }
+        if (recipientEmail) {
+          supabase.functions.invoke('send-order-email', {
+            body: {
+              to: recipientEmail,
+              customerName: recipientName,
+              productName: order.product_name,
+              orderId: orderId,
+              status,
+              totalPrice: order.total_price,
+              accessLink: accessLink || order.access_link || null,
+              hasDiscount: (order.discount_applied || 0) > 0,
+            },
+          }).catch((e) => console.error('Email send error:', e));
+        }
+      } catch (e) {
+        console.error('Email prep error:', e);
+      }
+    }
+
     let notificationTitle = '';
     let notificationMessage = '';
     const hasDiscount = (order.discount_applied || 0) > 0;
