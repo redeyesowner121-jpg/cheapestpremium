@@ -74,9 +74,6 @@ Deno.serve(async (req) => {
   // Clear child context from any previous request
   clearChildBotContext();
 
-  // Load premium emoji toggle from settings
-  await initPremiumEmoji(supabase);
-
   // ===== CHILD BOT MODE =====
   let BOT_TOKEN: string | null = null;
   let isChildMode = false;
@@ -93,7 +90,12 @@ Deno.serve(async (req) => {
       revenue_percent: childBot.revenue_percent,
       bot_username: childBot.bot_username,
     });
-  } else if (req.method === "GET" && !isGiveaway) {
+    // Per-child premium emoji override (falls back to global if not set)
+    await initPremiumEmoji(supabase, childBotId);
+  } else {
+    // Global premium emoji toggle
+    await initPremiumEmoji(supabase);
+    if (req.method === "GET" && !isGiveaway) {
     if (url.searchParams.get("action") === "upi_redirect") {
       const pa = url.searchParams.get("pa") || UPI_ID;
       const pn = url.searchParams.get("pn") || UPI_NAME;
@@ -153,6 +155,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response("Not found", { status: 404, headers: corsHeaders });
+    }
   }
 
   // Resolve bot token (if not child mode)
