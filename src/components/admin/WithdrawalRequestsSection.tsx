@@ -34,12 +34,46 @@ const WithdrawalRequestsSection: React.FC<WithdrawalRequestsSectionProps> = ({ o
   const [processing, setProcessing] = useState(false);
 
   const loadRequests = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('withdrawal_requests')
-      .select('*, profiles:user_id(name, email, wallet_balance)')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(100);
-    setRequests((data as any) || []);
+
+    if (error) {
+      console.error('Failed to load withdrawal requests:', error);
+      toast.error('Failed to load withdrawal requests');
+      return;
+    }
+
+    const rows = data || [];
+    const userIds = Array.from(
+      new Set(rows.map(r => r.user_id).filter((id): id is string => !!id))
+    );
+
+    let profilesMap: Record<string, { name: string; email: string; wallet_balance: number }> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, email, wallet_balance')
+        .in('id', userIds);
+      profilesMap = Object.fromEntries(
+        (profiles || []).map(p => [p.id, {
+          name: p.name,
+          email: p.email,
+          wallet_balance: Number(p.wallet_balance) || 0,
+        }])
+      );
+    }
+
+    const enriched = rows.map(r => ({
+      ...r,
+      profiles: r.user_id
+        ? profilesMap[r.user_id] || { name: 'Unknown', email: '', wallet_balance: 0 }
+        : { name: r.telegram_id ? `Telegram: ${r.telegram_id}` : 'Unknown', email: '', wallet_balance: 0 },
+    }));
+
+    setRequests(enriched as any);
   };
 
   useEffect(() => { loadRequests(); }, []);
