@@ -191,7 +191,7 @@ const GiveawayBotManager: React.FC = () => {
                   <p className="text-xs text-muted-foreground">@RKRxGiveaway_bot</p>
                 </div>
               </div>
-              <Button size="sm" className="rounded-xl bg-green-600 hover:bg-green-700 text-white" onClick={fetchData} disabled={loading}>
+              <Button size="sm" variant="outline" className="rounded-xl" onClick={fetchData} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
             </div>
