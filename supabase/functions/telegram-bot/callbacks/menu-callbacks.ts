@@ -236,6 +236,22 @@ export async function handleMenuCallbacks(
     return true;
   }
   if (data === "support") { await handleSupport(BOT_TOKEN, supabase, chatId, lang); return true; }
+  if (data === "show_reviews") {
+    const { sendMessage } = await import("../telegram-api.ts");
+    await sendMessage(BOT_TOKEN, chatId,
+      lang === "bn"
+        ? "⭐ <b>রিভিউ ও প্রুফস</b>\n\nআমাদের সব রিভিউ, পেমেন্ট প্রুফ এবং সাকসেস স্টোরি দেখতে নিচের চ্যানেলে যাও:\n\n👉 @RKRxProofs"
+        : "⭐ <b>Reviews & Proofs</b>\n\nCheck out all our reviews, payment proofs and success stories on our channel:\n\n👉 @RKRxProofs",
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: lang === "bn" ? "📢 চ্যানেলে যাও" : "📢 Open Channel", url: "https://t.me/RKRxProofs" }],
+            [{ text: `⬅️ ${lang === "bn" ? "ফিরে যাও" : "Back"}`, callback_data: "back_main" }],
+          ],
+        },
+      });
+    return true;
+  }
   if (data === "get_offers") { await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "website_login") { await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
   if (data === "back_main") { await showMainMenu(BOT_TOKEN, supabase, chatId, lang); return true; }
