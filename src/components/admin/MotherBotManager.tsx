@@ -81,7 +81,7 @@ const MotherBotManager: React.FC = () => {
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base">Child Bots</CardTitle>
-          <Button variant="ghost" size="icon" onClick={loadData}><RefreshCw className="w-4 h-4" /></Button>
+          <Button size="icon" className="bg-green-600 hover:bg-green-700 text-white" onClick={loadData}><RefreshCw className="w-4 h-4" /></Button>
         </CardHeader>
         <CardContent className="space-y-3">
           {bots.length === 0 ? (

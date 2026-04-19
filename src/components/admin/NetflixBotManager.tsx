@@ -130,7 +130,7 @@ const NetflixBotManager: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setShowAddAccount(true)} className="gap-2"><Plus className="w-4 h-4" />Add Netflix Account</Button>
         <Button onClick={() => setShowAssign(true)} variant="outline" className="gap-2"><UserPlus className="w-4 h-4" />Assign Buyer</Button>
-        <Button onClick={triggerPoll} variant="outline" disabled={polling} className="gap-2">
+        <Button onClick={triggerPoll} disabled={polling} className="gap-2 bg-green-600 hover:bg-green-700 text-white">
           <RefreshCw className={`w-4 h-4 ${polling ? 'animate-spin' : ''}`} />Poll Now
         </Button>
         <Button onClick={setupWebhook} variant="ghost" size="sm">Setup Bot Webhook</Button>
