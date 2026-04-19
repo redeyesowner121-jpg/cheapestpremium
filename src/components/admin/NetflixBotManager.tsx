@@ -188,7 +188,7 @@ const NetflixBotManager: React.FC = () => {
             {recentOtps.map(o => (
               <div key={o.id} className="p-2 bg-muted/50 rounded-lg text-sm">
                 <div className="flex items-center gap-2">
-                  {o.forward_status === 'sent' ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-yellow-600" />}
+                  {o.forward_status === 'sent' ? <CheckCircle2 className="w-4 h-4 text-success" /> : <AlertCircle className="w-4 h-4 text-warning" />}
                   <span className="font-mono">{o.otp_code || '—'}</span>
                   <span className="text-xs text-muted-foreground">→ {o.netflix_email}</span>
                 </div>
