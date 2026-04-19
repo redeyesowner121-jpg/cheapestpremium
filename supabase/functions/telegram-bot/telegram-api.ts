@@ -38,6 +38,7 @@ function normalizeBackButtons(replyMarkup?: any) {
           ...button,
           text: strippedText,
           color: "red",
+          style: "danger",
         };
       })
     ),
