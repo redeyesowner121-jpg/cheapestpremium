@@ -55,6 +55,11 @@ export async function handleBinanceVerify(
           const { data: cb } = await supabase.from("child_bots").select("total_orders, total_earnings").eq("id", childBotId).single();
           if (cb) await supabase.from("child_bots").update({ total_orders: (cb.total_orders || 0) + 1, total_earnings: (cb.total_earnings || 0) + commission }).eq("id", childBotId);
         } catch {}
+        // Credit commission to owner's wallet
+        try {
+          const { creditChildBotOwnerCommission } = await import("./child-bot-credit.ts");
+          await creditChildBotOwnerCommission(supabase, childBotId, order.id, productName, price, telegramUser.id);
+        } catch (e) { console.error("Owner credit error:", e); }
       }
 
       const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
