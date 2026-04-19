@@ -43,7 +43,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     amount: amount, status: orderStatus,
   }).select("id").single();
 
-  // Create child bot order record
+  // Create child bot order record + credit owner wallet
   if (isChildBotOrder && order?.id) {
     const commission = Math.round(amount * (effectiveRevenue || 0)) / 100;
     await supabase.from("child_bot_orders").insert({
@@ -56,10 +56,16 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
       status: "confirmed",
     });
     // Update child bot stats
-    await supabase.from("child_bots").update({
-      total_orders: (await supabase.from("child_bots").select("total_orders").eq("id", effectiveChildBotId).single()).data?.total_orders + 1 || 1,
-      total_earnings: (await supabase.from("child_bots").select("total_earnings").eq("id", effectiveChildBotId).single()).data?.total_earnings + commission || commission,
-    }).eq("id", effectiveChildBotId);
+    const { data: cb } = await supabase.from("child_bots").select("total_orders, total_earnings").eq("id", effectiveChildBotId).single();
+    if (cb) {
+      await supabase.from("child_bots").update({
+        total_orders: (cb.total_orders || 0) + 1,
+        total_earnings: (cb.total_earnings || 0) + commission,
+      }).eq("id", effectiveChildBotId);
+    }
+    // Credit commission to owner's wallet
+    const { creditChildBotOwnerCommission } = await import("./child-bot-credit.ts");
+    await creditChildBotOwnerCommission(supabase, effectiveChildBotId, order.id, productName, amount, userId);
   }
 
   // Auto-confirmed - send delivery
