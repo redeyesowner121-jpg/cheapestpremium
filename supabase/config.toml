@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.telegram-set-webhook]
 verify_jwt = false
+
+[functions.netflix-bot]
+verify_jwt = false
+
+[functions.netflix-set-webhook]
+verify_jwt = false
+
+[functions.netflix-otp-poller]
+verify_jwt = false
