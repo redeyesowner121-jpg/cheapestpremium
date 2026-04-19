@@ -906,6 +906,193 @@ export type Database = {
         }
         Relationships: []
       }
+      netflix_accounts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          label: string | null
+          max_users: number
+          notes: string | null
+          password: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          label?: string | null
+          max_users?: number
+          notes?: string | null
+          password: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          label?: string | null
+          max_users?: number
+          notes?: string | null
+          password?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      netflix_assignments: {
+        Row: {
+          buyer_telegram_id: number
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          netflix_account_id: string
+          order_id: string | null
+          product_name: string | null
+        }
+        Insert: {
+          buyer_telegram_id: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          netflix_account_id: string
+          order_id?: string | null
+          product_name?: string | null
+        }
+        Update: {
+          buyer_telegram_id?: number
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          netflix_account_id?: string
+          order_id?: string | null
+          product_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "netflix_assignments_netflix_account_id_fkey"
+            columns: ["netflix_account_id"]
+            isOneToOne: false
+            referencedRelation: "netflix_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      netflix_bot_state: {
+        Row: {
+          id: number
+          last_error: string | null
+          last_message_id: string | null
+          last_polled_at: string
+          poll_count: number
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          last_error?: string | null
+          last_message_id?: string | null
+          last_polled_at?: string
+          poll_count?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          last_error?: string | null
+          last_message_id?: string | null
+          last_polled_at?: string
+          poll_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      netflix_bot_users: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          is_blocked: boolean
+          last_active: string
+          telegram_id: number
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          is_blocked?: boolean
+          last_active?: string
+          telegram_id: number
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          is_blocked?: boolean
+          last_active?: string
+          telegram_id?: number
+          username?: string | null
+        }
+        Relationships: []
+      }
+      netflix_otp_logs: {
+        Row: {
+          created_at: string
+          email_from: string | null
+          email_received_at: string | null
+          email_subject: string | null
+          forward_status: string
+          forwarded_to_telegram_ids: number[] | null
+          id: string
+          netflix_account_id: string | null
+          netflix_email: string
+          otp_code: string | null
+          otp_link: string | null
+          raw_message_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_from?: string | null
+          email_received_at?: string | null
+          email_subject?: string | null
+          forward_status?: string
+          forwarded_to_telegram_ids?: number[] | null
+          id?: string
+          netflix_account_id?: string | null
+          netflix_email: string
+          otp_code?: string | null
+          otp_link?: string | null
+          raw_message_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_from?: string | null
+          email_received_at?: string | null
+          email_subject?: string | null
+          forward_status?: string
+          forwarded_to_telegram_ids?: number[] | null
+          id?: string
+          netflix_account_id?: string | null
+          netflix_email?: string
+          otp_code?: string | null
+          otp_link?: string | null
+          raw_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "netflix_otp_logs_netflix_account_id_fkey"
+            columns: ["netflix_account_id"]
+            isOneToOne: false
+            referencedRelation: "netflix_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
