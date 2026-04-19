@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
 
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const OUTLOOK_KEY = Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_1') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY');
+    const OUTLOOK_KEY = Deno.env.get('MICROSOFT_OUTLOOK_API_KEY') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_1');
     if (!LOVABLE_API_KEY || !OUTLOOK_KEY) {
       return new Response(JSON.stringify({ error: 'Email not configured' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
