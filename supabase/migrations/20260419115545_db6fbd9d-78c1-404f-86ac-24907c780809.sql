@@ -1,0 +1,1 @@
+UPDATE public.redeem_codes SET code = upper(code) WHERE code != upper(code);
