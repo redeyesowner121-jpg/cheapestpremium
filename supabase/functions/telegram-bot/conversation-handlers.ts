@@ -25,6 +25,15 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Redeem gift code (entered after /redeem prompt)
+  if (state.step === "awaiting_redeem_code" && text.trim()) {
+    const { processRedeemCode } = await import("./redeem-handler.ts");
+    const { getUserLang } = await import("./db-helpers.ts");
+    const lang = await getUserLang(supabase, userId);
+    await processRedeemCode(token, supabase, chatId, userId, lang || "en", text.trim());
+    return;
+  }
+
   // Binance Order ID step (purchase flow)
   if (state.step === "binance_awaiting_order_id" && text.trim()) {
     const binanceOrderId = text.trim();

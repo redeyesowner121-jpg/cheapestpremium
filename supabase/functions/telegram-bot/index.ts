@@ -390,6 +390,13 @@ Deno.serve(async (req) => {
               await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang);
             }
             break;
+          case "/redeem": {
+            if (isGiveaway) break;
+            const { handleRedeemCommand } = await import("./redeem-handler.ts");
+            const inlineCode = parts.slice(1).join(" ").trim();
+            await handleRedeemCommand(BOT_TOKEN, supabase, chatId, userId, lang, inlineCode);
+            break;
+          }
           case "/users": {
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAllUsers(BOT_TOKEN, supabase, chatId, 0); break;
