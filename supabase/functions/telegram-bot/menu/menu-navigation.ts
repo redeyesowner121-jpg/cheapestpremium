@@ -52,7 +52,7 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
       { text: `🎁 ${t("refer_earn", lang)}`, callback_data: "refer_earn", style: "primary" },
     ],
     [
-      { text: lang === "bn" ? "⭐ রিভিউ" : "⭐ Reviews", url: "https://t.me/RKRxProofs", style: "success" },
+      { text: lang === "bn" ? "⭐ রিভিউ" : "⭐ Reviews", callback_data: "show_reviews", style: "success" },
       { text: `📞 ${t("support", lang)}`, callback_data: "support", style: "danger" },
     ],
   ];
