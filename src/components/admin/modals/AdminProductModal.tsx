@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 import VariationItem from './VariationItem';
 import AddVariationForm from './AddVariationForm';
+import VariationDeliveryManager from './VariationDeliveryManager';
 
 const QUICK_VARIATION_TEMPLATES = [
   { name: '1 Month', price: '49', original_price: '', reseller_price: '' },
@@ -523,12 +524,16 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
             <div className="space-y-2 mb-3">
               <AnimatePresence mode="popLayout">
                 {existingVariations.map((v) => (
-                  <VariationItem
-                    key={v.id}
-                    variation={v}
-                    onEdit={handleEditVariation}
-                    onDelete={handleDeleteVariation}
-                  />
+                  <div key={v.id}>
+                    <VariationItem
+                      variation={v}
+                      onEdit={handleEditVariation}
+                      onDelete={handleDeleteVariation}
+                    />
+                    {existingVariations.length >= 2 && (
+                      <VariationDeliveryManager variation={{ ...v, product_id: editingProduct?.id }} />
+                    )}
+                  </div>
                 ))}
                 {pendingVariations.map((v, idx) => (
                   <VariationItem

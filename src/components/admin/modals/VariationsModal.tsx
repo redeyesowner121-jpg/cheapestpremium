@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 import VariationItem from './VariationItem';
 import AddVariationForm from './AddVariationForm';
+import VariationDeliveryManager from './VariationDeliveryManager';
 
 interface VariationsModalProps {
   open: boolean;
@@ -104,7 +105,12 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
             {variations.map((v) => (
-              <VariationItem key={v.id} variation={v} onEdit={handleEdit} onDelete={handleDelete} />
+              <div key={v.id}>
+                <VariationItem variation={v} onEdit={handleEdit} onDelete={handleDelete} />
+                {variations.length >= 2 && (
+                  <VariationDeliveryManager variation={{ ...v, product_id: product.id }} />
+                )}
+              </div>
             ))}
           </AnimatePresence>
 

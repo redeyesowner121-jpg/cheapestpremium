@@ -21,12 +21,9 @@ export async function resolveAccessLink(
   telegramOrderId?: string,
   quantity: number = 1,
 ): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean }> {
-  void orderId;
-  void telegramOrderId;
-
   const { data: product } = await supabase
     .from("products")
-    .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website")
+    .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website, name")
     .eq("id", productId)
     .single();
 
@@ -36,21 +33,61 @@ export async function resolveAccessLink(
   const showInWebsite = product.show_link_in_website !== false;
   const qty = Math.max(1, Math.min(1000, Math.floor(quantity || 1)));
 
-  if (product.delivery_mode === "unique") {
-    console.log("[UNIQUE-DELIVERY] Product", productId, "qty=", qty, "delivery_mode=unique");
+  // Try to resolve variation from order's product_name (e.g. "Netflix - 1 Month")
+  let variationId: string | null = null;
+  let variationDeliveryMode: string | null = null;
+  try {
+    let orderProductName: string | null = null;
+    if (orderId) {
+      const { data: o } = await supabase.from("orders").select("product_name").eq("id", orderId).single();
+      orderProductName = o?.product_name || null;
+    } else if (telegramOrderId) {
+      const { data: o } = await supabase.from("telegram_orders").select("product_name").eq("id", telegramOrderId).single();
+      orderProductName = o?.product_name || null;
+    }
+    if (orderProductName) {
+      const { data: vars } = await supabase
+        .from("product_variations")
+        .select("id, name, delivery_mode")
+        .eq("product_id", productId)
+        .eq("is_active", true);
+      if (vars?.length) {
+        // Match longest variation name found in order_product_name
+        const matched = vars
+          .filter((v: any) => orderProductName!.toLowerCase().includes(v.name.toLowerCase()))
+          .sort((a: any, b: any) => b.name.length - a.name.length)[0];
+        if (matched) {
+          variationId = matched.id;
+          variationDeliveryMode = matched.delivery_mode;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[DELIVERY] variation resolve skipped:", e);
+  }
+
+  const useVariationStock = variationId && variationDeliveryMode === "unique";
+  const useProductStock = !useVariationStock && product.delivery_mode === "unique";
+
+  if (useVariationStock || useProductStock) {
+    console.log("[UNIQUE-DELIVERY] Product", productId, "variation", variationId, "qty=", qty);
     const consumedLinks: string[] = [];
 
     for (let i = 0; i < qty; i++) {
       let consumedThis: string | null = null;
       for (let attempt = 0; attempt < 3; attempt++) {
-        const { data: stockItems, error: fetchErr } = await supabase
+        let q = supabase
           .from("product_stock_items")
           .select("id, access_link")
-          .eq("product_id", productId)
           .eq("is_used", false)
           .order("created_at", { ascending: true })
           .limit(1);
-
+        if (useVariationStock) {
+          q = q.eq("variation_id", variationId);
+        } else {
+          q = q.eq("product_id", productId).is("variation_id", null);
+        }
+        const { data: stockItems, error: fetchErr } = await q;
         if (fetchErr || !stockItems?.length) break;
 
         const stockItem = stockItems[0];
