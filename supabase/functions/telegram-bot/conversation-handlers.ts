@@ -17,6 +17,25 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Custom quantity input (purchase flow)
+  if (state.step === "awaiting_custom_quantity" && text.trim()) {
+    const { getUserLang } = await import("./db-helpers.ts");
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    const qty = parseInt(text.trim(), 10);
+    if (!Number.isFinite(qty) || qty < 1 || qty > 1000) {
+      await sendMessage(token, chatId,
+        lang === "bn"
+          ? "❌ অবৈধ পরিমাণ। ১ থেকে ১০০০ এর মধ্যে একটি সংখ্যা পাঠাও।"
+          : "❌ Invalid quantity. Please send a number between 1 and 1000.",
+      );
+      return;
+    }
+    const telegramUser = msg.from || { id: userId };
+    const { proceedToPaymentWithQuantity } = await import("./payment/buy-handlers.ts");
+    await proceedToPaymentWithQuantity(token, supabase, chatId, telegramUser, state.data as any, qty, lang);
+    return;
+  }
+
   // Child bot setting edit
   if (state.step === "child_bot_edit_setting" && text.trim()) {
     const { saveChildBotSettingHandler } = await import("./admin-handlers.ts");
