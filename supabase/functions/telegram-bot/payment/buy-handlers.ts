@@ -99,9 +99,6 @@ export async function showQuantitySelector(
     productName, unitPrice, productId, variationId, stock, ...childBotData,
   });
 
-  const settings = await getSettings(supabase);
-  const currency = settings.currency_symbol || "₹";
-
   const quickQuantities = [1, 2, 3, 5, 10];
   const allowedQuantities = stock != null ? quickQuantities.filter((q) => q <= stock) : quickQuantities;
   const finalQuantities = allowedQuantities.length ? allowedQuantities : [1];
@@ -110,7 +107,7 @@ export async function showQuantitySelector(
   for (let i = 0; i < finalQuantities.length; i += 3) {
     rows.push(
       finalQuantities.slice(i, i + 3).map((q) => ({
-        text: `${q}× — ${currency}${unitPrice * q}`,
+        text: `${q}×`,
         callback_data: `qty_${q}`,
         style: "primary",
       })),
@@ -120,13 +117,9 @@ export async function showQuantitySelector(
   rows.push([{ text: lang === "bn" ? "❌ বাতিল" : "❌ Cancel", callback_data: "qty_cancel", style: "danger" }]);
 
   let text = `<b>${productName}</b>\n\n`;
-  text += lang === "bn"
-    ? `প্রতি ইউনিট মূল্য: <b>${currency}${unitPrice}</b>\n`
-    : `Unit Price: <b>${currency}${unitPrice}</b>\n`;
   if (stock != null) {
-    text += lang === "bn" ? `স্টক: <b>${stock}</b>\n` : `Stock: <b>${stock}</b>\n`;
+    text += lang === "bn" ? `স্টক: <b>${stock}</b>\n\n` : `Stock: <b>${stock}</b>\n\n`;
   }
-  text += "\n";
   text += lang === "bn"
     ? "নিচ থেকে পরিমাণ বেছে নাও অথবা কাস্টম লিখো:"
     : "Pick a quantity below, or enter a custom amount:";
