@@ -331,8 +331,8 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                       placeholder="Access Link (https://...) — supports long URLs"
                       value={productForm.access_link}
                       onChange={(e) => setProductForm({ ...productForm, access_link: e.target.value })}
-                      className="text-xs min-h-[60px] font-mono resize-y"
-                      rows={2}
+                      className="text-xs h-9 min-h-[36px] max-h-[36px] py-2 font-mono resize-none whitespace-nowrap overflow-x-auto"
+                      rows={1}
                     />
                     {/* Show link visibility toggles only when a link is entered */}
                     {productForm.access_link?.trim() && (
