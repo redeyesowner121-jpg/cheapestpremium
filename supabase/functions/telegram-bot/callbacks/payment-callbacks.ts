@@ -95,7 +95,7 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "wallet_pay_confirm") {
       await deleteConversationState(supabase, userId);
-      await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId);
+      await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId, convState.data.childBotId, convState.data.childBotRevenue, convState.data.quantity || 1);
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else {

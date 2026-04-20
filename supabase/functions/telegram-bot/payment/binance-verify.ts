@@ -7,7 +7,7 @@ import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any, binanceOrderId: string
 ) {
-  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = stateData;
+  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity = 1 } = stateData;
   const isChildBot = !!childBotId;
 
   await sendMessage(token, chatId, "🔍 Verifying payment...");
@@ -63,21 +63,23 @@ export async function handleBinanceVerify(
       }
 
       const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolved = await resolveAccessLink(supabase, productId, order?.id);
+      const resolved = await resolveAccessLink(supabase, productId, order?.id, undefined, quantity);
 
-      let successText = `✅ <b>Order Successful!</b>\n\n📦 Product: <b>${productName}</b>\n💵 Amount: <b>$${amountUsd}</b> (₹${price})\n🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
+      let successText = `✅ <b>Order Successful!</b>\n\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: <b>$${amountUsd}</b> (₹${price})\n🆔 Order: <b>${order?.id?.slice(0, 8) || "N/A"}</b>\n`;
       if (walletDeduction > 0) successText += `💰 Wallet Used: ₹${walletDeduction}\n`;
       await sendMessage(token, chatId, successText);
 
-      if (resolved.link && resolved.showInBot) {
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
+      if (resolved.links.length && resolved.showInBot) {
+        for (const lnk of resolved.links) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, lnk, productName, "en");
+        }
       }
       await setConversationState(supabase, telegramUser.id, "idle", {});
 
       const mainToken = isChildBot ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
       try {
         await notifyAllAdmins(mainToken, supabase,
-          `💰 <b>Binance Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Order ID: ${binanceOrderId})${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+          `💰 <b>Binance Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: $${amountUsd} (₹${price})\n✅ Auto-verified (Order ID: ${binanceOrderId})${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
         );
       } catch (e) { console.error("Admin notify error:", e); }
 

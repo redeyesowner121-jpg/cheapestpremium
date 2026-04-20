@@ -7,7 +7,7 @@ import { syncPurchaseToProfile } from "./sync-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 import { getChildBotContext } from "../child-context.ts";
 
-export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, childBotId?: string, childBotRevenue?: number) {
+export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, childBotId?: string, childBotRevenue?: number, quantity: number = 1) {
   const wallet = await getWallet(supabase, userId);
   if (!wallet || wallet.balance < amount) {
     await sendMessage(token, chatId, lang === "bn" ? "❌ পর্যাপ্ত ব্যালেন্স নেই।" : "❌ Insufficient wallet balance.");
@@ -76,9 +76,11 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   let websiteAccessLink: string | undefined;
   if (productId) {
     const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-    const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id);
-    if (resolved.link && resolved.showInBot) {
-      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, productName, lang);
+    const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id, quantity);
+    if (resolved.links.length && resolved.showInBot) {
+      for (const lnk of resolved.links) {
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, lnk, productName, lang);
+      }
     }
     if (resolved.link && resolved.showInWebsite) {
       websiteAccessLink = resolved.link;
@@ -87,7 +89,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 
   const mainToken = isChildBotOrder ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
   await notifyAllAdmins(mainToken, supabase,
-    `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+    `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
   await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink);

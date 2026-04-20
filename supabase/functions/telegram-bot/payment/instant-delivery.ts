@@ -18,8 +18,9 @@ export async function resolveAccessLink(
   supabase: any,
   productId: string,
   orderId?: string,
-  telegramOrderId?: string
-): Promise<{ link: string | null; showInBot: boolean; showInWebsite: boolean }> {
+  telegramOrderId?: string,
+  quantity: number = 1,
+): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean }> {
   void orderId;
   void telegramOrderId;
 
@@ -29,56 +30,56 @@ export async function resolveAccessLink(
     .eq("id", productId)
     .single();
 
-  if (!product) return { link: null, showInBot: true, showInWebsite: true };
+  if (!product) return { link: null, links: [], showInBot: true, showInWebsite: true };
 
   const showInBot = product.show_link_in_bot !== false;
   const showInWebsite = product.show_link_in_website !== false;
+  const qty = Math.max(1, Math.min(1000, Math.floor(quantity || 1)));
 
   if (product.delivery_mode === "unique") {
-    console.log("[UNIQUE-DELIVERY] Product", productId, "delivery_mode=unique, attempting stock claim");
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const { data: stockItems, error: fetchErr } = await supabase
-        .from("product_stock_items")
-        .select("id, access_link")
-        .eq("product_id", productId)
-        .eq("is_used", false)
-        .order("created_at", { ascending: true })
-        .limit(1);
+    console.log("[UNIQUE-DELIVERY] Product", productId, "qty=", qty, "delivery_mode=unique");
+    const consumedLinks: string[] = [];
 
-      console.log("[UNIQUE-DELIVERY] Attempt", attempt, "stockItems:", stockItems?.length, "fetchErr:", fetchErr);
+    for (let i = 0; i < qty; i++) {
+      let consumedThis: string | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const { data: stockItems, error: fetchErr } = await supabase
+          .from("product_stock_items")
+          .select("id, access_link")
+          .eq("product_id", productId)
+          .eq("is_used", false)
+          .order("created_at", { ascending: true })
+          .limit(1);
 
-      if (!stockItems?.length) {
-        console.log("[UNIQUE-DELIVERY] No stock items available for product:", productId);
-        return { link: null, showInBot, showInWebsite };
+        if (fetchErr || !stockItems?.length) break;
+
+        const stockItem = stockItems[0];
+        const { data: consumedRows, error: consumeError } = await supabase
+          .from("product_stock_items")
+          .delete()
+          .eq("id", stockItem.id)
+          .eq("is_used", false)
+          .select("access_link");
+
+        if (consumeError) {
+          console.error("[UNIQUE-DELIVERY] consume failed:", consumeError);
+          break;
+        }
+
+        const link = consumedRows?.[0]?.access_link;
+        if (link) { consumedThis = link; break; }
       }
-
-      const stockItem = stockItems[0];
-      const { data: consumedRows, error: consumeError } = await supabase
-        .from("product_stock_items")
-        .delete()
-        .eq("id", stockItem.id)
-        .eq("is_used", false)
-        .select("access_link");
-
-      console.log("[UNIQUE-DELIVERY] Delete result - consumedRows:", JSON.stringify(consumedRows), "error:", consumeError);
-
-      if (consumeError) {
-        console.error("[UNIQUE-DELIVERY] Unique stock consume failed:", consumeError);
-        return { link: null, showInBot, showInWebsite };
-      }
-
-      const consumedLink = consumedRows?.[0]?.access_link;
-      if (consumedLink) {
-        console.log("[UNIQUE-DELIVERY] Successfully consumed stock item, link:", consumedLink.substring(0, 30) + "...");
-        return { link: consumedLink, showInBot, showInWebsite };
-      }
+      if (!consumedThis) break;
+      consumedLinks.push(consumedThis);
     }
 
-    console.log("[UNIQUE-DELIVERY] Retries exhausted for product:", productId);
-    return { link: null, showInBot, showInWebsite };
+    if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite };
+    return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite };
   }
 
-  return { link: product.access_link || null, showInBot, showInWebsite };
+  // repeated mode: same link for all units
+  const link = product.access_link || null;
+  return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite };
 }
 
 /**

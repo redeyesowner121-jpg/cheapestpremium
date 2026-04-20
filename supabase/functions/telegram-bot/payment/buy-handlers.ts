@@ -155,13 +155,15 @@ export async function proceedToPaymentWithQuantity(
   await showPaymentMethodChoice(
     token, supabase, chatId, telegramUser,
     labeledName, totalPrice, state.productId, state.variationId, lang,
+    quantity, state.unitPrice,
   );
 }
 
 // Step 1: Show Binance / UPI choice (or wallet pay if balance covers it)
 async function showPaymentMethodChoice(
   token: string, supabase: any, chatId: number, telegramUser: any,
-  productName: string, price: number, productId: string, variationId: string | null, lang: string
+  productName: string, price: number, productId: string, variationId: string | null, lang: string,
+  quantity: number = 1, unitPrice?: number,
 ) {
   const userId = telegramUser.id;
   const wallet = await ensureWallet(supabase, userId);
@@ -197,7 +199,7 @@ async function showPaymentMethodChoice(
   // If wallet covers it, go straight to wallet pay
   if (finalAmount === 0) {
     await setConversationState(supabase, userId, "wallet_pay_confirm", {
-      productName, price, productId, variationId, ...childBotData,
+      productName, price, productId, variationId, quantity, unitPrice, ...childBotData,
     });
     text += "\nClick below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
@@ -210,7 +212,7 @@ async function showPaymentMethodChoice(
 
   // Store purchase data for later
   await setConversationState(supabase, userId, "choose_payment_method", {
-    productName, price, finalAmount, productId, variationId, walletDeduction, autoPayOnly, ...childBotData,
+    productName, price, finalAmount, productId, variationId, walletDeduction, autoPayOnly, quantity, unitPrice, ...childBotData,
   });
 
   text += "\nChoose payment method:";
@@ -239,7 +241,7 @@ export async function showBinancePayment(
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
   const amountUsd = inrToUsd(finalAmount);
 
@@ -261,7 +263,7 @@ export async function showBinancePayment(
   await setConversationState(supabase, userId, "binance_awaiting_order_id", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    amountUsd,
+    amountUsd, quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
@@ -330,7 +332,7 @@ export async function showRazorpayUpiPayment(
   const userId = telegramUser.id;
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
   const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
 
@@ -353,7 +355,7 @@ export async function showRazorpayUpiPayment(
   await setConversationState(supabase, userId, "razorpay_payment_pending", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    payClickedAt,
+    payClickedAt, quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
@@ -386,10 +388,11 @@ export async function showManualUpiPayment(
   const currency = settings.currency_symbol || "₹";
   const upiId = settings.upi_id || "8900684167@ibl";
   const upiName = settings.upi_name || "Asif Ikbal Rubaiul Islam";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
   await setConversationState(supabase, userId, "awaiting_screenshot", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
+    quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
