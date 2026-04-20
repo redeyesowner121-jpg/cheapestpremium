@@ -68,29 +68,72 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     await creditChildBotOwnerCommission(supabase, effectiveChildBotId, order.id, productName, amount, userId);
   }
 
-  // Auto-confirmed - send delivery
-  await sendMessage(token, chatId,
-    t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
-  );
-
+  // Try auto-delivery
   let websiteAccessLink: string | undefined;
+  let deliveredCount = 0;
+  let isManualDelivery = false;
+
   if (productId) {
     const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
     const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id, quantity);
     if (resolved.links.length && resolved.showInBot) {
       for (const lnk of resolved.links) {
         await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, lnk, productName, lang);
+        deliveredCount++;
       }
     }
     if (resolved.link && resolved.showInWebsite) {
       websiteAccessLink = resolved.link;
     }
+    // No links available = manual delivery needed (out of stock OR no access_link configured)
+    if (deliveredCount === 0) {
+      isManualDelivery = true;
+    }
+  } else {
+    isManualDelivery = true;
+  }
+
+  if (isManualDelivery) {
+    // Mark order as pending for admin manual fulfillment
+    if (order?.id) {
+      try {
+        await supabase.from("telegram_orders").update({ status: "pending" }).eq("id", order.id);
+      } catch (e) { console.error("Order status update error:", e); }
+    }
+    await sendMessage(token, chatId,
+      lang === "bn"
+        ? `✅ <b>পেমেন্ট সফল!</b>\n\n💰 ₹${amount} ওয়ালেট থেকে কাটা হয়েছে।\n📦 ${productName}\n\n⏳ অ্যাডমিন আপনার অর্ডার শীঘ্রই প্রসেস করবে। আপডেট পাবেন।`
+        : `✅ <b>Payment Successful!</b>\n\n💰 ₹${amount} deducted from wallet.\n📦 ${productName}\n\n⏳ Admin will process your order shortly. You'll be notified.`
+    );
+  } else {
+    await sendMessage(token, chatId,
+      t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
+    );
   }
 
   const mainToken = isChildBotOrder ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
-  await notifyAllAdmins(mainToken, supabase,
-    `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
-  );
+  const orderShortId = order?.id?.toString().slice(0, 8) || "N/A";
+  const unitPrice = quantity > 0 ? (amount / quantity).toFixed(2) : amount;
+
+  if (isManualDelivery) {
+    // Admin needs to manually deliver — send action buttons
+    const adminMsg = `🛒 <b>Manual Delivery Order (Wallet Pay)</b>${isChildBotOrder ? " <i>via Child Bot</i>" : ""}\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💲 Unit Price: <b>₹${unitPrice}</b>\n💰 Total Paid: <b>₹${amount}</b> (wallet)\n${isChildBotOrder ? `🤖 Child Bot: <code>${effectiveChildBotId}</code>\n` : ""}🆔 Order: <code>${orderShortId}</code>\n\n⚠️ <b>Admin action required — deliver manually.</b>`;
+    await notifyAllAdmins(mainToken, supabase, adminMsg, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ Mark Delivered", callback_data: `admin_ship_${order?.id}` },
+            { text: "❌ Reject & Refund", callback_data: `admin_reject_${order?.id}` },
+          ],
+          [{ text: "💬 Chat with User", callback_data: `admin_chat_${userId}` }],
+        ],
+      },
+    });
+  } else {
+    await notifyAllAdmins(mainToken, supabase,
+      `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${amount}\n✅ Auto-confirmed & delivered${isChildBotOrder ? `\n🤖 Child Bot: <code>${effectiveChildBotId}</code>` : ""}\n🆔 Order: <code>${orderShortId}</code>`
+    );
+  }
 
   await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink);
 
