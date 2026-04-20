@@ -155,13 +155,15 @@ export async function proceedToPaymentWithQuantity(
   await showPaymentMethodChoice(
     token, supabase, chatId, telegramUser,
     labeledName, totalPrice, state.productId, state.variationId, lang,
+    quantity, state.unitPrice,
   );
 }
 
 // Step 1: Show Binance / UPI choice (or wallet pay if balance covers it)
 async function showPaymentMethodChoice(
   token: string, supabase: any, chatId: number, telegramUser: any,
-  productName: string, price: number, productId: string, variationId: string | null, lang: string
+  productName: string, price: number, productId: string, variationId: string | null, lang: string,
+  quantity: number = 1, unitPrice?: number,
 ) {
   const userId = telegramUser.id;
   const wallet = await ensureWallet(supabase, userId);
