@@ -332,7 +332,7 @@ export async function showRazorpayUpiPayment(
   const userId = telegramUser.id;
   const settings = await getSettings(supabase);
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
   const razorpayMeUrl = "https://razorpay.me/@asifikbalrubaiulislam";
 
@@ -355,7 +355,7 @@ export async function showRazorpayUpiPayment(
   await setConversationState(supabase, userId, "razorpay_payment_pending", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    payClickedAt,
+    payClickedAt, quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
