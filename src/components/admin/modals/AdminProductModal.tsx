@@ -403,11 +403,11 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                     {/* Add new stock item */}
                     <div className="flex gap-2">
                       <Textarea
-                        placeholder={deliveryType === 'credentials' ? 'ID: user | Password: pass' : 'https://link... (supports long URLs)'}
+                        placeholder={deliveryType === 'credentials' ? 'ID: user | Password: pass' : 'https://link...'}
                         value={newStockLink}
                         onChange={(e) => setNewStockLink(e.target.value)}
-                        className="text-xs min-h-[50px] font-mono resize-y"
-                        rows={2}
+                        className="text-xs h-9 min-h-[36px] max-h-[36px] py-2 font-mono resize-none whitespace-nowrap overflow-x-auto"
+                        rows={1}
                       />
                       <Button size="sm" onClick={handleAddStockItem} className="shrink-0">
                         <Plus className="w-3.5 h-3.5" />
