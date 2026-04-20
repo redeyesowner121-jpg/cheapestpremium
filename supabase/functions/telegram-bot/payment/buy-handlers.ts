@@ -388,10 +388,11 @@ export async function showManualUpiPayment(
   const currency = settings.currency_symbol || "₹";
   const upiId = settings.upi_id || "8900684167@ibl";
   const upiName = settings.upi_name || "Asif Ikbal Rubaiul Islam";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
   await setConversationState(supabase, userId, "awaiting_screenshot", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
+    quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
