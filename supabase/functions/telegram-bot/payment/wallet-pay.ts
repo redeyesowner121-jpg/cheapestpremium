@@ -7,7 +7,7 @@ import { syncPurchaseToProfile } from "./sync-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 import { getChildBotContext } from "../child-context.ts";
 
-export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, childBotId?: string, childBotRevenue?: number) {
+export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, childBotId?: string, childBotRevenue?: number, quantity: number = 1) {
   const wallet = await getWallet(supabase, userId);
   if (!wallet || wallet.balance < amount) {
     await sendMessage(token, chatId, lang === "bn" ? "❌ পর্যাপ্ত ব্যালেন্স নেই।" : "❌ Insufficient wallet balance.");
