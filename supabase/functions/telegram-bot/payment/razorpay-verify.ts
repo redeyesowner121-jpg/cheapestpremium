@@ -82,19 +82,21 @@ export async function handleRazorpayVerify(
       }
 
       const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      const resolved = await resolveAccessLink(supabase, productId, order?.id);
+      const resolved = await resolveAccessLink(supabase, productId, order?.id, undefined, quantity);
 
-      await sendMessage(token, chatId, `<b>✅ Payment Verified!</b>\n\nProduct: <b>${productName}</b>\nAmount: <b>₹${finalAmount}</b>\n`);
+      await sendMessage(token, chatId, `<b>✅ Payment Verified!</b>\n\nProduct: <b>${productName}</b>\nQuantity: <b>${quantity}</b>\nAmount: <b>₹${finalAmount}</b>\n`);
 
-      if (resolved.link && resolved.showInBot) {
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.link, productName, "en");
+      if (resolved.links.length && resolved.showInBot) {
+        for (const lnk of resolved.links) {
+          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, lnk, productName, "en");
+        }
       }
       await setConversationState(supabase, telegramUser.id, "idle", {});
 
       const mainToken = isChildBot ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
       const { notifyAllAdmins: notifyAdmins } = await import("../db-helpers.ts");
       await notifyAdmins(mainToken, supabase,
-        `💰 <b>Razorpay Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n💵 Amount: ₹${finalAmount}\n✅ Auto-verified${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+        `💰 <b>Razorpay Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${finalAmount}\n✅ Auto-verified${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
       );
 
       try {
