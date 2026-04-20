@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 import VariationItem from './VariationItem';
 import AddVariationForm from './AddVariationForm';
+import VariationDeliveryManager from './VariationDeliveryManager';
 
 const QUICK_VARIATION_TEMPLATES = [
   { name: '1 Month', price: '49', original_price: '', reseller_price: '' },
