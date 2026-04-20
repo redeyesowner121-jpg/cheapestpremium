@@ -7,7 +7,7 @@ import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any, binanceOrderId: string
 ) {
-  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = stateData;
+  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity = 1 } = stateData;
   const isChildBot = !!childBotId;
 
   await sendMessage(token, chatId, "🔍 Verifying payment...");
