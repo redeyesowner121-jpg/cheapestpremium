@@ -48,7 +48,7 @@ export async function handleBuyProduct(token: string, supabase: any, chatId: num
     buyPrice = childBotPrice(product.reseller_price, product.price);
   }
 
-  await showPaymentMethodChoice(token, supabase, chatId, telegramUser, product.name, buyPrice, product.id, null, lang);
+  await showQuantitySelector(token, supabase, chatId, telegramUser, product.name, buyPrice, product.id, null, product.stock, lang);
 }
 
 export async function handleBuyVariation(token: string, supabase: any, chatId: number, variationId: string, telegramUser: any, lang: string) {
@@ -80,7 +80,82 @@ export async function handleBuyVariation(token: string, supabase: any, chatId: n
     price = isReseller ? (variation.reseller_price || variation.price) : variation.price;
   }
 
-  await showPaymentMethodChoice(token, supabase, chatId, telegramUser, productName, price, variation.product_id, variation.id, lang);
+  await showQuantitySelector(token, supabase, chatId, telegramUser, productName, price, variation.product_id, variation.id, stock ?? null, lang);
+}
+
+// ===== QUANTITY SELECTOR =====
+// Shows quick-pick quantity buttons and a custom-input option.
+export async function showQuantitySelector(
+  token: string, supabase: any, chatId: number, telegramUser: any,
+  productName: string, unitPrice: number, productId: string, variationId: string | null,
+  stock: number | null, lang: string,
+) {
+  const userId = telegramUser.id;
+  const childCtx = getChildBotContext();
+  const childBotData = childCtx ? { childBotId: childCtx.id, childBotRevenue: childCtx.revenue_percent } : {};
+
+  // Save selection context for both quick-pick + custom-typed quantity.
+  await setConversationState(supabase, userId, "awaiting_quantity_choice", {
+    productName, unitPrice, productId, variationId, stock, ...childBotData,
+  });
+
+  const settings = await getSettings(supabase);
+  const currency = settings.currency_symbol || "₹";
+
+  const quickQuantities = [1, 2, 3, 5, 10];
+  const allowedQuantities = stock != null ? quickQuantities.filter((q) => q <= stock) : quickQuantities;
+  const finalQuantities = allowedQuantities.length ? allowedQuantities : [1];
+
+  const rows: any[][] = [];
+  for (let i = 0; i < finalQuantities.length; i += 3) {
+    rows.push(
+      finalQuantities.slice(i, i + 3).map((q) => ({
+        text: `${q}× — ${currency}${unitPrice * q}`,
+        callback_data: `qty_${q}`,
+        style: "primary",
+      })),
+    );
+  }
+  rows.push([{ text: lang === "bn" ? "✏️ কাস্টম পরিমাণ" : "✏️ Custom Quantity", callback_data: "qty_custom", style: "success" }]);
+  rows.push([{ text: lang === "bn" ? "❌ বাতিল" : "❌ Cancel", callback_data: "qty_cancel", style: "danger" }]);
+
+  let text = `<b>${productName}</b>\n\n`;
+  text += lang === "bn"
+    ? `প্রতি ইউনিট মূল্য: <b>${currency}${unitPrice}</b>\n`
+    : `Unit Price: <b>${currency}${unitPrice}</b>\n`;
+  if (stock != null) {
+    text += lang === "bn" ? `স্টক: <b>${stock}</b>\n` : `Stock: <b>${stock}</b>\n`;
+  }
+  text += "\n";
+  text += lang === "bn"
+    ? "নিচ থেকে পরিমাণ বেছে নাও অথবা কাস্টম লিখো:"
+    : "Pick a quantity below, or enter a custom amount:";
+
+  await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: rows } });
+}
+
+// Called once a quantity has been picked (button or custom-typed).
+export async function proceedToPaymentWithQuantity(
+  token: string, supabase: any, chatId: number, telegramUser: any,
+  state: { productName: string; unitPrice: number; productId: string; variationId: string | null; stock: number | null; childBotId?: string; childBotRevenue?: number },
+  quantity: number, lang: string,
+) {
+  if (!Number.isFinite(quantity) || quantity < 1 || quantity > 1000) {
+    await sendMessage(token, chatId, lang === "bn" ? "❌ অবৈধ পরিমাণ। ১ থেকে ১০০০ এর মধ্যে দাও।" : "❌ Invalid quantity. Enter a number between 1 and 1000.");
+    return;
+  }
+  if (state.stock != null && quantity > state.stock) {
+    await sendMessage(token, chatId, lang === "bn" ? `❌ স্টকে শুধু ${state.stock} টা আছে।` : `❌ Only ${state.stock} in stock.`);
+    return;
+  }
+
+  const totalPrice = state.unitPrice * quantity;
+  const labeledName = quantity > 1 ? `${state.productName} × ${quantity}` : state.productName;
+
+  await showPaymentMethodChoice(
+    token, supabase, chatId, telegramUser,
+    labeledName, totalPrice, state.productId, state.variationId, lang,
+  );
 }
 
 // Step 1: Show Binance / UPI choice (or wallet pay if balance covers it)
