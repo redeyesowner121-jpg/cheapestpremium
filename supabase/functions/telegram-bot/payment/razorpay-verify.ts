@@ -7,7 +7,7 @@ import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 export async function handleRazorpayVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any
 ) {
-  const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount, childBotId, childBotRevenue } = stateData;
+  const { paymentId, payClickedAt, productName, productId, variationId, walletDeduction, price, finalAmount, childBotId, childBotRevenue, quantity = 1 } = stateData;
   const isChildBot = !!childBotId;
 
   await sendMessage(token, chatId, "Verifying payment...");
