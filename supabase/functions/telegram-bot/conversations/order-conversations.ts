@@ -67,7 +67,9 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
   } catch (e) { console.error("User confirm msg error:", e); }
 
   // Build admin message
-  let adminMsg = `📩 <b>Payment Screenshot</b>\n\n👤 User: <b>${username}</b> (<code>${userId}</code>)\n📦 Product: <b>${orderData.productName}</b>\n💰 Total Price: <b>₹${orderData.price}</b>\n`;
+  const qty = orderData.quantity || 1;
+  const unitPrice = orderData.unitPrice || orderData.price;
+  let adminMsg = `📩 <b>Payment Screenshot</b>\n\n👤 User: <b>${username}</b> (<code>${userId}</code>)\n📦 Product: <b>${orderData.productName}</b>\n🔢 Quantity: <b>${qty}</b>\n💲 Unit Price: <b>₹${unitPrice}</b>\n💰 Total Price: <b>₹${orderData.price}</b>\n`;
   if (walletDeduction > 0) adminMsg += `💳 Wallet Deducted: <b>₹${walletDeduction}</b>\n`;
   adminMsg += `💵 UPI Paid: <b>₹${orderData.finalAmount || orderData.price}</b>\n🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`;
 
