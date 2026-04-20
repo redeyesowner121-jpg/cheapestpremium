@@ -76,9 +76,11 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   let websiteAccessLink: string | undefined;
   if (productId) {
     const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-    const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id);
-    if (resolved.link && resolved.showInBot) {
-      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.link, productName, lang);
+    const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id, quantity);
+    if (resolved.links.length && resolved.showInBot) {
+      for (const lnk of resolved.links) {
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, lnk, productName, lang);
+      }
     }
     if (resolved.link && resolved.showInWebsite) {
       websiteAccessLink = resolved.link;
@@ -87,7 +89,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 
   const mainToken = isChildBotOrder ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
   await notifyAllAdmins(mainToken, supabase,
-    `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+    `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: ${userId}\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${amount}\n✅ Auto-confirmed (wallet pay)${isChildBotOrder ? `\n🤖 Child Bot: ${effectiveChildBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
   );
 
   await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink);
