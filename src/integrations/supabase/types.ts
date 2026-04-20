@@ -1417,6 +1417,7 @@ export type Database = {
           product_id: string
           telegram_order_id: string | null
           used_at: string | null
+          variation_id: string | null
         }
         Insert: {
           access_link: string
@@ -1427,6 +1428,7 @@ export type Database = {
           product_id: string
           telegram_order_id?: string | null
           used_at?: string | null
+          variation_id?: string | null
         }
         Update: {
           access_link?: string
@@ -1437,6 +1439,7 @@ export type Database = {
           product_id?: string
           telegram_order_id?: string | null
           used_at?: string | null
+          variation_id?: string | null
         }
         Relationships: [
           {
@@ -1460,11 +1463,19 @@ export type Database = {
             referencedRelation: "telegram_orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_stock_items_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "product_variations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_variations: {
         Row: {
           created_at: string | null
+          delivery_mode: string
           id: string
           is_active: boolean | null
           name: string
@@ -1475,6 +1486,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          delivery_mode?: string
           id?: string
           is_active?: boolean | null
           name: string
@@ -1485,6 +1497,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          delivery_mode?: string
           id?: string
           is_active?: boolean | null
           name?: string
