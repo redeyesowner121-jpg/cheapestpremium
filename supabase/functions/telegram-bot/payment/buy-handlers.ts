@@ -241,7 +241,7 @@ export async function showBinancePayment(
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
   const currency = settings.currency_symbol || "₹";
-  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue } = purchaseData;
+  const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
   const amountUsd = inrToUsd(finalAmount);
 
@@ -263,7 +263,7 @@ export async function showBinancePayment(
   await setConversationState(supabase, userId, "binance_awaiting_order_id", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
     paymentId: payment?.id,
-    amountUsd,
+    amountUsd, quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
