@@ -199,7 +199,7 @@ async function showPaymentMethodChoice(
   // If wallet covers it, go straight to wallet pay
   if (finalAmount === 0) {
     await setConversationState(supabase, userId, "wallet_pay_confirm", {
-      productName, price, productId, variationId, ...childBotData,
+      productName, price, productId, variationId, quantity, unitPrice, ...childBotData,
     });
     text += "\nClick below to confirm wallet payment.";
     await sendMessage(token, chatId, text, {
@@ -212,7 +212,7 @@ async function showPaymentMethodChoice(
 
   // Store purchase data for later
   await setConversationState(supabase, userId, "choose_payment_method", {
-    productName, price, finalAmount, productId, variationId, walletDeduction, autoPayOnly, ...childBotData,
+    productName, price, finalAmount, productId, variationId, walletDeduction, autoPayOnly, quantity, unitPrice, ...childBotData,
   });
 
   text += "\nChoose payment method:";
