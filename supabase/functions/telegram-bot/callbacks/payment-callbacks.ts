@@ -52,6 +52,44 @@ export async function handlePaymentCallbacks(
   BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, lang: string
 ): Promise<boolean> {
 
+  // ===== QUANTITY SELECTION =====
+  if (data === "qty_cancel") {
+    await deleteConversationState(supabase, userId);
+    await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ বাতিল করা হয়েছে।" : "❌ Cancelled.");
+    await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+    return true;
+  }
+
+  if (data === "qty_custom") {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "awaiting_quantity_choice") {
+      const { setConversationState } = await import("../db-helpers.ts");
+      await setConversationState(supabase, userId, "awaiting_custom_quantity", convState.data);
+      await sendMessage(BOT_TOKEN, chatId,
+        lang === "bn"
+          ? "✏️ পরিমাণ লিখে পাঠাও (উদাহরণ: <code>7</code>)। বাতিল করতে /cancel।"
+          : "✏️ Send the quantity as a number (e.g. <code>7</code>). Send /cancel to abort.",
+      );
+    } else {
+      await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ।" : "❌ Session expired.");
+    }
+    return true;
+  }
+
+  if (data.startsWith("qty_")) {
+    const qty = parseInt(data.replace("qty_", ""), 10);
+    if (Number.isFinite(qty) && qty > 0) {
+      const convState = await getConversationState(supabase, userId);
+      if (convState?.step === "awaiting_quantity_choice") {
+        const { proceedToPaymentWithQuantity } = await import("../payment/buy-handlers.ts");
+        await proceedToPaymentWithQuantity(BOT_TOKEN, supabase, chatId, telegramUser, convState.data as any, qty, lang);
+      } else {
+        await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ।" : "❌ Session expired.");
+      }
+      return true;
+    }
+  }
+
   // Wallet pay confirm
   if (data === "walletpay_confirm") {
     const convState = await getConversationState(supabase, userId);
