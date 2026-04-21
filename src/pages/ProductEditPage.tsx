@@ -381,57 +381,34 @@ const ProductEditPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        {/* Pricing (auto from lowest variation) */}
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <IndianRupee className="w-4 h-4 text-primary" /> Pricing
-            <span className="text-[10px] text-muted-foreground ml-auto">1 USD = ₹{usdRate}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">Auto-synced from lowest variation</span>
           </h2>
-          {/* INR Row */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">🇮🇳 INR (₹)</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Price *</label>
-                <Input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="rounded-xl" placeholder="₹" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Original</label>
-                <Input type="number" value={form.original_price} onChange={e => setForm({ ...form, original_price: e.target.value })} className="rounded-xl" placeholder="₹" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Reseller</label>
-                <Input type="number" value={form.reseller_price} onChange={e => setForm({ ...form, reseller_price: e.target.value })} className="rounded-xl" placeholder="₹" />
-              </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Price</p>
+              <p className="text-lg font-bold text-primary">₹{form.price || '0'}</p>
+              <p className="text-xs text-muted-foreground">${form.price ? (parseFloat(form.price) / usdRate).toFixed(2) : '0'}</p>
             </div>
+            {form.original_price && (
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Original</p>
+                <p className="text-lg font-bold text-muted-foreground line-through">₹{form.original_price}</p>
+                <p className="text-xs text-muted-foreground">${(parseFloat(form.original_price) / usdRate).toFixed(2)}</p>
+              </div>
+            )}
+            {form.reseller_price && (
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Reseller</p>
+                <p className="text-lg font-bold text-foreground">₹{form.reseller_price}</p>
+                <p className="text-xs text-muted-foreground">${(parseFloat(form.reseller_price) / usdRate).toFixed(2)}</p>
+              </div>
+            )}
           </div>
-          {/* USD Row */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">🇺🇸 USD ($)</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Price</label>
-                <Input type="number" step="0.01"
-                  value={form.price ? (parseFloat(form.price) / usdRate).toFixed(2) : ''}
-                  onChange={e => setForm({ ...form, price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
-                  className="rounded-xl" placeholder="$" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Original</label>
-                <Input type="number" step="0.01"
-                  value={form.original_price ? (parseFloat(form.original_price) / usdRate).toFixed(2) : ''}
-                  onChange={e => setForm({ ...form, original_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
-                  className="rounded-xl" placeholder="$" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Reseller</label>
-                <Input type="number" step="0.01"
-                  value={form.reseller_price ? (parseFloat(form.reseller_price) / usdRate).toFixed(2) : ''}
-                  onChange={e => setForm({ ...form, reseller_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
-                  className="rounded-xl" placeholder="$" />
-              </div>
-            </div>
-          </div>
+          <p className="text-[10px] text-muted-foreground">1 USD = ₹{usdRate} • Edit prices in Variations below</p>
         </section>
 
         {/* Images */}
