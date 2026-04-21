@@ -75,36 +75,60 @@ export async function resolveAccessLink(
 
     for (let i = 0; i < qty; i++) {
       let consumedThis: string | null = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        let q = supabase
-          .from("product_stock_items")
-          .select("id, access_link")
-          .eq("is_used", false)
-          .order("created_at", { ascending: true })
-          .limit(1);
-        if (useVariationStock) {
-          q = q.eq("variation_id", variationId);
-        } else {
-          q = q.eq("product_id", productId).is("variation_id", null);
+
+      // Try variation stock first, then fall back to product-level stock
+      const stockStrategies: Array<{ type: string; filter: (q: any) => any }> = [];
+      if (useVariationStock) {
+        stockStrategies.push({
+          type: "variation",
+          filter: (q: any) => q.eq("variation_id", variationId),
+        });
+        // Fallback: try product-level stock (variation_id IS NULL) if variation stock is empty
+        stockStrategies.push({
+          type: "product-fallback",
+          filter: (q: any) => q.eq("product_id", productId).is("variation_id", null),
+        });
+      } else {
+        stockStrategies.push({
+          type: "product",
+          filter: (q: any) => q.eq("product_id", productId).is("variation_id", null),
+        });
+      }
+
+      for (const strategy of stockStrategies) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          let q = supabase
+            .from("product_stock_items")
+            .select("id, access_link")
+            .eq("is_used", false)
+            .order("created_at", { ascending: true })
+            .limit(1);
+          q = strategy.filter(q);
+          const { data: stockItems, error: fetchErr } = await q;
+          if (fetchErr || !stockItems?.length) break;
+
+          const stockItem = stockItems[0];
+          const { data: consumedRows, error: consumeError } = await supabase
+            .from("product_stock_items")
+            .delete()
+            .eq("id", stockItem.id)
+            .eq("is_used", false)
+            .select("access_link");
+
+          if (consumeError) {
+            console.error("[UNIQUE-DELIVERY] consume failed:", consumeError);
+            break;
+          }
+
+          const link = consumedRows?.[0]?.access_link;
+          if (link) { consumedThis = link; break; }
         }
-        const { data: stockItems, error: fetchErr } = await q;
-        if (fetchErr || !stockItems?.length) break;
-
-        const stockItem = stockItems[0];
-        const { data: consumedRows, error: consumeError } = await supabase
-          .from("product_stock_items")
-          .delete()
-          .eq("id", stockItem.id)
-          .eq("is_used", false)
-          .select("access_link");
-
-        if (consumeError) {
-          console.error("[UNIQUE-DELIVERY] consume failed:", consumeError);
+        if (consumedThis) {
+          if (strategy.type === "product-fallback") {
+            console.log("[UNIQUE-DELIVERY] Used product-level fallback stock for variation", variationId);
+          }
           break;
         }
-
-        const link = consumedRows?.[0]?.access_link;
-        if (link) { consumedThis = link; break; }
       }
       if (!consumedThis) break;
       consumedLinks.push(consumedThis);
