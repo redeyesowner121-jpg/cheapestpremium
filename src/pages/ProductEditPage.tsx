@@ -137,20 +137,9 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
               ) : stockItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-3">No stock items yet</p>
               ) : (
-                <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
+                <div className="max-h-80 overflow-y-auto space-y-1 pr-1">
                   {stockItems.map((item, idx) => (
-                    <div key={item.id}
-                      className={`flex items-start gap-2 text-sm px-3 py-2 rounded-lg border ${item.is_used ? 'bg-muted/40 opacity-60' : 'bg-background'}`}>
-                      <span className="text-muted-foreground w-6 shrink-0 text-xs pt-0.5">#{idx + 1}</span>
-                      <span className="flex-1 font-mono text-xs break-all whitespace-pre-wrap">{item.access_link}</span>
-                      {item.is_used ? (
-                        <Badge variant="secondary" className="text-xs shrink-0">Used</Badge>
-                      ) : (
-                        <button onClick={() => deleteStock(item.id)} className="text-destructive shrink-0 hover:bg-destructive/10 p-1 rounded">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    <StockItemRow key={item.id} item={item} idx={idx} onDelete={deleteStock} />
                   ))}
                 </div>
               )}
