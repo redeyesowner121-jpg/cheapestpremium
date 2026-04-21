@@ -542,13 +542,31 @@ const ProductEditPage: React.FC = () => {
             </h4>
             <Input placeholder="Variation Name" value={newVar.name}
               onChange={e => setNewVar({ ...newVar, name: e.target.value })} className="rounded-xl" />
+            {/* INR */}
+            <p className="text-[10px] font-semibold text-muted-foreground">🇮🇳 INR (₹)</p>
             <div className="grid grid-cols-3 gap-2">
-              <Input type="number" placeholder="Price" value={newVar.price}
+              <Input type="number" placeholder="₹ Price" value={newVar.price}
                 onChange={e => setNewVar({ ...newVar, price: e.target.value })} className="rounded-xl" />
-              <Input type="number" placeholder="Original" value={newVar.original_price}
+              <Input type="number" placeholder="₹ Original" value={newVar.original_price}
                 onChange={e => setNewVar({ ...newVar, original_price: e.target.value })} className="rounded-xl" />
-              <Input type="number" placeholder="Reseller" value={newVar.reseller_price}
+              <Input type="number" placeholder="₹ Reseller" value={newVar.reseller_price}
                 onChange={e => setNewVar({ ...newVar, reseller_price: e.target.value })} className="rounded-xl" />
+            </div>
+            {/* USD */}
+            <p className="text-[10px] font-semibold text-muted-foreground">🇺🇸 USD ($)</p>
+            <div className="grid grid-cols-3 gap-2">
+              <Input type="number" step="0.01" placeholder="$ Price"
+                value={newVar.price ? (parseFloat(newVar.price) / usdRate).toFixed(2) : ''}
+                onChange={e => setNewVar({ ...newVar, price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                className="rounded-xl" />
+              <Input type="number" step="0.01" placeholder="$ Original"
+                value={newVar.original_price ? (parseFloat(newVar.original_price) / usdRate).toFixed(2) : ''}
+                onChange={e => setNewVar({ ...newVar, original_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                className="rounded-xl" />
+              <Input type="number" step="0.01" placeholder="$ Reseller"
+                value={newVar.reseller_price ? (parseFloat(newVar.reseller_price) / usdRate).toFixed(2) : ''}
+                onChange={e => setNewVar({ ...newVar, reseller_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                className="rounded-xl" />
             </div>
             <Button onClick={addVariation} disabled={!newVar.name || !newVar.price} className="w-full rounded-xl gap-1.5">
               <Plus className="w-4 h-4" /> Add Variation
