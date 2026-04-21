@@ -75,79 +75,38 @@ export async function showDepositMethodChoice(token: string, supabase: any, chat
   }
 }
 
-// Step 3a: Binance deposit — 20 min reservation, order ID verification
-export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number, lang: string) {
+// Step 3a: Binance deposit — no amount required, pay any amount and send Order ID
+export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number | null, lang: string) {
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
-  const currency = settings.currency_symbol || "₹";
-  const amountUsd = inrToUsd(amount);
 
-  // Check if this USD amount is already reserved by another user (active, not expired)
-  const { data: existingReservation } = await supabase
-    .from("binance_amount_reservations")
-    .select("id, user_id")
-    .eq("amount_usd", amountUsd)
-    .eq("status", "reserved")
-    .gt("expires_at", new Date().toISOString())
-    .neq("user_id", userId.toString())
-    .maybeSingle();
-
-  if (existingReservation) {
-    await sendMessage(token, chatId,
-      `⚠️ <b>$${amountUsd} (₹${amount}) is currently reserved by another user.</b>\n\nPlease type another amount.`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
-            [{ text: "Main Menu", callback_data: "back_main" }],
-          ],
-        },
-      }
-    );
-    return;
-  }
-
-  const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
-
-  // Create payment record
+  // Create payment record (amount 0 as placeholder — actual amount determined from Binance)
   const { data: payment } = await supabase.from("payments").insert({
     user_id: userId.toString(),
-    amount,
-    amount_usd: amountUsd,
-    note: "BINANCE_ORDER_ID_PENDING",
+    amount: amount || 0,
+    amount_usd: 0,
+    note: "BINANCE_DEPOSIT_ANY_AMOUNT",
     status: "pending",
     payment_method: "binance",
     product_name: "Wallet Deposit",
     telegram_user_id: userId,
   }).select("id").single();
 
-  // Reserve the USD amount for 20 minutes
-  const { data: reservation } = await supabase.from("binance_amount_reservations").insert({
-    user_id: userId.toString(),
-    amount_usd: amountUsd,
-    amount_inr: amount,
-    payment_id: payment?.id,
-    status: "reserved",
-    expires_at: expiresAt,
-  }).select("id").single();
-
   await setConversationState(supabase, userId, "deposit_binance_awaiting_order_id", {
-    amount, amountUsd, paymentId: payment?.id, expiresAt,
-    reservationId: reservation?.id,
+    paymentId: payment?.id,
   });
 
   let text = `<b>💎 Binance Deposit</b>\n\n`;
-  text += `Amount: <b>${currency}${amount}</b> = <b>$${amountUsd}</b>\n\n`;
   text += `Binance Pay ID: <code>${binanceId}</code>\n\n`;
   text += `<b>Instructions:</b>\n`;
   text += `1. Open Binance App\n`;
   text += `2. Go to Pay > Send\n`;
   text += `3. Pay ID: <code>${binanceId}</code>\n`;
-  text += `4. Amount: <b>$${amountUsd}</b>\n`;
+  text += `4. Send any amount you want to deposit\n`;
   text += `5. Complete payment\n`;
   text += `6. <b>Send your Binance Order ID here</b>\n\n`;
   text += `<i>After paying, copy the Order ID from Binance and send it as a message.</i>\n`;
-  text += `<i>⏰ Pay within 20 minutes</i>`;
+  text += `<i>💡 The exact amount you paid will be credited to your wallet.</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
