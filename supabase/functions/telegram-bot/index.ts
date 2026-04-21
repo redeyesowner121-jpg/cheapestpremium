@@ -334,6 +334,25 @@ Deno.serve(async (req) => {
 
             if (!userData.language) { await showLanguageSelection(BOT_TOKEN, chatId); clearChildBotContext(); return jsonOk(); }
 
+            // Check if user has active payment/deposit session — don't interrupt it
+            const activeConvState = await getConversationState(supabase, userId);
+            const paymentSteps = [
+              "choose_payment_method", "wallet_pay_confirm", "binance_payment_pending",
+              "binance_awaiting_order_id", "razorpay_payment_pending", "choose_upi_method",
+              "awaiting_quantity_choice", "awaiting_custom_quantity", "awaiting_screenshot",
+              "deposit_binance_pending", "deposit_razorpay_pending", "deposit_upi_pending",
+              "deposit_enter_amount", "deposit_choose_method",
+            ];
+            if (activeConvState && paymentSteps.includes(activeConvState.step)) {
+              await sendMessage(BOT_TOKEN, chatId,
+                lang === "bn"
+                  ? "⚠️ তোমার একটি পেমেন্ট সেশন চলছে। বাতিল করতে /cancel পাঠাও।"
+                  : "⚠️ You have an active payment session. Send /cancel to abort it first."
+              );
+              clearChildBotContext();
+              return jsonOk();
+            }
+
             const [isUserAdmin, joined] = await Promise.all([
               isAdminBot(supabase, userId),
               checkChannelMembership(BOT_TOKEN, userId, supabase),

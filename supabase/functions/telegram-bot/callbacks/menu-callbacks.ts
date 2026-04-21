@@ -193,9 +193,7 @@ export async function handleMenuCallbacks(
     const { getWallet, getUserLang: gul, deleteConversationState: dcs, getConversationState: gcs } = await import("../db-helpers.ts");
     const convState = await gcs(supabase, userId);
     if (!convState || convState.step !== "withdraw_enter_amount") {
-      await sendMessage(BOT_TOKEN, chatId, "🔄 Please start again.");
-      const { showMainMenu } = await import("../menu/menu-navigation.ts");
-      await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
+      // Silently ignore stale withdrawal callback
       return true;
     }
     const wallet = await getWallet(supabase, userId);
