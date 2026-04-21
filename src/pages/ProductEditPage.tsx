@@ -400,23 +400,14 @@ const ProductEditPage: React.FC = () => {
             maxImages={5} bucket="product-images" folder="products" />
         </section>
 
-        {/* Delivery & Stock */}
+        {/* Stock */}
         <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Link2 className="w-4 h-4 text-primary" /> Delivery & Stock
+            <Hash className="w-4 h-4 text-primary" /> Stock
           </h2>
-          <Textarea placeholder="Access Link (global, for all variations)" value={form.access_link}
-            onChange={e => setForm({ ...form, access_link: e.target.value })} className="rounded-xl font-mono text-xs min-h-[60px]" rows={2} />
           <Input type="number" placeholder="Stock (empty = unlimited)" value={form.stock}
             onChange={e => setForm({ ...form, stock: e.target.value })} className="rounded-xl" />
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Product-level Auto Delivery</span>
-              <p className="text-xs text-muted-foreground">Uses product stock items (non-variation)</p>
-            </div>
-            <Switch checked={form.delivery_mode === 'unique'}
-              onCheckedChange={v => setForm({ ...form, delivery_mode: v ? 'unique' : 'repeated' })} />
-          </div>
+          <p className="text-xs text-muted-foreground">Delivery links & auto-delivery settings are managed per variation below.</p>
         </section>
 
         {/* SEO */}
