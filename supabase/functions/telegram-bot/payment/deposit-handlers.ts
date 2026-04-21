@@ -270,30 +270,9 @@ export async function showDepositManualUpi(token: string, supabase: any, chatId:
 
 // ===== VERIFY DEPOSIT =====
 
-// Verify Binance deposit with Order ID
+// Verify Binance deposit with Order ID — credits actual paid amount
 export async function verifyDepositBinanceWithOrderId(token: string, supabase: any, chatId: number, userId: number, stateData: any, binanceOrderId: string, lang: string) {
-  const { paymentId, amountUsd, amount, expiresAt, reservationId } = stateData;
-
-  // Check 20 min expiry
-  if (expiresAt && new Date(expiresAt) < new Date()) {
-    await deleteConversationState(supabase, userId);
-    await supabase.from("payments").update({ status: "expired" }).eq("id", paymentId);
-    if (reservationId) {
-      await supabase.from("binance_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
-    }
-    await sendMessage(token, chatId,
-      "⏰ <b>Time expired!</b> Payment was not completed within 20 minutes.\n\nStart a new deposit.",
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "💰 Type another amount", callback_data: "wallet_deposit" }],
-            [{ text: "Main Menu", callback_data: "back_main" }],
-          ],
-        },
-      }
-    );
-    return;
-  }
+  const { paymentId } = stateData;
 
   await sendMessage(token, chatId, "🔍 Verifying payment...");
 
@@ -304,31 +283,56 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
     const verifyRes = await fetch(`${supabaseUrl}/functions/v1/verify-binance-payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ orderId: binanceOrderId, amount: amountUsd, paymentId }),
+      body: JSON.stringify({ orderId: binanceOrderId, amount: 0, paymentId, skipAmountCheck: true }),
     });
 
     const result = await verifyRes.json();
 
-    if (result.success) {
-      // Clear reservation from DB on success
-      if (reservationId) {
-        await supabase.from("binance_amount_reservations").update({ status: "completed" }).eq("id", reservationId);
-      }
-      await creditWallet(supabase, userId, amount, "binance", binanceOrderId);
+    // Already claimed
+    if (result.alreadyClaimed) {
+      await sendMessage(token, chatId, `❌ <b>This Binance Order ID has already been used.</b>\n\nPlease use a different Order ID.\n\n📤 Send another Order ID to retry.`, {
+        reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
+      });
+      return;
+    }
+
+    if (result.success && result.actualPaidAmount != null) {
+      const paidUsd = result.actualPaidAmount;
+      const paidInr = Math.round(paidUsd * 60); // INR_TO_USD_RATE = 60
+
+      // Record as used
+      await supabase.from("used_binance_order_ids").insert({
+        binance_order_id: binanceOrderId.trim().toUpperCase(),
+        telegram_id: userId,
+        amount_usd: paidUsd,
+        amount_inr: paidInr,
+        purpose: "deposit",
+        payment_id: paymentId,
+      }).catch(() => {});
+
+      // Update payment record with actual amount
+      await supabase.from("payments").update({
+        amount: paidInr, amount_usd: paidUsd, status: "success", updated_at: new Date().toISOString(),
+      }).eq("id", paymentId);
+
+      await creditWallet(supabase, userId, paidInr, "binance", binanceOrderId);
       await deleteConversationState(supabase, userId);
       const wallet = await getWallet(supabase, userId);
       await sendMessage(token, chatId,
-        `✅ <b>Payment Verified!</b>\n\n💰 ₹${amount} deposited\n💵 New Balance: <b>₹${wallet?.balance || 0}</b>`
+        `✅ <b>Payment Verified!</b>\n\n💰 $${paidUsd} (₹${paidInr}) deposited\n💵 New Balance: <b>₹${wallet?.balance || 0}</b>`
       );
       await notifyAllAdmins(token, supabase,
-        `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: ₹${amount} ($${amountUsd})\n🆔 Order ID: ${binanceOrderId}\n✅ Auto-verified`
+        `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: $${paidUsd} (₹${paidInr})\n🆔 Order ID: ${binanceOrderId}\n✅ Auto-verified`
       );
       let dName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", userId).single(); if (bu?.first_name) dName = bu.first_name; } catch {}
-      try { await logProof(token, formatDepositSuccess(userId, amount, "Binance Auto", dName)); } catch {}
+      try { await logProof(token, formatDepositSuccess(userId, paidInr, "Binance Auto", dName)); } catch {}
+    } else if (result.success) {
+      // Order ID matched but no amount info — shouldn't happen but handle gracefully
+      await sendMessage(token, chatId, "⚠️ Payment found but amount couldn't be determined. Please contact support.", {
+        reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
+      });
     } else {
-      const remaining = expiresAt ? Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000)) : "?";
       let retryMsg = `${result.message || "Payment not found."}\n\n`;
-      retryMsg += `⏰ ${remaining} min remaining\n\n`;
       retryMsg += `📤 Send your Binance Order ID again to retry.`;
       await sendMessage(token, chatId, retryMsg, {
         reply_markup: {
@@ -345,57 +349,6 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
     });
   }
 }
-
-// Legacy verify function for backward compat (old deposit_binance_pending state)
-export async function verifyDepositBinance(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  // Old flow had paymentNote — redirect to ask for order ID
-  await setConversationState(supabase, userId, "deposit_binance_awaiting_order_id", stateData);
-  await sendMessage(token, chatId, "📤 Please send your <b>Binance Order ID</b> as a message to verify payment.", {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
-      ],
-    },
-  });
-}
-
-// Verify Razorpay deposit — uses reservation system
-export async function verifyDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
-  const { payClickedAt, amount, uniqueAmount, reservationId, depositRequestId } = stateData;
-  const verifyAmount = uniqueAmount || amount;
-
-  // Check reservation expiry
-  if (reservationId) {
-    const { data: reservation } = await supabase
-      .from("razorpay_amount_reservations")
-      .select("status, expires_at")
-      .eq("id", reservationId)
-      .single();
-
-    if (reservation?.status === "completed") {
-      await deleteConversationState(supabase, userId);
-      await sendMessage(token, chatId, "✅ Payment already processed.");
-      return;
-    }
-    if (reservation && new Date(reservation.expires_at) < new Date()) {
-      await supabase.from("razorpay_amount_reservations").update({ status: "expired" }).eq("id", reservationId);
-      await deleteConversationState(supabase, userId);
-      await sendMessage(token, chatId,
-        lang === "bn"
-          ? "⏰ <b>সময় শেষ!</b> ১০ মিনিটের মধ্যে পেমেন্ট হয়নি।\n\nনতুন ডিপোজিট শুরু করুন।"
-          : "⏰ <b>Time expired!</b> Payment was not completed within 10 minutes.\n\nStart a new deposit.",
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: lang === "bn" ? "💰 নতুন অ্যামাউন্ট দিন" : "💰 Type another amount", callback_data: "wallet_deposit" }],
-              [{ text: lang === "bn" ? "মূল মেনু" : "Main Menu", callback_data: "back_main" }],
-            ],
-          },
-        }
-      );
-      return;
-    }
-  }
 
   await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
 
