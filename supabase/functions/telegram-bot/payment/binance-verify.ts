@@ -111,7 +111,8 @@ export async function handleBinanceVerify(
     } else if (result.idFoundButAmountMismatch && result.foundAmount != null) {
       // Order ID found but amount doesn't match product price → credit to wallet
       const paidUsd = result.foundAmount;
-      const paidInr = Math.round(paidUsd * INR_TO_USD_RATE);
+      const usdRate = await getDynamicUsdRate(supabase);
+      const paidInr = usdToInr(paidUsd, usdRate);
 
       // Record as used
       await supabase.from("used_binance_order_ids").insert({
