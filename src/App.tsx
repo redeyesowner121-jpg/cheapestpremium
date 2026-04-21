@@ -34,6 +34,7 @@ const ResalePurchasePage = lazy(() => import("./pages/ResalePurchasePage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const ProductEditPage = lazy(() => import("./pages/ProductEditPage"));
 const ProductEditListPage = lazy(() => import("./pages/ProductEditListPage"));
+const AIPage = lazy(() => import("./pages/AIPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized QueryClient with aggressive caching
@@ -117,6 +118,7 @@ const AppContent = () => {
             <Route path="/cart" element={<CartPage />} />
             <Route path="/resale/:code" element={<ResalePurchasePage />} />
             <Route path="/edit" element={<ProductEditListPage />} />
+            <Route path="/ai" element={<AIPage />} />
             <Route path="/edit/:slug" element={<ProductEditPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="*" element={<NotFound />} />
