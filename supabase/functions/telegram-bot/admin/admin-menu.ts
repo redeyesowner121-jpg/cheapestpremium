@@ -469,21 +469,71 @@ export async function handleReport(token: string, supabase: any, chatId: number)
 }
 
 export async function executeBroadcast(token: string, supabase: any, adminChatId: number, msg: any) {
-  const { data: users } = await supabase.from("telegram_bot_users").select("telegram_id").eq("is_banned", false);
-  if (!users?.length) { await sendMessage(token, adminChatId, "No users to broadcast to."); return; }
+  // Gather users from all bots
+  const mainToken = token;
+  const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
+
+  // 1. Main bot users
+  const { data: mainUsers } = await supabase.from("telegram_bot_users").select("telegram_id").eq("is_banned", false);
+
+  // 2. Resale bot users (exclude duplicates with main)
+  const mainIds = new Set((mainUsers || []).map((u: any) => u.telegram_id));
+  let resaleOnlyUsers: { telegram_id: number; botToken: string }[] = [];
+  if (resaleToken) {
+    const { data: resaleUsers } = await supabase.from("telegram_bot_users")
+      .select("telegram_id").eq("is_banned", false);
+    // Resale bot users table might be same; check resale_bot_users if exists
+    try {
+      const { data: rUsers } = await supabase.from("resale_bot_users").select("telegram_id").eq("is_banned", false);
+      if (rUsers?.length) {
+        resaleOnlyUsers = rUsers.filter((u: any) => !mainIds.has(u.telegram_id))
+          .map((u: any) => ({ telegram_id: u.telegram_id, botToken: resaleToken }));
+        rUsers.forEach((u: any) => mainIds.add(u.telegram_id));
+      }
+    } catch {}
+  }
+
+  // 3. Child bot users (exclude duplicates)
+  let childBotEntries: { telegram_id: number; botToken: string }[] = [];
+  try {
+    const { data: childBots } = await supabase.from("child_bots").select("id, bot_token").eq("is_active", true);
+    if (childBots?.length) {
+      for (const cb of childBots) {
+        const { data: cbUsers } = await supabase.from("child_bot_users")
+          .select("telegram_id").eq("child_bot_id", cb.id);
+        if (cbUsers?.length) {
+          for (const u of cbUsers) {
+            if (!mainIds.has(u.telegram_id)) {
+              childBotEntries.push({ telegram_id: u.telegram_id, botToken: cb.bot_token });
+              mainIds.add(u.telegram_id);
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // Build unified send list
+  const allTargets: { telegram_id: number; botToken: string }[] = [
+    ...(mainUsers || []).map((u: any) => ({ telegram_id: u.telegram_id, botToken: mainToken })),
+    ...resaleOnlyUsers,
+    ...childBotEntries,
+  ];
+
+  if (!allTargets.length) { await sendMessage(token, adminChatId, "No users to broadcast to."); return; }
 
   let sent = 0, failed = 0, skipped = 0;
   const batchSize = 10;
   const delayBetweenBatches = 1000;
 
-  for (let i = 0; i < users.length; i += batchSize) {
-    const batch = users.slice(i, i + batchSize);
-    const promises = batch.map(async (u: any) => {
+  for (let i = 0; i < allTargets.length; i += batchSize) {
+    const batch = allTargets.slice(i, i + batchSize);
+    const promises = batch.map(async (t) => {
       try {
-        const copyRes = await fetch(`https://api.telegram.org/bot${token}/copyMessage`, {
+        const copyRes = await fetch(`https://api.telegram.org/bot${t.botToken}/copyMessage`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: u.telegram_id, from_chat_id: adminChatId, message_id: msg.message_id }),
+          body: JSON.stringify({ chat_id: t.telegram_id, from_chat_id: adminChatId, message_id: msg.message_id }),
         });
         const result = await copyRes.json();
         if (result.ok) sent++;
@@ -492,10 +542,14 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
       } catch { failed++; }
     });
     await Promise.all(promises);
-    if (i + batchSize < users.length) await new Promise(r => setTimeout(r, delayBetweenBatches));
+    if (i + batchSize < allTargets.length) await new Promise(r => setTimeout(r, delayBetweenBatches));
   }
 
   await sendMessage(token, adminChatId,
-    `📢 <b>Broadcast Complete!</b>\n\n✅ Sent: ${sent}\n❌ Failed: ${failed}\n🚫 Blocked: ${skipped}\n📊 Total: ${users.length}`
+    `📢 <b>Broadcast Complete!</b>\n\n` +
+    `📊 Main Bot: ${(mainUsers || []).length} users\n` +
+    `📊 Resale Bot: ${resaleOnlyUsers.length} unique users\n` +
+    `📊 Child Bots: ${childBotEntries.length} unique users\n\n` +
+    `✅ Sent: ${sent}\n❌ Failed: ${failed}\n🚫 Blocked: ${skipped}\n📊 Total: ${allTargets.length}`
   );
 }
