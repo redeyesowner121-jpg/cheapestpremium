@@ -34,6 +34,7 @@ const ResalePurchasePage = lazy(() => import("./pages/ResalePurchasePage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
 const ProductEditPage = lazy(() => import("./pages/ProductEditPage"));
 const ProductEditListPage = lazy(() => import("./pages/ProductEditListPage"));
+const AIPage = lazy(() => import("./pages/AIPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized QueryClient with aggressive caching
