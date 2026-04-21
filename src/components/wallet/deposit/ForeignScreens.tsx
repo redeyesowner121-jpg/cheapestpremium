@@ -8,7 +8,7 @@ import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
-const INR_TO_USD_RATE = 60;
+const DEFAULT_INR_TO_USD_RATE = 70;
 
 function generatePaymentNote(): string {
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -114,7 +114,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
   const handleContinue = () => {
     const inr = parseFloat(amountInr);
     if (!inr || inr < 1) { toast.error('Enter a valid amount'); return; }
-    const usd = Math.max(0.01, Math.round((inr / INR_TO_USD_RATE) * 100) / 100);
+    const usd = Math.max(0.01, Math.round((inr / DEFAULT_INR_TO_USD_RATE) * 100) / 100);
     setAmountUsd(usd);
     setStep('confirm');
   };
@@ -276,7 +276,7 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
               <div className="p-3 bg-muted rounded-xl text-center space-y-1">
                 <p className="text-sm text-muted-foreground">You will pay</p>
                 <p className="text-xl font-bold text-foreground">
-                  ${Math.max(0.01, Math.round((parseFloat(amountInr) / INR_TO_USD_RATE) * 100) / 100)} USDT
+                  ${Math.max(0.01, Math.round((parseFloat(amountInr) / DEFAULT_INR_TO_USD_RATE) * 100) / 100)} USDT
                 </p>
                 <p className="text-xs text-muted-foreground">{feePercent}% processing fee applies</p>
               </div>

@@ -3,7 +3,7 @@
 import { sendMessage } from "../telegram-api.ts";
 import { setConversationState } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
-import { INR_TO_USD_RATE } from "./payment-utils.ts";
+import { getDynamicUsdRate, usdToInr } from "./payment-utils.ts";
 
 export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any, binanceOrderId: string
@@ -111,7 +111,8 @@ export async function handleBinanceVerify(
     } else if (result.idFoundButAmountMismatch && result.foundAmount != null) {
       // Order ID found but amount doesn't match product price → credit to wallet
       const paidUsd = result.foundAmount;
-      const paidInr = Math.round(paidUsd * INR_TO_USD_RATE);
+      const usdRate = await getDynamicUsdRate(supabase);
+      const paidInr = usdToInr(paidUsd, usdRate);
 
       // Record as used
       await supabase.from("used_binance_order_ids").insert({

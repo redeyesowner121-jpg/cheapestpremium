@@ -298,7 +298,9 @@ export async function verifyDepositBinanceWithOrderId(token: string, supabase: a
 
     if (result.success && result.actualPaidAmount != null) {
       const paidUsd = result.actualPaidAmount;
-      const paidInr = Math.round(paidUsd * 60); // INR_TO_USD_RATE = 60
+      const { getDynamicUsdRate, usdToInr } = await import("./payment-utils.ts");
+      const usdRate = await getDynamicUsdRate(supabase);
+      const paidInr = usdToInr(paidUsd, usdRate);
 
       // Record as used
       await supabase.from("used_binance_order_ids").insert({

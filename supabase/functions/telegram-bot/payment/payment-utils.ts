@@ -1,6 +1,7 @@
 // ===== PAYMENT UTILITY HELPERS =====
 
-export const INR_TO_USD_RATE = 60;
+// Default rate — used as fallback when settings aren't available
+export const INR_TO_USD_RATE = 70;
 
 export function generatePayUrl(upiId: string, upiName: string, amount: number): string {
   return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR`;
@@ -28,7 +29,29 @@ export function generatePaymentNote(): string {
   return note;
 }
 
-export function inrToUsd(inrAmount: number): number {
-  const usd = inrAmount / INR_TO_USD_RATE;
+export function inrToUsd(inrAmount: number, rate?: number): number {
+  const r = rate || INR_TO_USD_RATE;
+  const usd = inrAmount / r;
   return Math.max(0.01, Math.round(usd * 100) / 100);
+}
+
+export function usdToInr(usdAmount: number, rate?: number): number {
+  const r = rate || INR_TO_USD_RATE;
+  return Math.round(usdAmount * r);
+}
+
+/** Get the USD rate from app_settings, fallback to default */
+export async function getDynamicUsdRate(supabase: any): Promise<number> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "usd_to_inr_rate")
+      .maybeSingle();
+    if (data?.value) {
+      const rate = parseFloat(data.value);
+      if (Number.isFinite(rate) && rate > 0) return rate;
+    }
+  } catch {}
+  return INR_TO_USD_RATE;
 }

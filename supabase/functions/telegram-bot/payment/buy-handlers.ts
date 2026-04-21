@@ -5,7 +5,7 @@ import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
 import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 import { getChildBotContext, childBotPrice } from "../child-context.ts";
-import { generatePayUrl, generateUpiQrUrl, generateFallbackQrUrl, inrToUsd } from "./payment-utils.ts";
+import { generatePayUrl, generateUpiQrUrl, generateFallbackQrUrl, inrToUsd, getDynamicUsdRate } from "./payment-utils.ts";
 
 // Re-export from split modules for backward compat
 export { handleRazorpayVerify } from "./razorpay-verify.ts";
@@ -236,7 +236,8 @@ export async function showBinancePayment(
   const currency = settings.currency_symbol || "₹";
   const { productName, finalAmount, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity, unitPrice } = purchaseData;
 
-  const amountUsd = inrToUsd(finalAmount);
+  const usdRate = await getDynamicUsdRate(supabase);
+  const amountUsd = inrToUsd(finalAmount, usdRate);
 
   // Create payment record
   const { data: payment } = await supabase.from("payments").insert({
