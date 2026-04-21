@@ -58,7 +58,7 @@ const ProductDetailPage: React.FC = () => {
 
   const loadProductById = async (id: string) => {
     setLoadingProduct(true);
-    const productColumns = 'id,name,price,original_price,image_url,category,description,rating,sold_count,stock,is_active,created_at,updated_at,reseller_price,seo_tags,slug';
+    const productColumns = 'id,name,price,original_price,image_url,category,description,rating,sold_count,stock,is_active,created_at,updated_at,reseller_price,seo_tags,slug,delivery_mode';
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const slugLower = id.toLowerCase();
     const query = isUUID
