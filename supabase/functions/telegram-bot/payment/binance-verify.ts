@@ -3,7 +3,7 @@
 import { sendMessage } from "../telegram-api.ts";
 import { setConversationState } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
-import { INR_TO_USD_RATE } from "./payment-utils.ts";
+import { getDynamicUsdRate, usdToInr } from "./payment-utils.ts";
 
 export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any, binanceOrderId: string
