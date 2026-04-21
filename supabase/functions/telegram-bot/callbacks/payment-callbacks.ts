@@ -177,8 +177,9 @@ export async function handlePaymentCallbacks(
 
   // Step 1: Method selection
   if (data === "deposit_method_binance") {
-    const { showDepositAmountEntry } = await import("../payment/deposit-handlers.ts");
-    await showDepositAmountEntry(BOT_TOKEN, supabase, chatId, userId, "binance", lang);
+    // Binance deposit: go directly to pay screen (no amount needed)
+    const { showDepositBinance } = await import("../payment/deposit-handlers.ts");
+    await showDepositBinance(BOT_TOKEN, supabase, chatId, userId, null, lang);
     return true;
   }
 
