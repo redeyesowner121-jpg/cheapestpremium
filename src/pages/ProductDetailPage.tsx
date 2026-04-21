@@ -84,6 +84,45 @@ const ProductDetailPage: React.FC = () => {
     } else if (data) setVariations(data);
   };
 
+  // Compute stock dynamically based on delivery mode
+  useEffect(() => {
+    const computeStock = async () => {
+      if (!product) return;
+      
+      const variation = selectedVariation;
+      const varDeliveryMode = (variation as any)?.delivery_mode;
+      const productDeliveryMode = (product as any)?.delivery_mode;
+      
+      // If variation has unique delivery mode, count its unused stock items
+      if (variation && varDeliveryMode === 'unique') {
+        const { count } = await (supabase as any)
+          .from('product_stock_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('variation_id', variation.id)
+          .eq('is_used', false);
+        setCurrentStock(count ?? 0);
+        return;
+      }
+      
+      // If product has unique delivery mode (no variation-level), count product-level stock
+      if (productDeliveryMode === 'unique' && (!variation || varDeliveryMode !== 'unique')) {
+        const { count } = await (supabase as any)
+          .from('product_stock_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('product_id', product.id)
+          .is('variation_id', null)
+          .eq('is_used', false);
+        setCurrentStock(count ?? 0);
+        return;
+      }
+      
+      // For repeated/manual delivery: use admin-set stock or null (infinity)
+      setCurrentStock(product.stock ?? null);
+    };
+    
+    computeStock();
+  }, [product, selectedVariation]);
+
   const displayProduct = flashSale?.productData || product;
   const isOutOfStock = currentStock !== null && currentStock <= 0;
   const exceedsStock = currentStock !== null && quantity > currentStock;
