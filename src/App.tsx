@@ -115,6 +115,7 @@ const AppContent = () => {
             <Route path="/admin/:tab" element={<AdminPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/resale/:code" element={<ResalePurchasePage />} />
+            <Route path="/edit/:slug" element={<ProductEditPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
