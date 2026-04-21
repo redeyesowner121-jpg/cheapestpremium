@@ -256,6 +256,24 @@ const ProductEditPage: React.FC = () => {
     const { data } = await supabase.from('product_variations').select('*')
       .eq('product_id', productId).order('created_at', { ascending: true });
     setVariations(data || []);
+    // Auto-sync product price to lowest variation price
+    if (data && data.length > 0) {
+      const lowestPrice = Math.min(...data.map((v: any) => v.price));
+      const lowestOriginal = data.some((v: any) => v.original_price) ? Math.min(...data.filter((v: any) => v.original_price).map((v: any) => v.original_price)) : null;
+      const lowestReseller = data.some((v: any) => v.reseller_price) ? Math.min(...data.filter((v: any) => v.reseller_price).map((v: any) => v.reseller_price)) : null;
+      setForm(prev => ({
+        ...prev,
+        price: String(lowestPrice),
+        original_price: lowestOriginal ? String(lowestOriginal) : '',
+        reseller_price: lowestReseller ? String(lowestReseller) : '',
+      }));
+      // Also update in DB
+      await supabase.from('products').update({
+        price: lowestPrice,
+        original_price: lowestOriginal,
+        reseller_price: lowestReseller,
+      }).eq('id', productId);
+    }
   };
 
   const handleSave = async () => {
