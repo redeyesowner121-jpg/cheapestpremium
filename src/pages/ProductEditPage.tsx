@@ -182,6 +182,12 @@ const ProductEditPage: React.FC = () => {
     category: '', images: [] as string[], access_link: '', stock: '',
     is_active: true, seo_tags: '', delivery_mode: 'repeated',
   });
+  const [usdRate, setUsdRate] = useState(70);
+
+  useEffect(() => {
+    supabase.from('app_settings').select('value').eq('key', 'usd_to_inr_rate').maybeSingle()
+      .then(({ data }) => { if (data?.value) setUsdRate(parseFloat(data.value)); });
+  }, []);
 
   useEffect(() => {
     if (!(isAdmin || isTempAdmin)) { navigate('/'); return; }
