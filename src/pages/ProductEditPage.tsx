@@ -256,6 +256,24 @@ const ProductEditPage: React.FC = () => {
     const { data } = await supabase.from('product_variations').select('*')
       .eq('product_id', productId).order('created_at', { ascending: true });
     setVariations(data || []);
+    // Auto-sync product price to lowest variation price
+    if (data && data.length > 0) {
+      const lowestPrice = Math.min(...data.map((v: any) => v.price));
+      const lowestOriginal = data.some((v: any) => v.original_price) ? Math.min(...data.filter((v: any) => v.original_price).map((v: any) => v.original_price)) : null;
+      const lowestReseller = data.some((v: any) => v.reseller_price) ? Math.min(...data.filter((v: any) => v.reseller_price).map((v: any) => v.reseller_price)) : null;
+      setForm(prev => ({
+        ...prev,
+        price: String(lowestPrice),
+        original_price: lowestOriginal ? String(lowestOriginal) : '',
+        reseller_price: lowestReseller ? String(lowestReseller) : '',
+      }));
+      // Also update in DB
+      await supabase.from('products').update({
+        price: lowestPrice,
+        original_price: lowestOriginal,
+        reseller_price: lowestReseller,
+      }).eq('id', productId);
+    }
   };
 
   const handleSave = async () => {
@@ -363,57 +381,34 @@ const ProductEditPage: React.FC = () => {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+        {/* Pricing (auto from lowest variation) */}
+        <section className="rounded-2xl border border-border bg-card p-5 space-y-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <IndianRupee className="w-4 h-4 text-primary" /> Pricing
-            <span className="text-[10px] text-muted-foreground ml-auto">1 USD = ₹{usdRate}</span>
+            <span className="text-[10px] text-muted-foreground ml-auto">Auto-synced from lowest variation</span>
           </h2>
-          {/* INR Row */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">🇮🇳 INR (₹)</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Price *</label>
-                <Input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="rounded-xl" placeholder="₹" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Original</label>
-                <Input type="number" value={form.original_price} onChange={e => setForm({ ...form, original_price: e.target.value })} className="rounded-xl" placeholder="₹" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Reseller</label>
-                <Input type="number" value={form.reseller_price} onChange={e => setForm({ ...form, reseller_price: e.target.value })} className="rounded-xl" placeholder="₹" />
-              </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="text-center">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Price</p>
+              <p className="text-lg font-bold text-primary">₹{form.price || '0'}</p>
+              <p className="text-xs text-muted-foreground">${form.price ? (parseFloat(form.price) / usdRate).toFixed(2) : '0'}</p>
             </div>
+            {form.original_price && (
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Original</p>
+                <p className="text-lg font-bold text-muted-foreground line-through">₹{form.original_price}</p>
+                <p className="text-xs text-muted-foreground">${(parseFloat(form.original_price) / usdRate).toFixed(2)}</p>
+              </div>
+            )}
+            {form.reseller_price && (
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Reseller</p>
+                <p className="text-lg font-bold text-foreground">₹{form.reseller_price}</p>
+                <p className="text-xs text-muted-foreground">${(parseFloat(form.reseller_price) / usdRate).toFixed(2)}</p>
+              </div>
+            )}
           </div>
-          {/* USD Row */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">🇺🇸 USD ($)</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Price</label>
-                <Input type="number" step="0.01"
-                  value={form.price ? (parseFloat(form.price) / usdRate).toFixed(2) : ''}
-                  onChange={e => setForm({ ...form, price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
-                  className="rounded-xl" placeholder="$" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Original</label>
-                <Input type="number" step="0.01"
-                  value={form.original_price ? (parseFloat(form.original_price) / usdRate).toFixed(2) : ''}
-                  onChange={e => setForm({ ...form, original_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
-                  className="rounded-xl" placeholder="$" />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Reseller</label>
-                <Input type="number" step="0.01"
-                  value={form.reseller_price ? (parseFloat(form.reseller_price) / usdRate).toFixed(2) : ''}
-                  onChange={e => setForm({ ...form, reseller_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
-                  className="rounded-xl" placeholder="$" />
-              </div>
-            </div>
-          </div>
+          <p className="text-[10px] text-muted-foreground">1 USD = ₹{usdRate} • Edit prices in Variations below</p>
         </section>
 
         {/* Images */}
@@ -459,20 +454,38 @@ const ProductEditPage: React.FC = () => {
                 <motion.div key={v.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }} className="rounded-xl border border-border bg-background">
                   {editingVarId === v.id ? (
-                    <div className="p-4 space-y-3">
+                     <div className="p-4 space-y-3">
                       <div className="flex items-center gap-2 mb-1">
                         <Pencil className="w-3.5 h-3.5 text-primary" />
                         <span className="text-xs font-semibold text-primary">Editing</span>
                       </div>
                       <Input placeholder="Name" value={editVarForm.name}
                         onChange={e => setEditVarForm({ ...editVarForm, name: e.target.value })} className="rounded-xl" />
+                      {/* INR */}
+                      <p className="text-[10px] font-semibold text-muted-foreground">🇮🇳 INR (₹)</p>
                       <div className="grid grid-cols-3 gap-2">
-                        <Input type="number" placeholder="Price" value={editVarForm.price}
+                        <Input type="number" placeholder="₹ Price" value={editVarForm.price}
                           onChange={e => setEditVarForm({ ...editVarForm, price: e.target.value })} className="rounded-xl" />
-                        <Input type="number" placeholder="Original" value={editVarForm.original_price}
+                        <Input type="number" placeholder="₹ Original" value={editVarForm.original_price}
                           onChange={e => setEditVarForm({ ...editVarForm, original_price: e.target.value })} className="rounded-xl" />
-                        <Input type="number" placeholder="Reseller" value={editVarForm.reseller_price}
+                        <Input type="number" placeholder="₹ Reseller" value={editVarForm.reseller_price}
                           onChange={e => setEditVarForm({ ...editVarForm, reseller_price: e.target.value })} className="rounded-xl" />
+                      </div>
+                      {/* USD */}
+                      <p className="text-[10px] font-semibold text-muted-foreground">🇺🇸 USD ($)</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input type="number" step="0.01" placeholder="$ Price"
+                          value={editVarForm.price ? (parseFloat(editVarForm.price) / usdRate).toFixed(2) : ''}
+                          onChange={e => setEditVarForm({ ...editVarForm, price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                          className="rounded-xl" />
+                        <Input type="number" step="0.01" placeholder="$ Original"
+                          value={editVarForm.original_price ? (parseFloat(editVarForm.original_price) / usdRate).toFixed(2) : ''}
+                          onChange={e => setEditVarForm({ ...editVarForm, original_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                          className="rounded-xl" />
+                        <Input type="number" step="0.01" placeholder="$ Reseller"
+                          value={editVarForm.reseller_price ? (parseFloat(editVarForm.reseller_price) / usdRate).toFixed(2) : ''}
+                          onChange={e => setEditVarForm({ ...editVarForm, reseller_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                          className="rounded-xl" />
                       </div>
                       <div className="flex gap-2 justify-end">
                         <Button size="sm" variant="ghost" onClick={() => setEditingVarId(null)} className="rounded-xl">
@@ -487,9 +500,10 @@ const ProductEditPage: React.FC = () => {
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold">{v.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                         <p className="text-sm font-semibold">{v.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-sm font-bold text-primary">₹{v.price}</span>
+                            <span className="text-xs text-muted-foreground">(${(v.price / usdRate).toFixed(2)})</span>
                             {v.original_price && <span className="text-xs text-muted-foreground line-through">₹{v.original_price}</span>}
                             {v.reseller_price && <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">R: ₹{v.reseller_price}</span>}
                           </div>
@@ -528,13 +542,31 @@ const ProductEditPage: React.FC = () => {
             </h4>
             <Input placeholder="Variation Name" value={newVar.name}
               onChange={e => setNewVar({ ...newVar, name: e.target.value })} className="rounded-xl" />
+            {/* INR */}
+            <p className="text-[10px] font-semibold text-muted-foreground">🇮🇳 INR (₹)</p>
             <div className="grid grid-cols-3 gap-2">
-              <Input type="number" placeholder="Price" value={newVar.price}
+              <Input type="number" placeholder="₹ Price" value={newVar.price}
                 onChange={e => setNewVar({ ...newVar, price: e.target.value })} className="rounded-xl" />
-              <Input type="number" placeholder="Original" value={newVar.original_price}
+              <Input type="number" placeholder="₹ Original" value={newVar.original_price}
                 onChange={e => setNewVar({ ...newVar, original_price: e.target.value })} className="rounded-xl" />
-              <Input type="number" placeholder="Reseller" value={newVar.reseller_price}
+              <Input type="number" placeholder="₹ Reseller" value={newVar.reseller_price}
                 onChange={e => setNewVar({ ...newVar, reseller_price: e.target.value })} className="rounded-xl" />
+            </div>
+            {/* USD */}
+            <p className="text-[10px] font-semibold text-muted-foreground">🇺🇸 USD ($)</p>
+            <div className="grid grid-cols-3 gap-2">
+              <Input type="number" step="0.01" placeholder="$ Price"
+                value={newVar.price ? (parseFloat(newVar.price) / usdRate).toFixed(2) : ''}
+                onChange={e => setNewVar({ ...newVar, price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                className="rounded-xl" />
+              <Input type="number" step="0.01" placeholder="$ Original"
+                value={newVar.original_price ? (parseFloat(newVar.original_price) / usdRate).toFixed(2) : ''}
+                onChange={e => setNewVar({ ...newVar, original_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                className="rounded-xl" />
+              <Input type="number" step="0.01" placeholder="$ Reseller"
+                value={newVar.reseller_price ? (parseFloat(newVar.reseller_price) / usdRate).toFixed(2) : ''}
+                onChange={e => setNewVar({ ...newVar, reseller_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                className="rounded-xl" />
             </div>
             <Button onClick={addVariation} disabled={!newVar.name || !newVar.price} className="w-full rounded-xl gap-1.5">
               <Plus className="w-4 h-4" /> Add Variation
