@@ -140,9 +140,9 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
                 <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1">
                   {stockItems.map((item, idx) => (
                     <div key={item.id}
-                      className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg border ${item.is_used ? 'bg-muted/40 opacity-60' : 'bg-background'}`}>
-                      <span className="text-muted-foreground w-6 shrink-0 text-xs">#{idx + 1}</span>
-                      <span className="truncate flex-1 font-mono text-xs">{item.access_link}</span>
+                      className={`flex items-start gap-2 text-sm px-3 py-2 rounded-lg border ${item.is_used ? 'bg-muted/40 opacity-60' : 'bg-background'}`}>
+                      <span className="text-muted-foreground w-6 shrink-0 text-xs pt-0.5">#{idx + 1}</span>
+                      <span className="flex-1 font-mono text-xs break-all whitespace-pre-wrap">{item.access_link}</span>
                       {item.is_used ? (
                         <Badge variant="secondary" className="text-xs shrink-0">Used</Badge>
                       ) : (
@@ -405,8 +405,8 @@ const ProductEditPage: React.FC = () => {
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Link2 className="w-4 h-4 text-primary" /> Delivery & Stock
           </h2>
-          <Input placeholder="Access Link (global, for all variations)" value={form.access_link}
-            onChange={e => setForm({ ...form, access_link: e.target.value })} className="rounded-xl font-mono text-sm" />
+          <Textarea placeholder="Access Link (global, for all variations)" value={form.access_link}
+            onChange={e => setForm({ ...form, access_link: e.target.value })} className="rounded-xl font-mono text-xs min-h-[60px]" rows={2} />
           <Input type="number" placeholder="Stock (empty = unlimited)" value={form.stock}
             onChange={e => setForm({ ...form, stock: e.target.value })} className="rounded-xl" />
           <div className="flex items-center justify-between">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Edit, Tags, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ const AdminProductsSection: React.FC<AdminProductsSectionProps> = ({
   const [seoProduct, setSeoProduct] = useState<any>(null);
   const [seoTags, setSeoTags] = useState('');
   const [savingSeo, setSavingSeo] = useState(false);
+  const navigate = useNavigate();
 
   const filteredProducts = products.filter(p =>
     productSearch === '' ||
@@ -83,7 +85,7 @@ const AdminProductsSection: React.FC<AdminProductsSectionProps> = ({
                 <p className="text-xs text-muted-foreground">Stock: {product.stock ?? '∞'}</p>
               </div>
               <div className="flex gap-1">
-                <Button size="icon" variant="ghost" onClick={() => onEditProduct(product)} className="h-8 w-8">
+                <Button size="icon" variant="ghost" onClick={() => navigate(`/edit/${product.slug || product.id}`)} className="h-8 w-8">
                   <Edit className="w-4 h-4" />
                 </Button>
                 <Button size="icon" variant="ghost" onClick={() => { setSeoProduct(product); setSeoTags(product.seo_tags || ''); }} className="h-8 w-8" title="SEO Tags">
