@@ -454,20 +454,38 @@ const ProductEditPage: React.FC = () => {
                 <motion.div key={v.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }} className="rounded-xl border border-border bg-background">
                   {editingVarId === v.id ? (
-                    <div className="p-4 space-y-3">
+                     <div className="p-4 space-y-3">
                       <div className="flex items-center gap-2 mb-1">
                         <Pencil className="w-3.5 h-3.5 text-primary" />
                         <span className="text-xs font-semibold text-primary">Editing</span>
                       </div>
                       <Input placeholder="Name" value={editVarForm.name}
                         onChange={e => setEditVarForm({ ...editVarForm, name: e.target.value })} className="rounded-xl" />
+                      {/* INR */}
+                      <p className="text-[10px] font-semibold text-muted-foreground">🇮🇳 INR (₹)</p>
                       <div className="grid grid-cols-3 gap-2">
-                        <Input type="number" placeholder="Price" value={editVarForm.price}
+                        <Input type="number" placeholder="₹ Price" value={editVarForm.price}
                           onChange={e => setEditVarForm({ ...editVarForm, price: e.target.value })} className="rounded-xl" />
-                        <Input type="number" placeholder="Original" value={editVarForm.original_price}
+                        <Input type="number" placeholder="₹ Original" value={editVarForm.original_price}
                           onChange={e => setEditVarForm({ ...editVarForm, original_price: e.target.value })} className="rounded-xl" />
-                        <Input type="number" placeholder="Reseller" value={editVarForm.reseller_price}
+                        <Input type="number" placeholder="₹ Reseller" value={editVarForm.reseller_price}
                           onChange={e => setEditVarForm({ ...editVarForm, reseller_price: e.target.value })} className="rounded-xl" />
+                      </div>
+                      {/* USD */}
+                      <p className="text-[10px] font-semibold text-muted-foreground">🇺🇸 USD ($)</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input type="number" step="0.01" placeholder="$ Price"
+                          value={editVarForm.price ? (parseFloat(editVarForm.price) / usdRate).toFixed(2) : ''}
+                          onChange={e => setEditVarForm({ ...editVarForm, price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                          className="rounded-xl" />
+                        <Input type="number" step="0.01" placeholder="$ Original"
+                          value={editVarForm.original_price ? (parseFloat(editVarForm.original_price) / usdRate).toFixed(2) : ''}
+                          onChange={e => setEditVarForm({ ...editVarForm, original_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                          className="rounded-xl" />
+                        <Input type="number" step="0.01" placeholder="$ Reseller"
+                          value={editVarForm.reseller_price ? (parseFloat(editVarForm.reseller_price) / usdRate).toFixed(2) : ''}
+                          onChange={e => setEditVarForm({ ...editVarForm, reseller_price: e.target.value ? (parseFloat(e.target.value) * usdRate).toFixed(0) : '' })}
+                          className="rounded-xl" />
                       </div>
                       <div className="flex gap-2 justify-end">
                         <Button size="sm" variant="ghost" onClick={() => setEditingVarId(null)} className="rounded-xl">
