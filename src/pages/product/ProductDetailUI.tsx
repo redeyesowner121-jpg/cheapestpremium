@@ -115,10 +115,15 @@ export const ProductInfo: React.FC<Pick<ProductDetailUIProps, 'displayProduct' |
       <div className="flex items-center gap-3 mt-2">
         <Badge variant="secondary" className="text-xs">{displayProduct.category}</Badge>
         <span className="text-sm text-muted-foreground">{displayProduct.sold_count || 0} sold</span>
-        {currentStock !== null && (
+        {currentStock !== null ? (
           <span className={`text-sm font-medium flex items-center gap-1 ${isOutOfStock ? 'text-destructive' : currentStock <= 5 ? 'text-yellow-600' : 'text-green-600'}`}>
             <Package className="w-4 h-4" />
             {isOutOfStock ? 'Out of Stock' : currentStock <= 5 ? `Only ${currentStock} left!` : `${currentStock} available`}
+          </span>
+        ) : (
+          <span className="text-sm font-medium flex items-center gap-1 text-green-600">
+            <Package className="w-4 h-4" />
+            ∞ In Stock
           </span>
         )}
       </div>

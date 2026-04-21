@@ -58,7 +58,7 @@ const ProductDetailPage: React.FC = () => {
 
   const loadProductById = async (id: string) => {
     setLoadingProduct(true);
-    const productColumns = 'id,name,price,original_price,image_url,category,description,rating,sold_count,stock,is_active,created_at,updated_at,reseller_price,seo_tags,slug';
+    const productColumns = 'id,name,price,original_price,image_url,category,description,rating,sold_count,stock,is_active,created_at,updated_at,reseller_price,seo_tags,slug,delivery_mode';
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
     const slugLower = id.toLowerCase();
     const query = isUUID
@@ -83,6 +83,45 @@ const ProductDetailPage: React.FC = () => {
       if (!selectedVariation) setSelectedVariation(data[0]);
     } else if (data) setVariations(data);
   };
+
+  // Compute stock dynamically based on delivery mode
+  useEffect(() => {
+    const computeStock = async () => {
+      if (!product) return;
+      
+      const variation = selectedVariation;
+      const varDeliveryMode = (variation as any)?.delivery_mode;
+      const productDeliveryMode = (product as any)?.delivery_mode;
+      
+      // If variation has unique delivery mode, count its unused stock items
+      if (variation && varDeliveryMode === 'unique') {
+        const { count } = await (supabase as any)
+          .from('product_stock_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('variation_id', variation.id)
+          .eq('is_used', false);
+        setCurrentStock(count ?? 0);
+        return;
+      }
+      
+      // If product has unique delivery mode (no variation-level), count product-level stock
+      if (productDeliveryMode === 'unique' && (!variation || varDeliveryMode !== 'unique')) {
+        const { count } = await (supabase as any)
+          .from('product_stock_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('product_id', product.id)
+          .is('variation_id', null)
+          .eq('is_used', false);
+        setCurrentStock(count ?? 0);
+        return;
+      }
+      
+      // For repeated/manual delivery: use admin-set stock or null (infinity)
+      setCurrentStock(product.stock ?? null);
+    };
+    
+    computeStock();
+  }, [product, selectedVariation]);
 
   const displayProduct = flashSale?.productData || product;
   const isOutOfStock = currentStock !== null && currentStock <= 0;
