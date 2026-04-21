@@ -107,9 +107,7 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
             {variations.map((v) => (
               <div key={v.id}>
                 <VariationItem variation={v} onEdit={handleEdit} onDelete={handleDelete} />
-                {variations.length >= 2 && (
-                  <VariationDeliveryManager variation={{ ...v, product_id: product.id }} />
-                )}
+                <VariationDeliveryManager variation={{ ...v, product_id: product.id }} />
               </div>
             ))}
           </AnimatePresence>
