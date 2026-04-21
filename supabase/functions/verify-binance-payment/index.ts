@@ -47,9 +47,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { orderId, amount, paymentId } = await req.json();
-    if (!orderId || !amount || !paymentId) {
-      return new Response(JSON.stringify({ error: "Missing orderId, amount, or paymentId" }), {
+    const { orderId, amount, paymentId, skipAmountCheck } = await req.json();
+    if (!orderId || !paymentId) {
+      return new Response(JSON.stringify({ error: "Missing orderId or paymentId" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -66,6 +66,23 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Check if this Order ID was already claimed
+    const { data: alreadyUsed } = await supabase
+      .from("used_binance_order_ids")
+      .select("id, telegram_id, purpose")
+      .eq("binance_order_id", normalizeText(orderId))
+      .maybeSingle();
+
+    if (alreadyUsed) {
+      return new Response(JSON.stringify({
+        success: false,
+        alreadyClaimed: true,
+        message: `This Order ID has already been claimed.`,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Check payment record exists
     const { data: payment } = await supabase
@@ -128,7 +145,7 @@ Deno.serve(async (req) => {
     }
 
     const expectedOrderId = normalizeText(orderId);
-    const expectedAmount = Math.abs(Number.parseFloat(String(payment.amount_usd ?? payment.amount ?? amount)));
+    const expectedAmount = amount ? Math.abs(Number.parseFloat(String(amount))) : null;
 
     const debugInfo: any = {
       httpStatus: binanceRes.status,
@@ -138,6 +155,7 @@ Deno.serve(async (req) => {
       billCount: Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0,
       expectedOrderId,
       expectedAmount,
+      skipAmountCheck: !!skipAmountCheck,
       searchWindow: { startTime, endTime },
     };
 
@@ -145,6 +163,7 @@ Deno.serve(async (req) => {
 
     let verified = false;
     let matchDetails: any = null;
+    let actualPaidAmount: number | null = null;
 
     if (binanceData.status === "SUCCESS" && binanceData.data?.billList) {
       const billSummaries: any[] = [];
@@ -153,11 +172,14 @@ Deno.serve(async (req) => {
         const candidateIds = getCandidateIds(bill);
         const candidateAmounts = getCandidateAmounts(bill);
         
-        // Match by order ID - check if any candidate ID contains or equals the expected order ID
         const idMatch = candidateIds.some((candidate) => (
           candidate === expectedOrderId || candidate.includes(expectedOrderId) || expectedOrderId.includes(candidate)
         ));
-        const amountMatch = candidateAmounts.some((candidate) => Math.abs(candidate - expectedAmount) < 0.02);
+
+        // If skipAmountCheck, we only need ID match
+        const amountMatch = skipAmountCheck
+          ? true
+          : (expectedAmount !== null && candidateAmounts.some((candidate) => Math.abs(candidate - expectedAmount) < 0.02));
 
         billSummaries.push({
           billType: bill.billType,
@@ -170,6 +192,7 @@ Deno.serve(async (req) => {
 
         if (idMatch && amountMatch) {
           verified = true;
+          actualPaidAmount = candidateAmounts.length > 0 ? candidateAmounts[0] : null;
           matchDetails = { candidateIds, candidateAmounts };
           break;
         }
@@ -179,26 +202,51 @@ Deno.serve(async (req) => {
     }
 
     if (verified) {
-      console.log("✅ Payment VERIFIED:", JSON.stringify({ paymentId, matchDetails }));
+      console.log("✅ Payment VERIFIED:", JSON.stringify({ paymentId, matchDetails, actualPaidAmount }));
       await supabase.from("payments").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", paymentId);
-      return new Response(JSON.stringify({ success: true, message: "Payment verified" }), {
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Payment verified",
+        actualPaidAmount,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const billCount = Array.isArray(binanceData?.data?.billList) ? binanceData.data.billList.length : 0;
+
+    // Check if ID matched but amount didn't (for purchase flow wallet credit)
+    let idFoundButAmountMismatch = false;
+    let foundAmount: number | null = null;
+    if (binanceData.status === "SUCCESS" && binanceData.data?.billList && !skipAmountCheck) {
+      for (const bill of binanceData.data.billList) {
+        const candidateIds = getCandidateIds(bill);
+        const candidateAmounts = getCandidateAmounts(bill);
+        const idMatch = candidateIds.some((candidate) => (
+          candidate === expectedOrderId || candidate.includes(expectedOrderId) || expectedOrderId.includes(candidate)
+        ));
+        if (idMatch) {
+          idFoundButAmountMismatch = true;
+          foundAmount = candidateAmounts.length > 0 ? candidateAmounts[0] : null;
+          break;
+        }
+      }
+    }
+
     const failReason = binanceData.status !== "SUCCESS"
       ? `Binance API error: ${binanceData.errorMessage || binanceData.code || "unknown"}`
       : billCount === 0
         ? "No transactions found in the time window."
         : `Checked ${billCount} transactions — no matching Order ID found.`;
 
-    console.log("❌ Payment NOT verified:", failReason);
+    console.log("❌ Payment NOT verified:", failReason, { idFoundButAmountMismatch, foundAmount });
 
     return new Response(JSON.stringify({
       success: false,
       message: `Payment not yet found. ${failReason} Please wait 1-2 minutes after paying and try again.`,
       debug: { billCount, expectedOrderId, expectedAmount },
+      idFoundButAmountMismatch,
+      foundAmount,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

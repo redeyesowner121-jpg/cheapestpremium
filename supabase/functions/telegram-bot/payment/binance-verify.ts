@@ -1,13 +1,14 @@
-// ===== BINANCE VERIFY HANDLER =====
+// ===== BINANCE VERIFY HANDLER (Purchase flow) =====
 
 import { sendMessage } from "../telegram-api.ts";
 import { setConversationState } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
+import { INR_TO_USD_RATE } from "./payment-utils.ts";
 
 export async function handleBinanceVerify(
   token: string, supabase: any, chatId: number, telegramUser: any, stateData: any, binanceOrderId: string
 ) {
-  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity = 1 } = stateData;
+  const { paymentId, amountUsd, productName, productId, variationId, walletDeduction, price, childBotId, childBotRevenue, quantity = 1, finalAmount } = stateData;
   const isChildBot = !!childBotId;
 
   await sendMessage(token, chatId, "🔍 Verifying payment...");
@@ -24,7 +25,25 @@ export async function handleBinanceVerify(
 
     const result = await verifyRes.json();
 
+    // Already claimed
+    if (result.alreadyClaimed) {
+      await sendMessage(token, chatId, `❌ <b>This Binance Order ID has already been used.</b>\n\nPlease use a different Order ID.\n\n📤 Send another Order ID to retry.`, {
+        reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "binance_cancel" }]] },
+      });
+      return;
+    }
+
     if (result.success) {
+      // Record this Order ID as used
+      await supabase.from("used_binance_order_ids").insert({
+        binance_order_id: binanceOrderId.trim().toUpperCase(),
+        telegram_id: telegramUser.id,
+        amount_usd: result.actualPaidAmount || amountUsd,
+        amount_inr: price,
+        purpose: "purchase",
+        payment_id: paymentId,
+      }).catch(() => {}); // ignore if duplicate
+
       const { processReferralBonus } = await import("./wallet-pay.ts");
       const { notifyAllAdmins } = await import("../db-helpers.ts");
       const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
@@ -55,7 +74,6 @@ export async function handleBinanceVerify(
           const { data: cb } = await supabase.from("child_bots").select("total_orders, total_earnings").eq("id", childBotId).single();
           if (cb) await supabase.from("child_bots").update({ total_orders: (cb.total_orders || 0) + 1, total_earnings: (cb.total_earnings || 0) + commission }).eq("id", childBotId);
         } catch {}
-        // Credit commission to owner's wallet
         try {
           const { creditChildBotOwnerCommission } = await import("./child-bot-credit.ts");
           await creditChildBotOwnerCommission(supabase, childBotId, order.id, productName, price, telegramUser.id);
@@ -90,6 +108,55 @@ export async function handleBinanceVerify(
 
       await processReferralBonus(supabase, telegramUser.id, token, price);
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.first_name || "User", productName, price, "Binance")); } catch {}
+    } else if (result.idFoundButAmountMismatch && result.foundAmount != null) {
+      // Order ID found but amount doesn't match product price → credit to wallet
+      const paidUsd = result.foundAmount;
+      const paidInr = Math.round(paidUsd * INR_TO_USD_RATE);
+
+      // Record as used
+      await supabase.from("used_binance_order_ids").insert({
+        binance_order_id: binanceOrderId.trim().toUpperCase(),
+        telegram_id: telegramUser.id,
+        amount_usd: paidUsd,
+        amount_inr: paidInr,
+        purpose: "wallet_credit_mismatch",
+        payment_id: paymentId,
+      }).catch(() => {});
+
+      // Mark payment as success
+      await supabase.from("payments").update({ status: "success", updated_at: new Date().toISOString() }).eq("id", paymentId);
+
+      // Credit to wallet
+      const { ensureWallet } = await import("../db-helpers.ts");
+      await ensureWallet(supabase, telegramUser.id);
+      const { data: wallet } = await supabase.from("telegram_wallets").select("balance").eq("telegram_id", telegramUser.id).single();
+      const newBalance = (wallet?.balance || 0) + paidInr;
+      await supabase.from("telegram_wallets").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("telegram_id", telegramUser.id);
+      await supabase.from("telegram_wallet_transactions").insert({
+        telegram_id: telegramUser.id, type: "deposit", amount: paidInr,
+        description: `Binance payment credited to wallet (Order ID: ${binanceOrderId})`,
+      });
+
+      await setConversationState(supabase, telegramUser.id, "idle", {});
+
+      await sendMessage(token, chatId,
+        `⚠️ <b>Amount Mismatch</b>\n\nYou paid <b>$${paidUsd}</b> (₹${paidInr}) but the product costs <b>$${amountUsd}</b> (₹${price}).\n\n✅ <b>₹${paidInr} has been credited to your wallet.</b>\n💰 New Balance: <b>₹${newBalance}</b>\n\nYou can use your wallet balance to purchase the product.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🛍 Back to Menu", callback_data: "back_main" }],
+            ],
+          },
+        }
+      );
+
+      const { notifyAllAdmins } = await import("../db-helpers.ts");
+      const mainToken = isChildBot ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+      try {
+        await notifyAllAdmins(mainToken, supabase,
+          `⚠️ <b>Binance Amount Mismatch → Wallet Credit</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Tried to buy: ${productName}\n💵 Expected: $${amountUsd} (₹${price})\n💵 Paid: $${paidUsd} (₹${paidInr})\n✅ Credited ₹${paidInr} to wallet\n🆔 Order ID: ${binanceOrderId}`
+        );
+      } catch {}
     } else {
       const debugOrderId = result.debug?.expectedOrderId || binanceOrderId;
       const debugAmt = result.debug?.expectedAmount || amountUsd;
