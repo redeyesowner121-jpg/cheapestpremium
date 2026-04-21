@@ -127,10 +127,10 @@ const AppContent = () => {
         <Suspense fallback={null}>
           <RecentOrderNotification />
         </Suspense>
+        <Suspense fallback={null}>
+          <AIChatWidget />
+        </Suspense>
       </BrowserRouter>
-      <Suspense fallback={null}>
-        <AIChatWidget />
-      </Suspense>
     </>
   );
 };
