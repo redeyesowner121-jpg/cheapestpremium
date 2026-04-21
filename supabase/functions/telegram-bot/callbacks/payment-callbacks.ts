@@ -48,6 +48,14 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
   await sendMessage(token, chatId, "✅ Payment already processed.");
 }
 
+// Helper: instead of "Session expired", redirect to main menu
+async function restartFlow(token: string, supabase: any, chatId: number, lang: string) {
+  await sendMessage(token, chatId, lang === "bn"
+    ? "🔄 অনুগ্রহ করে আবার শুরু করুন।"
+    : "🔄 Please start again.");
+  await showMainMenu(token, supabase, chatId, lang);
+}
+
 export async function handlePaymentCallbacks(
   BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, lang: string
 ): Promise<boolean> {
@@ -71,7 +79,7 @@ export async function handlePaymentCallbacks(
           : "✏️ Send the quantity as a number (e.g. <code>7</code>). Send /cancel to abort.",
       );
     } else {
-      await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ।" : "❌ Session expired.");
+      await restartFlow(BOT_TOKEN, supabase, chatId, lang);
     }
     return true;
   }
@@ -84,7 +92,7 @@ export async function handlePaymentCallbacks(
         const { proceedToPaymentWithQuantity } = await import("../payment/buy-handlers.ts");
         await proceedToPaymentWithQuantity(BOT_TOKEN, supabase, chatId, telegramUser, convState.data as any, qty, lang);
       } else {
-        await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ।" : "❌ Session expired.");
+        await restartFlow(BOT_TOKEN, supabase, chatId, lang);
       }
       return true;
     }
@@ -99,7 +107,7 @@ export async function handlePaymentCallbacks(
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else {
-      await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "❌ সেশন মেয়াদ উত্তীর্ণ। আবার চেষ্টা করুন।" : "❌ Session expired. Please try again.");
+      await restartFlow(BOT_TOKEN, supabase, chatId, lang);
     }
     return true;
   }
@@ -109,7 +117,7 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "choose_payment_method") {
       await showBinancePayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -117,7 +125,7 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "choose_payment_method") {
       await showUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -125,7 +133,7 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "choose_upi_method") {
       await showRazorpayUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -133,7 +141,7 @@ export async function handlePaymentCallbacks(
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "choose_upi_method") {
       await showManualUpiPayment(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -145,7 +153,7 @@ export async function handlePaymentCallbacks(
       await sendMessage(BOT_TOKEN, chatId, "📤 Please send your <b>Binance Order ID</b> as a message to verify payment.");
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -155,7 +163,7 @@ export async function handlePaymentCallbacks(
       await handleRazorpayVerify(BOT_TOKEN, supabase, chatId, telegramUser, convState.data);
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired. Please try again."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -209,7 +217,7 @@ export async function handlePaymentCallbacks(
     if (convState?.data?.amount) {
       const { showDepositBinance } = await import("../payment/deposit-handlers.ts");
       await showDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -218,7 +226,7 @@ export async function handlePaymentCallbacks(
     if (convState?.data?.amount) {
       const { showDepositUpi } = await import("../payment/deposit-handlers.ts");
       await showDepositUpi(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -227,7 +235,7 @@ export async function handlePaymentCallbacks(
     if (convState?.data?.amount) {
       const { showDepositRazorpay } = await import("../payment/deposit-handlers.ts");
       await showDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -236,7 +244,7 @@ export async function handlePaymentCallbacks(
     if (convState?.data?.amount) {
       const { showDepositManualUpi } = await import("../payment/deposit-handlers.ts");
       await showDepositManualUpi(BOT_TOKEN, supabase, chatId, userId, convState.data.amount, lang);
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -247,7 +255,7 @@ export async function handlePaymentCallbacks(
       await verifyDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
     } else if (!convState || convState.step === "idle") {
       await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
@@ -258,7 +266,7 @@ export async function handlePaymentCallbacks(
       await verifyDepositRazorpay(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
     } else if (!convState || convState.step === "idle") {
       await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
-    } else { await sendMessage(BOT_TOKEN, chatId, "Session expired."); }
+    } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
     return true;
   }
 
