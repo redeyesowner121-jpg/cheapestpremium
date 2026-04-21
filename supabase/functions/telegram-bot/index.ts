@@ -339,6 +339,15 @@ Deno.serve(async (req) => {
               checkChannelMembership(BOT_TOKEN, userId, supabase),
               ensureWallet(supabase, userId),
             ]);
+
+            // Auto-create website account on /start
+            try {
+              const { resolveProfileUserId } = await import("./_shared/../_shared/profile-id-resolver.ts");
+              await resolveProfileUserId(supabase, userId);
+            } catch (e) {
+              console.error("Auto-create website profile on /start failed:", e);
+            }
+
             if (!isUserAdmin && !joined) { await showJoinChannels(BOT_TOKEN, supabase, chatId, lang); clearChildBotContext(); return jsonOk(); }
 
             await showMainMenu(BOT_TOKEN, supabase, chatId, lang);
