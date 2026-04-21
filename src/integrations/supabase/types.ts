@@ -2366,6 +2366,39 @@ export type Database = {
         }
         Relationships: []
       }
+      used_binance_order_ids: {
+        Row: {
+          amount_inr: number | null
+          amount_usd: number | null
+          binance_order_id: string
+          created_at: string
+          id: string
+          payment_id: string | null
+          purpose: string
+          telegram_id: number
+        }
+        Insert: {
+          amount_inr?: number | null
+          amount_usd?: number | null
+          binance_order_id: string
+          created_at?: string
+          id?: string
+          payment_id?: string | null
+          purpose?: string
+          telegram_id: number
+        }
+        Update: {
+          amount_inr?: number | null
+          amount_usd?: number | null
+          binance_order_id?: string
+          created_at?: string
+          id?: string
+          payment_id?: string | null
+          purpose?: string
+          telegram_id?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
