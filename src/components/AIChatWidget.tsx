@@ -139,10 +139,10 @@ const AIChatWidget: React.FC = () => {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={() => setIsFullScreen(prev => !prev)} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title={isFullScreen ? 'Minimize' : 'Fullscreen'}>
-                  {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                <button onClick={() => { setOpen(false); navigate('/ai'); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title="Open full page">
+                  <Maximize2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setOpen(false); setDismissed(false); setIsFullScreen(false); chat.setSearchMode(false); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors">
+                <button onClick={() => { setOpen(false); chat.setSearchMode(false); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
