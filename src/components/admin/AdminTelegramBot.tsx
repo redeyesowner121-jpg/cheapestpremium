@@ -22,6 +22,7 @@ const SETTINGS_DEFS: Record<string, { key: string; label: string; emoji: string 
     { key: 'binance_contact', label: 'Binance Contact', emoji: '📞' },
     { key: 'min_deposit_amount', label: 'Min Deposit', emoji: '⬇️' },
     { key: 'max_deposit_amount', label: 'Max Deposit', emoji: '⬆️' },
+    { key: 'usd_to_inr_rate', label: 'USD to INR Rate (1$ = ₹?)', emoji: '💱' },
   ],
   bonus: [
     { key: 'referral_bonus', label: 'Referral Bonus', emoji: '🎁' },
