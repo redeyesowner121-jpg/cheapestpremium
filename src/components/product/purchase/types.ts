@@ -39,6 +39,6 @@ export interface GuestDetails {
 
 export type PaymentStep = 'details' | 'method' | 'binance' | 'razorpay';
 
-export const INR_TO_USD_RATE = 60;
+export const INR_TO_USD_RATE = 70;
 export const BULK_THRESHOLD = 5;
 export const BULK_DISCOUNT_PERCENT = 8;

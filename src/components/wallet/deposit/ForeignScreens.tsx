@@ -8,7 +8,7 @@ import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
-const INR_TO_USD_RATE = 60;
+const DEFAULT_INR_TO_USD_RATE = 70;
 
 function generatePaymentNote(): string {
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
