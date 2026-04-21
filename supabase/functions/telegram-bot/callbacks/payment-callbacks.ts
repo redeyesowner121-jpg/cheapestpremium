@@ -48,12 +48,10 @@ async function resendLastDelivery(token: string, supabase: any, chatId: number, 
   await sendMessage(token, chatId, "✅ Payment already processed.");
 }
 
-// Helper: instead of "Session expired", redirect to main menu
-async function restartFlow(token: string, supabase: any, chatId: number, lang: string) {
-  await sendMessage(token, chatId, lang === "bn"
-    ? "🔄 অনুগ্রহ করে আবার শুরু করুন।"
-    : "🔄 Please start again.");
-  await showMainMenu(token, supabase, chatId, lang);
+// Silent no-op: never show "session expired" or "start again" — just ignore stale callbacks
+async function restartFlow(_token: string, _supabase: any, _chatId: number, _lang: string) {
+  // Intentionally empty — payment sessions persist until explicit /cancel
+  return;
 }
 
 export async function handlePaymentCallbacks(
