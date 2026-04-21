@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Bot, Maximize2, Minimize2, Trash2, Sparkles, ChevronDown, Mic, MicOff, Search, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,9 +8,10 @@ import ChatEmptyState from './ai-chat/ChatEmptyState';
 import { useAIChat } from './ai-chat/useAIChat';
 
 const AIChatWidget: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const chat = useAIChat();
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const [btnPos, setBtnPos] = useState({ x: 0, y: 0 });
@@ -73,18 +75,12 @@ const AIChatWidget: React.FC = () => {
     <>
       {/* Floating Draggable Button */}
       <AnimatePresence>
-        {!open && !dismissed && (
+        {!open && location.pathname !== '/ai' && (
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
             className="fixed bottom-24 right-4 z-[60]"
             style={{ transform: `translate(${btnPos.x}px, ${btnPos.y}px)` }}
           >
-            <button
-              onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
-              className="absolute -top-2 -right-1 z-[61] w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-md hover:scale-110 transition-transform"
-            >
-              <X className="w-3 h-3" />
-            </button>
             <button
               onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp}
               onClick={handleBtnClick}
@@ -143,10 +139,10 @@ const AIChatWidget: React.FC = () => {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button onClick={() => setIsFullScreen(prev => !prev)} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title={isFullScreen ? 'Minimize' : 'Fullscreen'}>
-                  {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                <button onClick={() => { setOpen(false); navigate('/ai'); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors" title="Open full page">
+                  <Maximize2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => { setOpen(false); setDismissed(false); setIsFullScreen(false); chat.setSearchMode(false); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors">
+                <button onClick={() => { setOpen(false); chat.setSearchMode(false); }} className="p-1.5 rounded-lg hover:bg-primary-foreground/20 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
