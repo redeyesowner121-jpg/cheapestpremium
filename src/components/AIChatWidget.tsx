@@ -8,9 +8,10 @@ import ChatEmptyState from './ai-chat/ChatEmptyState';
 import { useAIChat } from './ai-chat/useAIChat';
 
 const AIChatWidget: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const chat = useAIChat();
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
   const [btnPos, setBtnPos] = useState({ x: 0, y: 0 });
