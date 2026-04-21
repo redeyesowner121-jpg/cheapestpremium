@@ -342,7 +342,7 @@ Deno.serve(async (req) => {
 
             // Auto-create website account on /start
             try {
-              const { resolveProfileUserId } = await import("./_shared/../_shared/profile-id-resolver.ts");
+              const { resolveProfileUserId } = await import("../_shared/profile-id-resolver.ts");
               await resolveProfileUserId(supabase, userId);
             } catch (e) {
               console.error("Auto-create website profile on /start failed:", e);
