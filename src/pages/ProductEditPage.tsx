@@ -500,9 +500,10 @@ const ProductEditPage: React.FC = () => {
                     <div className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold">{v.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                         <p className="text-sm font-semibold">{v.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span className="text-sm font-bold text-primary">₹{v.price}</span>
+                            <span className="text-xs text-muted-foreground">(${(v.price / usdRate).toFixed(2)})</span>
                             {v.original_price && <span className="text-xs text-muted-foreground line-through">₹{v.original_price}</span>}
                             {v.reseller_price && <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">R: ₹{v.reseller_price}</span>}
                           </div>
