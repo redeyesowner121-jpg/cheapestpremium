@@ -9,7 +9,7 @@ import { generatePayUrl, generateUpiQrUrl, generateFallbackQrUrl, inrToUsd, getD
 
 // Re-export from split modules for backward compat
 export { handleRazorpayVerify } from "./razorpay-verify.ts";
-export { handleBinanceVerify } from "./binance-verify.ts";
+export { handleBinanceScreenshot } from "./binance-verify.ts";
 
 /** Helper: notify main bot admins for child bot pending orders */
 async function notifyMainAdminsForChildOrder(
