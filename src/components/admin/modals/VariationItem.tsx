@@ -174,6 +174,34 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
 
             <p className="text-[9px] text-muted-foreground text-center">1 USD = ₹{usdRate} • Click 🔗 to toggle auto/manual</p>
 
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <FileText className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground font-medium">Description</span>
+              </div>
+              <Textarea
+                placeholder="Variation description..."
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="text-xs min-h-[60px] rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground font-medium">Delivery Message</span>
+              </div>
+              <Textarea
+                placeholder="Message sent to user after delivery..."
+                value={form.delivery_message}
+                onChange={(e) => setForm({ ...form, delivery_message: e.target.value })}
+                className="text-xs min-h-[60px] rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
+
             <div className="flex gap-2 justify-end pt-1">
               <Button size="sm" variant="ghost" className="h-8 rounded-xl text-xs gap-1" onClick={() => setIsEditing(false)}>
                 <X className="w-3 h-3" /> Cancel
