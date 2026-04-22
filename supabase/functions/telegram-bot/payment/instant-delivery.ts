@@ -254,7 +254,8 @@ export async function sendInstantDeliveryWithLoginCode(
   telegramId: number,
   accessLink: string,
   productName: string,
-  lang: string
+  lang: string,
+  deliveryMessage?: string | null
 ) {
   const childMode = isChildBotMode();
 
