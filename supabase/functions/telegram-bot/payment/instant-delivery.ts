@@ -20,7 +20,7 @@ export async function resolveAccessLink(
   orderId?: string,
   telegramOrderId?: string,
   quantity: number = 1,
-): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean }> {
+): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean; deliveryMessage?: string | null }> {
   const { data: product } = await supabase
     .from("products")
     .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website, name")
