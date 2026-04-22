@@ -20,7 +20,7 @@ export async function handleBinanceVerify(
     const verifyRes = await fetch(`${supabaseUrl}/functions/v1/verify-binance-payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ orderId: binanceOrderId, amount: amountUsd, paymentId }),
+      body: JSON.stringify({ orderId: binanceOrderId, amount: amountUsd, paymentId, skipAmountCheck: true }),
     });
 
     const result = await verifyRes.json();
