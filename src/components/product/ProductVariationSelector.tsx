@@ -8,6 +8,7 @@ interface ProductVariation {
   price: number;
   original_price?: number | null;
   reseller_price?: number | null;
+  description?: string | null;
   is_active: boolean;
 }
 
@@ -65,6 +66,9 @@ const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
                 </div>
               )}
               <span className="block text-sm font-semibold text-foreground">{variation.name}</span>
+              {variation.description && (
+                <span className="block text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{variation.description}</span>
+              )}
               <div className="mt-0.5">
                 <span className="block text-lg font-bold text-primary">₹{Math.round(varFinalPrice)}</span>
                 {hasOriginalDiscount && (
