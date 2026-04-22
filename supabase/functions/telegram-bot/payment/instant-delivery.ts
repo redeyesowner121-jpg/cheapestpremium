@@ -141,13 +141,13 @@ export async function resolveAccessLink(
       await checkAndSwitchIfStockEmpty(supabase, productId, variationId, useVariationStock, product.name);
     }
 
-    if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite };
-    return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite };
+    if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
+    return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
   }
 
   // repeated mode: same link for all units
   const link = product.access_link || null;
-  return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite };
+  return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
 }
 
 /**
