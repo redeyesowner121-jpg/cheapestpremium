@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, IndianRupee, DollarSign, Tag, Users, BadgePercent, Link2 } from 'lucide-react';
+import { Plus, IndianRupee, DollarSign, Tag, Users, BadgePercent, Link2, FileText, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AddVariationFormProps {
-  value: { name: string; price: string; original_price: string; reseller_price: string };
-  onChange: (v: { name: string; price: string; original_price: string; reseller_price: string }) => void;
+  value: { name: string; price: string; original_price: string; reseller_price: string; description?: string; delivery_message?: string };
+  onChange: (v: { name: string; price: string; original_price: string; reseller_price: string; description?: string; delivery_message?: string }) => void;
   onAdd: () => void;
   usdRate?: number;
 }
@@ -114,6 +115,34 @@ const AddVariationForm: React.FC<AddVariationFormProps> = ({ value, onChange, on
       ))}
 
       <p className="text-[9px] text-muted-foreground text-center">1 USD = ₹{usdRate} • Click 🔗 to toggle auto/manual</p>
+
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
+          <FileText className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground font-medium">Description</span>
+        </div>
+        <Textarea
+          placeholder="Variation description..."
+          value={value.description || ''}
+          onChange={(e) => onChange({ ...value, description: e.target.value })}
+          className="text-xs min-h-[50px] rounded-xl resize-none"
+          rows={2}
+        />
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
+          <MessageSquare className="w-3 h-3 text-muted-foreground" />
+          <span className="text-[10px] text-muted-foreground font-medium">Delivery Message</span>
+        </div>
+        <Textarea
+          placeholder="Message sent after delivery..."
+          value={value.delivery_message || ''}
+          onChange={(e) => onChange({ ...value, delivery_message: e.target.value })}
+          className="text-xs min-h-[50px] rounded-xl resize-none"
+          rows={2}
+        />
+      </div>
 
       <Button
         onClick={onAdd}
