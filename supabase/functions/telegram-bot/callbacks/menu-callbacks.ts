@@ -150,6 +150,15 @@ export async function handleMenuCallbacks(
     return true;
   }
 
+  // Admin resend delivery (repeat ID-Pass/Links)
+  if (data.startsWith("admin_resend_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const orderId = data.replace("admin_resend_", "");
+    const { handleAdminResend } = await import("../payment/admin-actions.ts");
+    await handleAdminResend(BOT_TOKEN, supabase, orderId, chatId);
+    return true;
+  }
+
   // Products & Categories
   if (data === "view_products") { await handleViewCategories(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data.startsWith("cat_")) { await handleCategoryProducts(BOT_TOKEN, supabase, chatId, decodeURIComponent(data.replace("cat_", "")), lang); return true; }

@@ -92,6 +92,7 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
           { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
         ],
         [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}` }],
+        [{ text: "🔄 Repeat ID-Pass/Links", callback_data: `admin_resend_${orderId}` }],
         [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
       ],
     },

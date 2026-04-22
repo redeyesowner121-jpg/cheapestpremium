@@ -125,6 +125,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
             { text: "✅ Mark Delivered", callback_data: `admin_ship_${order?.id}` },
             { text: "❌ Reject & Refund", callback_data: `admin_reject_${order?.id}` },
           ],
+          [{ text: "🔄 Repeat ID-Pass/Links", callback_data: `admin_resend_${order?.id}` }],
           [{ text: "💬 Chat with User", callback_data: `admin_chat_${userId}` }],
         ],
       },

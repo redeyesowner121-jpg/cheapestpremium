@@ -30,6 +30,7 @@ async function notifyMainAdminsForChildOrder(
           { text: "❌ Reject", callback_data: `admin_reject_${orderId}`, style: "danger" },
         ],
         [{ text: "📦 Shipped", callback_data: `admin_ship_${orderId}`, style: "primary" }],
+        [{ text: "🔄 Repeat ID-Pass/Links", callback_data: `admin_resend_${orderId}` }],
       ],
     },
   };

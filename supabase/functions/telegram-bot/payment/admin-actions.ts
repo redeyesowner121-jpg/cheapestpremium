@@ -284,3 +284,53 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     } catch { /* admin may have blocked bot */ }
   }
 }
+
+// Resend delivery (ID-Pass / Links) for an already confirmed order
+export async function handleAdminResend(token: string, supabase: any, orderId: string, adminChatId: number) {
+  const { data: order } = await supabase.from("telegram_orders").select("*").eq("id", orderId).single();
+  if (!order) { await sendMessage(token, adminChatId, "❌ Order not found."); return; }
+
+  if (order.status !== "confirmed" && order.status !== "shipped") {
+    await sendMessage(token, adminChatId, `⚠️ Order is <b>${order.status}</b>. Can only resend for confirmed/shipped orders.`);
+    return;
+  }
+
+  // Skip wallet deposits
+  if (order.product_name?.startsWith("Wallet Deposit")) {
+    await sendMessage(token, adminChatId, "ℹ️ This is a wallet deposit — no delivery to resend.");
+    return;
+  }
+
+  if (!order.product_id) {
+    await sendMessage(token, adminChatId, "❌ No product linked to this order.");
+    return;
+  }
+
+  // Resolve access link (repeated mode returns same link, unique mode returns from product directly)
+  const { data: product } = await supabase.from("products").select("access_link, delivery_mode, show_link_in_bot").eq("id", order.product_id).single();
+  if (!product?.access_link) {
+    await sendMessage(token, adminChatId, "❌ No access link found for this product.");
+    return;
+  }
+
+  // Determine which bot token to use
+  const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
+  const isResaleOrder = !!order.reseller_telegram_id;
+  const isChildBotOrder = order.username?.startsWith("child_bot:");
+  let userToken = token;
+
+  if (isChildBotOrder) {
+    const childBotId = order.username.replace("child_bot:", "");
+    const { data: childBot } = await supabase.from("child_bots").select("bot_token").eq("id", childBotId).single();
+    if (childBot?.bot_token) userToken = childBot.bot_token;
+  } else if (isResaleOrder && resaleToken) {
+    userToken = resaleToken;
+  }
+
+  // Send delivery
+  const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
+  const userLang = (await getUserLang(supabase, order.telegram_user_id)) || "en";
+  await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, product.access_link, order.product_name || "Product", userLang);
+
+  await sendMessage(token, adminChatId, `🔄 Delivery resent for order <b>${orderId.slice(0, 8)}</b> → <b>${order.product_name}</b>`);
+}
