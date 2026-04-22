@@ -102,7 +102,7 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
   // If confirmed, process referral, reseller profit, and auto-send access_link
   if (newStatus === "confirmed") {
-    let resolvedDelivery: { link: string | null; showInBot: boolean; showInWebsite: boolean } | null = null;
+    let resolvedDelivery: { link: string | null; showInBot: boolean; showInWebsite: boolean; deliveryMessage?: string | null } | null = null;
 
     if (!order.product_name?.startsWith("Wallet Deposit") && order.product_id) {
       const { resolveAccessLink } = await import("./instant-delivery.ts");
@@ -148,7 +148,10 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
 
     if (resolvedDelivery?.link && resolvedDelivery.showInBot && !isChildBotOrder) {
       const { sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
-      await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolvedDelivery.link, order.product_name || "Product", userLang);
+      await sendInstantDeliveryWithLoginCode(userToken, supabase, order.telegram_user_id, order.telegram_user_id, resolvedDelivery.link, order.product_name || "Product", userLang, resolvedDelivery.deliveryMessage);
+    } else if (resolvedDelivery?.deliveryMessage?.trim() && !isChildBotOrder) {
+      // Even if no link, send the delivery message
+      await sendToUser(tokensToTry, order.telegram_user_id, `📝 ${resolvedDelivery.deliveryMessage}`);
     }
 
     // Credit child bot owner commission if this is a child bot order

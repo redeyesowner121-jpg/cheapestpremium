@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Pencil, Trash2, Check, X, IndianRupee, Tag, Users, BadgePercent, Link2 } from 'lucide-react';
+import { Pencil, Trash2, Check, X, IndianRupee, Tag, Users, BadgePercent, Link2, FileText, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface VariationItemProps {
@@ -11,8 +12,10 @@ interface VariationItemProps {
     price: number;
     original_price?: number | null;
     reseller_price?: number | null;
+    description?: string | null;
+    delivery_message?: string | null;
   };
-  onEdit: (id: string, data: { name: string; price: string; original_price: string; reseller_price: string }) => Promise<void>;
+  onEdit: (id: string, data: { name: string; price: string; original_price: string; reseller_price: string; description: string; delivery_message: string }) => Promise<void>;
   onDelete: (id: string) => void;
   isPending?: boolean;
   usdRate?: number;
@@ -20,7 +23,7 @@ interface VariationItemProps {
 
 const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDelete, isPending, usdRate = 70 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', price: '', original_price: '', reseller_price: '' });
+  const [form, setForm] = useState({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
   const [saving, setSaving] = useState(false);
 
   const [usdManual, setUsdManual] = useState({ price: false, original_price: false, reseller_price: false });
@@ -42,6 +45,8 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
       price: String(variation.price),
       original_price: variation.original_price ? String(variation.original_price) : '',
       reseller_price: variation.reseller_price ? String(variation.reseller_price) : '',
+      description: variation.description || '',
+      delivery_message: variation.delivery_message || '',
     });
     setUsdManual({ price: false, original_price: false, reseller_price: false });
     setIsEditing(true);
@@ -168,6 +173,34 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
             ))}
 
             <p className="text-[9px] text-muted-foreground text-center">1 USD = ₹{usdRate} • Click 🔗 to toggle auto/manual</p>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <FileText className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground font-medium">Description</span>
+              </div>
+              <Textarea
+                placeholder="Variation description..."
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="text-xs min-h-[60px] rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground font-medium">Delivery Message</span>
+              </div>
+              <Textarea
+                placeholder="Message sent to user after delivery..."
+                value={form.delivery_message}
+                onChange={(e) => setForm({ ...form, delivery_message: e.target.value })}
+                className="text-xs min-h-[60px] rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
 
             <div className="flex gap-2 justify-end pt-1">
               <Button size="sm" variant="ghost" className="h-8 rounded-xl text-xs gap-1" onClick={() => setIsEditing(false)}>

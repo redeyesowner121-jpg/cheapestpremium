@@ -20,7 +20,7 @@ export async function resolveAccessLink(
   orderId?: string,
   telegramOrderId?: string,
   quantity: number = 1,
-): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean }> {
+): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean; deliveryMessage?: string | null }> {
   const { data: product } = await supabase
     .from("products")
     .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website, name")
@@ -36,6 +36,7 @@ export async function resolveAccessLink(
   // Try to resolve variation from order's product_name (e.g. "Netflix - 1 Month")
   let variationId: string | null = null;
   let variationDeliveryMode: string | null = null;
+  let variationDeliveryMessage: string | null = null;
   try {
     let orderProductName: string | null = null;
     if (orderId) {
@@ -48,7 +49,7 @@ export async function resolveAccessLink(
     if (orderProductName) {
       const { data: vars } = await supabase
         .from("product_variations")
-        .select("id, name, delivery_mode")
+        .select("id, name, delivery_mode, delivery_message")
         .eq("product_id", productId)
         .eq("is_active", true);
       if (vars?.length) {
@@ -59,6 +60,7 @@ export async function resolveAccessLink(
         if (matched) {
           variationId = matched.id;
           variationDeliveryMode = matched.delivery_mode;
+          variationDeliveryMessage = matched.delivery_message || null;
         }
       }
     }
@@ -139,13 +141,13 @@ export async function resolveAccessLink(
       await checkAndSwitchIfStockEmpty(supabase, productId, variationId, useVariationStock, product.name);
     }
 
-    if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite };
-    return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite };
+    if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
+    return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
   }
 
   // repeated mode: same link for all units
   const link = product.access_link || null;
-  return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite };
+  return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
 }
 
 /**
@@ -254,7 +256,8 @@ export async function sendInstantDeliveryWithLoginCode(
   telegramId: number,
   accessLink: string,
   productName: string,
-  lang: string
+  lang: string,
+  deliveryMessage?: string | null
 ) {
   const childMode = isChildBotMode();
 
@@ -350,6 +353,11 @@ export async function sendInstantDeliveryWithLoginCode(
         }
       }),
     });
+  }
+
+  // Send custom delivery message if available
+  if (deliveryMessage?.trim()) {
+    await sendMessage(token, chatId, `📝 ${deliveryMessage}`);
   }
 }
 

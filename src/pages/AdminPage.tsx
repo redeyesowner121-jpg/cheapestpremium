@@ -64,7 +64,7 @@ const AdminPage: React.FC = () => {
   });
   const [pendingVariations, setPendingVariations] = useState<any[]>([]);
   const [existingVariations, setExistingVariations] = useState<any[]>([]);
-  const [newModalVariation, setNewModalVariation] = useState({ name: '', price: '', original_price: '', reseller_price: '' });
+  const [newModalVariation, setNewModalVariation] = useState({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
 
   useAdminOrderAlerts((isAdmin || isTempAdmin) && alertsEnabled, () => loadData());
 
@@ -75,7 +75,7 @@ const AdminPage: React.FC = () => {
   const resetProductForm = () => {
     setProductForm({ name: '', description: '', price: '', original_price: '', reseller_price: '', category: '', image_url: '', images: [], access_link: '', stock: '', is_active: true, button_style: 'primary', delivery_mode: 'repeated', show_link_in_bot: true, show_link_in_website: true });
     setPendingVariations([]);
-    setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
+    setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
     setEditingProduct(null);
     setExistingVariations([]);
     setShowProductModal(false);
@@ -99,7 +99,7 @@ const AdminPage: React.FC = () => {
       .eq('product_id', product.id).order('created_at', { ascending: true });
     setExistingVariations(varData || []);
     setPendingVariations([]);
-    setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
+    setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
     setShowProductModal(true);
   };
 
