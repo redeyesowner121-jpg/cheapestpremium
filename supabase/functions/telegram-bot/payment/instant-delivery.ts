@@ -49,7 +49,7 @@ export async function resolveAccessLink(
     if (orderProductName) {
       const { data: vars } = await supabase
         .from("product_variations")
-        .select("id, name, delivery_mode")
+        .select("id, name, delivery_mode, delivery_message")
         .eq("product_id", productId)
         .eq("is_active", true);
       if (vars?.length) {
@@ -60,6 +60,7 @@ export async function resolveAccessLink(
         if (matched) {
           variationId = matched.id;
           variationDeliveryMode = matched.delivery_mode;
+          variationDeliveryMessage = matched.delivery_message || null;
         }
       }
     }
