@@ -6,7 +6,7 @@ import { handleDepositSteps, handleWithdrawSteps } from "./conversations/wallet-
 import { handleScreenshotStep } from "./conversations/order-conversations.ts";
 import { handleAdminConversationSteps } from "./conversations/admin-conversations.ts";
 import { handleProductAndResaleSteps } from "./conversations/product-conversations.ts";
-import { handleBinanceVerify } from "./payment/buy-handlers.ts";
+import { handleBinanceScreenshot } from "./payment/binance-verify.ts";
 
 export async function handleConversationStep(token: string, supabase: any, chatId: number, userId: number, msg: any, state: { step: string; data: Record<string, any> }) {
   const text = msg.text || "";

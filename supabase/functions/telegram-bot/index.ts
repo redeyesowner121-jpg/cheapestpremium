@@ -338,9 +338,9 @@ Deno.serve(async (req) => {
             const activeConvState = await getConversationState(supabase, userId);
             const paymentSteps = [
               "choose_payment_method", "wallet_pay_confirm", "binance_payment_pending",
-              "binance_awaiting_order_id", "razorpay_payment_pending", "choose_upi_method",
+              "binance_awaiting_screenshot", "razorpay_payment_pending", "choose_upi_method",
               "awaiting_quantity_choice", "awaiting_custom_quantity", "awaiting_screenshot",
-              "deposit_binance_pending", "deposit_razorpay_pending", "deposit_upi_pending",
+              "deposit_binance_awaiting_screenshot", "deposit_razorpay_pending", "deposit_upi_pending",
               "deposit_enter_amount", "deposit_choose_method",
             ];
             if (activeConvState && paymentSteps.includes(activeConvState.step)) {
