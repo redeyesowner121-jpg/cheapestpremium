@@ -53,18 +53,25 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
-  // Binance Order ID step (purchase flow)
-  if (state.step === "binance_awaiting_order_id" && text.trim()) {
-    const binanceOrderId = text.trim();
-    const telegramUser = msg.from || { id: userId };
-    await handleBinanceVerify(token, supabase, chatId, telegramUser, state.data, binanceOrderId);
+  // Binance screenshot step (purchase flow)
+  if (state.step === "binance_awaiting_screenshot") {
+    if (!msg.photo) {
+      await sendMessage(token, chatId, "📸 Please send the payment screenshot as a photo.");
+      return;
+    }
+    const { handleBinanceScreenshot } = await import("./payment/binance-verify.ts");
+    await handleBinanceScreenshot(token, supabase, chatId, userId, msg, state.data);
     return;
   }
 
-  // Binance Order ID step (deposit flow)
-  if (state.step === "deposit_binance_awaiting_order_id" && text.trim()) {
-    const { verifyDepositBinanceWithOrderId } = await import("./payment/deposit-handlers.ts");
-    await verifyDepositBinanceWithOrderId(token, supabase, chatId, userId, state.data, text.trim(), (await import("./db-helpers.ts")).getUserLang ? "en" : "en");
+  // Binance screenshot step (deposit flow)
+  if (state.step === "deposit_binance_awaiting_screenshot") {
+    if (!msg.photo) {
+      await sendMessage(token, chatId, "📸 Please send the payment screenshot as a photo.");
+      return;
+    }
+    const { handleDepositBinanceScreenshot } = await import("./payment/deposit-handlers.ts");
+    await handleDepositBinanceScreenshot(token, supabase, chatId, userId, msg, state.data);
     return;
   }
 
