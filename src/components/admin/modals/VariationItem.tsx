@@ -11,8 +11,10 @@ interface VariationItemProps {
     price: number;
     original_price?: number | null;
     reseller_price?: number | null;
+    description?: string | null;
+    delivery_message?: string | null;
   };
-  onEdit: (id: string, data: { name: string; price: string; original_price: string; reseller_price: string }) => Promise<void>;
+  onEdit: (id: string, data: { name: string; price: string; original_price: string; reseller_price: string; description: string; delivery_message: string }) => Promise<void>;
   onDelete: (id: string) => void;
   isPending?: boolean;
   usdRate?: number;
@@ -20,7 +22,7 @@ interface VariationItemProps {
 
 const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDelete, isPending, usdRate = 70 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', price: '', original_price: '', reseller_price: '' });
+  const [form, setForm] = useState({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
   const [saving, setSaving] = useState(false);
 
   const [usdManual, setUsdManual] = useState({ price: false, original_price: false, reseller_price: false });
@@ -42,6 +44,8 @@ const VariationItem: React.FC<VariationItemProps> = ({ variation, onEdit, onDele
       price: String(variation.price),
       original_price: variation.original_price ? String(variation.original_price) : '',
       reseller_price: variation.reseller_price ? String(variation.reseller_price) : '',
+      description: variation.description || '',
+      delivery_message: variation.delivery_message || '',
     });
     setUsdManual({ price: false, original_price: false, reseller_price: false });
     setIsEditing(true);
