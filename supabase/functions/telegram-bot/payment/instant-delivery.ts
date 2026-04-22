@@ -36,6 +36,7 @@ export async function resolveAccessLink(
   // Try to resolve variation from order's product_name (e.g. "Netflix - 1 Month")
   let variationId: string | null = null;
   let variationDeliveryMode: string | null = null;
+  let variationDeliveryMessage: string | null = null;
   try {
     let orderProductName: string | null = null;
     if (orderId) {
