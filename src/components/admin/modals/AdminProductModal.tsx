@@ -184,17 +184,19 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
         price: parseFloat(newModalVariation.price),
         original_price: newModalVariation.original_price ? parseFloat(newModalVariation.original_price) : null,
         reseller_price: newModalVariation.reseller_price ? parseFloat(newModalVariation.reseller_price) : null,
+        description: newModalVariation.description || null,
+        delivery_message: newModalVariation.delivery_message || null,
       }).then(({ error }) => {
         if (error) { toast.error('Failed to add variation'); return; }
         supabase.from('product_variations').select('*').eq('product_id', editingProduct.id)
           .order('created_at', { ascending: true })
           .then(({ data }) => setExistingVariations(data || []));
         toast.success('Variation added!');
-        setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
+        setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
       });
     } else {
       setPendingVariations([...pendingVariations, { ...newModalVariation }]);
-      setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '' });
+      setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
     }
   };
 
@@ -208,6 +210,8 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
       price: parseFloat(data.price),
       original_price: data.original_price ? parseFloat(data.original_price) : null,
       reseller_price: data.reseller_price ? parseFloat(data.reseller_price) : null,
+      description: data.description || null,
+      delivery_message: data.delivery_message || null,
     }).eq('id', id);
     if (error) { toast.error('Failed to update variation'); return; }
     toast.success('Variation updated!');
