@@ -354,6 +354,11 @@ export async function sendInstantDeliveryWithLoginCode(
       }),
     });
   }
+
+  // Send custom delivery message if available
+  if (deliveryMessage?.trim()) {
+    await sendMessage(token, chatId, `📝 ${deliveryMessage}`);
+  }
 }
 
 /**
