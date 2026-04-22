@@ -75,38 +75,26 @@ export async function showDepositMethodChoice(token: string, supabase: any, chat
   }
 }
 
-// Step 3a: Binance deposit — no amount required, pay any amount and send Order ID
+// Step 3a: Binance deposit — manual screenshot verification
 export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number | null, lang: string) {
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
 
-  // Create payment record (amount 0 as placeholder — actual amount determined from Binance)
-  const { data: payment } = await supabase.from("payments").insert({
-    user_id: userId.toString(),
-    amount: amount || 0,
-    amount_usd: 0,
-    note: "BINANCE_DEPOSIT_ANY_AMOUNT",
-    status: "pending",
-    payment_method: "binance",
-    product_name: "Wallet Deposit",
-    telegram_user_id: userId,
-  }).select("id").single();
-
-  await setConversationState(supabase, userId, "deposit_binance_awaiting_order_id", {
-    paymentId: payment?.id,
+  await setConversationState(supabase, userId, "deposit_binance_awaiting_screenshot", {
+    amount,
   });
 
   let text = `<b>💎 Binance Deposit</b>\n\n`;
   text += `Binance Pay ID: <code>${binanceId}</code>\n\n`;
+  if (amount) text += `Amount: <b>₹${amount}</b>\n\n`;
   text += `<b>Instructions:</b>\n`;
   text += `1. Open Binance App\n`;
   text += `2. Go to Pay > Send\n`;
   text += `3. Pay ID: <code>${binanceId}</code>\n`;
   text += `4. Send any amount you want to deposit\n`;
   text += `5. Complete payment\n`;
-  text += `6. <b>Send your Binance Order ID here</b>\n\n`;
-  text += `<i>After paying, copy the Order ID from Binance and send it as a message.</i>\n`;
-  text += `<i>💡 The exact amount you paid will be credited to your wallet.</i>`;
+  text += `6. <b>📸 Send payment screenshot here</b>\n\n`;
+  text += `<i>After paying, take a screenshot and send it as a photo here.</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
@@ -268,87 +256,75 @@ export async function showDepositManualUpi(token: string, supabase: any, chatId:
     : "After payment, send the <b>screenshot</b>.");
 }
 
-// ===== VERIFY DEPOSIT =====
+// ===== BINANCE DEPOSIT SCREENSHOT HANDLER (Manual) =====
 
-// Verify Binance deposit with Order ID — credits actual paid amount
-export async function verifyDepositBinanceWithOrderId(token: string, supabase: any, chatId: number, userId: number, stateData: any, binanceOrderId: string, lang: string) {
-  const { paymentId } = stateData;
+export async function handleDepositBinanceScreenshot(token: string, supabase: any, chatId: number, userId: number, msg: any, stateData: any) {
+  if (!msg.photo) {
+    await sendMessage(token, chatId, "📸 Please send the payment screenshot as a photo.");
+    return;
+  }
 
-  await sendMessage(token, chatId, "🔍 Verifying payment...");
+  const { amount } = stateData;
+  const username = msg.from?.username ? `@${msg.from.username}` : msg.from?.first_name || "Unknown";
 
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  await deleteConversationState(supabase, userId);
 
-    const verifyRes = await fetch(`${supabaseUrl}/functions/v1/verify-binance-payment`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ orderId: binanceOrderId, amount: 0, paymentId, skipAmountCheck: true }),
-    });
+  // Create a pending deposit order
+  const { data: order } = await supabase.from("telegram_orders").insert({
+    telegram_user_id: userId,
+    username,
+    product_name: amount ? `Wallet Deposit ₹${amount} (Binance)` : `Wallet Deposit (Binance)`,
+    amount: amount || 0,
+    status: "pending",
+    screenshot_file_id: msg.photo[msg.photo.length - 1]?.file_id || null,
+  }).select("id").single();
 
-    const result = await verifyRes.json();
+  const orderId = order?.id || "unknown";
 
-    // Already claimed
-    if (result.alreadyClaimed) {
-      await sendMessage(token, chatId, `❌ <b>This Binance Order ID has already been used.</b>\n\nPlease use a different Order ID.\n\n📤 Send another Order ID to retry.`, {
-        reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
-      });
-      return;
+  await sendMessage(token, chatId,
+    `✅ <b>Screenshot received!</b>\n\n💰 Amount: ${amount ? `₹${amount}` : "Pending verification"}\n⏳ Admin is verifying your Binance payment. You'll get an update soon.`
+  );
+
+  // Forward screenshot to admins
+  const { forwardToAllAdmins, resendPhotoToAllAdmins } = await import("../db-helpers.ts");
+  const { getChildBotContext } = await import("../child-context.ts");
+  const childCtx = getChildBotContext();
+  const mainToken = childCtx ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
+
+  if (childCtx) {
+    const fileId = msg.photo[msg.photo.length - 1]?.file_id;
+    if (fileId) {
+      await resendPhotoToAllAdmins(token, mainToken, supabase, fileId,
+        `💎 <b>Binance Deposit Screenshot</b> (via Child Bot)\n👤 User: <code>${userId}</code>\n💵 Amount: ${amount ? `₹${amount}` : "TBD"}`
+      );
     }
+  } else {
+    try { await forwardToAllAdmins(token, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
+  }
 
-    if (result.success && result.actualPaidAmount != null) {
-      const paidUsd = result.actualPaidAmount;
-      const { getDynamicUsdRate, usdToInr } = await import("./payment-utils.ts");
-      const usdRate = await getDynamicUsdRate(supabase);
-      const paidInr = usdToInr(paidUsd, usdRate);
+  const adminMsg = `💎 <b>Wallet Deposit Request (Binance Manual)</b>\n\n` +
+    `👤 User: <b>${username}</b> (<code>${userId}</code>)\n` +
+    `💵 Amount: <b>${amount ? `₹${amount}` : "Check screenshot"}</b>\n` +
+    `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`;
 
-      // Record as used
-      await supabase.from("used_binance_order_ids").insert({
-        binance_order_id: binanceOrderId.trim().toUpperCase(),
-        telegram_id: userId,
-        amount_usd: paidUsd,
-        amount_inr: paidInr,
-        purpose: "deposit",
-        payment_id: paymentId,
-      }).catch(() => {});
-
-      // Update payment record with actual amount
-      await supabase.from("payments").update({
-        amount: paidInr, amount_usd: paidUsd, status: "success", updated_at: new Date().toISOString(),
-      }).eq("id", paymentId);
-
-      await creditWallet(supabase, userId, paidInr, "binance", binanceOrderId);
-      await deleteConversationState(supabase, userId);
-      const wallet = await getWallet(supabase, userId);
-      await sendMessage(token, chatId,
-        `✅ <b>Payment Verified!</b>\n\n💰 $${paidUsd} (₹${paidInr}) deposited\n💵 New Balance: <b>₹${wallet?.balance || 0}</b>`
-      );
-      await notifyAllAdmins(token, supabase,
-        `💰 <b>Wallet Deposit (Binance Auto)</b>\n\n👤 User: <code>${userId}</code>\n💵 Amount: $${paidUsd} (₹${paidInr})\n🆔 Order ID: ${binanceOrderId}\n✅ Auto-verified`
-      );
-      let dName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", userId).single(); if (bu?.first_name) dName = bu.first_name; } catch {}
-      try { await logProof(token, formatDepositSuccess(userId, paidInr, "Binance Auto", dName)); } catch {}
-    } else if (result.success) {
-      // Order ID matched but no amount info — shouldn't happen but handle gracefully
-      await sendMessage(token, chatId, "⚠️ Payment found but amount couldn't be determined. Please contact support.", {
-        reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
-      });
-    } else {
-      let retryMsg = `${result.message || "Payment not found."}\n\n`;
-      retryMsg += `📤 Send your Binance Order ID again to retry.`;
-      await sendMessage(token, chatId, retryMsg, {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await notifyAllAdmins(mainToken, supabase, adminMsg, {
         reply_markup: {
           inline_keyboard: [
-             [{ text: "❌ Cancel", callback_data: "deposit_cancel" }],
+            [
+              { text: "✅ Approve", callback_data: `admin_confirm_${orderId}` },
+              { text: "❌ Reject", callback_data: `admin_reject_${orderId}` },
+            ],
+            [{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }],
           ],
         },
       });
+      break;
+    } catch (e) {
+      console.error(`Admin notify attempt ${attempt + 1} failed:`, e);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
     }
-  } catch (err) {
-    console.error("Deposit binance verify error:", err);
-    await sendMessage(token, chatId, "Verification error. Send your Order ID again to retry.", {
-      reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "deposit_cancel" }]] },
-    });
   }
 }
 

@@ -143,12 +143,11 @@ export async function handlePaymentCallbacks(
     return true;
   }
 
-  // Binance verify is now handled via text message (order ID), not callback
-  // Keep for backward compat - prompt user to send order ID
+  // Binance now uses screenshot-based manual verification
   if (data === "binance_verify") {
     const convState = await getConversationState(supabase, userId);
-    if (convState?.step === "binance_payment_pending" || convState?.step === "binance_awaiting_order_id") {
-      await sendMessage(BOT_TOKEN, chatId, "📤 Please send your <b>Binance Order ID</b> as a message to verify payment.");
+    if (convState?.step === "binance_awaiting_screenshot") {
+      await sendMessage(BOT_TOKEN, chatId, "📸 Please send your <b>payment screenshot</b> as a photo to verify.");
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }
