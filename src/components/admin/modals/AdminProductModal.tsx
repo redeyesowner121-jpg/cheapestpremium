@@ -200,7 +200,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     }
   };
 
-  const handleEditVariation = async (id: string, data: { name: string; price: string; original_price: string; reseller_price: string }) => {
+  const handleEditVariation = async (id: string, data: { name: string; price: string; original_price: string; reseller_price: string; description?: string; delivery_message?: string }) => {
     if (!data.name || !data.price) {
       toast.error('Name and price are required');
       return;
