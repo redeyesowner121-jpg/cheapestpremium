@@ -75,38 +75,26 @@ export async function showDepositMethodChoice(token: string, supabase: any, chat
   }
 }
 
-// Step 3a: Binance deposit — no amount required, pay any amount and send Order ID
+// Step 3a: Binance deposit — manual screenshot verification
 export async function showDepositBinance(token: string, supabase: any, chatId: number, userId: number, amount: number | null, lang: string) {
   const settings = await getSettings(supabase);
   const binanceId = settings.binance_id || "1178303416";
 
-  // Create payment record (amount 0 as placeholder — actual amount determined from Binance)
-  const { data: payment } = await supabase.from("payments").insert({
-    user_id: userId.toString(),
-    amount: amount || 0,
-    amount_usd: 0,
-    note: "BINANCE_DEPOSIT_ANY_AMOUNT",
-    status: "pending",
-    payment_method: "binance",
-    product_name: "Wallet Deposit",
-    telegram_user_id: userId,
-  }).select("id").single();
-
-  await setConversationState(supabase, userId, "deposit_binance_awaiting_order_id", {
-    paymentId: payment?.id,
+  await setConversationState(supabase, userId, "deposit_binance_awaiting_screenshot", {
+    amount,
   });
 
   let text = `<b>💎 Binance Deposit</b>\n\n`;
   text += `Binance Pay ID: <code>${binanceId}</code>\n\n`;
+  if (amount) text += `Amount: <b>₹${amount}</b>\n\n`;
   text += `<b>Instructions:</b>\n`;
   text += `1. Open Binance App\n`;
   text += `2. Go to Pay > Send\n`;
   text += `3. Pay ID: <code>${binanceId}</code>\n`;
   text += `4. Send any amount you want to deposit\n`;
   text += `5. Complete payment\n`;
-  text += `6. <b>Send your Binance Order ID here</b>\n\n`;
-  text += `<i>After paying, copy the Order ID from Binance and send it as a message.</i>\n`;
-  text += `<i>💡 The exact amount you paid will be credited to your wallet.</i>`;
+  text += `6. <b>📸 Send payment screenshot here</b>\n\n`;
+  text += `<i>After paying, take a screenshot and send it as a photo here.</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {

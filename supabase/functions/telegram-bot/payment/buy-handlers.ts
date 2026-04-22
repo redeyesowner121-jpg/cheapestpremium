@@ -226,7 +226,7 @@ async function showPaymentMethodChoice(
   });
 }
 
-// Step 2a: Binance payment flow with order ID verification
+// Step 2a: Binance payment flow — manual screenshot verification
 export async function showBinancePayment(
   token: string, supabase: any, chatId: number, telegramUser: any, purchaseData: any
 ) {
@@ -239,29 +239,14 @@ export async function showBinancePayment(
   const usdRate = await getDynamicUsdRate(supabase);
   const amountUsd = inrToUsd(finalAmount, usdRate);
 
-  // Create payment record
-  const { data: payment } = await supabase.from("payments").insert({
-    user_id: userId.toString(),
-    amount: finalAmount,
-    amount_usd: amountUsd,
-    note: `BINANCE_ORDER_ID_PENDING`,
-    status: "pending",
-    payment_method: "binance",
-    product_id: productId,
-    variation_id: variationId,
-    product_name: productName,
-    telegram_user_id: userId,
-  }).select("id").single();
-
-  // Store in conversation state — user will send order ID as text
-  await setConversationState(supabase, userId, "binance_awaiting_order_id", {
+  // Store in conversation state — user will send screenshot
+  await setConversationState(supabase, userId, "binance_awaiting_screenshot", {
     productName, price, finalAmount, productId, variationId, walletDeduction,
-    paymentId: payment?.id,
     amountUsd, quantity, unitPrice,
     childBotId, childBotRevenue,
   });
 
-  let text = `<b>Binance Payment</b>\n\n`;
+  let text = `<b>💎 Binance Payment</b>\n\n`;
   text += `Product: <b>${productName}</b>\n`;
   text += `Amount: <b>${currency}${finalAmount}</b> = <b>$${amountUsd}</b>\n\n`;
   text += `Binance Pay ID: <code>${binanceId}</code>\n\n`;
@@ -271,8 +256,8 @@ export async function showBinancePayment(
   text += `3. Enter Pay ID: <code>${binanceId}</code>\n`;
   text += `4. Amount: <b>$${amountUsd}</b>\n`;
   text += `5. Complete payment\n`;
-  text += `6. <b>Send your Binance Order ID here</b>\n\n`;
-  text += `<i>After paying, copy the Order ID from Binance and send it as a message here.</i>`;
+  text += `6. <b>📸 Send payment screenshot here</b>\n\n`;
+  text += `<i>After paying, take a screenshot and send it as a photo here.</i>`;
 
   await sendMessage(token, chatId, text, {
     reply_markup: {
