@@ -23,6 +23,12 @@ interface VariationsModalProps {
 const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, product }) => {
   const [variations, setVariations] = React.useState<any[]>([]);
   const [newVariation, setNewVariation] = React.useState({ name: '', price: '', original_price: '', reseller_price: '' });
+  const [usdRate, setUsdRate] = React.useState(70);
+
+  React.useEffect(() => {
+    supabase.from('app_settings').select('value').eq('key', 'usd_to_inr_rate').maybeSingle()
+      .then(({ data }) => { if (data?.value) setUsdRate(parseFloat(data.value)); });
+  }, []);
 
   React.useEffect(() => {
     if (product && open) loadVariations();
@@ -75,7 +81,6 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
   };
 
   const handleDelete = async (id: string) => {
-    // First clean up references in other tables
     await supabase.from('price_history').delete().eq('variation_id', id);
     await supabase.from('cart_items').delete().eq('variation_id', id);
     
@@ -106,7 +111,7 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
           <AnimatePresence mode="popLayout">
             {variations.map((v) => (
               <div key={v.id}>
-                <VariationItem variation={v} onEdit={handleEdit} onDelete={handleDelete} />
+                <VariationItem variation={v} onEdit={handleEdit} onDelete={handleDelete} usdRate={usdRate} />
                 <VariationDeliveryManager variation={{ ...v, product_id: product.id }} />
               </div>
             ))}
@@ -119,7 +124,7 @@ const VariationsModal: React.FC<VariationsModalProps> = ({ open, onOpenChange, p
             </div>
           )}
 
-          <AddVariationForm value={newVariation} onChange={setNewVariation} onAdd={handleAddVariation} />
+          <AddVariationForm value={newVariation} onChange={setNewVariation} onAdd={handleAddVariation} usdRate={usdRate} />
         </div>
       </DialogContent>
     </Dialog>
