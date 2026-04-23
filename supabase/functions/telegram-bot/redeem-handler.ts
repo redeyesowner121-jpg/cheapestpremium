@@ -115,6 +115,20 @@ export async function processRedeemCode(
 
   await deleteConversationState(supabase, userId);
 
+  // Log proof to channel
+  try {
+    const { logProof, formatRedeemCode } = await import("./proof-logger.ts");
+    const { data: botUser } = await supabase
+      .from("telegram_bot_users")
+      .select("first_name")
+      .eq("telegram_id", userId)
+      .maybeSingle();
+    const proofText = formatRedeemCode(userId, cleaned, amount, botUser?.first_name);
+    await logProof(token, proofText);
+  } catch (e) {
+    console.error("Redeem proof log error:", e);
+  }
+
   const successMsg = lang === "bn"
     ? `✅ <b>গিফট কোড সফলভাবে রিডিম হয়েছে!</b>\n\n🎁 ${description}\n💰 যোগ হয়েছে: <b>₹${amount}</b>\n💼 নতুন ব্যালেন্স: <b>₹${newTgBalance}</b>`
     : `✅ <b>Gift Code Redeemed Successfully!</b>\n\n🎁 ${description}\n💰 Added: <b>₹${amount}</b>\n💼 New Balance: <b>₹${newTgBalance}</b>`;
