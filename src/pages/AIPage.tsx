@@ -89,6 +89,9 @@ const AIPage: React.FC = () => {
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
+            <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-primary-foreground/15 transition-colors" title="Close">
+              <X className="w-4.5 h-4.5" />
+            </button>
           </div>
         </div>
       </div>
