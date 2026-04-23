@@ -75,6 +75,25 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Send balance: awaiting recipient
+  if (state.step === "send_awaiting_recipient" && text.trim()) {
+    const { getUserLang } = await import("./db-helpers.ts");
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    const { handleSendRecipientStep } = await import("./send-handler.ts");
+    await handleSendRecipientStep(token, supabase, chatId, userId, text.trim(), lang);
+    return;
+  }
+
+  // Send balance: awaiting amount (typed)
+  if (state.step === "send_awaiting_amount" && text.trim()) {
+    const { getUserLang } = await import("./db-helpers.ts");
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    const amt = parseFloat(text.trim());
+    const { handleSendAmountStep } = await import("./send-handler.ts");
+    await handleSendAmountStep(token, supabase, chatId, userId, amt, state.data, lang);
+    return;
+  }
+
   // Deposit steps
   if (await handleDepositSteps(token, supabase, chatId, userId, msg, state)) return;
 

@@ -263,6 +263,28 @@ export async function handleMenuCallbacks(
   }
   if (data === "get_offers") { await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "website_login") { await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
+
+  // /send quick amount buttons
+  if (data.startsWith("send_amt_")) {
+    const convState = await getConversationState(supabase, userId);
+    if (convState?.step === "send_awaiting_amount") {
+      const amt = parseInt(data.replace("send_amt_", ""), 10);
+      const { getUserLang } = await import("../db-helpers.ts");
+      const uLang = (await getUserLang(supabase, userId)) || "en";
+      const { handleSendAmountStep } = await import("../send-handler.ts");
+      await handleSendAmountStep(BOT_TOKEN, supabase, chatId, userId, amt, convState.data, uLang);
+    }
+    return true;
+  }
+  // /send confirm
+  if (data === "send_confirm_yes") {
+    const { getUserLang } = await import("../db-helpers.ts");
+    const uLang = (await getUserLang(supabase, userId)) || "en";
+    const { executeSendTransfer } = await import("../send-handler.ts");
+    await executeSendTransfer(BOT_TOKEN, supabase, chatId, userId, uLang);
+    return true;
+  }
+
   if (data === "back_main") { await showMainMenu(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "back_products") { await handleViewCategories(BOT_TOKEN, supabase, chatId, lang); return true; }
 
