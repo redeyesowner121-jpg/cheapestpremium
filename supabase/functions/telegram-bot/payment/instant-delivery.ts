@@ -329,7 +329,9 @@ export async function sendInstantDeliveryWithLoginCode(
   } else {
     // Detect multi-line credentials (Email/Password/2FA)
     const isMultiline = accessLink.includes('\n');
-    const has2FA = /\b(2fa|totp|authenticator|otp\s*secret)\b/i.test(accessLink);
+    const { parseCredential } = await import('./credential-otp.ts');
+    const parsed = parseCredential(accessLink);
+    const has2FA = !!parsed.twoFASecret;
 
     let body: string;
     if (isMultiline) {
@@ -341,8 +343,8 @@ export async function sendInstantDeliveryWithLoginCode(
 
     const twoFANote = has2FA
       ? (lang === 'bn'
-          ? `\n\n💡 <b>2FA কোড লাইভ দেখুন:</b> ওয়েবসাইটের অর্ডার পেজে গেলে অটোমেটিক ৬-সংখ্যার OTP পাবেন (Authenticator app লাগবে না)।`
-          : `\n\n💡 <b>Live 2FA code:</b> Open your order on the website to see auto-refreshing OTP (no Authenticator app needed).`)
+          ? `\n\n💡 নিচের <b>"🔐 Get OTP"</b> বাটনে ক্লিক করে লাইভ ৬-সংখ্যার ২FA কোড পান।`
+          : `\n\n💡 Tap <b>"🔐 Get OTP"</b> below to get a live 6-digit 2FA code.`)
       : '';
 
     const directMsg = lang === "bn"
@@ -353,6 +355,19 @@ export async function sendInstantDeliveryWithLoginCode(
         `🔗 <b>Your Access:</b>\n${body}\n\n` +
         `🔑 Login Code: <code>${code}</code>${twoFANote}`;
 
+    // Build inline keyboard
+    const keyboardRows: any[][] = [];
+    if (has2FA) {
+      // Encode 2FA secret directly in callback_data (≤64 bytes; Base32 secrets fit)
+      // Prefix `otp_` so the router can detect it.
+      const secret = parsed.twoFASecret!.toUpperCase().replace(/\s+/g, '');
+      const cbData = `otp_${secret}`.slice(0, 64);
+      keyboardRows.push([
+        { text: lang === 'bn' ? '🔐 OTP নিন' : '🔐 Get OTP', callback_data: cbData },
+      ]);
+    }
+    keyboardRows.push([{ text: '🌐 View on Website', url: websiteUrl }]);
+
     const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
     await fetch(apiUrl, {
       method: "POST",
@@ -361,11 +376,7 @@ export async function sendInstantDeliveryWithLoginCode(
         chat_id: chatId,
         text: directMsg,
         parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "🌐 View on Website", url: websiteUrl }
-          ]]
-        }
+        reply_markup: { inline_keyboard: keyboardRows },
       }),
     });
   }
