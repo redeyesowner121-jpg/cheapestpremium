@@ -1474,6 +1474,7 @@ export type Database = {
       }
       product_variations: {
         Row: {
+          access_link: string | null
           created_at: string | null
           delivery_message: string | null
           delivery_mode: string
@@ -1487,6 +1488,7 @@ export type Database = {
           reseller_price: number | null
         }
         Insert: {
+          access_link?: string | null
           created_at?: string | null
           delivery_message?: string | null
           delivery_mode?: string
@@ -1500,6 +1502,7 @@ export type Database = {
           reseller_price?: number | null
         }
         Update: {
+          access_link?: string | null
           created_at?: string | null
           delivery_message?: string | null
           delivery_mode?: string
