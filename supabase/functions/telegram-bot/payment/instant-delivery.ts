@@ -37,6 +37,7 @@ export async function resolveAccessLink(
   let variationId: string | null = null;
   let variationDeliveryMode: string | null = null;
   let variationDeliveryMessage: string | null = null;
+  let variationAccessLink: string | null = null;
   try {
     let orderProductName: string | null = null;
     if (orderId) {
@@ -49,18 +50,19 @@ export async function resolveAccessLink(
     if (orderProductName) {
       const { data: vars } = await supabase
         .from("product_variations")
-        .select("id, name, delivery_mode, delivery_message")
+        .select("id, name, delivery_mode, delivery_message, access_link")
         .eq("product_id", productId)
         .eq("is_active", true);
       if (vars?.length) {
         // Match longest variation name found in order_product_name
         const matched = vars
-          .filter((v: any) => orderProductName!.toLowerCase().includes(v.name.toLowerCase()))
+          .filter((v: any) => orderProductName!.toLowerCase().includes(v.name.toLowerCase().trim()))
           .sort((a: any, b: any) => b.name.length - a.name.length)[0];
         if (matched) {
           variationId = matched.id;
           variationDeliveryMode = matched.delivery_mode;
           variationDeliveryMessage = matched.delivery_message || null;
+          variationAccessLink = matched.access_link || null;
         }
       }
     }
@@ -145,8 +147,8 @@ export async function resolveAccessLink(
     return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
   }
 
-  // repeated mode: same link for all units
-  const link = product.access_link || null;
+  // repeated mode: prefer variation's access_link, fallback to product's
+  const link = variationAccessLink || product.access_link || null;
   return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
 }
 
