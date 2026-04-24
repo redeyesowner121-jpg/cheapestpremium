@@ -138,7 +138,7 @@ export async function resolveAccessLink(
 
     // Check remaining stock after consumption
     if (consumedLinks.length > 0) {
-      await checkAndSwitchIfStockEmpty(supabase, productId, variationId, useVariationStock, product.name);
+      await checkAndSwitchIfStockEmpty(supabase, productId, variationId, Boolean(useVariationStock), product.name);
     }
 
     if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };

@@ -22,7 +22,8 @@ export async function handleHistoryCommand(token: string, supabase: any, chatId:
 
   let text = `📜 <b>History for ${tgId}</b>\n\n`;
   orders.forEach((o: any, i: number) => {
-    const e = { pending: "⏳", confirmed: "✅", rejected: "❌", shipped: "📦" }[o.status] || "📋";
+    const statusMap: Record<string, string> = { pending: "⏳", confirmed: "✅", rejected: "❌", shipped: "📦" };
+    const e = statusMap[o.status as string] || "📋";
     text += `${i + 1}. ${e} ${o.product_name || "N/A"} - ₹${o.amount}\n`;
   });
   await sendMessage(token, chatId, text);

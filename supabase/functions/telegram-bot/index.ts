@@ -164,8 +164,8 @@ Deno.serve(async (req) => {
       BOT_TOKEN = Deno.env.get("GIVEAWAY_BOT_TOKEN") || null;
     } else {
       const tokenResult = await resolveTelegramBotTokens({
-        configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
-        configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+        configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN") ?? null,
+        configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN") ?? null,
         expectedMainUsername: BOT_USERNAME,
         expectedResaleUsername: RESALE_BOT_USERNAME,
       });
@@ -202,13 +202,13 @@ Deno.serve(async (req) => {
       // Also upsert child bot user if in child mode
       if (isChildMode && childBotId) {
         upsertPromises.push(
-          supabase.from("child_bot_users").upsert({
+          Promise.resolve(supabase.from("child_bot_users").upsert({
             child_bot_id: childBotId,
             telegram_id: userId,
             username: telegramUser.username || null,
             first_name: telegramUser.first_name || null,
             last_active: new Date().toISOString(),
-          }, { onConflict: "child_bot_id,telegram_id" })
+          }, { onConflict: "child_bot_id,telegram_id" }))
         );
       }
 
@@ -271,13 +271,13 @@ Deno.serve(async (req) => {
 
       if (isChildMode && childBotId) {
         upsertPromises.push(
-          supabase.from("child_bot_users").upsert({
+          Promise.resolve(supabase.from("child_bot_users").upsert({
             child_bot_id: childBotId,
             telegram_id: userId,
             username: telegramUser.username || null,
             first_name: telegramUser.first_name || null,
             last_active: new Date().toISOString(),
-          }, { onConflict: "child_bot_id,telegram_id" })
+          }, { onConflict: "child_bot_id,telegram_id" }))
         );
       }
 
@@ -503,9 +503,9 @@ Deno.serve(async (req) => {
                 .ilike("name", `%${searchTerm}%`)
                 .limit(10);
 
-              if (matchedProducts?.length === 1) {
+              if (matchedProducts && matchedProducts.length === 1) {
                 await handleProductDetail(BOT_TOKEN, supabase, chatId, matchedProducts[0].id, lang, userId);
-              } else if (matchedProducts?.length > 1) {
+              } else if (matchedProducts && matchedProducts.length > 1) {
                 let searchText = lang === "bn"
                   ? `🔍 <b>"${searchTerm}" এর জন্য ${matchedProducts.length}টি পণ্য পাওয়া গেছে:</b>\n\n`
                   : `🔍 <b>Found ${matchedProducts.length} products for "${searchTerm}":</b>\n\n`;
