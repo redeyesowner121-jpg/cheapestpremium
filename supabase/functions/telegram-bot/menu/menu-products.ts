@@ -148,6 +148,13 @@ export async function handleProductDetail(token: string, supabase: any, chatId: 
 
   const buttons: any[][] = [];
 
+  // If product has exactly 1 variation, skip variation selection and go straight to purchase options
+  if (variations?.length === 1) {
+    const { handleBuyVariation } = await import("../payment/buy-handlers.ts");
+    await handleBuyVariation(token, supabase, chatId, variations[0].id, { id: userId }, lang);
+    return;
+  }
+
   if (variations?.length) {
     let text = `<b>${product.name}</b>\n`;
     if (product.description) text += `\n${product.description}\n`;

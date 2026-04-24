@@ -192,6 +192,15 @@ async function showPaymentMethodChoice(
 
   // If wallet covers it, go straight to wallet pay
   if (finalAmount === 0) {
+    // Free product (₹0) → execute purchase directly without confirm prompt
+    if (price === 0) {
+      const { handleWalletPay } = await import("./wallet-pay.ts");
+      await handleWalletPay(
+        token, supabase, chatId, userId, 0, productName, lang,
+        productId, childCtx?.id, childCtx?.revenue_percent, quantity,
+      );
+      return;
+    }
     await setConversationState(supabase, userId, "wallet_pay_confirm", {
       productName, price, productId, variationId, quantity, unitPrice, ...childBotData,
     });
