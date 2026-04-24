@@ -178,13 +178,7 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
                 <Link2 className="w-3.5 h-3.5" />
                 <span>Same link/credentials sent to every buyer</span>
               </div>
-              <Textarea
-                placeholder="https://... or Email|Password"
-                value={repeatedLink}
-                onChange={(e) => setRepeatedLink(e.target.value)}
-                className="font-mono text-xs min-h-[72px]"
-                rows={3}
-              />
+              <StructuredCredentialInput value={repeatedLink} onChange={setRepeatedLink} />
               <Button
                 onClick={saveRepeatedLink}
                 disabled={savingLink || repeatedLink === (variation.access_link || '')}
@@ -203,11 +197,8 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
         {open && mode === 'unique' && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pt-3 space-y-3">
-              <div className="flex gap-2">
-                <Input placeholder="Link or ID|Password" value={newLink} onChange={e => setNewLink(e.target.value)}
-                  className="font-mono text-sm" onKeyDown={e => e.key === 'Enter' && addStock()} />
-                <Button onClick={addStock} size="sm" className="shrink-0"><Plus className="w-4 h-4" /></Button>
-              </div>
+              <StructuredCredentialInput value={newLink} onChange={setNewLink} />
+              <Button onClick={addStock} size="sm" className="w-full gap-1.5"><Plus className="w-4 h-4" /> Add Stock</Button>
 
               <button onClick={() => setShowBulk(!showBulk)} className="text-xs text-primary hover:underline">
                 {showBulk ? 'Hide bulk add' : '+ Bulk add (one per line)'}
