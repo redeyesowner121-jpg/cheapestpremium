@@ -45,8 +45,8 @@ Deno.serve(async (req) => {
 
   try {
     const resolved = await resolveTelegramBotTokens({
-      configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN"),
-      configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN"),
+      configuredMainToken: Deno.env.get("TELEGRAM_BOT_TOKEN") ?? null,
+      configuredResaleToken: Deno.env.get("RESALE_BOT_TOKEN") ?? null,
       expectedMainUsername: MAIN_BOT_USERNAME,
       expectedResaleUsername: RESALE_BOT_USERNAME,
     });
