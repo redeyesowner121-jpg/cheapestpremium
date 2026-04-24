@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import MultiImageUpload from '@/components/ui/multi-image-upload';
 import { motion, AnimatePresence } from 'framer-motion';
+import StructuredCredentialInput from '@/components/admin/modals/StructuredCredentialInput';
 
 // ─── Collapsible Stock Item Row ───
 const LINK_TRUNCATE_LEN = 60;
