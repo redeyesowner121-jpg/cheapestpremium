@@ -400,8 +400,21 @@ Deno.serve(async (req) => {
           case "/withdraw":
             await handleWalletWithdraw(BOT_TOKEN, supabase, chatId, userId, lang); break;
           case "/support":
-          case "/help":
             await handleSupport(BOT_TOKEN, supabase, chatId, lang); break;
+          case "/help": {
+            // Direct connect to admin (same flow as "Forward to Admin" button)
+            await setConversationState(supabase, userId, "chatting_with_admin", {});
+            const uname = telegramUser.username ? `@${telegramUser.username}` : (telegramUser.first_name || "User");
+            await notifyAllAdmins(BOT_TOKEN, supabase,
+              `📩 User ${uname} (<code>${userId}</code>) wants admin help.`,
+              { reply_markup: { inline_keyboard: [[{ text: "💬 Chat", callback_data: `admin_chat_${userId}` }]] } }
+            );
+            await sendMessage(BOT_TOKEN, chatId, lang === "bn"
+              ? "✅ আপনি এখন সরাসরি অ্যাডমিনের সাথে চ্যাটে আছেন। আপনার মেসেজ লিখুন — শীঘ্রই উত্তর পাবেন।\n\n💬 চ্যাট শেষ করতে /endchat লিখুন।"
+              : "✅ You are now directly connected to admin. Type your message — you'll get a reply soon.\n\n💬 Type /endchat to end the chat."
+            );
+            break;
+          }
           case "/refer":
           case "/referral":
           case "/share":
