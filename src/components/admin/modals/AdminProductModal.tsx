@@ -172,6 +172,14 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
     onSave();
   };
 
+  const updatePendingVariation = (index: number, updates: Record<string, any>) => {
+    setPendingVariations(
+      pendingVariations.map((variation, variationIndex) =>
+        variationIndex === index ? { ...variation, ...updates } : variation
+      )
+    );
+  };
+
   const handleAddModalVariation = () => {
     if (!newModalVariation.name || !newModalVariation.price) {
       toast.error('Please fill variation name and price');
@@ -186,17 +194,26 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
         reseller_price: newModalVariation.reseller_price ? parseFloat(newModalVariation.reseller_price) : null,
         description: newModalVariation.description || null,
         delivery_message: newModalVariation.delivery_message || null,
+        delivery_mode: newModalVariation.delivery_mode === 'unique' ? 'unique' : 'repeated',
+        access_link: newModalVariation.access_link?.trim() || null,
       }).then(({ error }) => {
         if (error) { toast.error('Failed to add variation'); return; }
         supabase.from('product_variations').select('*').eq('product_id', editingProduct.id)
           .order('created_at', { ascending: true })
           .then(({ data }) => setExistingVariations(data || []));
         toast.success('Variation added!');
-        setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
+        setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '', delivery_mode: 'repeated', access_link: '' });
       });
     } else {
-      setPendingVariations([...pendingVariations, { ...newModalVariation }]);
-      setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '' });
+      setPendingVariations([
+        ...pendingVariations,
+        {
+          ...newModalVariation,
+          delivery_mode: newModalVariation.delivery_mode === 'unique' ? 'unique' : 'repeated',
+          access_link: newModalVariation.access_link || '',
+        },
+      ]);
+      setNewModalVariation({ name: '', price: '', original_price: '', reseller_price: '', description: '', delivery_message: '', delivery_mode: 'repeated', access_link: '' });
     }
   };
 
@@ -516,7 +533,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                         toast.success(`${template.name} added!`);
                       });
                     } else {
-                      setPendingVariations([...pendingVariations, { ...template }]);
+                      setPendingVariations([...pendingVariations, { ...template, delivery_mode: 'repeated', access_link: '' }]);
                     }
                   }}
                 >
@@ -538,19 +555,53 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                   </div>
                 ))}
                 {pendingVariations.map((v, idx) => (
-                  <VariationItem
-                    key={`pending-${idx}`}
-                    variation={{
-                      id: idx.toString(),
-                      name: v.name,
-                      price: parseFloat(v.price) || 0,
-                      original_price: v.original_price ? parseFloat(v.original_price) : null,
-                      reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null,
-                    }}
-                    onEdit={async () => {}}
-                    onDelete={handleDeletePending}
-                    isPending
-                  />
+                  <div key={`pending-${idx}`}>
+                    <VariationItem
+                      variation={{
+                        id: idx.toString(),
+                        name: v.name,
+                        price: parseFloat(v.price) || 0,
+                        original_price: v.original_price ? parseFloat(v.original_price) : null,
+                        reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null,
+                      }}
+                      onEdit={async () => {}}
+                      onDelete={handleDeletePending}
+                      isPending
+                    />
+                    <div className="ml-4 mt-1.5 mb-1 border-l-2 border-primary/15 pl-3">
+                      <div className="flex items-center justify-between gap-2 py-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Repeat className={`w-3 h-3 shrink-0 ${v.delivery_mode === 'unique' ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <span className="text-[11px] font-medium text-muted-foreground">
+                            {v.delivery_mode === 'unique' ? 'Auto Delivery' : 'Repeated Link'}
+                          </span>
+                        </div>
+                        <Switch
+                          checked={v.delivery_mode === 'unique'}
+                          onCheckedChange={(checked) => updatePendingVariation(idx, { delivery_mode: checked ? 'unique' : 'repeated' })}
+                          className="scale-75"
+                        />
+                      </div>
+
+                      {v.delivery_mode === 'unique' ? (
+                        <p className="pt-2 text-[10px] text-muted-foreground">Save the product first to add unique stock for this variation.</p>
+                      ) : (
+                        <div className="pt-2 space-y-1.5">
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Link className="w-3 h-3" />
+                            <span>Same link/credentials sent to every buyer</span>
+                          </div>
+                          <Textarea
+                            placeholder="https://... or Email|Password"
+                            value={v.access_link || ''}
+                            onChange={(e) => updatePendingVariation(idx, { access_link: e.target.value })}
+                            className="text-[11px] min-h-[50px] py-1.5 font-mono resize-none"
+                            rows={2}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </AnimatePresence>
             </div>
