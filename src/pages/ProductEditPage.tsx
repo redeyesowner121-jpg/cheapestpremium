@@ -66,8 +66,14 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
   const [bulkLinks, setBulkLinks] = useState('');
   const [showBulk, setShowBulk] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [repeatedLink, setRepeatedLink] = useState(variation.access_link || '');
+  const [savingLink, setSavingLink] = useState(false);
+  const [repeatedOpen, setRepeatedOpen] = useState(false);
 
-  useEffect(() => { setMode(variation.delivery_mode === 'unique' ? 'unique' : 'repeated'); }, [variation.delivery_mode]);
+  useEffect(() => {
+    setMode(variation.delivery_mode === 'unique' ? 'unique' : 'repeated');
+    setRepeatedLink(variation.access_link || '');
+  }, [variation.delivery_mode, variation.access_link]);
 
   const loadStock = async () => {
     setLoading(true);
@@ -84,8 +90,24 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
     setMode(newMode);
     const { error } = await supabase.from('product_variations').update({ delivery_mode: newMode } as any).eq('id', variation.id);
     if (error) { toast.error('Failed to update'); setMode(mode); return; }
-    toast.success(newMode === 'unique' ? '⚡ Auto delivery enabled' : 'Manual delivery');
-    if (newMode === 'unique') { setOpen(true); loadStock(); }
+    toast.success(newMode === 'unique' ? '⚡ Auto delivery enabled' : '🔁 Repeated link mode');
+    if (newMode === 'unique') {
+      setOpen(true);
+      loadStock();
+    } else {
+      setRepeatedOpen(true);
+    }
+  };
+
+  const saveRepeatedLink = async () => {
+    setSavingLink(true);
+    const { error } = await (supabase as any)
+      .from('product_variations')
+      .update({ access_link: repeatedLink.trim() || null })
+      .eq('id', variation.id);
+    setSavingLink(false);
+    if (error) return toast.error('Failed to save link');
+    toast.success('Repeated link saved');
   };
 
   const addStock = async () => {
@@ -122,14 +144,19 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
   return (
     <div className="mt-3 rounded-xl border border-primary/10 bg-primary/[0.02] p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Zap className={`w-4 h-4 ${mode === 'unique' ? 'text-primary' : 'text-muted-foreground'}`} />
-          <span className="text-sm font-medium">Auto Delivery</span>
-          {mode === 'unique' && (
+        <div className="flex items-center gap-2 min-w-0">
+          <Zap className={`w-4 h-4 shrink-0 ${mode === 'unique' ? 'text-primary' : 'text-muted-foreground'}`} />
+          <span className="text-sm font-medium">{mode === 'unique' ? 'Auto Delivery' : 'Repeated Link'}</span>
+          {mode === 'unique' ? (
             <div className="flex items-center gap-1.5">
               <Badge variant="secondary" className="text-xs">📦 {available}</Badge>
               <Badge variant="outline" className="text-xs">✅ {used}</Badge>
             </div>
+          ) : (
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setRepeatedOpen(!repeatedOpen)}>
+              {repeatedOpen ? <ChevronUp className="w-3.5 h-3.5 mr-1" /> : <ChevronDown className="w-3.5 h-3.5 mr-1" />}
+              Link
+            </Button>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -144,17 +171,44 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
       </div>
 
       <AnimatePresence>
+        {repeatedOpen && mode === 'repeated' && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <div className="pt-3 space-y-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Link2 className="w-3.5 h-3.5" />
+                <span>Same link/credentials sent to every buyer</span>
+              </div>
+              <Textarea
+                placeholder="https://... or Email|Password"
+                value={repeatedLink}
+                onChange={(e) => setRepeatedLink(e.target.value)}
+                className="font-mono text-xs min-h-[72px]"
+                rows={3}
+              />
+              <Button
+                onClick={saveRepeatedLink}
+                disabled={savingLink || repeatedLink === (variation.access_link || '')}
+                size="sm"
+                className="w-full gap-1.5"
+              >
+                <Save className="w-4 h-4" />
+                {savingLink ? 'Saving...' : 'Save Link'}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {open && mode === 'unique' && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="pt-3 space-y-3">
-              {/* Single add */}
               <div className="flex gap-2">
                 <Input placeholder="Link or ID|Password" value={newLink} onChange={e => setNewLink(e.target.value)}
                   className="font-mono text-sm" onKeyDown={e => e.key === 'Enter' && addStock()} />
                 <Button onClick={addStock} size="sm" className="shrink-0"><Plus className="w-4 h-4" /></Button>
               </div>
 
-              {/* Bulk add toggle */}
               <button onClick={() => setShowBulk(!showBulk)} className="text-xs text-primary hover:underline">
                 {showBulk ? 'Hide bulk add' : '+ Bulk add (one per line)'}
               </button>
@@ -168,7 +222,6 @@ const VariationDelivery: React.FC<{ variation: any; productId: string }> = ({ va
                 </div>
               )}
 
-              {/* Stock list */}
               {loading ? (
                 <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
               ) : stockItems.length === 0 ? (
