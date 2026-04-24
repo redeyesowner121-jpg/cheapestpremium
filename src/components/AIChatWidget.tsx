@@ -76,7 +76,7 @@ const AIChatWidget: React.FC = () => {
     <>
       {/* Floating Draggable Button */}
       <AnimatePresence>
-        {!open && location.pathname !== '/ai' && (
+        {!open && !isHidden && location.pathname !== '/ai' && (
           <motion.div
             initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
             className="fixed bottom-24 right-4 z-[60]"
@@ -85,7 +85,7 @@ const AIChatWidget: React.FC = () => {
             <div className="relative">
               {/* Close button */}
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => setIsHidden(true)}
                 className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-sm hover:scale-110 transition-transform z-10"
                 title="Hide AI"
               >
