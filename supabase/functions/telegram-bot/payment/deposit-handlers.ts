@@ -328,6 +328,10 @@ export async function handleDepositBinanceScreenshot(token: string, supabase: an
   }
 }
 
+// ===== RAZORPAY DEPOSIT VERIFICATION =====
+export async function verifyDepositRazorpay(token: string, supabase: any, chatId: number, userId: number, stateData: any, lang: string) {
+  const { verifyAmount, reservationId, depositRequestId, payClickedAt } = stateData || {};
+
   await sendMessage(token, chatId, lang === "bn" ? "🔍 পেমেন্ট যাচাই করা হচ্ছে..." : "🔍 Verifying payment...");
 
   try {
