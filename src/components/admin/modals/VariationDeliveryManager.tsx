@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import BulkStockImportModal from './BulkStockImportModal';
 import { parseCredential } from '@/lib/credentialParser';
+import StructuredCredentialInput from './StructuredCredentialInput';
 
 interface VariationDeliveryManagerProps {
   variation: {
@@ -158,14 +159,12 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
             <div className="pt-2 space-y-1.5">
               <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Link2 className="w-3 h-3" />
-                <span>Same link/credentials sent to every buyer</span>
+                <span>Same credentials sent to every buyer • Live OTP auto-generated</span>
               </div>
-              <Textarea
-                placeholder="https://... or Email|Password"
+              <StructuredCredentialInput
                 value={repeatedLink}
-                onChange={(e) => setRepeatedLink(e.target.value)}
-                className="text-[11px] min-h-[50px] py-1.5 font-mono resize-none"
-                rows={2}
+                onChange={setRepeatedLink}
+                compact
               />
               <Button
                 size="sm"
@@ -197,12 +196,10 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
               </div>
 
               <div className="space-y-1.5">
-                <Textarea
-                  placeholder={`Link, or ID|Password|2FA, or:\nEmail: x@y.com\nPassword: pass\n2FA: SECRET`}
+                <StructuredCredentialInput
                   value={newLink}
-                  onChange={(e) => setNewLink(e.target.value)}
-                  className="text-[11px] min-h-[80px] py-1.5 font-mono resize-none"
-                  rows={4}
+                  onChange={setNewLink}
+                  compact
                 />
                 <div className="flex gap-1.5">
                   <Button size="sm" onClick={addStock} className="h-7 flex-1 text-[11px] gap-1">
