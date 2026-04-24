@@ -29,6 +29,31 @@ export async function handleMenuCallbacks(
   BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string, telegramUser: any, lang: string
 ): Promise<boolean> {
 
+  // ===== Live 2FA OTP generation =====
+  // callback_data format: `otp_<BASE32_SECRET>`
+  if (data.startsWith("otp_")) {
+    const secret = data.slice(4);
+    const { generateTOTP } = await import("../payment/credential-otp.ts");
+    const result = await generateTOTP(secret);
+    if (!result) {
+      await sendMessage(BOT_TOKEN, chatId, lang === "bn"
+        ? "❌ 2FA সিক্রেট ভ্যালিড নয়। অ্যাডমিনের সাথে যোগাযোগ করুন।"
+        : "❌ Invalid 2FA secret. Please contact admin.");
+      return true;
+    }
+    const msg = lang === "bn"
+      ? `🔐 <b>লাইভ 2FA OTP</b>\n\n` +
+        `কোড: <code>${result.code}</code>\n` +
+        `⏳ ${result.secondsLeft} সেকেন্ডে এক্সপায়ার হবে\n\n` +
+        `⚠️ এই কোডটি ChatGPT/সাইটে দ্রুত পেস্ট করুন। নতুন OTP-র জন্য বাটনে আবার ক্লিক করুন।`
+      : `🔐 <b>Live 2FA OTP</b>\n\n` +
+        `Code: <code>${result.code}</code>\n` +
+        `⏳ Expires in ${result.secondsLeft}s\n\n` +
+        `⚠️ Paste this code into ChatGPT/site quickly. Tap the button again for a new OTP.`;
+    await sendMessage(BOT_TOKEN, chatId, msg);
+    return true;
+  }
+
   // Language selection
   if (data === "lang_en" || data === "lang_bn") {
     const selectedLang = data === "lang_en" ? "en" : "bn";
