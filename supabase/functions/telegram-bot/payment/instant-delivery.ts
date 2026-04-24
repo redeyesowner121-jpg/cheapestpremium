@@ -335,12 +335,23 @@ export async function sendInstantDeliveryWithLoginCode(
     const parsed = parseCredential(accessLink);
     const has2FA = !!parsed.twoFASecret;
 
+    // Strip any 2FA secret lines from the visible body — secret must NOT be shared.
+    // Users get the live OTP via the "🔐 Get OTP" button instead.
+    const visibleAccess = accessLink
+      .split('\n')
+      .filter((line) => !/^\s*(2fa|two[-\s]?fa|totp|otp\s*secret|secret)\s*[:=]/i.test(line))
+      .join('\n')
+      .trim();
+
+    const escapeHtml = (s: string) =>
+      s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!));
+
     let body: string;
     if (isMultiline) {
-      // Wrap in <pre> so Telegram renders as tap-to-copy block
-      body = `<pre>${accessLink.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
+      // Wrap in <pre> so Telegram renders as tap-to-copy block (only ID/Password/Link)
+      body = `<pre>${escapeHtml(visibleAccess)}</pre>`;
     } else {
-      body = `<code>${accessLink}</code>`;
+      body = `<code>${visibleAccess}</code>`;
     }
 
     const twoFANote = has2FA
