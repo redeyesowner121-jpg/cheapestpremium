@@ -534,9 +534,7 @@ const AdminProductModal: React.FC<AdminProductModalProps> = ({
                       onEdit={handleEditVariation}
                       onDelete={handleDeleteVariation}
                     />
-                    {existingVariations.length >= 2 && (
-                      <VariationDeliveryManager variation={{ ...v, product_id: editingProduct?.id }} />
-                    )}
+                    <VariationDeliveryManager variation={{ ...v, product_id: editingProduct?.id }} />
                   </div>
                 ))}
                 {pendingVariations.map((v, idx) => (
