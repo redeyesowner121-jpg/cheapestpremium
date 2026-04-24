@@ -165,7 +165,9 @@ export const useAdminPageActions = (loadData: () => void) => {
           product_id: newProduct.id, name: v.name,
           price: parseFloat(v.price),
           original_price: v.original_price ? parseFloat(v.original_price) : null,
-          reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
+          reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null,
+          delivery_mode: v.delivery_mode === 'unique' ? 'unique' : 'repeated',
+          access_link: v.access_link?.trim() || null,
         }))
       );
     }
@@ -201,7 +203,9 @@ export const useAdminPageActions = (loadData: () => void) => {
           product_id: editingProduct.id, name: v.name,
           price: parseFloat(v.price),
           original_price: v.original_price ? parseFloat(v.original_price) : null,
-          reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null
+          reseller_price: v.reseller_price ? parseFloat(v.reseller_price) : null,
+          delivery_mode: v.delivery_mode === 'unique' ? 'unique' : 'repeated',
+          access_link: v.access_link?.trim() || null,
         }))
       );
     }
