@@ -5,19 +5,15 @@ import {
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  ExternalLink,
   Flag,
   RefreshCw,
-  Copy,
-  Eye,
-  EyeOff,
   Package,
   ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
-import { toast } from 'sonner';
+import CredentialDisplay from './CredentialDisplay';
 
 interface Order {
   id: string;
@@ -89,18 +85,10 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const { formatPrice } = useCurrencyFormat();
   const isSellerOrder = !!order.seller_id;
   const needsConfirmation = isSellerOrder && order.status === 'completed' && order.access_link && !order.buyer_confirmed;
-  const [linkRevealed, setLinkRevealed] = useState(false);
   
   const handleReorder = () => {
     if (order.product_id) {
       navigate(`/product/${order.product_id}`);
-    }
-  };
-
-  const copyLink = () => {
-    if (order.access_link) {
-      navigator.clipboard.writeText(order.access_link);
-      toast.success('Link copied!');
     }
   };
 
@@ -149,44 +137,12 @@ const OrderCard: React.FC<OrderCardProps> = ({
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2.5 bg-emerald-100/60 dark:bg-emerald-900/40">
               <Package className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Delivered — Access Link</span>
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Delivered — Your Access</span>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 ml-auto" />
             </div>
-            {/* Link Body */}
-            <div className="px-3 py-3 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs font-mono bg-background/80 rounded-lg px-2.5 py-2 break-all text-foreground border border-border/50">
-                  {linkRevealed ? order.access_link : '••••••••••••••••••••'}
-                </code>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setLinkRevealed(!linkRevealed)}
-                >
-                  {linkRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 rounded-lg text-xs h-8 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                  onClick={copyLink}
-                >
-                  <Copy className="w-3.5 h-3.5 mr-1.5" />
-                  Copy
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1 rounded-lg text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  onClick={() => window.open(order.access_link, '_blank')}
-                >
-                  <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                  Open Link
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground text-center">⚠️ This link is for you only. Do not share.</p>
+            {/* Body */}
+            <div className="px-3 py-3">
+              <CredentialDisplay rawCredential={order.access_link} />
             </div>
           </div>
         )}

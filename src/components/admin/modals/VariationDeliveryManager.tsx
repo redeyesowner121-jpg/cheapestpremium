@@ -253,6 +253,14 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
           </motion.div>
         )}
       </AnimatePresence>
+
+      <BulkStockImportModal
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        productId={variation.product_id || ''}
+        variationId={variation.id}
+        onSuccess={loadStock}
+      />
     </div>
   );
 };
