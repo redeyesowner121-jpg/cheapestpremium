@@ -13,6 +13,7 @@ const AIChatWidget: React.FC = () => {
   const chat = useAIChat();
   const [open, setOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
 
   const [btnPos, setBtnPos] = useState({ x: 0, y: 0 });
   const isDragging = useRef(false);
