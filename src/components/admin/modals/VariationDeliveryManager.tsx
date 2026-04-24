@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Layers, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Zap, Link2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -13,6 +13,8 @@ interface VariationDeliveryManagerProps {
     id: string;
     name: string;
     delivery_mode?: string | null;
+    access_link?: string | null;
+    product_id?: string;
   };
 }
 
@@ -25,9 +27,15 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
   const [newLink, setNewLink] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Repeated link state
+  const [repeatedLink, setRepeatedLink] = useState(variation.access_link || '');
+  const [savingLink, setSavingLink] = useState(false);
+  const [repeatedOpen, setRepeatedOpen] = useState(false);
+
   useEffect(() => {
     setMode(variation.delivery_mode === 'unique' ? 'unique' : 'repeated');
-  }, [variation.delivery_mode]);
+    setRepeatedLink(variation.access_link || '');
+  }, [variation.delivery_mode, variation.access_link]);
 
   const loadStock = async () => {
     setLoading(true);
@@ -56,11 +64,24 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
       setMode(mode);
       return;
     }
-    toast.success(newMode === 'unique' ? '⚡ Auto delivery enabled' : 'Manual delivery');
+    toast.success(newMode === 'unique' ? '⚡ Auto delivery enabled' : '🔁 Repeated link mode');
     if (newMode === 'unique') {
       setOpen(true);
       loadStock();
+    } else {
+      setRepeatedOpen(true);
     }
+  };
+
+  const saveRepeatedLink = async () => {
+    setSavingLink(true);
+    const { error } = await (supabase as any)
+      .from('product_variations')
+      .update({ access_link: repeatedLink.trim() || null })
+      .eq('id', variation.id);
+    setSavingLink(false);
+    if (error) return toast.error('Failed to save link');
+    toast.success('Repeated link saved');
   };
 
   const addStock = async () => {
@@ -68,7 +89,7 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
     const { error } = await (supabase as any)
       .from('product_stock_items')
       .insert({
-        product_id: (variation as any).product_id,
+        product_id: variation.product_id,
         variation_id: variation.id,
         access_link: newLink.trim(),
       });
@@ -92,8 +113,10 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
       <div className="flex items-center justify-between gap-2 py-1">
         <div className="flex items-center gap-1.5 min-w-0">
           <Zap className={`w-3 h-3 shrink-0 ${mode === 'unique' ? 'text-primary' : 'text-muted-foreground'}`} />
-          <span className="text-[11px] font-medium text-muted-foreground">Auto Delivery</span>
-          {mode === 'unique' && (
+          <span className="text-[11px] font-medium text-muted-foreground">
+            {mode === 'unique' ? 'Auto Delivery' : 'Repeated Link'}
+          </span>
+          {mode === 'unique' ? (
             <button
               type="button"
               onClick={() => setOpen(!open)}
@@ -101,6 +124,15 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
             >
               {open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               Stock
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setRepeatedOpen(!repeatedOpen)}
+              className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+            >
+              {repeatedOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              Link
             </button>
           )}
         </div>
@@ -111,6 +143,42 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
         />
       </div>
 
+      {/* Repeated link input */}
+      <AnimatePresence>
+        {repeatedOpen && mode === 'repeated' && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-2 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <Link2 className="w-3 h-3" />
+                <span>Same link/credentials sent to every buyer</span>
+              </div>
+              <Textarea
+                placeholder="https://... or Email|Password"
+                value={repeatedLink}
+                onChange={(e) => setRepeatedLink(e.target.value)}
+                className="text-[11px] min-h-[50px] py-1.5 font-mono resize-none"
+                rows={2}
+              />
+              <Button
+                size="sm"
+                onClick={saveRepeatedLink}
+                disabled={savingLink || repeatedLink === (variation.access_link || '')}
+                className="h-7 w-full text-[11px] gap-1"
+              >
+                <Save className="w-3 h-3" />
+                {savingLink ? 'Saving...' : 'Save Link'}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Unique stock list */}
       <AnimatePresence>
         {open && mode === 'unique' && (
           <motion.div
