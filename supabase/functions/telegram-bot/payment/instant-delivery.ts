@@ -327,16 +327,31 @@ export async function sendInstantDeliveryWithLoginCode(
       }),
     });
   } else {
-    // Non-drive link → send directly
+    // Detect multi-line credentials (Email/Password/2FA)
+    const isMultiline = accessLink.includes('\n');
+    const has2FA = /\b(2fa|totp|authenticator|otp\s*secret)\b/i.test(accessLink);
+
+    let body: string;
+    if (isMultiline) {
+      // Wrap in <pre> so Telegram renders as tap-to-copy block
+      body = `<pre>${accessLink.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!))}</pre>`;
+    } else {
+      body = `<code>${accessLink}</code>`;
+    }
+
+    const twoFANote = has2FA
+      ? (lang === 'bn'
+          ? `\n\n💡 <b>2FA কোড লাইভ দেখুন:</b> ওয়েবসাইটের অর্ডার পেজে গেলে অটোমেটিক ৬-সংখ্যার OTP পাবেন (Authenticator app লাগবে না)।`
+          : `\n\n💡 <b>Live 2FA code:</b> Open your order on the website to see auto-refreshing OTP (no Authenticator app needed).`)
+      : '';
+
     const directMsg = lang === "bn"
       ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n` +
-        `🔗 <b>আপনার অ্যাক্সেস:</b>\n<code>${accessLink}</code>\n\n` +
-        `📋 ওয়েবসাইটেও দেখতে পারবেন:\n` +
-        `🔑 লগইন কোড: <code>${code}</code>`
+        `🔗 <b>আপনার অ্যাক্সেস:</b>\n${body}\n\n` +
+        `🔑 লগইন কোড: <code>${code}</code>${twoFANote}`
       : `✅ <b>${productName} Delivered!</b>\n\n` +
-        `🔗 <b>Your Access:</b>\n<code>${accessLink}</code>\n\n` +
-        `📋 Also available on the website:\n` +
-        `🔑 Login Code: <code>${code}</code>`;
+        `🔗 <b>Your Access:</b>\n${body}\n\n` +
+        `🔑 Login Code: <code>${code}</code>${twoFANote}`;
 
     const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
     await fetch(apiUrl, {
