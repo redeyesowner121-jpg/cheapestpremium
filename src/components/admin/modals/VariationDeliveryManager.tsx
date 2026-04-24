@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, Zap, Link2, Save } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Zap, Link2, Save, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import BulkStockImportModal from './BulkStockImportModal';
+import { parseCredential } from '@/lib/credentialParser';
 
 interface VariationDeliveryManagerProps {
   variation: {
@@ -31,6 +33,7 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
   const [repeatedLink, setRepeatedLink] = useState(variation.access_link || '');
   const [savingLink, setSavingLink] = useState(false);
   const [repeatedOpen, setRepeatedOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   useEffect(() => {
     setMode(variation.delivery_mode === 'unique' ? 'unique' : 'repeated');
@@ -193,17 +196,25 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
                 <Badge variant="outline" className="text-[10px] h-5">✅ {used}</Badge>
               </div>
 
-              <div className="flex gap-1.5">
+              <div className="space-y-1.5">
                 <Textarea
-                  placeholder="Link or ID|Password"
+                  placeholder={`Link, or ID|Password|2FA, or:\nEmail: x@y.com\nPassword: pass\n2FA: SECRET`}
                   value={newLink}
                   onChange={(e) => setNewLink(e.target.value)}
-                  className="text-[11px] h-8 min-h-[32px] max-h-[32px] py-1.5 font-mono resize-none"
-                  rows={1}
+                  className="text-[11px] min-h-[80px] py-1.5 font-mono resize-none"
+                  rows={4}
                 />
-                <Button size="sm" onClick={addStock} className="h-8 w-8 p-0 shrink-0">
-                  <Plus className="w-3 h-3" />
-                </Button>
+                <div className="flex gap-1.5">
+                  <Button size="sm" onClick={addStock} className="h-7 flex-1 text-[11px] gap-1">
+                    <Plus className="w-3 h-3" /> Add One
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setBulkOpen(true)} className="h-7 flex-1 text-[11px] gap-1">
+                    <Upload className="w-3 h-3" /> Bulk Import
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  💡 Multi-line credentials supported (Email + Password + 2FA in one entry)
+                </p>
               </div>
 
               {loading ? (
@@ -211,25 +222,31 @@ const VariationDeliveryManager: React.FC<VariationDeliveryManagerProps> = ({ var
               ) : stockItems.length === 0 ? (
                 <p className="text-[10px] text-muted-foreground text-center py-1">No stock yet</p>
               ) : (
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {stockItems.map((item, idx) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded border ${
-                        item.is_used ? 'bg-muted/40 opacity-60' : 'bg-background'
-                      }`}
-                    >
-                      <span className="text-muted-foreground w-4 shrink-0">#{idx + 1}</span>
-                      <span className="truncate flex-1 font-mono">{item.access_link}</span>
-                      {item.is_used ? (
-                        <Badge variant="secondary" className="text-[9px] h-4 px-1">Used</Badge>
-                      ) : (
-                        <button onClick={() => deleteStock(item.id)} className="text-destructive shrink-0">
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {stockItems.map((item, idx) => {
+                    const p = parseCredential(item.access_link);
+                    const summary = p.email
+                      ? `${p.email}${p.twoFASecret ? ' • 🔐' : ''}${p.password ? ' • 🔑' : ''}`
+                      : item.access_link.split('\n')[0];
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-1.5 text-[10px] px-2 py-1 rounded border ${
+                          item.is_used ? 'bg-muted/40 opacity-60' : 'bg-background'
+                        }`}
+                      >
+                        <span className="text-muted-foreground w-4 shrink-0">#{idx + 1}</span>
+                        <span className="truncate flex-1 font-mono">{summary}</span>
+                        {item.is_used ? (
+                          <Badge variant="secondary" className="text-[9px] h-4 px-1">Used</Badge>
+                        ) : (
+                          <button onClick={() => deleteStock(item.id)} className="text-destructive shrink-0">
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
