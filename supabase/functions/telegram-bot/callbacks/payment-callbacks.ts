@@ -249,8 +249,7 @@ export async function handlePaymentCallbacks(
   if (data === "deposit_binance_verify") {
     const convState = await getConversationState(supabase, userId);
     if (convState?.step === "deposit_binance_pending") {
-      const { verifyDepositBinance } = await import("../payment/deposit-handlers.ts");
-      await verifyDepositBinance(BOT_TOKEN, supabase, chatId, userId, convState.data, lang);
+      await sendMessage(BOT_TOKEN, chatId, lang === "bn" ? "⏳ স্ক্রিনশট পাঠান, অ্যাডমিন ভেরিফাই করবেন।" : "⏳ Please send your screenshot, admin will verify.");
     } else if (!convState || convState.step === "idle") {
       await sendMessage(BOT_TOKEN, chatId, "✅ Payment already processed.");
     } else { await restartFlow(BOT_TOKEN, supabase, chatId, lang); }

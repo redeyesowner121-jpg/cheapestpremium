@@ -33,7 +33,7 @@ export async function handleAITrainingMenu(token: string, supabase: any, chatId:
   }
   buttons.push([{ text: "📊 View All Knowledge", callback_data: "aitrain_view" }]);
   buttons.push([{ text: "🗑️ Delete Knowledge", callback_data: "aitrain_delete" }]);
-  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back", color: "red" }]);
+  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId,
     `🧠 <b>AI Training Center</b>\n\n` +
@@ -155,7 +155,7 @@ export async function handlePendingKnowledge(token: string, supabase: any, chatI
   });
 
   buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]);
-  buttons.push([{ text: "⬅️ Back", callback_data: "adm_back", color: "red" }]);
+  buttons.push([{ text: "⬅️ Back", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -193,7 +193,7 @@ export async function handleViewKnowledge(token: string, supabase: any, chatId: 
   const buttons: any[][] = [];
   if (navButtons.length) buttons.push(navButtons);
   buttons.push([{ text: "🧠 AI Training", callback_data: "adm_ai_training" }]);
-  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back", color: "red" }]);
+  buttons.push([{ text: "⬅️ Back to Admin", callback_data: "adm_back" }]);
 
   await sendMessage(token, chatId, text, { reply_markup: { inline_keyboard: buttons } });
 }
@@ -217,7 +217,7 @@ export async function startDeleteKnowledge(token: string, supabase: any, chatId:
     callback_data: `aitrain_del_${k.id.slice(0, 32)}`,
    
   }]);
-  buttons.push([{ text: "⬅️ Back", callback_data: "adm_ai_training", color: "red" }]);
+  buttons.push([{ text: "⬅️ Back", callback_data: "adm_ai_training" }]);
 
   await sendMessage(token, chatId,
     `🗑️ <b>Delete Knowledge Entry</b>\n\nSelect the entry you want to delete:`,
