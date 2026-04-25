@@ -107,11 +107,10 @@ Deno.serve(async (req) => {
     const timestamp = Date.now();
     const nonce = crypto.randomUUID().replace(/-/g, "").substring(0, 32);
     
-    const createdAtMs = payment.created_at ? new Date(payment.created_at).getTime() : Number.NaN;
-    const startTime = Number.isFinite(createdAtMs)
-      ? Math.max(0, createdAtMs - 15 * 60 * 1000)
-      : Date.now() - 3600000;
+    // Search window: last 30 days (Binance API max is ~90 days; we cap at 30 for safety)
+    // This allows verification of older Order IDs (e.g., 1 day old) that user paid earlier.
     const endTime = Date.now();
+    const startTime = endTime - 30 * 24 * 60 * 60 * 1000;
 
     const body = JSON.stringify({
       startTimestamp: startTime,

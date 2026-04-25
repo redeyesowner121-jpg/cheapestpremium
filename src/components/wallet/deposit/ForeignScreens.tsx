@@ -189,6 +189,12 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
         body: { orderId: binanceOrderId.trim(), amount: amountUsd, paymentId },
       });
 
+      if (error) {
+        console.error('Verify invoke error:', error);
+        toast.error('Verification service error. Please try again.');
+        return;
+      }
+
       if (data?.success) {
         setVerified(true);
 
@@ -229,11 +235,16 @@ export const BinancePayScreen: React.FC<BinanceScreenProps> = ({
         }
 
         toast.success(`₹${creditAmount} deposited successfully!`);
+      } else if (data?.alreadyClaimed) {
+        toast.error(data.message || 'This Order ID has already been claimed.');
+      } else if (data?.idFoundButAmountMismatch) {
+        toast.error(`Order found but amount mismatch (paid: $${data.foundAmount ?? '?'}, expected: $${amountUsd}). Contact support.`, { duration: 6000 });
       } else {
-        // Not yet verified
+        toast.error(data?.message || 'Payment not found yet. Wait 1-2 minutes and try again.', { duration: 5000 });
       }
     } catch (err) {
       console.error('Verify error:', err);
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setVerifying(false);
     }
