@@ -7,7 +7,8 @@ const corsHeaders = {
 
 const ADMIN_EMAIL = 'red.eyes.owner121@gmail.com';
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const FROM_ADDRESS = 'Cheapest Premiums <onboarding@resend.dev>';
+const FROM_ADDRESS = Deno.env.get('EMAIL_FROM_ADDRESS') || 'Cheapest Premiums <support@cheapest-premiums.in>';
+const FALLBACK_FROM = 'Cheapest Premiums <onboarding@resend.dev>';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
