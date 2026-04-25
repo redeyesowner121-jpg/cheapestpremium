@@ -1,5 +1,6 @@
-// Send order status email via Gmail (Google Mail API) + log every attempt
+// Send order status email via SMTP (primary) with Resend fallback + admin alerts on failure
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getActiveSmtpConfig, sendViaSmtp } from "../_shared/smtp-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,16 +8,16 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-// Falls back to Resend's shared sender if your domain isn't verified yet.
 const FROM_ADDRESS = Deno.env.get('EMAIL_FROM_ADDRESS') || 'Cheapest Premiums <support@cheapest-premiums.in>';
 const FALLBACK_FROM = 'Cheapest Premiums <onboarding@resend.dev>';
+const ADMIN_ALERT_EMAIL = 'red.eyes.owner121@gmail.com';
 
 interface Payload {
   to: string;
   customerName?: string;
   productName: string;
   orderId: string;
-  status: 'confirmed' | 'completed' | 'processing' | 'cancelled' | 'refunded' | string;
+  status: string;
   totalPrice?: number;
   accessLink?: string;
   hasDiscount?: boolean;
@@ -29,7 +30,6 @@ function buildEmail(p: Payload): { subject: string; html: string } {
   const name = p.customerName || 'Customer';
   const shortId = p.orderId.slice(0, 8).toUpperCase();
   const price = p.totalPrice ? `₹${p.totalPrice}` : '';
-
   let subject = '', title = '', intro = '', body = '', accent = '#6366f1';
 
   switch (p.status) {
@@ -48,6 +48,14 @@ function buildEmail(p: Payload): { subject: string; html: string } {
           </div>
         ` : `<p style="color:#6b7280;">Check your account orders page for delivery details.</p>`}
       `;
+      break;
+    case 'pending':
+    case 'placed':
+      subject = `🛒 Order Placed - ${p.productName} (#${shortId})`;
+      title = '🛒 Order Placed Successfully';
+      intro = `Hi ${name}, thanks for your order! We've received it and will process it shortly.`;
+      accent = '#6366f1';
+      body = `<p style="color:#374151;">You'll receive another email once your order is confirmed and ready.</p>`;
       break;
     case 'processing':
       subject = `🔄 Order Processing - ${p.productName} (#${shortId})`;
@@ -111,21 +119,31 @@ function buildEmail(p: Payload): { subject: string; html: string } {
   return { subject, html };
 }
 
-function buildRawEmail(to: string, subject: string, html: string): string {
-  // RFC 2822 with UTF-8 base64 subject for emoji safety
-  const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
-  const message = [
-    `To: ${to}`,
-    `Subject: ${encodedSubject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    html,
-  ].join('\r\n');
-  // base64url
-  const utf8 = unescape(encodeURIComponent(message));
-  return btoa(utf8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+async function sendAdminAlert(supabase: any, smtpCfg: any, subject: string, errorDetail: string, ctx: Record<string, any>) {
+  try {
+    const html = `<div style="font-family:Arial,sans-serif;padding:20px;">
+      <h2 style="color:#ef4444;">⚠️ Email Delivery Failed</h2>
+      <p><strong>Subject:</strong> ${subject}</p>
+      <pre style="background:#f3f4f6;padding:12px;border-radius:8px;white-space:pre-wrap;">${errorDetail}</pre>
+      <h3>Context:</h3>
+      <pre style="background:#f3f4f6;padding:12px;border-radius:8px;">${JSON.stringify(ctx, null, 2)}</pre>
+    </div>`;
+    const adminSubject = `🚨 Email Failed: ${subject}`;
+    if (smtpCfg) {
+      const r = await sendViaSmtp(smtpCfg, { to: ADMIN_ALERT_EMAIL, subject: adminSubject, html });
+      await supabase.from('email_send_log').insert({
+        template_name: 'admin_alert',
+        recipient_email: ADMIN_ALERT_EMAIL,
+        subject: adminSubject,
+        provider: 'smtp',
+        status: r.ok ? 'sent' : 'failed',
+        error_message: r.ok ? null : r.error,
+        metadata: ctx,
+      });
+    }
+  } catch (e) {
+    console.error('admin alert send failed', e);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -138,9 +156,6 @@ Deno.serve(async (req) => {
 
   let payload: Payload | null = null;
   try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-
     payload = await req.json() as Payload;
     if (!payload.to || !payload.productName || !payload.orderId || !payload.status) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -149,94 +164,116 @@ Deno.serve(async (req) => {
     }
 
     const { subject, html } = buildEmail(payload);
+    const smtpCfg = await getActiveSmtpConfig(supabase);
 
-    if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
+    // 1) Try SMTP first
+    if (smtpCfg) {
+      const r = await sendViaSmtp(smtpCfg, { to: payload.to, subject, html });
+      if (r.ok) {
+        await supabase.from('email_send_log').insert({
+          template_name: `order_${payload.status}`,
+          recipient_email: payload.to,
+          subject,
+          provider: 'smtp',
+          status: 'sent',
+          order_id: payload.orderId,
+          metadata: { product: payload.productName, from: smtpCfg.from_email },
+        });
+        return new Response(JSON.stringify({ success: true, provider: 'smtp' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.warn('SMTP send failed, will try Resend fallback:', r.error);
+      await supabase.from('email_send_log').insert({
+        template_name: `order_${payload.status}`,
+        recipient_email: payload.to,
+        subject,
+        provider: 'smtp',
+        status: 'failed',
+        error_message: r.error?.slice(0, 500),
+        order_id: payload.orderId,
+      });
+    }
+
+    // 2) Fallback to Resend if configured
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    if (LOVABLE_API_KEY && RESEND_API_KEY) {
+      async function sendVia(from: string) {
+        const r = await fetch(`${GATEWAY_URL}/emails`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'X-Connection-Api-Key': RESEND_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ from, to: [payload!.to], subject, html }),
+        });
+        const t = await r.text();
+        let p: any = {};
+        try { p = JSON.parse(t); } catch { /* ignore */ }
+        return { ok: r.ok, status: r.status, text: t, parsed: p };
+      }
+      let res = await sendVia(FROM_ADDRESS);
+      let usedFrom = FROM_ADDRESS;
+      if (!res.ok && (res.status === 403 || /domain|verify|not verified|from/i.test(res.text)) && FROM_ADDRESS !== FALLBACK_FROM) {
+        res = await sendVia(FALLBACK_FROM);
+        usedFrom = FALLBACK_FROM;
+      }
+      if (res.ok) {
+        await supabase.from('email_send_log').insert({
+          message_id: res.parsed.id || null,
+          template_name: `order_${payload.status}`,
+          recipient_email: payload.to,
+          subject,
+          provider: 'resend',
+          status: 'sent',
+          order_id: payload.orderId,
+          metadata: { product: payload.productName, from: usedFrom },
+        });
+        return new Response(JSON.stringify({ success: true, provider: 'resend', id: res.parsed.id }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const errDetail = `Resend ${res.status}: ${res.text.slice(0, 500)}`;
       await supabase.from('email_send_log').insert({
         template_name: `order_${payload.status}`,
         recipient_email: payload.to,
         subject,
         provider: 'resend',
         status: 'failed',
-        error_message: 'Email not configured (missing API keys)',
+        error_message: errDetail,
         order_id: payload.orderId,
       });
-      return new Response(JSON.stringify({ error: 'Email not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    async function sendVia(from: string) {
-      const r = await fetch(`${GATEWAY_URL}/emails`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'X-Connection-Api-Key': RESEND_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ from, to: [payload!.to], subject, html }),
-      });
-      const t = await r.text();
-      let p: any = {};
-      try { p = JSON.parse(t); } catch { /* ignore */ }
-      return { ok: r.ok, status: r.status, text: t, parsed: p };
-    }
-
-    let res = await sendVia(FROM_ADDRESS);
-    let usedFrom = FROM_ADDRESS;
-    // If domain not verified / forbidden, fall back to Resend's shared sender
-    if (!res.ok && (res.status === 403 || /domain|verify|not verified|from/i.test(res.text)) && FROM_ADDRESS !== FALLBACK_FROM) {
-      console.warn('Primary FROM failed, retrying with fallback:', res.status, res.text.slice(0, 200));
-      res = await sendVia(FALLBACK_FROM);
-      usedFrom = FALLBACK_FROM;
-    }
-    const respText = res.text;
-    const parsed = res.parsed;
-
-    if (!res.ok) {
-      console.error('Resend send failed', res.status, respText);
-      await supabase.from('email_send_log').insert({
-        template_name: `order_${payload.status}`,
-        recipient_email: payload.to,
-        subject,
-        provider: 'resend',
-        status: 'failed',
-        error_message: `${res.status}: ${respText.slice(0, 500)}`,
-        order_id: payload.orderId,
-        metadata: { product: payload.productName },
-      });
-      return new Response(JSON.stringify({ error: 'Send failed', detail: respText }), {
+      await sendAdminAlert(supabase, smtpCfg, subject, errDetail, { to: payload.to, orderId: payload.orderId, status: payload.status });
+      return new Response(JSON.stringify({ error: 'All providers failed', detail: errDetail }), {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    await supabase.from('email_send_log').insert({
-      message_id: parsed.id || null,
-      template_name: `order_${payload.status}`,
-      recipient_email: payload.to,
-      subject,
-      provider: 'resend',
-      status: 'sent',
-      order_id: payload.orderId,
-      metadata: { product: payload.productName, from: usedFrom },
-    });
-
-    return new Response(JSON.stringify({ success: true, id: parsed.id }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // 3) Nothing configured
+    const noneMsg = 'No email provider configured (SMTP & Resend both missing)';
+    await sendAdminAlert(supabase, smtpCfg, subject, noneMsg, { to: payload.to, orderId: payload.orderId });
+    return new Response(JSON.stringify({ error: noneMsg }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
     console.error('send-order-email error', e);
+    const errStr = String(e).slice(0, 500);
     try {
       await supabase.from('email_send_log').insert({
         template_name: payload ? `order_${payload.status}` : 'order_unknown',
         recipient_email: payload?.to || 'unknown',
         subject: payload ? `Order ${payload.status}` : 'Unknown',
-        provider: 'resend',
+        provider: 'unknown',
         status: 'failed',
-        error_message: String(e).slice(0, 500),
+        error_message: errStr,
         order_id: payload?.orderId || null,
       });
+      const cfg = await getActiveSmtpConfig(supabase);
+      await sendAdminAlert(supabase, cfg, 'send-order-email exception', errStr, { payload });
     } catch {/* ignore */}
-    return new Response(JSON.stringify({ error: String(e) }), {
+    return new Response(JSON.stringify({ error: errStr }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
