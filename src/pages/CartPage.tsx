@@ -421,7 +421,7 @@ const CartPage: React.FC = () => {
               const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
               const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
               // Repeated-mode variations are infinite-supply; never out of stock
-              const variationIsRepeated = item.variation?.delivery_mode === 'repeated';
+              const variationIsRepeated = (item.variation as any)?.delivery_mode === 'repeated';
               const isOutOfStock = !variationIsRepeated && item.product?.stock !== null && item.product?.stock !== undefined && item.product.stock <= 0;
 
               return (
