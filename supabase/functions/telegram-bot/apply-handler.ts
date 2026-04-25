@@ -134,19 +134,12 @@ export async function handleApplyDescription(token: string, supabase: any, chatI
 
   // Forward proof photo + caption to all admins
   const adminIds = await getAllAdminIds(supabase);
-  let anySent = false;
   for (const adminId of adminIds) {
     try {
-      const ok = await sendPhoto(token, adminId, proofFileId, caption, { reply_markup: replyMarkup });
-      if (ok) anySent = true;
+      await sendPhoto(token, adminId, proofFileId, caption, { reply_markup: replyMarkup });
     } catch (e) {
       console.error("apply: notify admin failed", e);
     }
-  }
-
-  // Fallback: re-upload via download if direct file_id forwarding failed (cross-bot scenarios)
-  if (!anySent) {
-    await resendPhotoToAllAdmins(token, token, supabase, proofFileId, caption, { reply_markup: replyMarkup });
   }
 }
 
