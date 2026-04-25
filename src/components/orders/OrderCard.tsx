@@ -44,6 +44,9 @@ interface OrderCardProps {
 const getStatusIcon = (status: string) => {
   switch (status) {
     case 'completed':
+    case 'confirmed':
+    case 'shipped':
+    case 'delivered':
       return <CheckCircle className="w-5 h-5 text-success" />;
     case 'processing':
       return <Clock className="w-5 h-5 text-accent animate-pulse" />;
@@ -60,6 +63,9 @@ const getStatusIcon = (status: string) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':
+    case 'confirmed':
+    case 'shipped':
+    case 'delivered':
       return 'bg-success/10 text-success';
     case 'processing':
       return 'bg-accent/10 text-accent';
@@ -84,7 +90,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const navigate = useNavigate();
   const { formatPrice } = useCurrencyFormat();
   const isSellerOrder = !!order.seller_id;
-  const needsConfirmation = isSellerOrder && order.status === 'completed' && order.access_link && !order.buyer_confirmed;
+  const needsConfirmation = isSellerOrder && ['completed','confirmed','shipped','delivered'].includes(order.status) && order.access_link && !order.buyer_confirmed;
   
   const handleReorder = () => {
     if (order.product_id) {
@@ -183,7 +189,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
             </>
           )}
           
-          {order.product_id && (order.status === 'completed' || order.status === 'cancelled' || order.status === 'refunded') && (
+          {order.product_id && (['completed','confirmed','shipped','delivered','cancelled','refunded'].includes(order.status)) && (
             <Button
               size="sm"
               variant="outline"
