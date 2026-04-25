@@ -358,7 +358,10 @@ export async function escrowViewDeal(token: string, supabase: any, chatId: numbe
       { text: "⚠️ Dispute", callback_data: `escrow_dispute_${dealId}` },
     ]);
   }
-  rows.push([{ text: "💬 Send Message", callback_data: `escrow_chat_${dealId}` }]);
+  rows.push([
+    { text: "💬 Send Message", callback_data: `escrow_chat_${dealId}` },
+    { text: "🔄 Refresh", callback_data: `escrow_view_${dealId}` },
+  ]);
   rows.push([{ text: "🔙 Back", callback_data: "escrow_list_active" }]);
 
   if (messageId) {
