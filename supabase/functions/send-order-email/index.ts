@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { subject, html } = buildEmail(payload);
+    const { subject, html, text } = buildEmail(payload);
     const smtpCfg = await getActiveSmtpConfig(supabase);
 
     // 1) Try SMTP first
