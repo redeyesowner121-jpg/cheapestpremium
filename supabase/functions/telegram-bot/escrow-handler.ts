@@ -70,7 +70,7 @@ async function resolveEscrowCounterparty(supabase: any, identifier: string): Pro
   }
 
   const username = raw.replace(/^@+/, "");
-  if (/^[a-z0-9_]{3,32}$/i.test(username) && !raw.includes("@")) {
+  if (/^[a-z0-9_]{3,32}$/i.test(username)) {
     const telegramId = await findTelegramIdByUsername(supabase, username);
     if (telegramId) {
       const profileId = await resolveProfileUserId(supabase, telegramId);
