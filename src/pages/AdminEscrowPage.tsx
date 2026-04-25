@@ -5,8 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, CheckCircle2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle2, ArrowLeft, RefreshCw, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import AdminEscrowChatPanel from './admin-escrow/AdminEscrowChatPanel';
 
 type Deal = {
   id: string;
