@@ -2,8 +2,7 @@
 // /apply command flow: choose type → upload proof photo → enter description → submitted to admins
 
 import { sendMessage, sendPhoto } from "./telegram-api.ts";
-import { setConversationState, deleteConversationState, notifyAllAdmins, getAllAdminIds } from "./db-helpers.ts";
-import { resendPhotoToAllAdmins } from "./db-helpers.ts";
+import { setConversationState, deleteConversationState, getAllAdminIds } from "./db-helpers.ts";
 
 const MOTHERBOT_URL = "https://t.me/Botmother_selling_bot";
 
