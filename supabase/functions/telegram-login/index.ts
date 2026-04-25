@@ -14,6 +14,15 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+async function mergeVerifiedTelegramEmailAccount(supabase: any, telegramId: number, email: string | null) {
+  if (!email || email.endsWith("@bot.local")) return;
+  const { error } = await supabase.rpc("merge_telegram_email_account", {
+    _telegram_id: telegramId,
+    _email: email,
+  });
+  if (error) console.error("merge_telegram_email_account failed:", error);
+}
+
 async function fetchTelegramAvatar(botToken: string, telegramId: number): Promise<string | null> {
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/getUserProfilePhotos`, {
@@ -128,6 +137,15 @@ Deno.serve(async (req: Request) => {
     let user: any = null;
     let isNewUser = false;
     let resolvedEmail: string | null = null;
+    let verifiedBotEmail: string | null = null;
+
+    const { data: botUserForEmail } = await supabase
+      .from("telegram_bot_users")
+      .select("email, email_verified")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
+
+    verifiedBotEmail = botUserForEmail?.email_verified ? botUserForEmail.email : null;
 
     // 1) Try profile already linked to this telegram_id
     const { data: linkedProfile } = await supabase
@@ -144,34 +162,33 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 2) Look up bot user's verified email
-    if (!user) {
-      const { data: botUser } = await supabase
-        .from("telegram_bot_users")
-        .select("email, email_verified")
-        .eq("telegram_id", telegramId)
-        .maybeSingle();
-
-      const verifiedEmail = botUser?.email_verified ? botUser.email : null;
-      if (verifiedEmail) {
+    // 2) Look up bot user's verified email. If a real website account exists,
+    // prefer it over the older synthetic telegram_<id>@bot.local account.
+    if (!user || resolvedEmail?.endsWith("@bot.local")) {
+      if (verifiedBotEmail) {
         // Find auth user with this email
         let page = 1;
         const perPage = 1000;
-        while (!user) {
+        while (true) {
           const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
           if (listError || !pageData?.users?.length) break;
           const match = pageData.users.find(
-            (u: any) => (u.email || "").toLowerCase() === verifiedEmail.toLowerCase()
+            (u: any) => (u.email || "").toLowerCase() === verifiedBotEmail.toLowerCase()
           );
           if (match) {
             user = match;
-            resolvedEmail = match.email || verifiedEmail;
+            resolvedEmail = match.email || verifiedBotEmail;
             break;
           }
           if (pageData.users.length < perPage) break;
           page++;
         }
       }
+    }
+
+    // Ensure verified email links are fully merged before resolving profile data.
+    if (user && resolvedEmail) {
+      await mergeVerifiedTelegramEmailAccount(supabase, telegramId, resolvedEmail);
     }
 
     // 3) Fallback synthetic account (existing behaviour)

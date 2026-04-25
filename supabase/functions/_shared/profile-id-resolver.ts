@@ -6,13 +6,37 @@ const TELEGRAM_ID_PATTERN = /^\d+$/;
 
 async function findProfileByTelegramId(supabase: any, telegramId: number) {
   const email = `telegram_${telegramId}@bot.local`;
-  const { data } = await supabase
+  const { data: linkedProfile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+
+  if (linkedProfile?.id) return linkedProfile;
+
+  const { data: botUser } = await supabase
+    .from("telegram_bot_users")
+    .select("email, email_verified")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+
+  if (botUser?.email_verified && botUser?.email) {
+    const { data: emailProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("email", botUser.email)
+      .maybeSingle();
+
+    if (emailProfile?.id) return emailProfile;
+  }
+
+  const { data: fallbackProfile } = await supabase
     .from("profiles")
     .select("id")
     .eq("email", email)
     .maybeSingle();
 
-  return data;
+  return fallbackProfile;
 }
 
 async function getTelegramDisplayName(supabase: any, telegramId: number) {
@@ -36,7 +60,22 @@ async function getTelegramDisplayName(supabase: any, telegramId: number) {
 
 async function ensureTelegramProfile(supabase: any, telegramId: number): Promise<string | null> {
   const existingProfile = await findProfileByTelegramId(supabase, telegramId);
-  if (existingProfile?.id) return existingProfile.id;
+  if (existingProfile?.id) {
+    const { data: botUser } = await supabase
+      .from("telegram_bot_users")
+      .select("email, email_verified")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
+
+    if (botUser?.email_verified && botUser?.email) {
+      await supabase.rpc("merge_telegram_email_account", {
+        _telegram_id: telegramId,
+        _email: botUser.email,
+      });
+    }
+
+    return existingProfile.id;
+  }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";

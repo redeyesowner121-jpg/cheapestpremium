@@ -268,48 +268,17 @@ export async function verifyEmailOtp(
 
   await deleteConversationState(supabase, userId);
 
-  // 🔗 Auto-link to existing website account if email matches
-  // Also merge wallet balances so both sides stay in sync.
+  // 🔗 Auto-link to existing website account if email matches.
+  // The database RPC keeps this atomic and idempotent: balance, roles,
+  // reseller status, and website-owned histories are preserved on one account.
   try {
-    const { data: matchedProfile } = await supabase
-      .from("profiles")
-      .select("id, wallet_balance, total_deposit, telegram_id")
-      .ilike("email", verifiedEmail)
-      .maybeSingle();
+    const { error: mergeError } = await supabase.rpc("merge_telegram_email_account", {
+      _telegram_id: userId,
+      _email: verifiedEmail,
+    });
 
-    if (matchedProfile?.id && !matchedProfile.telegram_id) {
-      // Link the website profile to this telegram_id
-      await supabase
-        .from("profiles")
-        .update({ telegram_id: userId })
-        .eq("id", matchedProfile.id);
-
-      // Merge wallets — take the higher of bot vs website
-      const { data: botWallet } = await supabase
-        .from("telegram_wallets")
-        .select("balance, total_earned")
-        .eq("telegram_id", userId)
-        .maybeSingle();
-
-      const botBal = Number(botWallet?.balance || 0);
-      const webBal = Number(matchedProfile.wallet_balance || 0);
-      const botDep = Number(botWallet?.total_earned || 0);
-      const webDep = Number(matchedProfile.total_deposit || 0);
-      const mergedBal = Math.max(botBal, webBal);
-      const mergedDep = Math.max(botDep, webDep);
-
-      if (mergedBal !== webBal || mergedDep !== webDep) {
-        await supabase
-          .from("profiles")
-          .update({ wallet_balance: mergedBal, total_deposit: mergedDep })
-          .eq("id", matchedProfile.id);
-      }
-      if (botWallet && (mergedBal !== botBal || mergedDep !== botDep)) {
-        await supabase
-          .from("telegram_wallets")
-          .update({ balance: mergedBal, total_earned: mergedDep, updated_at: new Date().toISOString() })
-          .eq("telegram_id", userId);
-      }
+    if (mergeError) {
+      console.error("[email-handler] account merge rpc failed:", mergeError);
     }
   } catch (e) {
     console.error("[email-handler] auto-link failed:", e);

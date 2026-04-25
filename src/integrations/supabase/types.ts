@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_merge_audit: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          merged_pending_balance: number
+          merged_rank_balance: number
+          merged_total_deposit: number
+          merged_total_savings: number
+          merged_wallet_amount: number
+          moved_escrows: number
+          moved_notifications: number
+          moved_orders: number
+          moved_resale_links: number
+          moved_transactions: number
+          source_profile_id: string | null
+          target_profile_id: string
+          telegram_id: number
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          merged_pending_balance?: number
+          merged_rank_balance?: number
+          merged_total_deposit?: number
+          merged_total_savings?: number
+          merged_wallet_amount?: number
+          moved_escrows?: number
+          moved_notifications?: number
+          moved_orders?: number
+          moved_resale_links?: number
+          moved_transactions?: number
+          source_profile_id?: string | null
+          target_profile_id: string
+          telegram_id: number
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          merged_pending_balance?: number
+          merged_rank_balance?: number
+          merged_total_deposit?: number
+          merged_total_savings?: number
+          merged_wallet_amount?: number
+          moved_escrows?: number
+          moved_notifications?: number
+          moved_orders?: number
+          moved_resale_links?: number
+          moved_transactions?: number
+          source_profile_id?: string | null
+          target_profile_id?: string
+          telegram_id?: number
+        }
+        Relationships: []
+      }
       ai_chat_messages: {
         Row: {
           content: string
@@ -2856,6 +2913,10 @@ export type Database = {
         Returns: undefined
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      merge_telegram_email_account: {
+        Args: { _email: string; _telegram_id: number }
+        Returns: Json
+      }
       redeem_gift_code: {
         Args: { _code: string; _user_id: string }
         Returns: Json
