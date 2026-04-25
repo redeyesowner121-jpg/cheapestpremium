@@ -6,7 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_mail/gmail/v1';
+const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+const FROM_ADDRESS = 'Cheapest Premiums <onboarding@resend.dev>';
 
 interface Payload {
   to: string;
