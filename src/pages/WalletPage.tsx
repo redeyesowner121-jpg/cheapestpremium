@@ -61,7 +61,7 @@ const WalletPage: React.FC = () => {
         <WalletBalanceCard
           walletBalance={profile?.wallet_balance || 0}
           totalDeposit={profile?.total_deposit || 0}
-          onAddMoney={() => { setDepositInitialTab('card'); setShowDepositModal(true); }}
+          onAddMoney={() => { setDepositInitialTab('card'); setDepositInitialMethod(null); setShowDepositModal(true); }}
           onWithdraw={() => setShowWithdrawModal(true)}
         />
 
