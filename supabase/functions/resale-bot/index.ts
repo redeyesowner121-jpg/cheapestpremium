@@ -429,7 +429,7 @@ async function handleResaleScreenshot(
   if (fileId) {
     try {
       const photoCaption = `📸 <b>Resale Payment Screenshot</b>\n👤 User: <code>${userId}</code>\n📦 ${stateData.productName}`;
-      await resendPhotoToAllAdminsMainBot(resaleBotToken, mainBotToken, supabase, fileId, photoCaption);
+      await resendPhotoToAllAdminsMainBot(token, mainBotToken, supabase, fileId, photoCaption);
     } catch (e) { console.error("Resend screenshot error:", e); }
   } else {
     try { await forwardToAllAdminsMainBot(mainBotToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
