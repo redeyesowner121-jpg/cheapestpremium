@@ -40,12 +40,37 @@ export async function sendViaSmtp(
     },
   });
   try {
+    // Strip HTML tags as a clean plain-text fallback when text not provided
+    const plainText = (opts.text && opts.text.trim().length > 0)
+      ? opts.text
+      : opts.html
+          .replace(/<style[\s\S]*?<\/style>/gi, '')
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/\s+/g, ' ')
+          .trim();
+
     await client.send({
       from: `${cfg.from_name} <${cfg.from_email}>`,
       to: opts.to,
       subject: opts.subject,
-      content: opts.text || opts.subject,
+      content: plainText,
       html: opts.html,
+      // Force proper MIME multipart/alternative so HTML renders in all clients
+      mimeContent: [
+        { mimeType: 'text/plain; charset=utf-8', content: plainText, transferEncoding: 'quoted-printable' },
+        { mimeType: 'text/html; charset=utf-8', content: opts.html, transferEncoding: 'quoted-printable' },
+      ],
+      headers: {
+        'MIME-Version': '1.0',
+        'X-Mailer': `${cfg.from_name} Mailer`,
+      },
     });
     await client.close();
     return { ok: true };
