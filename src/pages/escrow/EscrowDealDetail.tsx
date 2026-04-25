@@ -75,6 +75,22 @@ const EscrowDealDetail: React.FC<Props> = ({ dealId, userId, onBack }) => {
     }
     const text = input.trim();
     setInput('');
+
+    // AI moderation — catches obfuscated contact-sharing the regex misses.
+    try {
+      const { data: mod, error: modErr } = await supabase.functions.invoke('escrow-moderate-message', {
+        body: { message: text },
+      });
+      if (!modErr && mod?.blocked) {
+        toast.error(mod.reason || 'Message blocked: contact-sharing not allowed');
+        setInput(text);
+        return;
+      }
+    } catch (e) {
+      // fail-open: don't break chat if AI is unreachable
+      console.warn('escrow moderation skipped', e);
+    }
+
     const { error } = await supabase.rpc('send_escrow_message', { _sender_id: userId, _deal_id: dealId, _message: text });
     if (error) {
       toast.error(error.message || 'Message blocked');
