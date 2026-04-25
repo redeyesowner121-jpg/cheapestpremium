@@ -157,77 +157,23 @@ const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onComplete
 
   return (
     <div className="space-y-3">
-      <div className="rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-3 flex items-center gap-3">
-        <Shield className="w-5 h-5 text-primary shrink-0" />
-        <div className="flex-1 text-xs">
-          <p className="font-medium text-foreground">Escrow — Safe Deals</p>
-          <p className="text-muted-foreground">Admin-mediated · 2% fee · Built-in chat</p>
+      <div className="rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Shield className="w-8 h-8 text-primary" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground">Escrow — Safe Deals</p>
+            <p className="text-xs text-muted-foreground">30-min auto-cancel · Buyer cancel · Chat filter</p>
+          </div>
         </div>
-        <Button size="sm" onClick={() => setView('create')} className="rounded-xl btn-gradient">
-          <Plus className="w-4 h-4 mr-1" /> New
+        {pendingForMe > 0 && (
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-2 text-xs text-amber-700 dark:text-amber-400 mb-2">
+            🔔 {pendingForMe} request{pendingForMe > 1 ? 's' : ''} waiting for you
+          </div>
+        )}
+        <Button onClick={() => { onClose?.(); navigate('/escrow'); }} className="w-full rounded-xl btn-gradient h-11">
+          Open Escrow Dashboard →
         </Button>
       </div>
-
-      {pendingForMe > 0 && (
-        <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-2 text-xs text-amber-700 dark:text-amber-400">
-          🔔 You have <b>{pendingForMe}</b> escrow request{pendingForMe > 1 ? 's' : ''} waiting for your acceptance.
-        </div>
-      )}
-
-      <div className="flex gap-1 bg-muted rounded-xl p-1">
-        {(['active', 'closed', 'all'] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={`flex-1 text-xs py-1.5 rounded-lg capitalize transition-colors ${filter === f ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground'}`}>
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="text-center py-6 text-muted-foreground text-sm">Loading deals…</div>
-      ) : filteredDeals.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">
-          {filter === 'active' ? 'No active escrow deals.' : filter === 'closed' ? 'No closed deals yet.' : 'No escrow deals yet.'}
-        </div>
-      ) : (
-        <div className="space-y-2 max-h-80 overflow-y-auto">
-          {filteredDeals.map((d) => {
-            const isBuyer = d.buyer_id === userId;
-            const meta = STATUS_META[d.status] || STATUS_META.funded;
-            const Icon = meta.icon;
-            const needsAction =
-              (d.status === 'pending_acceptance' && !isBuyer) ||
-              (d.status === 'funded' && !isBuyer) ||
-              ((d.status === 'delivered' || d.status === 'funded') && isBuyer);
-            return (
-              <button key={d.id}
-                onClick={() => { setActiveDeal(d); setView('detail'); }}
-                className={`w-full text-left rounded-xl border p-3 space-y-1.5 transition-colors hover:bg-muted/30
-                  ${needsAction ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-muted-foreground">{isBuyer ? 'You → Seller' : 'Buyer → You'}</p>
-                    <p className="font-medium text-foreground text-sm truncate">{d.description}</p>
-                  </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 ${meta.color}`}>
-                    <Icon className="w-3 h-3" />{meta.label}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">
-                    ₹{Number(d.amount).toFixed(2)}
-                    {!isBuyer && <span> · you get ₹{Number(d.seller_amount).toFixed(2)}</span>}
-                  </span>
-                  <span className="text-primary inline-flex items-center gap-1 text-[10px]">
-                    <MessageSquare className="w-3 h-3" /> Open
-                  </span>
-                </div>
-                {needsAction && <p className="text-[10px] text-primary font-medium">⚡ Action needed</p>}
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 };

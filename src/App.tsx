@@ -50,6 +50,7 @@ const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const AdminEmailLogsPage = lazy(() => import("./pages/AdminEmailLogsPage"));
 const AdminEscrowPage = lazy(() => import("./pages/AdminEscrowPage"));
+const EscrowPage = lazy(() => import("./pages/EscrowPage"));
 const CartPage = lazy(() => import("./pages/CartPage"));
 const ResalePurchasePage = lazy(() => import("./pages/ResalePurchasePage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
@@ -156,6 +157,8 @@ const AppContent = () => {
             <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
             <Route path="/admin/email-logs" element={<AdminEmailLogsPage />} />
             <Route path="/admin/escrow" element={<AdminEscrowPage />} />
+            <Route path="/escrow" element={<EscrowPage />} />
+            <Route path="/escrow/:dealId" element={<EscrowPage />} />
             <Route path="/admin/:tab" element={<AdminPage />} />
             <Route path="/cart" element={<CartPage />} />
             <Route path="/resale/:code" element={<ResalePurchasePage />} />
