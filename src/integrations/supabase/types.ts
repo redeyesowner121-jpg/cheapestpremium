@@ -1837,6 +1837,7 @@ export type Database = {
           rank_balance: number | null
           referral_code: string | null
           referred_by: string | null
+          telegram_id: number | null
           total_deposit: number | null
           total_orders: number | null
           total_savings: number
@@ -1861,6 +1862,7 @@ export type Database = {
           rank_balance?: number | null
           referral_code?: string | null
           referred_by?: string | null
+          telegram_id?: number | null
           total_deposit?: number | null
           total_orders?: number | null
           total_savings?: number
@@ -1885,6 +1887,7 @@ export type Database = {
           rank_balance?: number | null
           referral_code?: string | null
           referred_by?: string | null
+          telegram_id?: number | null
           total_deposit?: number | null
           total_orders?: number | null
           total_savings?: number
