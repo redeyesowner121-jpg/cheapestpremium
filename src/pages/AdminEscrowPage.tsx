@@ -36,6 +36,7 @@ const AdminEscrowPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<typeof STATUS_FILTERS[number]>('disputed');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [chatDealId, setChatDealId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin && !isTempAdmin) navigate('/');
