@@ -216,11 +216,19 @@ const EscrowDealView: React.FC<Props> = ({ deal: initialDeal, userId, onBack, on
         {deal.status === 'funded' && !isBuyer && (
           <Button onClick={sellerDeliver} disabled={!!busy} className="w-full rounded-xl btn-gradient h-10">📦 Mark as Delivered</Button>
         )}
-        {(deal.status === 'delivered' || deal.status === 'funded') && isBuyer && (
+        {deal.status === 'funded' && isBuyer && (
+          <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 text-center">
+            ⏳ Waiting for seller to mark as delivered. Release will unlock after delivery.
+          </div>
+        )}
+        {deal.status === 'delivered' && isBuyer && (
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={buyerRelease} disabled={!!busy} className="rounded-xl btn-gradient h-10">💰 Release Funds</Button>
             <Button onClick={openDispute} disabled={!!busy} variant="outline" className="rounded-xl h-10">⚠️ Dispute</Button>
           </div>
+        )}
+        {deal.status === 'delivered' && !isBuyer && (
+          <p className="text-center text-xs text-muted-foreground">⏳ Waiting for buyer to release funds.</p>
         )}
         {deal.status === 'funded' && !isBuyer && (
           <Button onClick={openDispute} variant="ghost" size="sm" className="w-full text-xs">Open Dispute</Button>

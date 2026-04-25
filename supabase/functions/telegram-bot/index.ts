@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
         await escrowDeliverSkip(BOT_TOKEN, supabase, chatId, userId, data.slice(20), cq.id);
         clearChildBotContext(); return jsonOk();
       }
-      const escrowActionMatch = data.match(/^escrow_(accept|decline|cancel|deliver|release|dispute|chat)_(.+)$/);
+      const escrowActionMatch = data.match(/^escrow_(accept|decline|cancel|buyer_cancel|deliver|release|dispute|chat)_(.+)$/);
       if (escrowActionMatch) {
         const { escrowAction } = await import("./escrow-handler.ts");
         await escrowAction(BOT_TOKEN, supabase, chatId, userId, escrowActionMatch[1], escrowActionMatch[2], cq.id, cq.message.message_id);
