@@ -134,11 +134,11 @@ export async function forwardMessage(token: string, chatId: number, fromChatId: 
   });
 }
 
-export async function answerCallbackQuery(token: string, callbackQueryId: string, text?: string) {
+export async function answerCallbackQuery(token: string, callbackQueryId: string, text?: string, showAlert?: boolean) {
   await fetch(`${TELEGRAM_API(token)}/answerCallbackQuery`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ callback_query_id: callbackQueryId, text: text || "" }),
+    body: JSON.stringify({ callback_query_id: callbackQueryId, text: text || "", show_alert: !!showAlert }),
   });
 }
 
