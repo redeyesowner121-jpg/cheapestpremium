@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Upload, Loader2 } from 'lucide-react';
@@ -8,6 +8,18 @@ interface QrScannerProps {
   onScan: (decoded: string) => void;
   onError?: (msg: string) => void;
 }
+
+const safeStop = async (scanner: Html5Qrcode | null) => {
+  if (!scanner) return;
+  try {
+    const state = scanner.getState?.();
+    if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+      await scanner.stop();
+    }
+  } catch {
+    /* ignore */
+  }
+};
 
 const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
   const elRef = useRef<HTMLDivElement>(null);
@@ -31,7 +43,7 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
           if (handledRef.current) return;
           handledRef.current = true;
           onScan(decoded);
-          scanner.stop().catch(() => {});
+          safeStop(scanner);
         },
         () => { /* per-frame errors ignored */ }
       )
@@ -42,7 +54,9 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
       });
 
     return () => {
-      scanner.stop().catch(() => {}).finally(() => scanner.clear());
+      safeStop(scanner).finally(() => {
+        try { scanner.clear(); } catch { /* ignore */ }
+      });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -54,13 +68,11 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
 
     setScanning(true);
     try {
-      // Stop live camera scanner first to free resources
-      if (scannerRef.current) {
-        try { await scannerRef.current.stop(); } catch {}
-      }
-      // Use a fresh scanner instance for file scan
+      // Stop live camera scanner first to free the element
+      await safeStop(scannerRef.current);
       const fileScanner = new Html5Qrcode(elRef.current!.id, false);
       const decoded = await fileScanner.scanFile(file, true);
+      try { await fileScanner.clear(); } catch { /* ignore */ }
       handledRef.current = true;
       onScan(decoded);
     } catch (err: any) {
