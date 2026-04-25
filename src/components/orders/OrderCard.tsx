@@ -63,6 +63,9 @@ const getStatusIcon = (status: string) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':
+    case 'confirmed':
+    case 'shipped':
+    case 'delivered':
       return 'bg-success/10 text-success';
     case 'processing':
       return 'bg-accent/10 text-accent';
