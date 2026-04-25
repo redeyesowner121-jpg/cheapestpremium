@@ -82,6 +82,9 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({ orders, onSelectOrder }
 
   return (
     <div className="space-y-4">
+      {/* Order Reports from users */}
+      <AdminOrderReports />
+
       {/* Advanced Filters */}
       <AdminAdvancedFilters
         config={{
