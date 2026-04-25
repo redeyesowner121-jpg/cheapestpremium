@@ -48,13 +48,24 @@ const ReportOrderModal: React.FC<ReportOrderModalProps> = ({
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from('order_reports').insert({
+      const { data: inserted, error } = await supabase.from('order_reports').insert({
         order_id: orderId,
         user_id: user.id,
         reason: reportReason,
         details: reportDetails.trim() || null,
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // Fire-and-forget admin notification (in-app + email)
+      supabase.functions.invoke('notify-admin-report', {
+        body: {
+          report_id: inserted?.id,
+          order_id: orderId,
+          reason: reportReason,
+          details: reportDetails.trim() || null,
+        },
+      }).catch((err) => console.error('Admin notify failed:', err));
+
       toast.success('Report submitted! Admin will contact you shortly.');
       onOpenChange(false);
       setReportReason('');
