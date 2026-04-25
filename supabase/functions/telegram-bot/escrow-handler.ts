@@ -77,30 +77,34 @@ export async function handleEscrowCommand(token: string, supabase: any, chatId: 
 
 // =================== START CREATION ===================
 export async function escrowStartCreate(token: string, supabase: any, chatId: number, userId: number) {
-  await setConversationState(supabase, userId, "escrow_awaiting_email", {});
+  await setConversationState(supabase, userId, "escrow_awaiting_identifier", {});
   await sendMessage(token, chatId,
     `➕ <b>New Escrow — Step 1 of 3</b>\n\n` +
-    `Enter the <b>seller's email address</b> (their account email on our platform).\n\n` +
-    `<i>The seller must have an account on cheapest-premiums.in</i>\n\n` +
+    `Enter the seller's <b>email</b>, <b>@username</b>, or <b>numeric Telegram ID</b>.\n\n` +
+    `Examples:\n` +
+    `• <code>seller@gmail.com</code>\n` +
+    `• <code>@cool_seller</code>\n` +
+    `• <code>123456789</code>\n\n` +
+    `<i>The seller must have used this bot or have an account on cheapest-premiums.in</i>\n\n` +
     `/cancel to abort`,
     { reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "escrow_menu" }]] } }
   );
 }
 
 // =================== CONVERSATION STEPS ===================
-export async function escrowHandleEmailInput(token: string, supabase: any, chatId: number, userId: number, text: string) {
-  const email = text.trim().toLowerCase();
-  if (!email.includes("@") || email.length < 5) {
-    await sendMessage(token, chatId, "❌ Please send a valid email address.");
+export async function escrowHandleIdentifierInput(token: string, supabase: any, chatId: number, userId: number, text: string) {
+  const identifier = text.trim();
+  if (identifier.length < 3) {
+    await sendMessage(token, chatId, "❌ Please send a valid email, @username, or numeric Telegram ID.");
     return;
   }
 
-  // Verify seller exists
-  const { data: seller } = await supabase
-    .from("profiles").select("id,name,email").eq("email", email).maybeSingle();
-  if (!seller) {
+  // Resolve via DB
+  const { data: rows, error } = await supabase.rpc("find_profile_by_identifier", { _identifier: identifier });
+  const seller = Array.isArray(rows) ? rows[0] : null;
+  if (error || !seller?.profile_id) {
     await sendMessage(token, chatId,
-      "❌ No user found with that email.\n\nPlease check or ask seller to register on https://cheapest-premiums.in",
+      "❌ No user found with that identifier.\n\nMake sure they have used this bot at least once, or have a website account.",
       { reply_markup: { inline_keyboard: [[{ text: "🔄 Try Again", callback_data: "escrow_new" }, { text: "❌ Cancel", callback_data: "escrow_menu" }]] } }
     );
     await deleteConversationState(supabase, userId);
@@ -108,15 +112,21 @@ export async function escrowHandleEmailInput(token: string, supabase: any, chatI
   }
 
   const buyerProfileId = await resolveProfileUserId(supabase, userId);
-  if (seller.id === buyerProfileId) {
+  if (seller.profile_id === buyerProfileId) {
     await sendMessage(token, chatId, "❌ You cannot create an escrow with yourself.");
     await deleteConversationState(supabase, userId);
     return;
   }
 
-  await setConversationState(supabase, userId, "escrow_awaiting_amount", { sellerEmail: email, sellerName: seller.name });
+  const kindLabel = seller.identifier_kind === 'email' ? '📧 email'
+    : seller.identifier_kind === 'username' ? '🔗 @username' : '🆔 Telegram ID';
+
+  await setConversationState(supabase, userId, "escrow_awaiting_amount", {
+    sellerIdentifier: identifier,
+    sellerName: seller.name || seller.email || identifier,
+  });
   await sendMessage(token, chatId,
-    `✅ Seller found: <b>${seller.name || email}</b>\n\n` +
+    `✅ Seller found via ${kindLabel}: <b>${seller.name || seller.email || identifier}</b>\n\n` +
     `<b>Step 2 of 3 — Amount</b>\n\nEnter the amount in ₹ (just the number, e.g. <code>500</code>):`,
     { reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "escrow_menu" }]] } }
   );
