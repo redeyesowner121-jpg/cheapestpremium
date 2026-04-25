@@ -138,6 +138,8 @@ const CartPage: React.FC = () => {
 
         // Determine if instant delivery is possible (product OR variation level)
         let isInstant = false;
+        let requiresDeliveryRpc = false;
+        let accessLink: string | null = null;
         if (item.product_id) {
           const { data: productData } = await supabase
             .from('products')
@@ -145,15 +147,30 @@ const CartPage: React.FC = () => {
             .eq('id', item.product_id)
             .single();
           if (productData?.show_link_in_website !== false) {
-            if (productData?.access_link || productData?.delivery_mode === 'unique') isInstant = true;
+            const productAccess = productData?.access_link?.trim?.() || '';
+            if (productData?.delivery_mode === 'unique') {
+              isInstant = true;
+              requiresDeliveryRpc = true;
+            }
+            if (productAccess) {
+              isInstant = true;
+              accessLink = productAccess;
+            }
             if (item.variation_id) {
               const { data: varData } = await supabase
                 .from('product_variations')
                 .select('access_link, delivery_message, delivery_mode')
                 .eq('id', item.variation_id)
                 .single();
-              if (varData && (varData.access_link || varData.delivery_message || varData.delivery_mode === 'unique')) {
+              const variationAccess = varData?.access_link?.trim?.() || '';
+              const variationMessage = varData?.delivery_message?.trim?.() || '';
+              if (variationAccess || variationMessage) {
                 isInstant = true;
+                accessLink = variationAccess || variationMessage;
+              }
+              if (varData?.delivery_mode === 'unique') {
+                isInstant = true;
+                requiresDeliveryRpc = true;
               }
             }
           }
@@ -168,10 +185,11 @@ const CartPage: React.FC = () => {
             unit_price: finalPrice,
             total_price: finalPrice * item.quantity,
             quantity: item.quantity,
-            status: 'pending',
-            access_link: null,
+            status: accessLink ? 'confirmed' : 'pending',
+            access_link: accessLink,
           },
           isInstant,
+          requiresDeliveryRpc,
           productId: item.product_id,
         };
       })) : [];
@@ -186,7 +204,7 @@ const CartPage: React.FC = () => {
         if (insertedOrders) {
           await Promise.all(insertedOrders.map(async (ord, idx) => {
             const meta = orderRows[idx];
-            if (meta?.isInstant && meta.productId) {
+            if (meta?.isInstant && meta.requiresDeliveryRpc && meta.productId) {
               try {
                 const { data: link } = await supabase.rpc('finalize_instant_delivery', {
                   p_product_id: meta.productId,
