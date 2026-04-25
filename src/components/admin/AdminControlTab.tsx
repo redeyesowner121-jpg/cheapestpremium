@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, UserPlus, ShoppingBag, MessageCircle,
   Image, CreditCard, Users, Package, Shield, ChevronDown,
-  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus
+  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus, Mail
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
@@ -60,6 +61,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
     onUpdateSetting, onDataChange
   } = props;
 
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<ControlSection>(null);
   const [activeGroup, setActiveGroup] = useState<number>(0);
   const [orderFilter, setOrderFilter] = useState('all');
@@ -88,6 +90,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
     { id: 'cart_messages' as ControlSection, icon: SmilePlus, label: 'Cart Messages', description: 'Empty cart fun messages', color: 'bg-gradient-to-br from-fuchsia-500 to-purple-500', badge: null },
     { id: 'chat' as ControlSection, icon: MessageCircle, label: 'Messages', description: 'Customer support', color: 'bg-gradient-to-br from-teal-500 to-cyan-500', badge: null },
     { id: 'telegram_bot' as ControlSection, icon: Bot, label: 'Telegram Bot', description: 'Manage selling bot', color: 'bg-gradient-to-br from-blue-500 to-sky-500', badge: null },
+    { id: 'email_logs' as any as ControlSection, icon: Mail, label: 'Email Logs', description: 'Delivery status & errors', color: 'bg-gradient-to-br from-rose-500 to-red-600', badge: null, link: '/admin/email-logs' },
   ];
 
   const sectionGroups = [
@@ -194,7 +197,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         <div className="space-y-2">
           {sectionGroups[activeGroup]?.sections.map((section) => (
             <motion.div key={section.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card rounded-2xl border border-border overflow-hidden shadow-sm">
-              <button onClick={() => toggleSection(section.id)} className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+              <button onClick={() => (section as any).link ? navigate((section as any).link) : toggleSection(section.id)} className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-xl text-white ${section.color}`}>
                     <section.icon className="w-5 h-5" />

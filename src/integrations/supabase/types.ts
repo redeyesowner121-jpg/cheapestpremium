@@ -601,6 +601,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_send_log: {
+        Row: {
+          announcement_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          metadata: Json | null
+          order_id: string | null
+          provider: string
+          recipient_email: string
+          status: string
+          subject: string | null
+          template_name: string | null
+        }
+        Insert: {
+          announcement_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          provider?: string
+          recipient_email: string
+          status?: string
+          subject?: string | null
+          template_name?: string | null
+        }
+        Update: {
+          announcement_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          provider?: string
+          recipient_email?: string
+          status?: string
+          subject?: string | null
+          template_name?: string | null
+        }
+        Relationships: []
+      }
       empty_cart_messages: {
         Row: {
           created_at: string
