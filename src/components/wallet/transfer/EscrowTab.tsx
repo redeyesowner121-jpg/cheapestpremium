@@ -80,7 +80,13 @@ const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onComplete
   const handleCreate = async () => {
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) { toast.error('Enter a valid amount'); return; }
-    if (amt > walletBalance) { toast.error('Insufficient balance'); return; }
+    if (amt > walletBalance) {
+      const need = (amt - walletBalance).toFixed(2);
+      toast.error('Insufficient balance — redirecting to top-up.');
+      onClose?.();
+      navigate(`/wallet?deposit=1&reason=insufficient&amount=${need}`);
+      return;
+    }
     if (!sellerEmail.includes('@')) { toast.error('Valid seller email required'); return; }
     if (description.trim().length < 5) { toast.error('Describe the deal (min 5 chars)'); return; }
     setSubmitting(true);
