@@ -98,8 +98,8 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
   // Confirm screen (after recipient resolved)
   if (recipient) {
     const senderAmt = parseFloat(amount) || 0;
-    // rate_to_inr = "1 INR = X foreign" → foreign→INR is division
-    const inrAmount = senderAmt / (senderCur.rate_to_inr || 1);
+    // rate_to_inr = "1 foreign unit = X INR" → foreign→INR is multiplication
+    const inrAmount = senderAmt * (senderCur.rate_to_inr || 1);
     const insufficient = inrAmount > walletBalance;
 
     return (
@@ -127,7 +127,7 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
         <Input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} className="rounded-xl" />
 
         <div className="text-center text-xs text-muted-foreground">
-          Your balance: {senderCur.symbol}{(walletBalance * (senderCur.rate_to_inr || 1)).toFixed(2)}
+          Your balance: {senderCur.symbol}{(walletBalance / (senderCur.rate_to_inr || 1)).toFixed(2)}
           {senderCur.code !== 'INR' && <> · ₹{walletBalance.toFixed(2)}</>}
         </div>
 
