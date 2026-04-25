@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import AdminAdvancedFilters from './AdminAdvancedFilters';
+import AdminOrderReports from './AdminOrderReports';
 
 interface AdminOrdersTabProps {
   orders: any[];
