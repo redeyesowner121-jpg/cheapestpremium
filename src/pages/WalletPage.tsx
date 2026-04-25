@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import SuccessModal from '@/components/SuccessModal';
 import DepositModal from '@/components/wallet/DepositModal';
-import TransferModal from '@/components/wallet/TransferModal';
+import TransferDialog from '@/components/wallet/TransferDialog';
 import RedeemModal from '@/components/wallet/RedeemModal';
 import WithdrawModal from '@/components/wallet/WithdrawModal';
 import CurrencyConverter from '@/components/wallet/CurrencyConverter';
@@ -96,9 +96,13 @@ const WalletPage: React.FC = () => {
         initialTab={depositInitialTab}
       />
 
-      <TransferModal open={showTransferModal} onOpenChange={setShowTransferModal}
-        userId={user.id} walletBalance={profile?.wallet_balance || 0}
-        loading={wallet.loading} onTransfer={(r, a, n) => { wallet.handleTransfer(r, a, n); setShowTransferModal(false); }}
+      <TransferDialog open={showTransferModal} onOpenChange={setShowTransferModal}
+        userId={user.id}
+        userEmail={profile?.email}
+        userName={profile?.name}
+        walletBalance={profile?.wallet_balance || 0}
+        loading={wallet.loading}
+        onTransfer={(r, a, n) => { wallet.handleTransfer(r, a, n); }}
       />
 
       <RedeemModal open={showRedeemModal} onOpenChange={setShowRedeemModal}

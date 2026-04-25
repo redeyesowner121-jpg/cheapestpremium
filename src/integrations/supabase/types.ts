@@ -670,6 +670,66 @@ export type Database = {
         }
         Relationships: []
       }
+      escrow_deals: {
+        Row: {
+          admin_resolution: string | null
+          amount: number
+          buyer_id: string
+          completed_at: string | null
+          created_at: string
+          delivered_at: string | null
+          delivered_note: string | null
+          description: string
+          dispute_reason: string | null
+          fee_amount: number
+          funded_at: string | null
+          id: string
+          resolved_by: string | null
+          seller_amount: number
+          seller_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_resolution?: string | null
+          amount: number
+          buyer_id: string
+          completed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_note?: string | null
+          description: string
+          dispute_reason?: string | null
+          fee_amount?: number
+          funded_at?: string | null
+          id?: string
+          resolved_by?: string | null
+          seller_amount?: number
+          seller_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_resolution?: string | null
+          amount?: number
+          buyer_id?: string
+          completed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          delivered_note?: string | null
+          description?: string
+          dispute_reason?: string | null
+          fee_amount?: number
+          funded_at?: string | null
+          id?: string
+          resolved_by?: string | null
+          seller_amount?: number
+          seller_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       flash_sales: {
         Row: {
           created_at: string | null
@@ -1334,6 +1394,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          note: string | null
+          payer_id: string
+          requester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          payer_id: string
+          requester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          payer_id?: string
+          requester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       payment_settings: {
         Row: {
@@ -2659,12 +2752,38 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_resolve_escrow: {
+        Args: {
+          _action: string
+          _admin_id: string
+          _deal_id: string
+          _note?: string
+        }
+        Returns: Json
+      }
+      buyer_confirm_escrow: {
+        Args: { _buyer_id: string; _deal_id: string }
+        Returns: Json
+      }
       cancel_order_refund: {
         Args: { _order_id: string; _user_id: string }
         Returns: Json
       }
       confirm_seller_receipt: {
         Args: { _buyer_id: string; _order_id: string }
+        Returns: Json
+      }
+      create_escrow_deal: {
+        Args: {
+          _amount: number
+          _buyer_id: string
+          _description: string
+          _seller_email: string
+        }
+        Returns: Json
+      }
+      dispute_escrow: {
+        Args: { _deal_id: string; _reason: string; _user_id: string }
         Returns: Json
       }
       finalize_instant_delivery: {
@@ -2689,6 +2808,23 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       redeem_gift_code: {
         Args: { _code: string; _user_id: string }
+        Returns: Json
+      }
+      request_money_from_email: {
+        Args: {
+          _amount: number
+          _note?: string
+          _payer_email: string
+          _requester_id: string
+        }
+        Returns: Json
+      }
+      respond_payment_request: {
+        Args: { _accept: boolean; _payer_id: string; _request_id: string }
+        Returns: Json
+      }
+      seller_mark_escrow_delivered: {
+        Args: { _deal_id: string; _note?: string; _seller_id: string }
         Returns: Json
       }
       transfer_funds: {
