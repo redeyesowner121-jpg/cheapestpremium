@@ -36,7 +36,8 @@ const STATUS_META: Record<string, { color: string; icon: any; label: string }> =
   cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircle, label: 'Cancelled' },
 };
 
-const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onCompleted }) => {
+const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onCompleted, onClose }) => {
+  const navigate = useNavigate();
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
