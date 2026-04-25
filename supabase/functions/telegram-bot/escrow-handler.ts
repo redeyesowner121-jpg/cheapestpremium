@@ -147,7 +147,11 @@ export async function escrowHandleAmountInput(token: string, supabase: any, chat
   const { data: profile } = await supabase.from("profiles").select("wallet_balance").eq("id", profileId).single();
   if ((profile?.wallet_balance || 0) < amt) {
     await sendMessage(token, chatId,
-      `❌ Insufficient wallet balance. You have ₹${Number(profile?.wallet_balance || 0).toFixed(2)} but escrow needs ₹${amt.toFixed(2)}.\n\nUse /deposit to top up.`);
+      `❌ Insufficient wallet balance.\n\nYou have <b>₹${Number(profile?.wallet_balance || 0).toFixed(2)}</b> but escrow needs <b>₹${amt.toFixed(2)}</b>.\n\nTop up your wallet to continue — works fully inside Telegram, no website signup needed.`,
+      { reply_markup: { inline_keyboard: [
+        [{ text: "💰 Deposit Now", callback_data: "deposit_menu" }],
+        [{ text: "🔙 Escrow Menu", callback_data: "escrow_menu" }],
+      ] } });
     await deleteConversationState(supabase, userId);
     return;
   }
