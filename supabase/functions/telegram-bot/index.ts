@@ -401,6 +401,18 @@ Deno.serve(async (req) => {
             await handleWalletWithdraw(BOT_TOKEN, supabase, chatId, userId, lang); break;
           case "/support":
             await handleSupport(BOT_TOKEN, supabase, chatId, lang); break;
+          case "/setemail":
+          case "/email": {
+            const { handleSetEmailCommand } = await import("./email-handler.ts");
+            const inline = parts.slice(1).join(" ").trim();
+            await handleSetEmailCommand(BOT_TOKEN, supabase, chatId, userId, lang, inline);
+            break;
+          }
+          case "/myemail": {
+            const { handleMyEmailCommand } = await import("./email-handler.ts");
+            await handleMyEmailCommand(BOT_TOKEN, supabase, chatId, userId, lang);
+            break;
+          }
           case "/help": {
             // Direct connect to admin (same flow as "Forward to Admin" button)
             await setConversationState(supabase, userId, "chatting_with_admin", {});

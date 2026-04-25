@@ -58,7 +58,10 @@ export async function showMainMenu(token: string, supabase: any, chatId: number,
   ];
 
   if (!isChild) {
-    buttons.push([{ text: "🌐 Website Login", callback_data: "website_login", style: "primary" }]);
+    buttons.push([
+      { text: "🌐 Website Login", callback_data: "website_login", style: "primary" },
+      { text: lang === "bn" ? "📧 ইমেইল" : "📧 Email", callback_data: "my_email", style: "primary" },
+    ]);
   }
 
   if (isChild) {

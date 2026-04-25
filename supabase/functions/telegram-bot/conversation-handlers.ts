@@ -44,6 +44,15 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Email setup (entered after /setemail prompt)
+  if (state.step === "awaiting_email" && text.trim()) {
+    const { saveEmail } = await import("./email-handler.ts");
+    const { getUserLang } = await import("./db-helpers.ts");
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    await saveEmail(token, supabase, chatId, userId, lang, text.trim());
+    return;
+  }
+
   // Redeem gift code (entered after /redeem prompt)
   if (state.step === "awaiting_redeem_code" && text.trim()) {
     const { processRedeemCode } = await import("./redeem-handler.ts");

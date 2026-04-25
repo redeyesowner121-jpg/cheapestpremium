@@ -152,6 +152,29 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     } else if (resolvedDelivery?.deliveryMessage?.trim() && !isChildBotOrder) {
       // Even if no link, send the delivery message
       await sendToUser(tokensToTry, order.telegram_user_id, `📝 ${resolvedDelivery.deliveryMessage}`);
+    } else if (!isChildBotOrder && !order.product_name?.startsWith("Wallet Deposit")) {
+      // No instant delivery — send a confirmation email so the user knows order is confirmed
+      try {
+        const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
+        await sendBotUserEmail(
+          supabase,
+          order.telegram_user_id,
+          `✅ Order Confirmed — ${order.product_name || "Product"}`,
+          {
+            title: "Your order is confirmed!",
+            preheader: `${order.product_name || "Your product"} is confirmed. Delivery details coming soon.`,
+            badge: { text: "Confirmed", color: "#10b981" },
+            intro: `Good news — your order has been confirmed by our team. We're preparing your delivery and you'll receive the access details shortly on Telegram and email.`,
+            blocks: [
+              { label: "Product", value: order.product_name || "Product" },
+              { label: "Order ID", value: order.id, mono: true },
+              { label: "Amount", value: `₹${order.amount}` },
+            ],
+            ctaButton: { label: "Open Telegram Bot", url: "https://t.me/Air1_Premium_bot" },
+          },
+          { template: "bot_order_confirmed", order_id: order.id }
+        );
+      } catch (e) { console.error("[order-confirm-email] failed:", e); }
     }
 
     // Credit child bot owner commission if this is a child bot order
