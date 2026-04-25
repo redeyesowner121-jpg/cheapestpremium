@@ -71,26 +71,29 @@ Deno.serve(async (req) => {
     `;
 
     if (LOVABLE_API_KEY && RESEND_API_KEY) {
-      const res = await fetch(`${GATEWAY_URL}/emails`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'X-Connection-Api-Key': RESEND_API_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: FROM_ADDRESS,
-          to: [ADMIN_EMAIL],
-          subject,
-          html,
-        }),
-      });
-      const respText = await res.text();
-      if (res.ok) {
+      const sendVia = async (from: string) => {
+        const r = await fetch(`${GATEWAY_URL}/emails`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'X-Connection-Api-Key': RESEND_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ from, to: [ADMIN_EMAIL], subject, html }),
+        });
+        return { ok: r.ok, status: r.status, text: await r.text() };
+      };
+
+      let r = await sendVia(FROM_ADDRESS);
+      if (!r.ok && (r.status === 403 || /domain|verify|not verified|from/i.test(r.text)) && FROM_ADDRESS !== FALLBACK_FROM) {
+        console.warn('Primary FROM failed, retrying fallback:', r.status, r.text.slice(0, 200));
+        r = await sendVia(FALLBACK_FROM);
+      }
+      if (r.ok) {
         emailSent = true;
-        try { messageId = JSON.parse(respText).id || null; } catch {/*ignore*/}
+        try { messageId = JSON.parse(r.text).id || null; } catch {/*ignore*/}
       } else {
-        emailError = `${res.status}: ${respText.slice(0, 500)}`;
+        emailError = `${r.status}: ${r.text.slice(0, 500)}`;
         console.error('Resend send failed:', emailError);
       }
     } else {
