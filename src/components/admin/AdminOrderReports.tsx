@@ -14,6 +14,9 @@ interface OrderReport {
   status: string;
   admin_response: string | null;
   created_at: string;
+  email_status?: string | null;
+  email_error?: string | null;
+  email_sent_at?: string | null;
   orders?: { product_name: string; total_price: number; status: string } | null;
   profiles?: { name: string | null; email: string } | null;
 }

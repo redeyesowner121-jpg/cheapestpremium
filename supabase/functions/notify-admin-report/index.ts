@@ -96,6 +96,18 @@ Deno.serve(async (req) => {
       emailError = 'Missing connector keys';
     }
 
+    // Persist email delivery status on the report row
+    if (report_id) {
+      await supabase
+        .from('order_reports')
+        .update({
+          email_status: emailSent ? 'sent' : 'failed',
+          email_error: emailError,
+          email_sent_at: emailSent ? new Date().toISOString() : null,
+        })
+        .eq('id', report_id);
+    }
+
     return new Response(JSON.stringify({ success: true, emailSent, emailError }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
