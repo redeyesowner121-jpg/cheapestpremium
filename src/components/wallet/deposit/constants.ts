@@ -78,4 +78,5 @@ export interface DepositModalProps {
   senderName: string;
   onSenderNameChange: (name: string) => void;
   initialTab?: 'auto' | 'manual' | 'card';
+  initialMethod?: 'upi_auto' | 'upi_manual' | 'crypto_menu' | null;
 }
