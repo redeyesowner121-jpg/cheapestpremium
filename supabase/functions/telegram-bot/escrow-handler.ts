@@ -49,30 +49,33 @@ export async function handleEscrowCommand(token: string, supabase: any, chatId: 
   const needsResponse = (deals || []).filter((d: any) =>
     d.status === 'pending_acceptance' && d.seller_id === profileId);
 
-  let msg = `🛡️ <b>Escrow — Safe Deals</b>\n\n`;
-  msg += `Hi ${profile?.name || 'there'}! Escrow holds funds safely until both parties are happy.\n\n`;
-  msg += `💰 Wallet: <b>₹${balance}</b>\n`;
+  let msg = `🛡️ <b>Escrow — Safe P2P Deals</b>\n\n`;
+  msg += `Hi ${profile?.name || 'there'}! Trade safely with anyone — funds are held by the bot until both sides are happy.\n\n`;
+  msg += `💰 Your Wallet: <b>₹${balance}</b>\n`;
   msg += `📊 Active deals: <b>${active.length}</b>\n`;
   if (needsResponse.length > 0) {
     msg += `🔔 <b>${needsResponse.length}</b> request${needsResponse.length > 1 ? 's' : ''} waiting for your response\n`;
   }
   msg += `\n💡 <b>How it works:</b>\n`;
-  msg += `1️⃣ You start a deal with seller's email\n`;
+  msg += `1️⃣ Start a deal with seller's @username, Telegram ID, or email\n`;
   msg += `2️⃣ Seller accepts → funds held from your wallet\n`;
   msg += `3️⃣ Seller delivers → you confirm → funds released\n`;
   msg += `4️⃣ Any issue? Open a dispute, admin decides\n\n`;
-  msg += `⚙️ Platform fee: <b>2%</b>`;
+  msg += `⏱️ Auto-cancel: 30 min if seller doesn't accept\n`;
+  msg += `⚙️ Platform fee: <b>2%</b>\n`;
+  msg += `🔒 No website account needed — works fully inside Telegram`;
 
-  await sendMessage(token, chatId, msg, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "➕ Create Escrow", callback_data: "escrow_new" }],
-        [{ text: `📋 My Deals (${active.length})`, callback_data: "escrow_list_active" }],
-        [{ text: "📜 History", callback_data: "escrow_list_closed" }],
-        [{ text: "❌ Close", callback_data: "back_main" }],
-      ],
-    },
-  });
+  const kb: any[] = [
+    [{ text: "➕ Create Escrow", callback_data: "escrow_new" }],
+    [{ text: `📋 My Deals (${active.length})`, callback_data: "escrow_list_active" }],
+    [{ text: "📜 History", callback_data: "escrow_list_closed" }],
+  ];
+  if (Number(balance) < 10) {
+    kb.push([{ text: "💰 Deposit to Wallet", callback_data: "deposit_menu" }]);
+  }
+  kb.push([{ text: "❌ Close", callback_data: "back_main" }]);
+
+  await sendMessage(token, chatId, msg, { reply_markup: { inline_keyboard: kb } });
 }
 
 // =================== START CREATION ===================
@@ -144,7 +147,11 @@ export async function escrowHandleAmountInput(token: string, supabase: any, chat
   const { data: profile } = await supabase.from("profiles").select("wallet_balance").eq("id", profileId).single();
   if ((profile?.wallet_balance || 0) < amt) {
     await sendMessage(token, chatId,
-      `❌ Insufficient wallet balance. You have ₹${Number(profile?.wallet_balance || 0).toFixed(2)} but escrow needs ₹${amt.toFixed(2)}.\n\nUse /deposit to top up.`);
+      `❌ Insufficient wallet balance.\n\nYou have <b>₹${Number(profile?.wallet_balance || 0).toFixed(2)}</b> but escrow needs <b>₹${amt.toFixed(2)}</b>.\n\nTop up your wallet to continue — works fully inside Telegram, no website signup needed.`,
+      { reply_markup: { inline_keyboard: [
+        [{ text: "💰 Deposit Now", callback_data: "deposit_menu" }],
+        [{ text: "🔙 Escrow Menu", callback_data: "escrow_menu" }],
+      ] } });
     await deleteConversationState(supabase, userId);
     return;
   }
@@ -289,16 +296,40 @@ export async function escrowViewDeal(token: string, supabase: any, chatId: numbe
   const { data: other } = await supabase.from("profiles").select("name,email").eq("id", otherProfileId).single();
   const otherLabel = other?.name || other?.email || "Counterpart";
 
-  let msg = `🛡️ <b>Escrow Deal</b>\n\n`;
+  let msg = `🛡️ <b>Escrow Deal</b> <code>#${dealId.slice(0, 8)}</code>\n\n`;
   msg += `${STATUS_EMOJI[d.status] || '•'} Status: <b>${STATUS_LABEL[d.status] || d.status}</b>\n`;
-  msg += `${isBuyer ? '👤 Seller' : '👤 Buyer'}: <b>${otherLabel}</b>\n\n`;
-  msg += `📦 ${d.description}\n\n`;
+  msg += `${isBuyer ? '👤 Seller' : '👤 Buyer'}: <b>${otherLabel}</b>\n`;
+
+  if (d.status === 'pending_acceptance' && d.expires_at) {
+    const msLeft = new Date(d.expires_at).getTime() - Date.now();
+    if (msLeft > 0) {
+      const mins = Math.floor(msLeft / 60000);
+      const secs = Math.floor((msLeft % 60000) / 1000);
+      msg += `⏱️ Auto-cancel in: <b>${mins}m ${secs}s</b>\n`;
+    } else {
+      msg += `⏱️ <b>Expired</b> — will auto-cancel shortly\n`;
+    }
+  }
+  msg += `\n📦 ${d.description}\n\n`;
   msg += `💰 Amount: <b>₹${Number(d.amount).toFixed(2)}</b>\n`;
-  msg += `💸 Fee: ₹${Number(d.fee_amount).toFixed(2)}\n`;
+  msg += `💸 Fee (2%): ₹${Number(d.fee_amount).toFixed(2)}\n`;
   msg += `💵 Seller receives: ₹${Number(d.seller_amount).toFixed(2)}\n\n`;
   if (d.delivered_note) msg += `📝 Delivery note: <i>${d.delivered_note}</i>\n`;
   if (d.dispute_reason) msg += `⚠️ Dispute: <i>${d.dispute_reason}</i>\n`;
   if (d.admin_resolution) msg += `🛠️ Admin: <i>${d.admin_resolution}</i>\n`;
+
+  const { data: msgs } = await supabase
+    .from("escrow_messages").select("sender_id,sender_role,message,created_at")
+    .eq("deal_id", dealId).order("created_at", { ascending: false }).limit(3);
+  if (msgs && msgs.length > 0) {
+    msg += `\n💬 <b>Recent messages:</b>\n`;
+    msgs.reverse().forEach((m: any) => {
+      const who = m.sender_role === 'system' ? '⚙️ System'
+        : m.sender_role === 'admin' ? '🛡️ Admin'
+        : m.sender_id === d.buyer_id ? '👤 Buyer' : '🏪 Seller';
+      msg += `<i>${who}:</i> ${String(m.message).slice(0, 80)}\n`;
+    });
+  }
 
   // Build action buttons by role + status
   const rows: any[] = [];
@@ -327,7 +358,10 @@ export async function escrowViewDeal(token: string, supabase: any, chatId: numbe
       { text: "⚠️ Dispute", callback_data: `escrow_dispute_${dealId}` },
     ]);
   }
-  rows.push([{ text: "💬 Send Message", callback_data: `escrow_chat_${dealId}` }]);
+  rows.push([
+    { text: "💬 Send Message", callback_data: `escrow_chat_${dealId}` },
+    { text: "🔄 Refresh", callback_data: `escrow_view_${dealId}` },
+  ]);
   rows.push([{ text: "🔙 Back", callback_data: "escrow_list_active" }]);
 
   if (messageId) {
