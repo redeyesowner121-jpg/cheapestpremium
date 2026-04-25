@@ -571,9 +571,9 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
 
   await sendMessage(token, adminChatId,
     `📢 <b>Broadcast Complete!</b>\n\n` +
-    `📊 Main Bot: ${(mainUsers || []).length} users\n` +
-    `📊 Resale Bot: ${resaleOnlyUsers.length} unique users\n` +
-    `📊 Child Bots: ${childBotEntries.length} unique users\n\n` +
+    `📊 Main: ${counts.main} · Resale: ${counts.resale}\n` +
+    `📊 Giveaway: ${counts.giveaway} · Mother: ${counts.mother}\n` +
+    `📊 Child Bots: ${counts.child}\n\n` +
     `✅ Sent: ${sent}\n❌ Failed: ${failed}\n🚫 Blocked: ${skipped}\n📊 Total: ${allTargets.length}`
   );
 }
