@@ -597,7 +597,7 @@ const CartPage: React.FC = () => {
             <Button
               className="w-full h-12 btn-gradient rounded-xl text-base"
               onClick={handleCheckout}
-              disabled={checkingOut || productItems.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
+              disabled={checkingOut || productItems.some(i => (i.variation as any)?.delivery_mode !== 'repeated' && i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
             >
               {checkingOut ? 'Processing...' : isAAX
                 ? `🔱 Checkout - ₹${(cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
