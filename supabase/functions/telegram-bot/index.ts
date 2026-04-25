@@ -456,6 +456,12 @@ Deno.serve(async (req) => {
             await handleSendCommand(BOT_TOKEN, supabase, chatId, userId, lang);
             break;
           }
+          case "/escrow": {
+            if (isGiveaway || isChildMode) break;
+            const { handleEscrowCommand } = await import("./escrow-handler.ts");
+            await handleEscrowCommand(BOT_TOKEN, supabase, chatId, userId);
+            break;
+          }
           case "/users": {
             if (!await isAdminBot(supabase, userId)) { await sendMessage(BOT_TOKEN, chatId, t("access_denied", lang)); break; }
             await handleAllUsers(BOT_TOKEN, supabase, chatId, 0); break;
