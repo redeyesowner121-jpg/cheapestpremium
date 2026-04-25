@@ -106,5 +106,24 @@ export async function placeProductOrder(inputs: OrderInputs): Promise<OrderResul
     type: 'order',
   });
 
+  // Send order email (confirmed = instant delivery, otherwise pending notice)
+  const recipientEmail = profile?.email || user?.email;
+  const recipientName = profile?.name || 'Customer';
+  if (recipientEmail && insertedOrder?.id) {
+    supabase.functions.invoke('send-order-email', {
+      body: {
+        to: recipientEmail,
+        customerName: recipientName,
+        productName,
+        orderId: insertedOrder.id,
+        status: isInstantDelivery ? 'confirmed' : 'pending',
+        totalPrice,
+        accessLink: accessLink || undefined,
+        currency: '₹',
+        quantity,
+      },
+    }).catch((e) => console.error('send-order-email failed:', e));
+  }
+
   return { productName, totalPrice, accessLink, isInstantDelivery };
 }
