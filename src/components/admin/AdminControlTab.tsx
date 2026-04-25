@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, UserPlus, ShoppingBag, MessageCircle,
   Image, CreditCard, Users, Package, Shield, ChevronDown,
-  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus, Mail
+  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus, Mail, Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
@@ -25,6 +25,7 @@ import {
 } from './sections';
 import AdminBotTabs from './AdminBotTabs';
 import AdminCartMessagesManager from './AdminCartMessagesManager';
+import AdminEmailBroadcast from './AdminEmailBroadcast';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -48,7 +49,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | null;
+type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | 'email_broadcast' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const {
@@ -90,6 +91,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
     { id: 'cart_messages' as ControlSection, icon: SmilePlus, label: 'Cart Messages', description: 'Empty cart fun messages', color: 'bg-gradient-to-br from-fuchsia-500 to-purple-500', badge: null },
     { id: 'chat' as ControlSection, icon: MessageCircle, label: 'Messages', description: 'Customer support', color: 'bg-gradient-to-br from-teal-500 to-cyan-500', badge: null },
     { id: 'telegram_bot' as ControlSection, icon: Bot, label: 'Telegram Bot', description: 'Manage selling bot', color: 'bg-gradient-to-br from-blue-500 to-sky-500', badge: null },
+    { id: 'email_broadcast' as ControlSection, icon: Send, label: 'Email Broadcast', description: 'Send email to users', color: 'bg-gradient-to-br from-violet-500 to-fuchsia-600', badge: null },
     { id: 'email_logs' as any as ControlSection, icon: Mail, label: 'Email Logs', description: 'Delivery status & errors', color: 'bg-gradient-to-br from-rose-500 to-red-600', badge: null, link: '/admin/email-logs' },
   ];
 
@@ -134,6 +136,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminCartMessagesManager />;
       case 'telegram_bot':
         return <AdminBotTabs />;
+      case 'email_broadcast':
+        return <AdminEmailBroadcast />;
       default:
         return null;
     }
