@@ -296,16 +296,40 @@ export async function escrowViewDeal(token: string, supabase: any, chatId: numbe
   const { data: other } = await supabase.from("profiles").select("name,email").eq("id", otherProfileId).single();
   const otherLabel = other?.name || other?.email || "Counterpart";
 
-  let msg = `🛡️ <b>Escrow Deal</b>\n\n`;
+  let msg = `🛡️ <b>Escrow Deal</b> <code>#${dealId.slice(0, 8)}</code>\n\n`;
   msg += `${STATUS_EMOJI[d.status] || '•'} Status: <b>${STATUS_LABEL[d.status] || d.status}</b>\n`;
-  msg += `${isBuyer ? '👤 Seller' : '👤 Buyer'}: <b>${otherLabel}</b>\n\n`;
-  msg += `📦 ${d.description}\n\n`;
+  msg += `${isBuyer ? '👤 Seller' : '👤 Buyer'}: <b>${otherLabel}</b>\n`;
+
+  if (d.status === 'pending_acceptance' && d.expires_at) {
+    const msLeft = new Date(d.expires_at).getTime() - Date.now();
+    if (msLeft > 0) {
+      const mins = Math.floor(msLeft / 60000);
+      const secs = Math.floor((msLeft % 60000) / 1000);
+      msg += `⏱️ Auto-cancel in: <b>${mins}m ${secs}s</b>\n`;
+    } else {
+      msg += `⏱️ <b>Expired</b> — will auto-cancel shortly\n`;
+    }
+  }
+  msg += `\n📦 ${d.description}\n\n`;
   msg += `💰 Amount: <b>₹${Number(d.amount).toFixed(2)}</b>\n`;
-  msg += `💸 Fee: ₹${Number(d.fee_amount).toFixed(2)}\n`;
+  msg += `💸 Fee (2%): ₹${Number(d.fee_amount).toFixed(2)}\n`;
   msg += `💵 Seller receives: ₹${Number(d.seller_amount).toFixed(2)}\n\n`;
   if (d.delivered_note) msg += `📝 Delivery note: <i>${d.delivered_note}</i>\n`;
   if (d.dispute_reason) msg += `⚠️ Dispute: <i>${d.dispute_reason}</i>\n`;
   if (d.admin_resolution) msg += `🛠️ Admin: <i>${d.admin_resolution}</i>\n`;
+
+  const { data: msgs } = await supabase
+    .from("escrow_messages").select("sender_id,sender_role,message,created_at")
+    .eq("deal_id", dealId).order("created_at", { ascending: false }).limit(3);
+  if (msgs && msgs.length > 0) {
+    msg += `\n💬 <b>Recent messages:</b>\n`;
+    msgs.reverse().forEach((m: any) => {
+      const who = m.sender_role === 'system' ? '⚙️ System'
+        : m.sender_role === 'admin' ? '🛡️ Admin'
+        : m.sender_id === d.buyer_id ? '👤 Buyer' : '🏪 Seller';
+      msg += `<i>${who}:</i> ${String(m.message).slice(0, 80)}\n`;
+    });
+  }
 
   // Build action buttons by role + status
   const rows: any[] = [];
