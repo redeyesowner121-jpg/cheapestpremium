@@ -14,20 +14,25 @@ const DepositModal: React.FC<DepositModalProps> = (props) => {
     open, onOpenChange, depositAmount, onDepositAmountChange,
     paymentSettings, loading, onAutoDeposit, onManualDeposit,
     submittingManual, transactionId, onTransactionIdChange,
-    senderName, onSenderNameChange, initialTab
+    senderName, onSenderNameChange, initialTab, initialMethod
   } = props;
 
-  const [method, setMethod] = useState<DepositMethod>(null);
-  const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(initialTab === 'manual' ? 'manual' : 'auto');
+  const [method, setMethod] = useState<DepositMethod>(initialMethod ?? null);
+  const [depositTab, setDepositTab] = useState<'auto' | 'manual'>(
+    initialMethod === 'upi_manual' || initialTab === 'manual' ? 'manual' : 'auto'
+  );
 
   React.useEffect(() => {
-    if (open && initialTab) {
-      setDepositTab(initialTab === 'manual' ? 'manual' : 'auto');
+    if (open) {
+      setMethod(initialMethod ?? null);
+      setDepositTab(
+        initialMethod === 'upi_manual' || initialTab === 'manual' ? 'manual' : 'auto'
+      );
     }
     if (!open) {
       setMethod(null);
     }
-  }, [open, initialTab]);
+  }, [open, initialTab, initialMethod]);
 
   // Method selection screen
   if (!method) {
