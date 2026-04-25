@@ -417,11 +417,24 @@ export async function escrowAction(
         "📝 Send the delivery details/note for the buyer (or send <code>skip</code>):",
         { reply_markup: { inline_keyboard: [[{ text: "Skip note", callback_data: `escrow_deliver_skip_${dealId}` }]] } });
     } else if (action === 'release') {
+      // Server-side guard: only allow release after seller has marked delivered
+      const { data: deal } = await supabase
+        .from("escrow_deals").select("status").eq("id", dealId).single();
+      if (!deal || deal.status !== 'delivered') {
+        await ack("⏳ Seller hasn't marked the deal as delivered yet. You can release only after delivery.", true);
+        return;
+      }
       const { error } = await supabase.rpc('buyer_confirm_escrow', { _buyer_id: profileId, _deal_id: dealId });
       if (error) throw error;
       await ack("💰 Released!");
       await escrowViewDeal(token, supabase, chatId, userId, dealId, messageId);
       await notifyOther(token, supabase, dealId, profileId, "🎉 Buyer released funds! Check your wallet.", dealId);
+    } else if (action === 'buyer_cancel') {
+      const { error } = await supabase.rpc('buyer_cancel_funded_escrow', { _buyer_id: profileId, _deal_id: dealId });
+      if (error) throw error;
+      await ack("❌ Cancelled & refunded");
+      await escrowViewDeal(token, supabase, chatId, userId, dealId, messageId);
+      await notifyOther(token, supabase, dealId, profileId, "❌ Buyer cancelled the funded escrow before delivery. Funds were refunded.", dealId);
     } else if (action === 'dispute') {
       await setConversationState(supabase, userId, "escrow_awaiting_dispute_reason", { dealId });
       await ack("Send dispute reason");
