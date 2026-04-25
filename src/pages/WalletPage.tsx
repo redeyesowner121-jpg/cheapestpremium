@@ -25,6 +25,7 @@ const WalletPage: React.FC = () => {
 
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositInitialTab, setDepositInitialTab] = useState<'auto' | 'manual' | 'card'>('card');
+  const [depositInitialMethod, setDepositInitialMethod] = useState<'upi_auto' | 'upi_manual' | 'crypto_menu' | null>(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
@@ -60,13 +61,15 @@ const WalletPage: React.FC = () => {
         <WalletBalanceCard
           walletBalance={profile?.wallet_balance || 0}
           totalDeposit={profile?.total_deposit || 0}
-          onAddMoney={() => { setDepositInitialTab('card'); setShowDepositModal(true); }}
+          onAddMoney={() => { setDepositInitialTab('card'); setDepositInitialMethod(null); setShowDepositModal(true); }}
           onWithdraw={() => setShowWithdrawModal(true)}
         />
 
         <QuickActions
           hasPendingRequest={wallet.hasPendingRequest}
-          onDeposit={() => { setDepositInitialTab('auto'); setShowDepositModal(true); }}
+          onUpi={() => { setDepositInitialTab('auto'); setDepositInitialMethod('upi_auto'); setShowDepositModal(true); }}
+          onQr={() => { setDepositInitialTab('manual'); setDepositInitialMethod('upi_manual'); setShowDepositModal(true); }}
+          onCrypto={() => { setDepositInitialTab('auto'); setDepositInitialMethod('crypto_menu'); setShowDepositModal(true); }}
           onTransfer={() => setShowTransferModal(true)}
         />
 
@@ -94,6 +97,7 @@ const WalletPage: React.FC = () => {
         transactionId={wallet.transactionId} onTransactionIdChange={wallet.setTransactionId}
         senderName={wallet.senderName} onSenderNameChange={wallet.setSenderName}
         initialTab={depositInitialTab}
+        initialMethod={depositInitialMethod}
       />
 
       <TransferDialog open={showTransferModal} onOpenChange={setShowTransferModal}

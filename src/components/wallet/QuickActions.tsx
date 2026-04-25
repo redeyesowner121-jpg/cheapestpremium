@@ -1,16 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Smartphone, QrCode, CreditCard, Send } from 'lucide-react';
+import { Smartphone, QrCode, Bitcoin, Send } from 'lucide-react';
 
 interface QuickActionsProps {
   hasPendingRequest: boolean;
-  onDeposit: () => void;
+  onUpi: () => void;
+  onQr: () => void;
+  onCrypto: () => void;
   onTransfer: () => void;
 }
 
 const QuickActions: React.FC<QuickActionsProps> = ({
   hasPendingRequest,
-  onDeposit,
+  onUpi,
+  onQr,
+  onCrypto,
   onTransfer
 }) => {
   return (
@@ -25,7 +29,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         <motion.button
           className={`bg-card rounded-2xl p-4 shadow-card text-center card-hover relative ${hasPendingRequest ? 'ring-2 ring-accent' : ''}`}
           whileTap={{ scale: 0.95 }}
-          onClick={onDeposit}
+          onClick={onUpi}
         >
           {hasPendingRequest && (
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
@@ -39,7 +43,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         <motion.button
           className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
           whileTap={{ scale: 0.95 }}
-          onClick={onDeposit}
+          onClick={onQr}
         >
           <div className="w-12 h-12 mx-auto rounded-xl bg-secondary/10 flex items-center justify-center mb-2">
             <QrCode className="w-6 h-6 text-secondary" />
@@ -50,12 +54,12 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         <motion.button
           className="bg-card rounded-2xl p-4 shadow-card text-center card-hover"
           whileTap={{ scale: 0.95 }}
-          onClick={onDeposit}
+          onClick={onCrypto}
         >
           <div className="w-12 h-12 mx-auto rounded-xl bg-accent/10 flex items-center justify-center mb-2">
-            <CreditCard className="w-6 h-6 text-accent" />
+            <Bitcoin className="w-6 h-6 text-accent" />
           </div>
-          <span className="text-xs font-medium text-foreground">Card</span>
+          <span className="text-xs font-medium text-foreground">Crypto</span>
         </motion.button>
 
         <motion.button
