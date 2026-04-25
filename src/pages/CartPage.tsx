@@ -127,8 +127,8 @@ const CartPage: React.FC = () => {
 
     setCheckingOut(true);
     try {
-      // Create orders for product items only
-      const orders = productItems.length > 0 ? await Promise.all(productItems.map(async (item) => {
+      // Create orders for product items only (as pending first)
+      const orderRows = productItems.length > 0 ? await Promise.all(productItems.map(async (item) => {
         const basePrice = item.variation?.price || item.product?.price || 0;
         const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
         const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
@@ -136,34 +136,63 @@ const CartPage: React.FC = () => {
           ? `${item.product?.name} - ${item.variation.name}`
           : item.product?.name || 'Unknown';
 
-        let accessLink: string | null = null;
+        // Determine if instant delivery is possible (product OR variation level)
+        let isInstant = false;
         if (item.product_id) {
           const { data: productData } = await supabase
             .from('products')
-            .select('access_link')
+            .select('access_link, delivery_mode, show_link_in_website')
             .eq('id', item.product_id)
             .single();
-          accessLink = productData?.access_link || null;
+          if (productData?.show_link_in_website !== false) {
+            if (productData?.access_link || productData?.delivery_mode === 'unique') isInstant = true;
+            if (item.variation && (item.variation.access_link || item.variation.delivery_message || item.variation.delivery_mode === 'unique')) {
+              isInstant = true;
+            }
+          }
         }
 
-        const isInstant = !!accessLink;
-
         return {
-          user_id: user.id,
-          product_id: item.product_id,
-          product_name: productName,
-          product_image: item.product?.image_url,
-          unit_price: finalPrice,
-          total_price: finalPrice * item.quantity,
-          quantity: item.quantity,
-          status: isInstant ? 'confirmed' : 'pending',
-          access_link: accessLink,
+          row: {
+            user_id: user.id,
+            product_id: item.product_id,
+            product_name: productName,
+            product_image: item.product?.image_url,
+            unit_price: finalPrice,
+            total_price: finalPrice * item.quantity,
+            quantity: item.quantity,
+            status: 'pending',
+            access_link: null,
+          },
+          isInstant,
+          productId: item.product_id,
         };
       })) : [];
 
+      const orders = orderRows.map(r => r.row);
+
       if (orders.length > 0) {
-        const { error: orderError } = await supabase.from('orders').insert(orders);
+        const { data: insertedOrders, error: orderError } = await supabase.from('orders').insert(orders).select('id');
         if (orderError) throw orderError;
+
+        // Trigger instant delivery RPC for eligible orders
+        if (insertedOrders) {
+          await Promise.all(insertedOrders.map(async (ord, idx) => {
+            const meta = orderRows[idx];
+            if (meta?.isInstant && meta.productId) {
+              try {
+                const { data: link } = await supabase.rpc('finalize_instant_delivery', {
+                  p_product_id: meta.productId,
+                  p_order_id: ord.id,
+                });
+                if (link) {
+                  orders[idx].status = 'confirmed';
+                  orders[idx].access_link = link;
+                }
+              } catch (e) { console.error('Instant delivery failed:', e); }
+            }
+          }));
+        }
       }
 
       // Deduct wallet balance
