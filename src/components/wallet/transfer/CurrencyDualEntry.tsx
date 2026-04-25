@@ -24,10 +24,12 @@ const CurrencyDualEntry: React.FC<CurrencyDualEntryProps> = ({
   amount, onAmountChange, sender, receiver,
 }) => {
   const senderAmt = parseFloat(amount) || 0;
-  // amount in INR = sender_amount / sender.rate_to_inr
-  const inrAmount = senderAmt / (sender.rate_to_inr || 1);
-  // amount in receiver = INR * receiver.rate_to_inr
-  const receiverAmt = inrAmount * (receiver.rate_to_inr || 1);
+  // NOTE: `rate_to_inr` actually stores "1 unit of that currency = X INR"
+  // (e.g. USD.rate_to_inr = 95 means 1 USD = ₹95). So:
+  //   foreign -> INR : multiply by rate_to_inr
+  //   INR -> foreign : divide by rate_to_inr
+  const inrAmount = senderAmt * (sender.rate_to_inr || 1);
+  const receiverAmt = inrAmount / (receiver.rate_to_inr || 1);
   const sameCurrency = sender.code === receiver.code;
 
   return (
@@ -69,7 +71,7 @@ const CurrencyDualEntry: React.FC<CurrencyDualEntryProps> = ({
         </div>
         {!sameCurrency && senderAmt > 0 && (
           <p className="text-[11px] text-muted-foreground mt-1">
-            Rate: 1 {sender.code} ≈ {(receiver.rate_to_inr / sender.rate_to_inr).toFixed(4)} {receiver.code}
+            Rate: 1 {sender.code} ≈ {(sender.rate_to_inr / receiver.rate_to_inr).toFixed(4)} {receiver.code}
           </p>
         )}
       </div>
