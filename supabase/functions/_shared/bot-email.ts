@@ -137,6 +137,39 @@ ${preheader}
   return { html, text };
 }
 
+// Send a branded email to ANY address (used for OTP verification before linking)
+export async function sendBotEmailToAddress(
+  supabase: SupabaseClient,
+  toEmail: string,
+  subject: string,
+  build: BuildOptions,
+  meta?: { order_id?: string; template?: string; telegram_id?: number }
+): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) return { ok: false, reason: "invalid_email" };
+    const cfg = await getActiveSmtpConfig(supabase);
+    if (!cfg) return { ok: false, reason: "smtp_not_configured" };
+    const { html, text } = buildBotEmailHtml(build);
+    const result = await sendViaSmtp(cfg, { to: toEmail, subject, html, text });
+    try {
+      await supabase.from("email_send_log").insert({
+        recipient_email: toEmail,
+        subject,
+        provider: "smtp",
+        status: result.ok ? "sent" : "failed",
+        error_message: result.ok ? null : (result.error || "send_failed"),
+        template_name: meta?.template || "telegram_bot_otp",
+        order_id: meta?.order_id || null,
+        metadata: { telegram_id: meta?.telegram_id ?? null },
+      } as any);
+    } catch {}
+    return { ok: !!result.ok, reason: result.ok ? undefined : (result.error || "send_failed") };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, reason: msg };
+  }
+}
+
 export async function sendBotUserEmail(
   supabase: SupabaseClient,
   telegramId: number,
