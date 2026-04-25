@@ -194,20 +194,43 @@ export async function escrowHandleDescriptionInput(token: string, supabase: any,
     }
   );
 
-  // Notify seller via Telegram if they're linked
+  // Notify seller via Telegram if they're linked (by profiles.telegram_id OR synthetic email)
   try {
     const { data: deal } = await supabase.from("escrow_deals").select("seller_id").eq("id", data.deal_id).single();
     if (deal?.seller_id) {
-      const { data: sellerProfile } = await supabase.from("profiles").select("email").eq("id", deal.seller_id).single();
-      const m = sellerProfile?.email?.match(/^telegram_(\d+)@bot\.local$/);
-      if (m) {
-        const sellerTgId = parseInt(m[1]);
+      const { data: sellerProfile } = await supabase
+        .from("profiles").select("email,telegram_id").eq("id", deal.seller_id).single();
+      let sellerTgId: number | null = null;
+      if (sellerProfile?.telegram_id) {
+        sellerTgId = Number(sellerProfile.telegram_id);
+      } else {
+        const m = sellerProfile?.email?.match(/^telegram_(\d+)@bot\.local$/);
+        if (m) sellerTgId = parseInt(m[1]);
+      }
+      // Fallback: look up bot user table by profile email/identifier
+      if (!sellerTgId) {
+        const { data: bu } = await supabase
+          .from("telegram_bot_users")
+          .select("telegram_id")
+          .eq("email", sellerProfile?.email || "")
+          .maybeSingle();
+        if (bu?.telegram_id) sellerTgId = Number(bu.telegram_id);
+      }
+      if (sellerTgId) {
         await sendMessage(token, sellerTgId,
           `🛡️ <b>New Escrow Request</b>\n\n` +
           `📦 ${desc}\n💰 ₹${stateData.amount}\n\n` +
+          `⏳ Auto-cancels in 30 minutes if you don't respond.\n\n` +
           `Tap to view & respond:`,
-          { reply_markup: { inline_keyboard: [[{ text: "👀 View Request", callback_data: `escrow_view_${data.deal_id}` }]] } }
+          { reply_markup: { inline_keyboard: [[
+            { text: "✅ Accept", callback_data: `escrow_accept_${data.deal_id}` },
+            { text: "❌ Decline", callback_data: `escrow_decline_${data.deal_id}` },
+          ], [
+            { text: "👀 View Details", callback_data: `escrow_view_${data.deal_id}` },
+          ]] } }
         );
+      } else {
+        console.log("Seller has no Telegram link; skipped TG notify for deal", data.deal_id);
       }
     }
   } catch (e) { console.error("Notify seller TG:", e); }
