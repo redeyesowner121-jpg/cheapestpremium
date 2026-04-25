@@ -159,46 +159,23 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     if (!isChildBotOrder && !order.product_name?.startsWith("Wallet Deposit") && !instantDeliverySent) {
       try {
         const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
-        const hasInstantLink = !!(resolvedDelivery?.link && resolvedDelivery.showInBot);
-        const blocks: Array<{ label: string; value: string; mono?: boolean; link?: string }> = [
-          { label: "Product", value: order.product_name || "Product" },
-          { label: "Order ID", value: order.id, mono: true },
-          { label: "Amount", value: `₹${order.amount}` },
-        ];
-        if (hasInstantLink && resolvedDelivery?.link) {
-          const link = resolvedDelivery.link;
-          const isCreds = link.includes("\n") || link.includes("|");
-          const visible = link.split("\n").filter((l) => !/^\s*(2fa|two[-\s]?fa|totp|otp\s*secret|secret)\s*[:=]/i.test(l)).join("\n").trim();
-          if (isCreds || visible.includes("\n") || visible.includes("|")) {
-            blocks.push({ label: "Your Credentials", value: visible.replace(/\|/g, "\n"), mono: true });
-          } else if (/^https?:\/\//i.test(visible)) {
-            blocks.push({ label: "Access Link", value: "Open Access", link: visible });
-          } else {
-            blocks.push({ label: "Access", value: visible, mono: true });
-          }
-        }
         await sendBotUserEmail(
           supabase,
           order.telegram_user_id,
-          hasInstantLink
-            ? `🚀 ${order.product_name || "Product"} — Delivered`
-            : `✅ Order Confirmed — ${order.product_name || "Product"}`,
+          `✅ Order Confirmed — ${order.product_name || "Product"}`,
           {
-            title: hasInstantLink ? `${order.product_name || "Your product"} delivered!` : "Your order is confirmed!",
-            preheader: hasInstantLink
-              ? `Your ${order.product_name || "product"} is ready — access details inside.`
-              : `${order.product_name || "Your product"} is confirmed. Delivery details coming soon.`,
-            badge: hasInstantLink
-              ? { text: "Delivered", color: "#10b981" }
-              : { text: "Confirmed", color: "#10b981" },
-            intro: hasInstantLink
-              ? `Your order has been delivered successfully. Your access details are below — keep them safe.`
-              : `Good news — your order has been confirmed by our team. We're preparing your delivery and you'll receive the access details shortly on Telegram and email.`,
-            blocks,
+            title: "Your order is confirmed!",
+            preheader: `${order.product_name || "Your product"} is confirmed. Delivery details coming soon.`,
+            badge: { text: "Confirmed", color: "#10b981" },
+            intro: `Good news — your order has been confirmed by our team. We're preparing your delivery and you'll receive the access details shortly on Telegram and email.`,
+            blocks: [
+              { label: "Product", value: order.product_name || "Product" },
+              { label: "Order ID", value: order.id, mono: true },
+              { label: "Amount", value: `₹${order.amount}` },
+            ],
             ctaButton: { label: "Open Telegram Bot", url: "https://t.me/Air1_Premium_bot" },
-            warning: hasInstantLink ? "Do not share these details with anyone. If you face any problem, reply on Telegram or contact our support." : undefined,
           },
-          { template: hasInstantLink ? "bot_order_delivered" : "bot_order_confirmed", order_id: order.id }
+          { template: "bot_order_confirmed", order_id: order.id }
         );
       } catch (e) { console.error("[order-confirm-email] failed:", e); }
     }
