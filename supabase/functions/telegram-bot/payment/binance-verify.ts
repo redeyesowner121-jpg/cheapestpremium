@@ -3,7 +3,7 @@
 import { sendMessage } from "../telegram-api.ts";
 import { setConversationState, deleteConversationState, notifyAllAdmins, forwardToAllAdmins, resendPhotoToAllAdmins } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
-import { getChildBotContext } from "../child-context.ts";
+import { getChildBotContext, getChildBotLabel } from "../child-context.ts";
 
 export async function handleBinanceScreenshot(
   token: string, supabase: any, chatId: number, userId: number, msg: any, stateData: any
@@ -58,8 +58,10 @@ export async function handleBinanceScreenshot(
   userMsg += `\n⏳ Admin is verifying your payment. You'll get an update soon.`;
   await sendMessage(token, chatId, userMsg);
 
+  const childBotLabel = isChildBot ? await getChildBotLabel(supabase, childBotId) : "";
+
   // Build admin message
-  let adminMsg = `💎 <b>Binance Payment Screenshot</b>${isChildBot ? " (Child Bot)" : ""}\n\n`;
+  let adminMsg = `💎 <b>Binance Payment Screenshot</b>${isChildBot ? ` (via ${childBotLabel})` : ""}\n\n`;
   adminMsg += `👤 User: <b>${username}</b> (<code>${userId}</code>)\n`;
   adminMsg += `📦 Product: <b>${productName}</b>\n`;
   adminMsg += `🔢 Quantity: <b>${quantity}</b>\n`;
@@ -70,7 +72,7 @@ export async function handleBinanceScreenshot(
   adminMsg += `🆔 Order: <code>${orderId.toString().slice(0, 8)}</code>`;
 
   if (isChildBot) {
-    adminMsg += `\n🤖 Child Bot: <code>${childBotId}</code>`;
+    adminMsg += `\n🤖 Source Bot: <b>${childBotLabel}</b>`;
   }
 
   const adminButtons = {
@@ -96,7 +98,7 @@ export async function handleBinanceScreenshot(
     const fileId = msg.photo[msg.photo.length - 1]?.file_id;
     if (fileId) {
       await resendPhotoToAllAdmins(token, mainToken, supabase, fileId,
-        `💎 <b>Binance Payment Screenshot</b> (via Child Bot)\n👤 User: <code>${userId}</code>\n📦 ${productName}`
+        `💎 <b>Binance Payment Screenshot</b> (via ${childBotLabel})\n👤 User: <code>${userId}</code>\n📦 ${productName}`
       );
     }
   } else {
