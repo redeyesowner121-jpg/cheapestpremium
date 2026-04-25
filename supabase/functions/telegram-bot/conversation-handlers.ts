@@ -44,12 +44,21 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
-  // Email setup (entered after /setemail prompt)
+  // Email setup — step 1: user submitted email → start OTP verification
   if (state.step === "awaiting_email" && text.trim()) {
-    const { saveEmail } = await import("./email-handler.ts");
+    const { startEmailVerification } = await import("./email-handler.ts");
     const { getUserLang } = await import("./db-helpers.ts");
     const lang = (await getUserLang(supabase, userId)) || "en";
-    await saveEmail(token, supabase, chatId, userId, lang, text.trim());
+    await startEmailVerification(token, supabase, chatId, userId, lang, text.trim());
+    return;
+  }
+
+  // Email setup — step 2: user submitted OTP code
+  if (state.step === "awaiting_email_otp" && text.trim()) {
+    const { verifyEmailOtp } = await import("./email-handler.ts");
+    const { getUserLang } = await import("./db-helpers.ts");
+    const lang = (await getUserLang(supabase, userId)) || "en";
+    await verifyEmailOtp(token, supabase, chatId, userId, lang, text.trim());
     return;
   }
 

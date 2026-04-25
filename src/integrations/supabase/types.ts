@@ -2268,6 +2268,9 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          email_otp_attempts: number
+          email_otp_code: string | null
+          email_otp_expires_at: string | null
           email_verified: boolean
           first_name: string | null
           id: string
@@ -2275,12 +2278,16 @@ export type Database = {
           language: string | null
           last_active: string
           last_name: string | null
+          pending_email: string | null
           telegram_id: number
           username: string | null
         }
         Insert: {
           created_at?: string
           email?: string | null
+          email_otp_attempts?: number
+          email_otp_code?: string | null
+          email_otp_expires_at?: string | null
           email_verified?: boolean
           first_name?: string | null
           id?: string
@@ -2288,12 +2295,16 @@ export type Database = {
           language?: string | null
           last_active?: string
           last_name?: string | null
+          pending_email?: string | null
           telegram_id: number
           username?: string | null
         }
         Update: {
           created_at?: string
           email?: string | null
+          email_otp_attempts?: number
+          email_otp_code?: string | null
+          email_otp_expires_at?: string | null
           email_verified?: boolean
           first_name?: string | null
           id?: string
@@ -2301,6 +2312,7 @@ export type Database = {
           language?: string | null
           last_active?: string
           last_name?: string | null
+          pending_email?: string | null
           telegram_id?: number
           username?: string | null
         }
