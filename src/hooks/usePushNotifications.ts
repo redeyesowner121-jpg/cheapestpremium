@@ -1,86 +1,45 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { isPushSupported, subscribeUserToPush, registerPushServiceWorker } from '@/lib/webPush';
 
 export const usePushNotifications = () => {
-  const { user, profile } = useAuth();
-  const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
 
-  // Check if push notifications are supported
   useEffect(() => {
-    const checkSupport = async () => {
-      const supported = 'Notification' in window && 'serviceWorker' in navigator;
-      setIsSupported(supported);
-    };
-    checkSupport();
+    setIsSupported(isPushSupported());
   }, []);
 
-  // Initialize messaging when user logs in
+  // Auto-register service worker once supported (for receiving foreground messages)
   useEffect(() => {
-    if (!user || !isSupported) return;
+    if (!isSupported) return;
+    registerPushServiceWorker();
+  }, [isSupported]);
 
-    const init = async () => {
-      const { initializeMessaging, onPushMessage } = await import('@/lib/firebase');
-      await initializeMessaging();
-      
-      // Listen for foreground messages
-      onPushMessage((payload) => {
-        console.log('Foreground message:', payload);
-        
-        toast.info(payload.notification?.title || 'New Notification', {
-          description: payload.notification?.body
-        });
-        
-        if (Notification.permission === 'granted') {
-          new Notification(payload.notification?.title || 'New Notification', {
-            body: payload.notification?.body,
-            icon: '/favicon.ico'
-          });
-        }
-      });
-    };
-
-    init();
-  }, [user, isSupported]);
-
-  // Request push notification permission and get token
   const requestPermission = useCallback(async () => {
     if (!isSupported) {
-      console.log('Push notifications not supported');
+      toast.error('Push notifications not supported in this browser');
       return null;
     }
-
-    try {
-      const { requestPushNotificationPermission } = await import('@/lib/firebase');
-      const token = await requestPushNotificationPermission();
-      
-      if (token && user) {
-        setFcmToken(token);
-        
-        // Save token to user profile
-        await supabase
-          .from('profiles')
-          .update({ fcm_token: token, notifications_enabled: true })
-          .eq('id', user.id);
-        
-        console.log('FCM Token saved for user:', user.id);
-        toast.success('Push notifications enabled!');
-        return token;
-      }
-      
+    if (!user) {
+      toast.error('Please log in first');
       return null;
-    } catch (error) {
-      console.error('Error requesting push permission:', error);
+    }
+    try {
+      const ok = await subscribeUserToPush(user.id);
+      if (ok) {
+        toast.success('Push notifications enabled! 🔔');
+        return true;
+      }
+      toast.error('Could not enable push notifications');
+      return null;
+    } catch (e) {
+      console.error('Push subscribe error', e);
       toast.error('Could not enable push notifications');
       return null;
     }
   }, [user, isSupported]);
 
-  return {
-    fcmToken,
-    isSupported,
-    requestPermission
-  };
+  return { isSupported, requestPermission, fcmToken: null };
 };
