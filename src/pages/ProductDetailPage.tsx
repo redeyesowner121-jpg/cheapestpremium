@@ -13,6 +13,7 @@ import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { handleProductPurchase } from './product/purchaseHandler';
 import { ProductHeader, ProductImage, ProductInfo, ProductBottomBar } from './product/ProductDetailUI';
+import CourseDisclaimer from '@/components/CourseDisclaimer';
 
 interface ProductVariation {
   id: string;
@@ -202,6 +203,11 @@ const ProductDetailPage: React.FC = () => {
 
       <main className="pt-16 max-w-lg mx-auto">
         <ProductImage displayProduct={displayProduct} currentPrice={currentPrice} basePrice={basePrice} savings={savings} discountType={discountType} actualFlashSalePrice={actualFlashSalePrice} formatPrice={formatPrice} profile={profile} />
+        {displayProduct.category?.toLowerCase() === 'courses' && (
+          <div className="px-4 mt-3">
+            <CourseDisclaimer />
+          </div>
+        )}
         <ProductInfo displayProduct={displayProduct} currentStock={currentStock} isOutOfStock={isOutOfStock} variations={variations} selectedVariation={selectedVariation} onSelectVariation={setSelectedVariation} userRank={userRank} isReseller={isReseller} />
       </main>
 
