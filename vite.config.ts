@@ -40,6 +40,10 @@ export default defineConfig(({ mode }) => {
       dedupe: ['react', 'react-dom'],
     },
     build: {
+      cssCodeSplit: true,
+      cssMinify: 'esbuild',
+      reportCompressedSize: false,
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
           manualChunks: {
@@ -49,6 +53,7 @@ export default defineConfig(({ mode }) => {
             'vendor-motion': ['framer-motion'],
             'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/messaging'],
             'vendor-charts': ['recharts'],
+            'vendor-query': ['@tanstack/react-query'],
           },
         },
       },
