@@ -25,6 +25,7 @@ const WalletPage: React.FC = () => {
 
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositInitialTab, setDepositInitialTab] = useState<'auto' | 'manual' | 'card'>('card');
+  const [depositInitialMethod, setDepositInitialMethod] = useState<'upi_auto' | 'upi_manual' | 'crypto_menu' | null>(null);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
