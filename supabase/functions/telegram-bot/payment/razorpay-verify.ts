@@ -96,8 +96,9 @@ export async function handleRazorpayVerify(
 
       const mainToken = isChildBot ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
       const { notifyAllAdmins: notifyAdmins } = await import("../db-helpers.ts");
+      const childBotLabel = isChildBot ? await getChildBotLabel(supabase, childBotId) : "";
       await notifyAdmins(mainToken, supabase,
-        `💰 <b>Razorpay Payment${isChildBot ? " (Child Bot)" : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${finalAmount}\n✅ Auto-verified${isChildBot ? `\n🤖 Child Bot: ${childBotId}` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
+        `💰 <b>Razorpay Payment${isChildBot ? ` (via ${childBotLabel})` : ""}</b>\n\n👤 User: ${telegramUser.username || telegramUser.first_name} (${telegramUser.id})\n📦 Product: ${productName}\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${finalAmount}\n✅ Auto-verified${isChildBot ? `\n🤖 Source Bot: <b>${childBotLabel}</b>` : ""}\n🆔 Order: ${order?.id?.slice(0, 8) || "N/A"}`
       );
 
       try {
