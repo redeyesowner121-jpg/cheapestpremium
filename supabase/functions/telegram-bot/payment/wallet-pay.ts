@@ -105,6 +105,26 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
         ? `✅ <b>পেমেন্ট সফল!</b>\n\n💰 ₹${amount} ওয়ালেট থেকে কাটা হয়েছে।\n📦 ${productName}\n\n⏳ অ্যাডমিন আপনার অর্ডার শীঘ্রই প্রসেস করবে। আপডেট পাবেন।`
         : `✅ <b>Payment Successful!</b>\n\n💰 ₹${amount} deducted from wallet.\n📦 ${productName}\n\n⏳ Admin will process your order shortly. You'll be notified.`
     );
+    // Best-effort email
+    try {
+      const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
+      await sendBotUserEmail(supabase, userId,
+        `🛒 Order Placed — ${productName}`,
+        {
+          title: "Order received — processing now",
+          preheader: `${productName} order received. We'll deliver soon.`,
+          badge: { text: "Placed", color: "#3b82f6" },
+          intro: `We've received your order and our team is preparing the delivery. You'll receive the access details on Telegram and email as soon as it's ready.`,
+          blocks: [
+            { label: "Product", value: productName },
+            { label: "Order ID", value: order?.id || "—", mono: true },
+            { label: "Amount", value: `₹${amount}` },
+          ],
+          ctaButton: { label: "Open Telegram Bot", url: "https://t.me/Air1_Premium_bot" },
+        },
+        { template: "bot_order_placed", order_id: order?.id }
+      );
+    } catch (e) { console.error("[order-placed-email]", e); }
   } else {
     await sendMessage(token, chatId,
       t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
