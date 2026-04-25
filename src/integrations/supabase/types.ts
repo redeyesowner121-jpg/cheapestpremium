@@ -1128,6 +1128,9 @@ export type Database = {
           admin_response: string | null
           created_at: string
           details: string | null
+          email_error: string | null
+          email_sent_at: string | null
+          email_status: string | null
           id: string
           order_id: string
           reason: string
@@ -1139,6 +1142,9 @@ export type Database = {
           admin_response?: string | null
           created_at?: string
           details?: string | null
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           id?: string
           order_id: string
           reason: string
@@ -1150,6 +1156,9 @@ export type Database = {
           admin_response?: string | null
           created_at?: string
           details?: string | null
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           id?: string
           order_id?: string
           reason?: string
