@@ -681,6 +681,7 @@ export type Database = {
           delivered_note: string | null
           description: string
           dispute_reason: string | null
+          expires_at: string | null
           fee_amount: number
           funded_at: string | null
           id: string
@@ -700,6 +701,7 @@ export type Database = {
           delivered_note?: string | null
           description: string
           dispute_reason?: string | null
+          expires_at?: string | null
           fee_amount?: number
           funded_at?: string | null
           id?: string
@@ -719,6 +721,7 @@ export type Database = {
           delivered_note?: string | null
           description?: string
           dispute_reason?: string | null
+          expires_at?: string | null
           fee_amount?: number
           funded_at?: string | null
           id?: string
@@ -2799,6 +2802,10 @@ export type Database = {
         }
         Returns: Json
       }
+      buyer_cancel_funded_escrow: {
+        Args: { _buyer_id: string; _deal_id: string }
+        Returns: Json
+      }
       buyer_confirm_escrow: {
         Args: { _buyer_id: string; _deal_id: string }
         Returns: Json
@@ -2828,6 +2835,7 @@ export type Database = {
         Args: { _deal_id: string; _reason: string; _user_id: string }
         Returns: Json
       }
+      expire_stale_escrows: { Args: never; Returns: Json }
       finalize_instant_delivery: {
         Args: { p_order_id: string; p_product_id: string }
         Returns: string
