@@ -209,6 +209,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_texts: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          language: string
+          text_key: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          language?: string
+          text_key: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          language?: string
+          text_key?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
@@ -700,6 +736,48 @@ export type Database = {
           status?: string
           subject?: string | null
           template_name?: string | null
+        }
+        Relationships: []
+      }
+      email_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_name: string
+          html_body: string
+          id: string
+          is_active: boolean | null
+          subject: string
+          template_key: string
+          text_body: string | null
+          updated_at: string | null
+          variables: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          html_body: string
+          id?: string
+          is_active?: boolean | null
+          subject: string
+          template_key: string
+          text_body?: string | null
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          html_body?: string
+          id?: string
+          is_active?: boolean | null
+          subject?: string
+          template_key?: string
+          text_body?: string | null
+          updated_at?: string | null
+          variables?: Json | null
         }
         Relationships: []
       }
