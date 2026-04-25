@@ -49,30 +49,33 @@ export async function handleEscrowCommand(token: string, supabase: any, chatId: 
   const needsResponse = (deals || []).filter((d: any) =>
     d.status === 'pending_acceptance' && d.seller_id === profileId);
 
-  let msg = `🛡️ <b>Escrow — Safe Deals</b>\n\n`;
-  msg += `Hi ${profile?.name || 'there'}! Escrow holds funds safely until both parties are happy.\n\n`;
-  msg += `💰 Wallet: <b>₹${balance}</b>\n`;
+  let msg = `🛡️ <b>Escrow — Safe P2P Deals</b>\n\n`;
+  msg += `Hi ${profile?.name || 'there'}! Trade safely with anyone — funds are held by the bot until both sides are happy.\n\n`;
+  msg += `💰 Your Wallet: <b>₹${balance}</b>\n`;
   msg += `📊 Active deals: <b>${active.length}</b>\n`;
   if (needsResponse.length > 0) {
     msg += `🔔 <b>${needsResponse.length}</b> request${needsResponse.length > 1 ? 's' : ''} waiting for your response\n`;
   }
   msg += `\n💡 <b>How it works:</b>\n`;
-  msg += `1️⃣ You start a deal with seller's email\n`;
+  msg += `1️⃣ Start a deal with seller's @username, Telegram ID, or email\n`;
   msg += `2️⃣ Seller accepts → funds held from your wallet\n`;
   msg += `3️⃣ Seller delivers → you confirm → funds released\n`;
   msg += `4️⃣ Any issue? Open a dispute, admin decides\n\n`;
-  msg += `⚙️ Platform fee: <b>2%</b>`;
+  msg += `⏱️ Auto-cancel: 30 min if seller doesn't accept\n`;
+  msg += `⚙️ Platform fee: <b>2%</b>\n`;
+  msg += `🔒 No website account needed — works fully inside Telegram`;
 
-  await sendMessage(token, chatId, msg, {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "➕ Create Escrow", callback_data: "escrow_new" }],
-        [{ text: `📋 My Deals (${active.length})`, callback_data: "escrow_list_active" }],
-        [{ text: "📜 History", callback_data: "escrow_list_closed" }],
-        [{ text: "❌ Close", callback_data: "back_main" }],
-      ],
-    },
-  });
+  const kb: any[] = [
+    [{ text: "➕ Create Escrow", callback_data: "escrow_new" }],
+    [{ text: `📋 My Deals (${active.length})`, callback_data: "escrow_list_active" }],
+    [{ text: "📜 History", callback_data: "escrow_list_closed" }],
+  ];
+  if (Number(balance) < 10) {
+    kb.push([{ text: "💰 Deposit to Wallet", callback_data: "deposit_menu" }]);
+  }
+  kb.push([{ text: "❌ Close", callback_data: "back_main" }]);
+
+  await sendMessage(token, chatId, msg, { reply_markup: { inline_keyboard: kb } });
 }
 
 // =================== START CREATION ===================
