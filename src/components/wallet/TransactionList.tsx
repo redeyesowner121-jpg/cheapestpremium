@@ -75,7 +75,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
     >
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-foreground">Recent Transactions</h2>
-        <button onClick={() => navigate('/transactions')} className="text-sm text-primary font-medium hover:underline">See All</button>
+        <button onClick={() => navigate('/wallet/transactions')} className="text-sm text-primary font-medium hover:underline">See All</button>
       </div>
 
       <div className="space-y-3">
