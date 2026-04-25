@@ -1,26 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Search, SlidersHorizontal, Filter, Lightbulb, GraduationCap } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
-import { Slider } from '@/components/ui/slider';
-import { Button } from '@/components/ui/button';
-import { Check, DollarSign, Package, Tag } from 'lucide-react';
+import { Search, Filter, Lightbulb } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import OrderSuccessModal from '@/components/OrderSuccessModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
-import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { useProductsData } from './products/useProductsData';
 import SEOHead from '@/components/SEOHead';
 import { Product, ProductVariation } from './products/types';
@@ -28,11 +15,12 @@ import ProductCard from './products/ProductCard';
 import CategorySection from './products/CategorySection';
 import ProductsBuyModal from './products/ProductsBuyModal';
 import CourseDisclaimer from '@/components/CourseDisclaimer';
+import { useProductFilters } from './products/useProductFilters';
+import ProductFilterSheet from './products/ProductFilterSheet';
+import { placeProductOrder } from './products/place-order';
 
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
-  const { settings } = useAppSettingsContext();
-  const { formatPrice } = useCurrencyFormat();
   const location = useLocation();
   const navigate = useNavigate();
   const flashSale = location.state?.flashSale;
@@ -41,7 +29,7 @@ const ProductsPage: React.FC = () => {
     searchQuery, setSearchQuery,
     selectedCategory, setSelectedCategory,
     categories, loading,
-    filteredProducts, methodsProducts, coursesProducts,
+    filteredProducts, methodsProducts,
     loadProducts,
   } = useProductsData();
 
@@ -55,46 +43,9 @@ const ProductsPage: React.FC = () => {
   const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState({
-    priceMin: 0,
-    priceMax: 50000,
-    availability: 'all' as 'all' | 'in-stock' | 'instant',
-    sortBy: 'newest' as 'newest' | 'price-low' | 'price-high' | 'popular',
-  });
 
-  const maxPrice = useMemo(() => {
-    if (filteredProducts.length === 0) return 50000;
-    return Math.max(...filteredProducts.map(p => p.price), 1000);
-  }, [filteredProducts]);
+  const { filters, setFilters, maxPrice, displayProducts, activeFiltersCount } = useProductFilters(filteredProducts);
 
-  const displayProducts = useMemo(() => {
-    let result = [...filteredProducts];
-    
-    // Price filter
-    result = result.filter(p => p.price >= filters.priceMin && p.price <= filters.priceMax);
-    
-    // Availability
-    if (filters.availability === 'in-stock') {
-      result = result.filter(p => p.stock === null || p.stock === undefined || p.stock > 0);
-    } else if (filters.availability === 'instant') {
-      result = result.filter(p => !!p.access_link);
-    }
-    
-    // Sort
-    if (filters.sortBy === 'price-low') result.sort((a, b) => a.price - b.price);
-    else if (filters.sortBy === 'price-high') result.sort((a, b) => b.price - a.price);
-    else if (filters.sortBy === 'popular') result.sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0));
-    
-    return result;
-  }, [filteredProducts, filters]);
-
-  const activeFiltersCount = [
-    filters.priceMin > 0 || filters.priceMax < maxPrice,
-    filters.availability !== 'all',
-    filters.sortBy !== 'newest'
-  ].filter(Boolean).length;
-
-  // Handle flash sale click
   useEffect(() => {
     if (flashSale && flashSale.productData) {
       const product = {
@@ -107,7 +58,7 @@ const ProductsPage: React.FC = () => {
         rating: flashSale.productData.rating || 4.5,
         sold_count: flashSale.productData.sold_count || 0,
         category: flashSale.productData.category,
-        access_link: flashSale.productData.access_link
+        access_link: flashSale.productData.access_link,
       };
       setSelectedProduct(product as Product);
       setFlashSalePrice(flashSale.salePrice);
@@ -121,131 +72,31 @@ const ProductsPage: React.FC = () => {
     setSelectedVariation(null);
     setQuantity(1);
     setOrderNote('');
-
     const { data } = await supabase
-      .from('product_variations')
-      .select('*')
-      .eq('product_id', product.id)
-      .eq('is_active', true);
-
+      .from('product_variations').select('*')
+      .eq('product_id', product.id).eq('is_active', true);
     setProductVariations(data || []);
     setShowBuyModal(true);
   };
 
   const handleConfirmOrder = async () => {
-    if (!profile || !user || !selectedProduct) {
-      toast.error('Please login to place order');
-      return;
-    }
-
+    if (!profile || !user || !selectedProduct) { toast.error('Please login to place order'); return; }
     if (!profile.phone) {
       toast.error('Please add your phone number to place an order');
       navigate('/profile/edit');
       return;
     }
-
-    const { data: freshProduct } = await supabase
-      .from('products')
-      .select('stock')
-      .eq('id', selectedProduct.id)
-      .single();
-
-    if (freshProduct?.stock !== null && freshProduct?.stock !== undefined && freshProduct.stock < quantity) {
-      toast.error(`Only ${freshProduct.stock} items available in stock`);
-      return;
-    }
-
-    const userRank = getUserRank(profile.rank_balance || 0);
-    const isReseller = profile.is_reseller || false;
-    const basePrice = selectedVariation?.price || flashSalePrice || selectedProduct.price;
-
-    const { finalPrice } = flashSalePrice
-      ? { finalPrice: flashSalePrice }
-      : calculateFinalPrice(basePrice, selectedProduct.reseller_price || null, userRank, isReseller);
-
-    const priceToUse = Math.round(finalPrice * 100) / 100;
-    const totalPrice = priceToUse * quantity;
-
-    if ((profile.wallet_balance || 0) < totalPrice) {
-      toast.error('Insufficient wallet balance. Please add money first.');
-      return;
-    }
-
     try {
-      const newBalance = (profile.wallet_balance || 0) - totalPrice;
-      const { error: balanceError } = await supabase
-        .from('profiles')
-        .update({ wallet_balance: newBalance, total_orders: (profile.total_orders || 0) + 1 })
-        .eq('id', user.id);
-
-      if (balanceError) throw balanceError;
-
-      const productNameWithVariation = selectedVariation
-        ? `${selectedProduct.name} (${selectedVariation.name})`
-        : selectedProduct.name;
-
-      // Create order first as pending
-      const { data: insertedOrder, error: orderError } = await supabase.from('orders').insert({
-        user_id: user.id,
-        product_id: selectedProduct.id,
-        product_name: productNameWithVariation,
-        product_image: selectedProduct.image_url,
-        quantity,
-        unit_price: priceToUse,
-        total_price: totalPrice,
-        user_note: orderNote || null,
-        status: 'pending'
-      }).select('id').single();
-
-      if (orderError) throw orderError;
-
-      // Try instant delivery via RPC
-      let accessLink: string | null = null;
-      let isInstantDelivery = false;
-
-      if (insertedOrder?.id) {
-        // Check if product supports instant delivery
-        const { data: productData } = await supabase
-          .from('products')
-          .select('access_link, delivery_mode, show_link_in_website')
-          .eq('id', selectedProduct.id)
-          .single();
-
-        if (productData?.show_link_in_website !== false &&
-            (productData?.delivery_mode === 'unique' || productData?.access_link)) {
-          try {
-            const { data: claimedLink, error: rpcError } = await supabase.rpc('finalize_instant_delivery', {
-              p_product_id: selectedProduct.id,
-              p_order_id: insertedOrder.id,
-            });
-            if (!rpcError && claimedLink) {
-              accessLink = claimedLink;
-              isInstantDelivery = true;
-            }
-          } catch (e) {
-            console.error('Instant delivery error:', e);
-          }
-        }
-      }
-
-      const hasStock = freshProduct?.stock !== null && freshProduct?.stock !== undefined;
-      await supabase.rpc('increment_product_sold_count', { product_id: selectedProduct.id, qty: quantity, has_stock: hasStock });
-
-      await supabase.from('transactions').insert({
-        user_id: user.id, type: 'purchase', amount: -totalPrice, status: 'completed',
-        description: `Purchased ${productNameWithVariation} x${quantity}`
+      const result = await placeProductOrder({
+        product: selectedProduct, variation: selectedVariation,
+        flashSalePrice, quantity, orderNote, profile, user,
       });
-
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: isInstantDelivery ? 'Order Delivered' : 'Order Placed Successfully',
-        message: isInstantDelivery
-          ? `Your order for ${productNameWithVariation} has been delivered! Check your orders for the access link.`
-          : `Your order for ${productNameWithVariation} has been placed.`,
-        type: 'order'
+      if (!result) return;
+      setSuccessOrderData({
+        productName: result.productName,
+        totalPrice: result.totalPrice,
+        accessLink: result.accessLink,
       });
-
-      setSuccessOrderData({ productName: productNameWithVariation, totalPrice, accessLink });
       setShowBuyModal(false);
       setShowSuccessModal(true);
       refreshProfile();
@@ -273,113 +124,32 @@ const ProductsPage: React.FC = () => {
         breadcrumbs={[{ name: 'Home', path: '/' }, { name: 'All Products', path: '/products' }]}
       />
       <Header />
-
       <main className="pt-20 px-4 max-w-lg mx-auto space-y-4">
-        {/* Search */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            placeholder="Search products..."
-            value={searchQuery}
+          <Input placeholder="Search products..." value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-12 pr-12 h-12 rounded-xl bg-card border-0 shadow-card"
+            className="pl-12 pr-12 h-12 rounded-xl bg-card border-0 shadow-card" />
+          <ProductFilterSheet
+            open={filterOpen} onOpenChange={setFilterOpen}
+            filters={filters} setFilters={setFilters}
+            maxPrice={maxPrice} activeFiltersCount={activeFiltersCount}
           />
-          <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
-            <SheetTrigger asChild>
-              <button className="absolute right-4 top-1/2 -translate-y-1/2">
-                <SlidersHorizontal className="w-5 h-5 text-muted-foreground" />
-                {activeFiltersCount > 0 && (
-                  <span className="absolute -top-2 -right-2 w-4 h-4 bg-primary text-primary-foreground text-[10px] rounded-full flex items-center justify-center">
-                    {activeFiltersCount}
-                  </span>
-                )}
-              </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl">
-              <SheetHeader className="mb-4">
-                <SheetTitle className="flex items-center justify-between">
-                  <span>Filters & Sort</span>
-                  <Button variant="ghost" size="sm" onClick={() => setFilters({ priceMin: 0, priceMax: 50000, availability: 'all', sortBy: 'newest' })} className="text-muted-foreground">
-                    Reset
-                  </Button>
-                </SheetTitle>
-              </SheetHeader>
-              <div className="space-y-6 overflow-y-auto pb-20">
-                {/* Price */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-primary" /> Price Range
-                  </h4>
-                  <Slider
-                    value={[filters.priceMin, filters.priceMax]}
-                    max={maxPrice}
-                    step={10}
-                    onValueChange={([min, max]) => setFilters(f => ({ ...f, priceMin: min, priceMax: max }))}
-                  />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>₹{filters.priceMin}</span>
-                    <span>₹{filters.priceMax}</span>
-                  </div>
-                </div>
-                {/* Availability */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Package className="w-4 h-4 text-primary" /> Availability
-                  </h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {([['all','All'],['in-stock','In Stock'],['instant','Instant']] as const).map(([id, label]) => (
-                      <button key={id} onClick={() => setFilters(f => ({ ...f, availability: id }))}
-                        className={`p-3 rounded-xl border text-sm transition-all ${filters.availability === id ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/50'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {/* Sort */}
-                <div className="space-y-3">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-primary" /> Sort By
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([['newest','Newest'],['popular','Popular'],['price-low','Price ↑'],['price-high','Price ↓']] as const).map(([id, label]) => (
-                      <button key={id} onClick={() => setFilters(f => ({ ...f, sortBy: id }))}
-                        className={`p-3 rounded-xl border text-sm flex items-center justify-between transition-all ${filters.sortBy === id ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/50'}`}>
-                        {label}
-                        {filters.sortBy === id && <Check className="w-4 h-4" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-background border-t border-border">
-                <Button onClick={() => setFilterOpen(false)} className="w-full rounded-xl h-12">
-                  Apply Filters
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
 
-        {/* Categories */}
         <div className="mb-2 -mx-4 px-4 overflow-x-auto no-scrollbar">
           <div className="flex gap-2 min-w-max">
             {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
+              <button key={cat.id} onClick={() => setSelectedCategory(cat.id)}
                 className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === cat.id
                     ? 'gradient-primary text-primary-foreground shadow-card'
                     : 'bg-card text-foreground hover:bg-muted'
-                }`}
-              >
-                {cat.name}
-              </button>
+                }`}>{cat.name}</button>
             ))}
           </div>
         </div>
 
-        {/* Methods Section */}
         {selectedCategory === 'all' && (
           <CategorySection
             title="Methods"
@@ -392,10 +162,8 @@ const ProductsPage: React.FC = () => {
           />
         )}
 
-        {/* Course Disclaimer */}
         {selectedCategory === 'courses' && <CourseDisclaimer />}
 
-        {/* Products Grid */}
         <div className="grid grid-cols-2 gap-3">
           {displayProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
