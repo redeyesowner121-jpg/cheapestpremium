@@ -240,8 +240,9 @@ Deno.serve(async (req) => {
       firstError: firstErr,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
-    console.error('admin-broadcast-email error:', e);
-    return new Response(JSON.stringify({ error: String(e) }), {
+    const msg = e instanceof Error ? (e.message + '\n' + (e.stack || '')) : (typeof e === 'string' ? e : JSON.stringify(e));
+    console.error('admin-broadcast-email error:', msg);
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
