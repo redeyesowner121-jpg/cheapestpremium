@@ -61,6 +61,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
                 userId={userId} walletBalance={walletBalance}
                 loading={loading}
                 onTransfer={(r, a, n) => { onTransfer(r, a, n); onOpenChange(false); }}
+                onClose={() => onOpenChange(false)}
               />
               <div className="mt-4">
                 <PendingRequests userId={userId} />
@@ -70,7 +71,7 @@ const TransferDialog: React.FC<TransferDialogProps> = ({
               <ReceiveTab userId={userId} email={userEmail} name={userName} />
             </TabsContent>
             <TabsContent value="escrow" className="m-0">
-              <EscrowTab userId={userId} walletBalance={walletBalance} />
+              <EscrowTab userId={userId} walletBalance={walletBalance} onClose={() => onOpenChange(false)} />
             </TabsContent>
           </div>
         </Tabs>
