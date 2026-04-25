@@ -18,6 +18,7 @@ const RecentOrderNotification = lazy(() => import("@/components/RecentOrderNotif
 
 // Lazy load all pages except Index
 const AuthPage = lazy(() => import("./pages/AuthPage"));
+const TelegramAuthPage = lazy(() => import("./pages/TelegramAuthPage"));
 const WalletPage = lazy(() => import("./pages/WalletPage"));
 const OrdersPage = lazy(() => import("./pages/OrdersPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
@@ -102,6 +103,7 @@ const AppContent = () => {
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/auth/telegram" element={<AuthPage />} />
+            <Route path="/telegram/auth" element={<TelegramAuthPage />} />
             <Route path="/wallet" element={<WalletPage />} />
             <Route path="/wallet/transactions" element={<TransactionsPage />} />
             <Route path="/orders" element={<OrdersPage />} />
