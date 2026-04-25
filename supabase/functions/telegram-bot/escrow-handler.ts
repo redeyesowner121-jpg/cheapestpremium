@@ -344,19 +344,28 @@ export async function escrowViewDeal(token: string, supabase: any, chatId: numbe
     }
   } else if (d.status === 'funded') {
     if (isBuyer) {
+      // Buyer cannot release until seller marks delivered
+      rows.push([{ text: "⏳ Waiting for seller to deliver", callback_data: `escrow_view_${dealId}` }]);
       rows.push([
-        { text: "💰 Release", callback_data: `escrow_release_${dealId}` },
+        { text: "❌ Cancel Deal", callback_data: `escrow_buyer_cancel_${dealId}` },
         { text: "⚠️ Dispute", callback_data: `escrow_dispute_${dealId}` },
       ]);
     } else {
       rows.push([{ text: "📦 Mark Delivered", callback_data: `escrow_deliver_${dealId}` }]);
       rows.push([{ text: "⚠️ Open Dispute", callback_data: `escrow_dispute_${dealId}` }]);
     }
-  } else if (d.status === 'delivered' && isBuyer) {
-    rows.push([
-      { text: "💰 Release Funds", callback_data: `escrow_release_${dealId}` },
-      { text: "⚠️ Dispute", callback_data: `escrow_dispute_${dealId}` },
-    ]);
+  } else if (d.status === 'delivered') {
+    if (isBuyer) {
+      rows.push([
+        { text: "💰 Release Funds to Seller", callback_data: `escrow_release_${dealId}` },
+      ]);
+      rows.push([
+        { text: "⚠️ Dispute", callback_data: `escrow_dispute_${dealId}` },
+      ]);
+    } else {
+      rows.push([{ text: "⏳ Waiting for buyer to release", callback_data: `escrow_view_${dealId}` }]);
+      rows.push([{ text: "⚠️ Open Dispute", callback_data: `escrow_dispute_${dealId}` }]);
+    }
   }
   rows.push([
     { text: "💬 Send Message", callback_data: `escrow_chat_${dealId}` },
