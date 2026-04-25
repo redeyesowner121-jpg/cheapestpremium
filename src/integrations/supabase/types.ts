@@ -1123,6 +1123,42 @@ export type Database = {
         }
         Relationships: []
       }
+      order_reports: {
+        Row: {
+          admin_response: string | null
+          created_at: string
+          details: string | null
+          id: string
+          order_id: string
+          reason: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          order_id: string
+          reason: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+          order_id?: string
+          reason?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_status_history: {
         Row: {
           created_at: string | null

@@ -200,6 +200,18 @@ const OrderCard: React.FC<OrderCardProps> = ({
               Reorder
             </Button>
           )}
+
+          {(['completed','confirmed','shipped','delivered'].includes(order.status)) && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 rounded-xl border-destructive/40 text-destructive hover:bg-destructive hover:text-white"
+              onClick={() => onReport(order)}
+            >
+              <Flag className="w-4 h-4 mr-2" />
+              Report
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>
