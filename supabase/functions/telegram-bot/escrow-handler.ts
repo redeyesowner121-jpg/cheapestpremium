@@ -169,9 +169,11 @@ export async function escrowHandleDescriptionInput(token: string, supabase: any,
   if (desc.length < 5) { await sendMessage(token, chatId, "❌ Description must be at least 5 characters."); return; }
 
   const profileId = await resolveProfileUserId(supabase, userId);
-  const { data, error } = await supabase.rpc("create_escrow_deal", {
-    _buyer_id: profileId, _seller_email: stateData.sellerEmail,
-    _amount: stateData.amount, _description: desc,
+  const { data, error } = await supabase.rpc("create_escrow_deal_by_identifier", {
+    _buyer_id: profileId,
+    _identifier: stateData.sellerIdentifier ?? stateData.sellerEmail,
+    _amount: stateData.amount,
+    _description: desc,
   });
   await deleteConversationState(supabase, userId);
 
@@ -179,8 +181,8 @@ export async function escrowHandleDescriptionInput(token: string, supabase: any,
 
   await sendMessage(token, chatId,
     `🎉 <b>Escrow Request Sent!</b>\n\n` +
-    `📦 ${desc}\n💰 ₹${stateData.amount}\n👤 To: ${stateData.sellerName || stateData.sellerEmail}\n\n` +
-    `⏳ Waiting for seller to accept. They'll be notified via website & email.\n\n` +
+    `📦 ${desc}\n💰 ₹${stateData.amount}\n👤 To: ${stateData.sellerName || data?.seller_name || stateData.sellerIdentifier}\n\n` +
+    `⏳ Auto-cancels in <b>30 minutes</b> if seller doesn't accept. They'll be notified via Telegram & website.\n\n` +
     `💡 Funds are held only AFTER seller accepts. You can cancel anytime before that.`,
     {
       reply_markup: {
