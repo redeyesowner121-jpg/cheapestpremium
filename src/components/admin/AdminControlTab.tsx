@@ -95,6 +95,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
     { id: 'smtp_settings' as ControlSection, icon: Mail, label: 'SMTP Email Setup', description: 'Direct email server (Hostinger etc)', color: 'bg-gradient-to-br from-cyan-500 to-blue-600', badge: null },
     { id: 'email_broadcast' as ControlSection, icon: Send, label: 'Email Broadcast', description: 'Send email to users', color: 'bg-gradient-to-br from-violet-500 to-fuchsia-600', badge: null },
     { id: 'email_logs' as any as ControlSection, icon: Mail, label: 'Email Logs', description: 'Delivery status & errors', color: 'bg-gradient-to-br from-rose-500 to-red-600', badge: null, link: '/admin/email-logs' },
+    { id: 'escrow' as any as ControlSection, icon: Shield, label: 'Escrow Deals', description: 'Mediate safe deals & disputes', color: 'bg-gradient-to-br from-emerald-500 to-teal-600', badge: null, link: '/admin/escrow' },
   ];
 
   const sectionGroups = [
