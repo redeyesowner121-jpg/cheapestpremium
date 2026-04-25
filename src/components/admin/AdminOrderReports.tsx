@@ -152,7 +152,57 @@ const AdminOrderReports: React.FC = () => {
                             <span className="text-muted-foreground"> • Order ₹{r.orders.total_price}</span>
                           )}
                         </p>
-                      </div>
+                    </div>
+
+                    {/* Email delivery status */}
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] text-muted-foreground">Admin email:</span>
+                      {r.email_status === 'sent' ? (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/10 text-success font-medium">
+                          ✅ Sent {r.email_sent_at ? `· ${new Date(r.email_sent_at).toLocaleTimeString()}` : ''}
+                        </span>
+                      ) : r.email_status === 'failed' ? (
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/10 text-destructive font-medium"
+                          title={r.email_error || ''}
+                        >
+                          ❌ Failed
+                        </span>
+                      ) : (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          ⏳ Pending
+                        </span>
+                      )}
+                      {(r.email_status === 'failed' || r.email_status === 'pending' || !r.email_status) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-[10px] px-2"
+                          onClick={async () => {
+                            const { error } = await supabase.functions.invoke('notify-admin-report', {
+                              body: {
+                                report_id: r.id,
+                                order_id: r.order_id,
+                                reason: r.reason,
+                                details: r.details,
+                              },
+                            });
+                            if (error) toast.error('Resend failed');
+                            else {
+                              toast.success('Email resent');
+                              load();
+                            }
+                          }}
+                        >
+                          Retry
+                        </Button>
+                      )}
+                      {r.email_error && r.email_status === 'failed' && (
+                        <p className="text-[10px] text-destructive w-full break-all">
+                          {r.email_error}
+                        </p>
+                      )}
+                    </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[r.status] || ''}`}>
                         {r.status}
                       </span>
