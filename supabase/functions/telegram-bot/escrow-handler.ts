@@ -420,15 +420,22 @@ export async function escrowAction(
       // Server-side guard: only allow release after seller has marked delivered
       const { data: deal } = await supabase
         .from("escrow_deals").select("status").eq("id", dealId).single();
-      if (!deal || deal.status !== 'delivered') {
-        await ack("⏳ Seller hasn't marked the deal as delivered yet. You can release only after delivery.", true);
+      if (!deal) { await ack("Deal not found", true); return; }
+      if (deal.status === 'funded') {
+        await ack("⏳ Seller hasn't marked delivered yet.", true);
+        await escrowViewDeal(token, supabase, chatId, userId, dealId, messageId);
         return;
       }
-      const { error } = await supabase.rpc('buyer_confirm_escrow', { _buyer_id: profileId, _deal_id: dealId });
+      if (deal.status !== 'delivered') {
+        await ack(`Cannot release in status: ${deal.status}`, true);
+        await escrowViewDeal(token, supabase, chatId, userId, dealId, messageId);
+        return;
+      }
+      const { data: relData, error } = await supabase.rpc('buyer_confirm_escrow', { _buyer_id: profileId, _deal_id: dealId });
       if (error) throw error;
-      await ack("💰 Released!");
+      await ack(`💰 Released ₹${relData?.released ?? ''} to seller!`);
       await escrowViewDeal(token, supabase, chatId, userId, dealId, messageId);
-      await notifyOther(token, supabase, dealId, profileId, "🎉 Buyer released funds! Check your wallet.", dealId);
+      await notifyOther(token, supabase, dealId, profileId, `🎉 Buyer released funds! ₹${relData?.released ?? ''} added to your wallet. Check /wallet.`, dealId);
     } else if (action === 'buyer_cancel') {
       const { error } = await supabase.rpc('buyer_cancel_funded_escrow', { _buyer_id: profileId, _deal_id: dealId });
       if (error) throw error;
