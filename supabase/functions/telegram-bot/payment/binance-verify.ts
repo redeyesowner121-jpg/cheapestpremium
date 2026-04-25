@@ -3,7 +3,7 @@
 import { sendMessage } from "../telegram-api.ts";
 import { setConversationState, deleteConversationState, notifyAllAdmins, forwardToAllAdmins, resendPhotoToAllAdmins } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
-import { getChildBotContext } from "../child-context.ts";
+import { getChildBotContext, getChildBotLabel } from "../child-context.ts";
 
 export async function handleBinanceScreenshot(
   token: string, supabase: any, chatId: number, userId: number, msg: any, stateData: any
