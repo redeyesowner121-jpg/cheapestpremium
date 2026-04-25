@@ -94,8 +94,8 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
   // Confirm screen (after recipient resolved)
   if (recipient) {
     const senderAmt = parseFloat(amount) || 0;
-    // rate_to_inr = "1 foreign = X INR" → foreign→INR is multiplication
-    const inrAmount = senderAmt * (senderCur.rate_to_inr || 1);
+    // rate_to_inr = "1 INR = X foreign" → foreign→INR is division
+    const inrAmount = senderAmt / (senderCur.rate_to_inr || 1);
     const insufficient = inrAmount > walletBalance;
 
     return (
