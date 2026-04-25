@@ -71,7 +71,7 @@ const CurrencyDualEntry: React.FC<CurrencyDualEntryProps> = ({
         </div>
         {!sameCurrency && senderAmt > 0 && (
           <p className="text-[11px] text-muted-foreground mt-1">
-            Rate: 1 {sender.code} ≈ {(sender.rate_to_inr / receiver.rate_to_inr).toFixed(4)} {receiver.code}
+            Rate: 1 {sender.code} ≈ {(receiver.rate_to_inr / sender.rate_to_inr).toFixed(4)} {receiver.code}
           </p>
         )}
       </div>
