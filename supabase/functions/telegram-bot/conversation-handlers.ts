@@ -93,6 +93,20 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Apply (reseller/wholesaler) — proof photo step
+  if (state.step === "apply_awaiting_proof") {
+    const { handleApplyProofPhoto } = await import("./apply-handler.ts");
+    await handleApplyProofPhoto(token, supabase, chatId, userId, msg, state);
+    return;
+  }
+
+  // Apply — description step
+  if (state.step === "apply_awaiting_description") {
+    const { handleApplyDescription } = await import("./apply-handler.ts");
+    await handleApplyDescription(token, supabase, chatId, userId, msg, state);
+    return;
+  }
+
   // Send balance: awaiting recipient
   if (state.step === "send_awaiting_recipient" && text.trim()) {
     const { getUserLang } = await import("./db-helpers.ts");
