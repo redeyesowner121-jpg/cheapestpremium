@@ -268,6 +268,8 @@ const ProductsPage: React.FC = () => {
         title="Shop All Premium Subscriptions"
         description="Browse & buy cheapest premium subscriptions — Netflix, Spotify, YouTube Premium, Canva Pro, ChatGPT Plus & more. Filter by category, price & availability."
         canonicalPath="/products"
+        keywords="premium subscriptions india, cheap ott india, netflix spotify cheap, buy premium accounts, digital subscriptions wholesale"
+        breadcrumbs={[{ name: 'Home', path: '/' }, { name: 'All Products', path: '/products' }]}
       />
       <Header />
 
