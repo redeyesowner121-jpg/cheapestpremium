@@ -21,7 +21,7 @@ const safeStop = async (scanner: Html5Qrcode | null) => {
   }
 };
 
-const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
+const QrScanner = React.forwardRef<HTMLDivElement, QrScannerProps>(({ onScan, onError }, _ref) => {
   const elRef = useRef<HTMLDivElement>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
