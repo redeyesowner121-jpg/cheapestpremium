@@ -118,46 +118,99 @@ Deno.serve(async (req: Request) => {
       .eq("id", loginCode.id);
 
     const telegramId = loginCode.telegram_id;
-    const email = `telegram_${telegramId}@bot.local`;
     const name = loginCode.first_name || loginCode.username || "User";
 
-    // Deterministic password for telegram users
-    const stablePassword = `tg_${telegramId}_${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(-12)}`;
-
-    // Try to find existing user by email
+    // ===== Find or create the linked website account =====
+    // Priority:
+    //   1. Existing profile already linked via telegram_id
+    //   2. Bot user's verified email matches a website account
+    //   3. Fallback: synthetic telegram_<id>@bot.local account
     let user: any = null;
     let isNewUser = false;
+    let resolvedEmail: string | null = null;
 
-    // Efficient lookup: try signing in first - if it works, user exists
-    const { data: signInCheck, error: signInCheckError } = await supabase.auth.signInWithPassword({
-      email,
-      password: stablePassword,
-    });
+    // 1) Try profile already linked to this telegram_id
+    const { data: linkedProfile } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .eq("telegram_id", telegramId)
+      .maybeSingle();
 
-    if (!signInCheckError && signInCheck?.user) {
-      user = signInCheck.user;
-    } else {
-      // Sign-in failed - could be wrong password (user exists with different password) or no user
-      // Try admin lookup by email with pagination
-      let page = 1;
-      const perPage = 1000;
-      let found = false;
-      while (!found) {
-        const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
-        if (listError || !pageData?.users?.length) break;
-        const match = pageData.users.find((u: any) => u.email === email);
-        if (match) {
-          user = match;
-          found = true;
+    if (linkedProfile?.id) {
+      const { data: linkedAuthUser } = await supabase.auth.admin.getUserById(linkedProfile.id);
+      if (linkedAuthUser?.user) {
+        user = linkedAuthUser.user;
+        resolvedEmail = linkedAuthUser.user.email || linkedProfile.email || null;
+      }
+    }
+
+    // 2) Look up bot user's verified email
+    if (!user) {
+      const { data: botUser } = await supabase
+        .from("telegram_bot_users")
+        .select("email, email_verified")
+        .eq("telegram_id", telegramId)
+        .maybeSingle();
+
+      const verifiedEmail = botUser?.email_verified ? botUser.email : null;
+      if (verifiedEmail) {
+        // Find auth user with this email
+        let page = 1;
+        const perPage = 1000;
+        while (!user) {
+          const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
+          if (listError || !pageData?.users?.length) break;
+          const match = pageData.users.find(
+            (u: any) => (u.email || "").toLowerCase() === verifiedEmail.toLowerCase()
+          );
+          if (match) {
+            user = match;
+            resolvedEmail = match.email || verifiedEmail;
+            break;
+          }
+          if (pageData.users.length < perPage) break;
+          page++;
         }
-        if (pageData.users.length < perPage) break;
-        page++;
+      }
+    }
+
+    // 3) Fallback synthetic account (existing behaviour)
+    const fallbackEmail = `telegram_${telegramId}@bot.local`;
+    const stablePassword = `tg_${telegramId}_${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.slice(-12)}`;
+
+    if (!user) {
+      // Try sign-in with synthetic credentials
+      const { data: signInCheck, error: signInCheckError } = await supabase.auth.signInWithPassword({
+        email: fallbackEmail,
+        password: stablePassword,
+      });
+
+      if (!signInCheckError && signInCheck?.user) {
+        user = signInCheck.user;
+        resolvedEmail = fallbackEmail;
+      } else {
+        // List users to find synthetic email account
+        let page = 1;
+        const perPage = 1000;
+        while (!user) {
+          const { data: pageData, error: listError } = await supabase.auth.admin.listUsers({ page, perPage });
+          if (listError || !pageData?.users?.length) break;
+          const match = pageData.users.find((u: any) => u.email === fallbackEmail);
+          if (match) {
+            user = match;
+            resolvedEmail = fallbackEmail;
+            break;
+          }
+          if (pageData.users.length < perPage) break;
+          page++;
+        }
       }
     }
 
     if (!user) {
+      // Truly new — create synthetic account
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
-        email,
+        email: fallbackEmail,
         password: stablePassword,
         email_confirm: true,
         user_metadata: { telegram_id: telegramId, username: loginCode.username, name },
@@ -168,10 +221,14 @@ Deno.serve(async (req: Request) => {
         return jsonResponse({ error: "Failed to create user" }, 500);
       }
       user = newUser.user;
+      resolvedEmail = fallbackEmail;
       isNewUser = true;
-    } else {
-      await supabase.auth.admin.updateUserById(user.id, { password: stablePassword });
     }
+
+    // Always reset password to deterministic value so we can sign in
+    await supabase.auth.admin.updateUserById(user.id, { password: stablePassword });
+
+    const email = resolvedEmail || user.email || fallbackEmail;
 
     // Sync wallet data: merge bot + website balances
     const { data: telegramWallet } = await supabase
