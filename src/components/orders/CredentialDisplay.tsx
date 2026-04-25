@@ -57,19 +57,13 @@ const TwoFAWidget: React.FC<{ secret: string }> = ({ secret }) => {
       <div className="space-y-1">
         <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
           <ShieldCheck className="w-3 h-3" />
-          2FA Secret
+          Live 2FA Code
         </div>
         <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2.5">
           <div className="flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-amber-400">
             <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-            <span>{error}. Use the secret manually in your authenticator app.</span>
+            <span>Live OTP unavailable right now. Please contact support if you need a code.</span>
           </div>
-          <code className="mt-1.5 block text-xs font-mono bg-background/80 rounded px-2 py-1 break-all">
-            {secret}
-          </code>
-          <Button size="sm" variant="ghost" className="h-6 w-full mt-1 text-xs" onClick={() => copy(secret, '2FA Secret')}>
-            <Copy className="w-3 h-3 mr-1" /> Copy Secret
-          </Button>
         </div>
       </div>
     );
@@ -125,13 +119,9 @@ const TwoFAWidget: React.FC<{ secret: string }> = ({ secret }) => {
   );
 };
 
-const CredentialDisplay: React.FC<Props> = ({ rawCredential }) => {
-  const parsed = parseCredential(rawCredential);
-
-  // Unstructured: fall back to original "link" display
-  if (!parsed.hasStructured && !parsed.email && !parsed.password && !parsed.twoFASecret) {
-    const [revealed, setRevealed] = useState(false);
-    return (
+const UnstructuredView: React.FC<{ parsed: ReturnType<typeof parseCredential> }> = ({ parsed }) => {
+  const [revealed, setRevealed] = useState(false);
+  return (
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
           <code className="flex-1 text-xs font-mono bg-background/80 rounded-lg px-2.5 py-2 break-all text-foreground border border-border/50">
