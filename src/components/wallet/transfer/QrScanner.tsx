@@ -143,6 +143,7 @@ const QrScanner = React.forwardRef<HTMLDivElement, QrScannerProps>(({ onScan, on
       </p>
     </div>
   );
-};
+});
+QrScanner.displayName = 'QrScanner';
 
 export default QrScanner;
