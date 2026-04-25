@@ -196,12 +196,19 @@ const CartPage: React.FC = () => {
 
       const orders = orderRows.map(r => r.row);
 
+      let insertedOrderIds: string[] = [];
       if (orders.length > 0) {
         const { data: insertedOrders, error: orderError } = await supabase.from('orders').insert(orders).select('id');
         if (orderError) throw orderError;
 
-        // Trigger instant delivery RPC for eligible orders
+        // Attach DB ids to local orders array (used later for email send)
         if (insertedOrders) {
+          insertedOrders.forEach((ord, idx) => {
+            (orders[idx] as any).id = ord.id;
+          });
+          insertedOrderIds = insertedOrders.map(o => o.id);
+
+          // Trigger instant delivery RPC for eligible orders
           await Promise.all(insertedOrders.map(async (ord, idx) => {
             const meta = orderRows[idx];
             if (meta?.isInstant && meta.requiresDeliveryRpc && meta.productId) {
