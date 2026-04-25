@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
 import { motion } from 'framer-motion';
