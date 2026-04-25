@@ -318,6 +318,25 @@ const CartPage: React.FC = () => {
           message: notifMessage,
           type: 'order',
         });
+
+        // Send order confirmation email per order
+        const recipientEmail = profile?.email || user.email;
+        const recipientName = profile?.name || 'Customer';
+        if (recipientEmail) {
+          orders.forEach((o: any) => {
+            supabase.functions.invoke('send-order-email', {
+              body: {
+                to: recipientEmail,
+                customerName: recipientName,
+                productName: o.product_name,
+                orderId: o.id || crypto.randomUUID(),
+                status: o.status === 'confirmed' ? 'confirmed' : 'processing',
+                totalPrice: o.total_price,
+                accessLink: o.access_link || undefined,
+              },
+            }).catch((e) => console.error('send-order-email failed:', e));
+          });
+        }
       }
 
       await clearCart();
