@@ -484,7 +484,12 @@ Deno.serve(async (req) => {
             await handleRedeemCommand(BOT_TOKEN, supabase, chatId, userId, lang, inlineCode);
             break;
           }
-          case "/send": {
+          case "/apply": {
+            if (isGiveaway || isChildMode) break;
+            const { handleApplyCommand } = await import("./apply-handler.ts");
+            await handleApplyCommand(BOT_TOKEN, supabase, chatId, userId, lang);
+            break;
+          }
             if (isGiveaway) break;
             const { handleSendCommand } = await import("./send-handler.ts");
             await handleSendCommand(BOT_TOKEN, supabase, chatId, userId, lang);
