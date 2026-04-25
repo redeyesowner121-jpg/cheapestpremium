@@ -112,6 +112,17 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     return;
   }
 
+  // Escrow steps
+  if (state.step?.startsWith("escrow_") && text.trim()) {
+    const escrow = await import("./escrow-handler.ts");
+    if (state.step === "escrow_awaiting_email") { await escrow.escrowHandleEmailInput(token, supabase, chatId, userId, text); return; }
+    if (state.step === "escrow_awaiting_amount") { await escrow.escrowHandleAmountInput(token, supabase, chatId, userId, text, state.data); return; }
+    if (state.step === "escrow_awaiting_description") { await escrow.escrowHandleDescriptionInput(token, supabase, chatId, userId, text, state.data); return; }
+    if (state.step === "escrow_awaiting_delivery_note") { await escrow.escrowHandleDeliveryNote(token, supabase, chatId, userId, text, state.data); return; }
+    if (state.step === "escrow_awaiting_dispute_reason") { await escrow.escrowHandleDisputeReason(token, supabase, chatId, userId, text, state.data); return; }
+    if (state.step === "escrow_awaiting_chat") { await escrow.escrowHandleChatMessage(token, supabase, chatId, userId, text, state.data); return; }
+  }
+
   // Deposit steps
   if (await handleDepositSteps(token, supabase, chatId, userId, msg, state)) return;
 

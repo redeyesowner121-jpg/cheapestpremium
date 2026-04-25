@@ -250,6 +250,40 @@ Deno.serve(async (req) => {
       // Standard callbacks
       if (await handleAdminCallbacks(BOT_TOKEN, supabase, chatId, userId, data)) { clearChildBotContext(); return jsonOk(); }
       if (await handlePaymentCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
+
+      // Escrow callbacks
+      if (data === "escrow_menu") {
+        const { handleEscrowCommand } = await import("./escrow-handler.ts");
+        await handleEscrowCommand(BOT_TOKEN, supabase, chatId, userId);
+        clearChildBotContext(); return jsonOk();
+      }
+      if (data === "escrow_new") {
+        const { escrowStartCreate } = await import("./escrow-handler.ts");
+        await escrowStartCreate(BOT_TOKEN, supabase, chatId, userId);
+        clearChildBotContext(); return jsonOk();
+      }
+      if (data === "escrow_list_active" || data === "escrow_list_closed") {
+        const { escrowListDeals } = await import("./escrow-handler.ts");
+        await escrowListDeals(BOT_TOKEN, supabase, chatId, userId, data === "escrow_list_active" ? "active" : "closed", cq.message.message_id);
+        clearChildBotContext(); return jsonOk();
+      }
+      if (data.startsWith("escrow_view_")) {
+        const { escrowViewDeal } = await import("./escrow-handler.ts");
+        await escrowViewDeal(BOT_TOKEN, supabase, chatId, userId, data.slice(12), cq.message.message_id);
+        clearChildBotContext(); return jsonOk();
+      }
+      if (data.startsWith("escrow_deliver_skip_")) {
+        const { escrowDeliverSkip } = await import("./escrow-handler.ts");
+        await escrowDeliverSkip(BOT_TOKEN, supabase, chatId, userId, data.slice(20), cq.id);
+        clearChildBotContext(); return jsonOk();
+      }
+      const escrowActionMatch = data.match(/^escrow_(accept|decline|cancel|deliver|release|dispute|chat)_(.+)$/);
+      if (escrowActionMatch) {
+        const { escrowAction } = await import("./escrow-handler.ts");
+        await escrowAction(BOT_TOKEN, supabase, chatId, userId, escrowActionMatch[1], escrowActionMatch[2], cq.id, cq.message.message_id);
+        clearChildBotContext(); return jsonOk();
+      }
+
       if (await handleMenuCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
 
       clearChildBotContext();
@@ -454,6 +488,12 @@ Deno.serve(async (req) => {
             if (isGiveaway) break;
             const { handleSendCommand } = await import("./send-handler.ts");
             await handleSendCommand(BOT_TOKEN, supabase, chatId, userId, lang);
+            break;
+          }
+          case "/escrow": {
+            if (isGiveaway || isChildMode) break;
+            const { handleEscrowCommand } = await import("./escrow-handler.ts");
+            await handleEscrowCommand(BOT_TOKEN, supabase, chatId, userId);
             break;
           }
           case "/users": {

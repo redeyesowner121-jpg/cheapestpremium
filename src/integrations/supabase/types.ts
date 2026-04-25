@@ -730,6 +730,41 @@ export type Database = {
         }
         Relationships: []
       }
+      escrow_messages: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          message: string
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          message: string
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          message?: string
+          sender_id?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_messages_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "escrow_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flash_sales: {
         Row: {
           created_at: string | null
@@ -2765,6 +2800,10 @@ export type Database = {
         Args: { _buyer_id: string; _deal_id: string }
         Returns: Json
       }
+      cancel_escrow_deal: {
+        Args: { _buyer_id: string; _deal_id: string }
+        Returns: Json
+      }
       cancel_order_refund: {
         Args: { _order_id: string; _user_id: string }
         Returns: Json
@@ -2825,6 +2864,14 @@ export type Database = {
       }
       seller_mark_escrow_delivered: {
         Args: { _deal_id: string; _note?: string; _seller_id: string }
+        Returns: Json
+      }
+      seller_respond_escrow: {
+        Args: { _accept: boolean; _deal_id: string; _seller_id: string }
+        Returns: Json
+      }
+      send_escrow_message: {
+        Args: { _deal_id: string; _message: string; _sender_id: string }
         Returns: Json
       }
       transfer_funds: {
