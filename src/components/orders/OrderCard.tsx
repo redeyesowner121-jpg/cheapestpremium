@@ -44,6 +44,9 @@ interface OrderCardProps {
 const getStatusIcon = (status: string) => {
   switch (status) {
     case 'completed':
+    case 'confirmed':
+    case 'shipped':
+    case 'delivered':
       return <CheckCircle className="w-5 h-5 text-success" />;
     case 'processing':
       return <Clock className="w-5 h-5 text-accent animate-pulse" />;
