@@ -5,8 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, CheckCircle2, ArrowLeft, RefreshCw } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle2, ArrowLeft, RefreshCw, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import AdminEscrowChatPanel from './admin-escrow/AdminEscrowChatPanel';
 
 type Deal = {
   id: string;
@@ -35,6 +36,7 @@ const AdminEscrowPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<typeof STATUS_FILTERS[number]>('disputed');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [chatDealId, setChatDealId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin && !isTempAdmin) navigate('/');
@@ -170,6 +172,22 @@ const AdminEscrowPage: React.FC = () => {
                         Refund Buyer
                       </Button>
                     </div>
+                  )}
+
+                  <Button size="sm" variant="outline" className="rounded-lg w-full"
+                    onClick={() => setChatDealId(chatDealId === d.id ? null : d.id)}>
+                    <MessageSquare className="w-4 h-4 mr-1" />
+                    {chatDealId === d.id ? 'Hide Chat' : 'View / Reply in Chat'}
+                  </Button>
+
+                  {chatDealId === d.id && user && (
+                    <AdminEscrowChatPanel
+                      dealId={d.id}
+                      adminId={user.id}
+                      buyerId={d.buyer_id}
+                      sellerId={d.seller_id}
+                      onClose={() => setChatDealId(null)}
+                    />
                   )}
                 </div>
               );

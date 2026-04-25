@@ -33,9 +33,21 @@ const DealChat: React.FC<Props> = ({ messages, userId, input, setInput, onSend, 
         {messages.map((m) => {
           const mine = m.sender_id === userId;
           const isSystem = m.sender_role === 'system';
+          const isAdmin = m.sender_role === 'admin';
           if (isSystem) return (
             <div key={m.id} className="text-center">
               <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{m.message}</span>
+            </div>
+          );
+          if (isAdmin) return (
+            <div key={m.id} className="flex justify-center">
+              <div className="max-w-[85%] rounded-2xl px-3 py-1.5 text-sm bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200">
+                <div className="text-[10px] font-semibold mb-0.5 flex items-center gap-1">🛡️ Admin</div>
+                {m.message}
+                <div className="text-[9px] mt-0.5 opacity-70">
+                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
             </div>
           );
           return (
