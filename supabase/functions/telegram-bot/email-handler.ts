@@ -268,6 +268,54 @@ export async function verifyEmailOtp(
 
   await deleteConversationState(supabase, userId);
 
+  // 🔗 Auto-link to existing website account if email matches
+  // Also merge wallet balances so both sides stay in sync.
+  try {
+    const { data: matchedProfile } = await supabase
+      .from("profiles")
+      .select("id, wallet_balance, total_deposit, telegram_id")
+      .ilike("email", verifiedEmail)
+      .maybeSingle();
+
+    if (matchedProfile?.id && !matchedProfile.telegram_id) {
+      // Link the website profile to this telegram_id
+      await supabase
+        .from("profiles")
+        .update({ telegram_id: userId })
+        .eq("id", matchedProfile.id);
+
+      // Merge wallets — take the higher of bot vs website
+      const { data: botWallet } = await supabase
+        .from("telegram_wallets")
+        .select("balance, total_earned")
+        .eq("telegram_id", userId)
+        .maybeSingle();
+
+      const botBal = Number(botWallet?.balance || 0);
+      const webBal = Number(matchedProfile.wallet_balance || 0);
+      const botDep = Number(botWallet?.total_earned || 0);
+      const webDep = Number(matchedProfile.total_deposit || 0);
+      const mergedBal = Math.max(botBal, webBal);
+      const mergedDep = Math.max(botDep, webDep);
+
+      if (mergedBal !== webBal || mergedDep !== webDep) {
+        await supabase
+          .from("profiles")
+          .update({ wallet_balance: mergedBal, total_deposit: mergedDep })
+          .eq("id", matchedProfile.id);
+      }
+      if (botWallet && (mergedBal !== botBal || mergedDep !== botDep)) {
+        await supabase
+          .from("telegram_wallets")
+          .update({ balance: mergedBal, total_earned: mergedDep, updated_at: new Date().toISOString() })
+          .eq("telegram_id", userId);
+      }
+    }
+  } catch (e) {
+    console.error("[email-handler] auto-link failed:", e);
+  }
+
+
   // Welcome confirmation email
   try {
     await sendBotEmailToAddress(supabase, verifiedEmail,
