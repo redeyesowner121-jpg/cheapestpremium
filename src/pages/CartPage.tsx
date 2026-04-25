@@ -341,6 +341,8 @@ const CartPage: React.FC = () => {
                 status: o.status === 'confirmed' ? 'confirmed' : 'pending',
                 totalPrice: o.total_price,
                 accessLink: o.access_link || undefined,
+                currency: settings.currency_symbol || '₹',
+                quantity: o.quantity || 1,
               },
             }).catch((e) => console.error('send-order-email failed:', e));
           });
