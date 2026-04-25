@@ -174,6 +174,23 @@ export const handleProductPurchase = async (
 
     if (currentStock !== null) setCurrentStock(currentStock - quantity);
 
+    // Send order email (confirmed = instant delivery, otherwise pending notice)
+    const recipientEmail = isGuestCheckout ? guestDetails!.email : (profile?.email || user?.email);
+    const recipientName = isGuestCheckout ? guestDetails!.name : (profile?.name || 'Customer');
+    if (recipientEmail && insertedOrder?.id) {
+      supabase.functions.invoke('send-order-email', {
+        body: {
+          to: recipientEmail,
+          customerName: recipientName,
+          productName,
+          orderId: insertedOrder.id,
+          status: isInstantDelivery ? 'confirmed' : 'processing',
+          totalPrice: finalTotal,
+          accessLink: accessLink || undefined,
+        },
+      }).catch((e) => console.error('send-order-email failed:', e));
+    }
+
     setSuccessOrderData({ productName, totalPrice: finalTotal, accessLink });
     setShowPurchaseModal(false);
     setShowSuccessModal(true);
