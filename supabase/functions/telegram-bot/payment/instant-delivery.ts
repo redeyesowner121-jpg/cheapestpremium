@@ -299,7 +299,7 @@ export async function sendInstantDeliveryWithLoginCode(
     console.error("Login code insert error:", e);
   }
 
-  const websiteUrl = "https://cheapest-premiums.in/auth";
+  const websiteUrl = `https://cheapest-premiums.in/telegram/auth?code=${code}`;
 
   if (isDriveLink(accessLink)) {
     // Drive link → only show website button, don't send link directly
