@@ -217,7 +217,7 @@ Deno.serve(async (req) => {
       provider: 'resend',
       status: 'sent',
       order_id: payload.orderId,
-      metadata: { product: payload.productName },
+      metadata: { product: payload.productName, from: usedFrom },
     });
 
     return new Response(JSON.stringify({ success: true, id: parsed.id }), {
