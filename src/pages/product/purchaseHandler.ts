@@ -79,7 +79,17 @@ export const handleProductPurchase = async (
         .single();
 
       if (productData?.show_link_in_website !== false) {
+        // Product-level instant delivery
         if (productData?.delivery_mode === 'unique' || productData?.access_link) {
+          isInstantDelivery = true;
+        }
+        // Variation-level instant delivery (credentials/link or unique stock per variation)
+        if (
+          selectedVariation &&
+          (selectedVariation.access_link ||
+            selectedVariation.delivery_message ||
+            selectedVariation.delivery_mode === 'unique')
+        ) {
           isInstantDelivery = true;
         }
       }
