@@ -2888,6 +2888,15 @@ export type Database = {
         }
         Returns: Json
       }
+      create_escrow_deal_by_identifier: {
+        Args: {
+          _amount: number
+          _buyer_id: string
+          _description: string
+          _identifier: string
+        }
+        Returns: Json
+      }
       dispute_escrow: {
         Args: { _deal_id: string; _reason: string; _user_id: string }
         Returns: Json
@@ -2896,6 +2905,15 @@ export type Database = {
       finalize_instant_delivery: {
         Args: { p_order_id: string; p_product_id: string }
         Returns: string
+      }
+      find_profile_by_identifier: {
+        Args: { _identifier: string }
+        Returns: {
+          email: string
+          identifier_kind: string
+          name: string
+          profile_id: string
+        }[]
       }
       has_role: {
         Args: {
