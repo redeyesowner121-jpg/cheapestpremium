@@ -14,6 +14,15 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+async function mergeVerifiedTelegramEmailAccount(supabase: any, telegramId: number, email: string | null) {
+  if (!email || email.endsWith("@bot.local")) return;
+  const { error } = await supabase.rpc("merge_telegram_email_account", {
+    _telegram_id: telegramId,
+    _email: email,
+  });
+  if (error) console.error("merge_telegram_email_account failed:", error);
+}
+
 async function fetchTelegramAvatar(botToken: string, telegramId: number): Promise<string | null> {
   try {
     const res = await fetch(`https://api.telegram.org/bot${botToken}/getUserProfilePhotos`, {
@@ -172,6 +181,11 @@ Deno.serve(async (req: Request) => {
           page++;
         }
       }
+    }
+
+    // Ensure verified email links are fully merged before resolving profile data.
+    if (user && resolvedEmail) {
+      await mergeVerifiedTelegramEmailAccount(supabase, telegramId, resolvedEmail);
     }
 
     // 3) Fallback synthetic account (existing behaviour)
