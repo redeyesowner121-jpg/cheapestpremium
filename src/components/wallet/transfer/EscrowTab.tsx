@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +12,8 @@ interface EscrowTabProps {
   userId: string;
   walletBalance: number;
   onCompleted?: () => void;
+  /** Called when the escrow flow needs to redirect away (e.g. for top-up) */
+  onClose?: () => void;
 }
 
 type Deal = {
@@ -33,7 +36,8 @@ const STATUS_META: Record<string, { color: string; icon: any; label: string }> =
   cancelled: { color: 'bg-muted text-muted-foreground', icon: XCircle, label: 'Cancelled' },
 };
 
-const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onCompleted }) => {
+const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onCompleted, onClose }) => {
+  const navigate = useNavigate();
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -76,7 +80,13 @@ const EscrowTab: React.FC<EscrowTabProps> = ({ userId, walletBalance, onComplete
   const handleCreate = async () => {
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt <= 0) { toast.error('Enter a valid amount'); return; }
-    if (amt > walletBalance) { toast.error('Insufficient balance'); return; }
+    if (amt > walletBalance) {
+      const need = (amt - walletBalance).toFixed(2);
+      toast.error('Insufficient balance — redirecting to top-up.');
+      onClose?.();
+      navigate(`/wallet?deposit=1&reason=insufficient&amount=${need}`);
+      return;
+    }
     if (!sellerEmail.includes('@')) { toast.error('Valid seller email required'); return; }
     if (description.trim().length < 5) { toast.error('Describe the deal (min 5 chars)'); return; }
     setSubmitting(true);

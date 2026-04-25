@@ -469,58 +469,82 @@ export async function handleReport(token: string, supabase: any, chatId: number)
 }
 
 export async function executeBroadcast(token: string, supabase: any, adminChatId: number, msg: any) {
-  // Gather users from all bots
+  // Gather users from ALL bots: Main, Resale, Giveaway, Mother, and every active Child bot.
   const mainToken = token;
   const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
+  const giveawayToken = Deno.env.get("GIVEAWAY_BOT_TOKEN");
+  const motherToken = Deno.env.get("MOTHER_BOT_TOKEN");
+
+  // Track (telegram_id, botToken) pairs we've already queued so the same person on the same bot
+  // never gets the message twice. Different bots = independent chats, so the user *should* get one
+  // message per bot they use.
+  const seen = new Set<string>(); // key = `${botToken}:${telegram_id}`
+  const allTargets: { telegram_id: number; botToken: string; source: string }[] = [];
+  const counts: Record<string, number> = { main: 0, resale: 0, giveaway: 0, mother: 0, child: 0 };
+
+  const addTarget = (tid: number, botToken: string | undefined, source: string) => {
+    if (!botToken || !tid) return;
+    const key = `${botToken}:${tid}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    allTargets.push({ telegram_id: tid, botToken, source });
+    counts[source] = (counts[source] || 0) + 1;
+  };
 
   // 1. Main bot users
-  const { data: mainUsers } = await supabase.from("telegram_bot_users").select("telegram_id").eq("is_banned", false);
+  try {
+    const { data: mainUsers } = await supabase
+      .from("telegram_bot_users").select("telegram_id").eq("is_banned", false);
+    (mainUsers || []).forEach((u: any) => addTarget(u.telegram_id, mainToken, "main"));
+  } catch (e) { console.error("[broadcast] main users error:", e); }
 
-  // 2. Resale bot users (exclude duplicates with main)
-  const mainIds = new Set((mainUsers || []).map((u: any) => u.telegram_id));
-  let resaleOnlyUsers: { telegram_id: number; botToken: string }[] = [];
+  // 2. Resale bot users (table may or may not exist)
   if (resaleToken) {
-    const { data: resaleUsers } = await supabase.from("telegram_bot_users")
-      .select("telegram_id").eq("is_banned", false);
-    // Resale bot users table might be same; check resale_bot_users if exists
     try {
-      const { data: rUsers } = await supabase.from("resale_bot_users").select("telegram_id").eq("is_banned", false);
-      if (rUsers?.length) {
-        resaleOnlyUsers = rUsers.filter((u: any) => !mainIds.has(u.telegram_id))
-          .map((u: any) => ({ telegram_id: u.telegram_id, botToken: resaleToken }));
-        rUsers.forEach((u: any) => mainIds.add(u.telegram_id));
-      }
-    } catch {}
+      const { data: rUsers } = await supabase
+        .from("resale_bot_users").select("telegram_id").eq("is_banned", false);
+      (rUsers || []).forEach((u: any) => addTarget(u.telegram_id, resaleToken, "resale"));
+    } catch (e) { /* table may not exist; ignore */ }
   }
 
-  // 3. Child bot users (exclude duplicates)
-  let childBotEntries: { telegram_id: number; botToken: string }[] = [];
+  // 3. Giveaway bot users
+  if (giveawayToken) {
+    try {
+      // Try a dedicated table first, then fall back to giveaway_points (which has telegram_id)
+      const { data: gUsers } = await supabase
+        .from("giveaway_points").select("telegram_id");
+      (gUsers || []).forEach((u: any) => addTarget(u.telegram_id, giveawayToken, "giveaway"));
+    } catch (e) { console.error("[broadcast] giveaway users error:", e); }
+  }
+
+  // 4. Mother bot users
+  if (motherToken) {
+    try {
+      const { data: mUsers } = await supabase
+        .from("mother_bot_users").select("telegram_id");
+      (mUsers || []).forEach((u: any) => addTarget(u.telegram_id, motherToken, "mother"));
+    } catch (e) { console.error("[broadcast] mother users error:", e); }
+  }
+
+  // 5. Every active Child bot
   try {
-    const { data: childBots } = await supabase.from("child_bots").select("id, bot_token").eq("is_active", true);
+    const { data: childBots } = await supabase
+      .from("child_bots").select("id, bot_token").eq("is_active", true);
     if (childBots?.length) {
       for (const cb of childBots) {
-        const { data: cbUsers } = await supabase.from("child_bot_users")
-          .select("telegram_id").eq("child_bot_id", cb.id);
-        if (cbUsers?.length) {
-          for (const u of cbUsers) {
-            if (!mainIds.has(u.telegram_id)) {
-              childBotEntries.push({ telegram_id: u.telegram_id, botToken: cb.bot_token });
-              mainIds.add(u.telegram_id);
-            }
-          }
-        }
+        const { data: cbUsers } = await supabase
+          .from("child_bot_users").select("telegram_id").eq("child_bot_id", cb.id);
+        (cbUsers || []).forEach((u: any) => addTarget(u.telegram_id, cb.bot_token, "child"));
       }
     }
-  } catch {}
-
-  // Build unified send list
-  const allTargets: { telegram_id: number; botToken: string }[] = [
-    ...(mainUsers || []).map((u: any) => ({ telegram_id: u.telegram_id, botToken: mainToken })),
-    ...resaleOnlyUsers,
-    ...childBotEntries,
-  ];
+  } catch (e) { console.error("[broadcast] child users error:", e); }
 
   if (!allTargets.length) { await sendMessage(token, adminChatId, "No users to broadcast to."); return; }
+
+  await sendMessage(token, adminChatId,
+    `📢 <b>Broadcasting to ${allTargets.length} chats…</b>\n\n` +
+    `• Main: ${counts.main}\n• Resale: ${counts.resale}\n• Giveaway: ${counts.giveaway}\n• Mother: ${counts.mother}\n• Child bots: ${counts.child}`
+  );
 
   let sent = 0, failed = 0, skipped = 0;
   const batchSize = 10;
@@ -547,9 +571,9 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
 
   await sendMessage(token, adminChatId,
     `📢 <b>Broadcast Complete!</b>\n\n` +
-    `📊 Main Bot: ${(mainUsers || []).length} users\n` +
-    `📊 Resale Bot: ${resaleOnlyUsers.length} unique users\n` +
-    `📊 Child Bots: ${childBotEntries.length} unique users\n\n` +
+    `📊 Main: ${counts.main} · Resale: ${counts.resale}\n` +
+    `📊 Giveaway: ${counts.giveaway} · Mother: ${counts.mother}\n` +
+    `📊 Child Bots: ${counts.child}\n\n` +
     `✅ Sent: ${sent}\n❌ Failed: ${failed}\n🚫 Blocked: ${skipped}\n📊 Total: ${allTargets.length}`
   );
 }

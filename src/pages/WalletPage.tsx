@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Wallet, LogIn, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
@@ -20,6 +20,7 @@ import { useWalletData } from '@/hooks/useWalletData';
 
 const WalletPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { profile, user } = useAuth();
   const wallet = useWalletData();
 
@@ -30,6 +31,29 @@ const WalletPage: React.FC = () => {
   const [showRedeemModal, setShowRedeemModal] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  // Auto-open deposit modal when redirected with ?deposit=1 (e.g. from insufficient-balance flows)
+  useEffect(() => {
+    if (!user) return;
+    if (searchParams.get('deposit') === '1') {
+      const need = searchParams.get('amount');
+      if (need && !isNaN(parseFloat(need))) {
+        wallet.setDepositAmount(need);
+      }
+      setDepositInitialTab('card');
+      setDepositInitialMethod(null);
+      setShowDepositModal(true);
+      const reason = searchParams.get('reason');
+      if (reason === 'insufficient') {
+        toast.error('Insufficient balance — please top up your wallet first.');
+      }
+      // Clean up URL so reloads don't re-trigger
+      const next = new URLSearchParams(searchParams);
+      next.delete('deposit'); next.delete('amount'); next.delete('reason');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchParams]);
 
   if (!user) {
     return (
