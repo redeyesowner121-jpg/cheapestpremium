@@ -423,9 +423,17 @@ async function handleResaleScreenshot(
     },
   };
 
-  // Forward screenshot to admins on MAIN bot, then send action buttons
-  try { await forwardToAllAdminsMainBot(mainBotToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
-
+  // Forward screenshot to admins on MAIN bot, then send action buttons.
+  // file_id is bot-scoped, so we re-download via resale bot and re-upload via main bot.
+  const fileId = msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (fileId) {
+    try {
+      const photoCaption = `📸 <b>Resale Payment Screenshot</b>\n👤 User: <code>${userId}</code>\n📦 ${stateData.productName}`;
+      await resendPhotoToAllAdminsMainBot(resaleBotToken, mainBotToken, supabase, fileId, photoCaption);
+    } catch (e) { console.error("Resend screenshot error:", e); }
+  } else {
+    try { await forwardToAllAdminsMainBot(mainBotToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
+  }
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await notifyAllAdminsMainBot(mainBotToken, supabase, adminMsg, adminButtons);
