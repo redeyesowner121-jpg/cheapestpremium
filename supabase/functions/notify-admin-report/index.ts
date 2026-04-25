@@ -1,4 +1,6 @@
+// Notifies admin about a new order report — uses SMTP first (Hostinger etc.), Resend fallback.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { getActiveSmtpConfig, sendViaSmtp } from "../_shared/smtp-sender.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,12 +53,10 @@ Deno.serve(async (req) => {
       await supabase.from('notifications').insert(notifs);
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-
     let emailSent = false;
     let emailError: string | null = null;
     let messageId: string | null = null;
+    let provider = 'none';
     const subject = `🚩 Order Report: ${reason} — ${productName}`;
     const html = `
       <h2>🚩 New Order Report</h2>
@@ -70,34 +70,53 @@ Deno.serve(async (req) => {
       <p>Manage in Admin Panel → Orders → Reports.</p>
     `;
 
-    if (LOVABLE_API_KEY && RESEND_API_KEY) {
-      const sendVia = async (from: string) => {
-        const r = await fetch(`${GATEWAY_URL}/emails`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'X-Connection-Api-Key': RESEND_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ from, to: [ADMIN_EMAIL], subject, html }),
-        });
-        return { ok: r.ok, status: r.status, text: await r.text() };
-      };
-
-      let r = await sendVia(FROM_ADDRESS);
-      if (!r.ok && (r.status === 403 || /domain|verify|not verified|from/i.test(r.text)) && FROM_ADDRESS !== FALLBACK_FROM) {
-        console.warn('Primary FROM failed, retrying fallback:', r.status, r.text.slice(0, 200));
-        r = await sendVia(FALLBACK_FROM);
-      }
+    // 1) Try SMTP first
+    const smtpCfg = await getActiveSmtpConfig(supabase);
+    if (smtpCfg) {
+      provider = 'smtp';
+      const r = await sendViaSmtp(smtpCfg, { to: ADMIN_EMAIL, subject, html });
       if (r.ok) {
         emailSent = true;
-        try { messageId = JSON.parse(r.text).id || null; } catch {/*ignore*/}
       } else {
-        emailError = `${r.status}: ${r.text.slice(0, 500)}`;
-        console.error('Resend send failed:', emailError);
+        emailError = r.error || 'SMTP send failed';
+        console.warn('SMTP failed, will try Resend:', emailError);
       }
-    } else {
-      emailError = 'Missing connector keys';
+    }
+
+    // 2) Fallback to Resend
+    if (!emailSent) {
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      if (LOVABLE_API_KEY && RESEND_API_KEY) {
+        provider = 'resend';
+        const sendVia = async (from: string) => {
+          const r = await fetch(`${GATEWAY_URL}/emails`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+              'X-Connection-Api-Key': RESEND_API_KEY,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ from, to: [ADMIN_EMAIL], subject, html }),
+          });
+          return { ok: r.ok, status: r.status, text: await r.text() };
+        };
+
+        let r = await sendVia(FROM_ADDRESS);
+        if (!r.ok && (r.status === 403 || /domain|verify|not verified|from/i.test(r.text)) && FROM_ADDRESS !== FALLBACK_FROM) {
+          r = await sendVia(FALLBACK_FROM);
+        }
+        if (r.ok) {
+          emailSent = true;
+          emailError = null;
+          try { messageId = JSON.parse(r.text).id || null; } catch {/*ignore*/}
+        } else {
+          emailError = `${r.status}: ${r.text.slice(0, 500)}`;
+          console.error('Resend send failed:', emailError);
+        }
+      } else if (!smtpCfg) {
+        emailError = 'No SMTP configured and Resend keys missing';
+      }
     }
 
     await supabase.from('email_send_log').insert({
@@ -105,7 +124,7 @@ Deno.serve(async (req) => {
       template_name: 'admin_order_report',
       recipient_email: ADMIN_EMAIL,
       subject,
-      provider: 'resend',
+      provider,
       status: emailSent ? 'sent' : 'failed',
       error_message: emailError,
       order_id: order_id,
@@ -123,7 +142,7 @@ Deno.serve(async (req) => {
         .eq('id', report_id);
     }
 
-    return new Response(JSON.stringify({ success: true, emailSent, emailError }), {
+    return new Response(JSON.stringify({ success: true, emailSent, emailError, provider }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
