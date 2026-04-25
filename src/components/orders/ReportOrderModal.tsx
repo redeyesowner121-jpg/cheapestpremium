@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ReportOrderModalProps {
   open: boolean;
@@ -18,10 +20,10 @@ interface ReportOrderModalProps {
 
 const reportReasons = [
   'Not received',
-  'Payment failed',
-  'Wallet problem',
   'Wrong product',
-  'Chat with seller',
+  'Login not working',
+  'Account issue',
+  'Payment problem',
   'Other issue',
 ];
 
@@ -30,19 +32,38 @@ const ReportOrderModal: React.FC<ReportOrderModalProps> = ({
   onOpenChange,
   orderId,
 }) => {
+  const { user } = useAuth();
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmitReport = () => {
+  const handleSubmitReport = async () => {
     if (!reportReason) {
       toast.error('Please select a reason');
       return;
     }
-    
-    toast.success('Report submitted! We will contact you shortly.');
-    onOpenChange(false);
-    setReportReason('');
-    setReportDetails('');
+    if (!user || !orderId) {
+      toast.error('Login required');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const { error } = await supabase.from('order_reports').insert({
+        order_id: orderId,
+        user_id: user.id,
+        reason: reportReason,
+        details: reportDetails.trim() || null,
+      });
+      if (error) throw error;
+      toast.success('Report submitted! Admin will contact you shortly.');
+      onOpenChange(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to submit report');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -73,18 +94,19 @@ const ReportOrderModal: React.FC<ReportOrderModalProps> = ({
           </div>
 
           <Textarea
-            placeholder="Additional details (optional)"
+            placeholder="Describe the problem (optional)"
             value={reportDetails}
             onChange={(e) => setReportDetails(e.target.value)}
             rows={3}
+            maxLength={1000}
           />
 
           <Button
             className="w-full btn-gradient rounded-xl"
             onClick={handleSubmitReport}
-            disabled={!reportReason}
+            disabled={!reportReason || submitting}
           >
-            Submit Report
+            {submitting ? 'Submitting...' : 'Submit Report'}
           </Button>
         </div>
       </DialogContent>
