@@ -100,6 +100,9 @@ const bootstrap = async () => {
     ]);
 
     createRoot(rootElement).render(<App />);
+
+    // Detect new deployments and auto-refresh stale clients
+    import("./lib/versionCheck").then(({ startVersionCheck }) => startVersionCheck()).catch(() => {});
   } catch (error) {
     renderBootstrapFallback(error);
   }
