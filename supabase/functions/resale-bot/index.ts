@@ -145,6 +145,62 @@ async function forwardToAllAdminsMainBot(mainBotToken: string, supabase: any, fr
   }
 }
 
+/**
+ * Download a photo via the resale bot (where it was sent) and re-upload it via the main bot
+ * to all admins. Required because admins may not have started the resale bot, so cross-bot
+ * forwarding fails. file_id is bot-scoped, so it must be fetched with the source bot's token.
+ */
+async function resendPhotoToAllAdminsMainBot(
+  sourceToken: string, mainBotToken: string, supabase: any,
+  fileId: string, caption?: string
+) {
+  try {
+    const fileRes = await fetch(`${TELEGRAM_API(sourceToken)}/getFile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: fileId }),
+    });
+    const fileData = await fileRes.json();
+    if (!fileData?.result?.file_path) {
+      console.error("resendPhotoToAllAdminsMainBot: getFile failed", fileData);
+      return false;
+    }
+    const downloadUrl = `https://api.telegram.org/file/bot${sourceToken}/${fileData.result.file_path}`;
+    const photoRes = await fetch(downloadUrl);
+    if (!photoRes.ok) {
+      console.error("resendPhotoToAllAdminsMainBot: download failed", photoRes.status);
+      return false;
+    }
+    const photoBlob = await photoRes.blob();
+    const adminIds = await getAllAdminIds(supabase);
+    let anySent = false;
+    for (const adminId of adminIds) {
+      try {
+        const form = new FormData();
+        form.append("chat_id", adminId.toString());
+        form.append("photo", photoBlob, "photo.jpg");
+        if (caption) {
+          form.append("caption", caption);
+          form.append("parse_mode", "HTML");
+        }
+        const res = await fetch(`https://api.telegram.org/bot${mainBotToken}/sendPhoto`, {
+          method: "POST",
+          body: form,
+        });
+        const result = await res.json();
+        if (result.ok) anySent = true;
+        else console.error("resendPhotoToAllAdminsMainBot: send error", result);
+      } catch (e) {
+        console.error("resendPhotoToAllAdminsMainBot: send to admin error", e);
+      }
+    }
+    return anySent;
+  } catch (e) {
+    console.error("resendPhotoToAllAdminsMainBot error:", e);
+    return false;
+  }
+}
+
 // ===== UPI HELPERS =====
 function generatePayUrl(amount: number): string {
   return `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR`;
@@ -367,9 +423,17 @@ async function handleResaleScreenshot(
     },
   };
 
-  // Forward screenshot to admins on MAIN bot, then send action buttons
-  try { await forwardToAllAdminsMainBot(mainBotToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
-
+  // Forward screenshot to admins on MAIN bot, then send action buttons.
+  // file_id is bot-scoped, so we re-download via resale bot and re-upload via main bot.
+  const fileId = msg.photo?.[msg.photo.length - 1]?.file_id;
+  if (fileId) {
+    try {
+      const photoCaption = `📸 <b>Resale Payment Screenshot</b>\n👤 User: <code>${userId}</code>\n📦 ${stateData.productName}`;
+      await resendPhotoToAllAdminsMainBot(token, mainBotToken, supabase, fileId, photoCaption);
+    } catch (e) { console.error("Resend screenshot error:", e); }
+  } else {
+    try { await forwardToAllAdminsMainBot(mainBotToken, supabase, chatId, msg.message_id); } catch (e) { console.error("Forward error:", e); }
+  }
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await notifyAllAdminsMainBot(mainBotToken, supabase, adminMsg, adminButtons);
