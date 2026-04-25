@@ -150,7 +150,6 @@ const UnstructuredView: React.FC<{ parsed: ReturnType<typeof parseCredential> }>
           )}
         </div>
       </div>
-    </div>
   );
 };
 
