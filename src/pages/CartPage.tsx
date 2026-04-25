@@ -146,8 +146,15 @@ const CartPage: React.FC = () => {
             .single();
           if (productData?.show_link_in_website !== false) {
             if (productData?.access_link || productData?.delivery_mode === 'unique') isInstant = true;
-            if (item.variation && (item.variation.access_link || item.variation.delivery_message || item.variation.delivery_mode === 'unique')) {
-              isInstant = true;
+            if (item.variation_id) {
+              const { data: varData } = await supabase
+                .from('product_variations')
+                .select('access_link, delivery_message, delivery_mode')
+                .eq('id', item.variation_id)
+                .single();
+              if (varData && (varData.access_link || varData.delivery_message || varData.delivery_mode === 'unique')) {
+                isInstant = true;
+              }
             }
           }
         }
