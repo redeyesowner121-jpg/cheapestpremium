@@ -89,10 +89,9 @@ Deno.serve(async (req) => {
     if (body.recipients === 'custom') {
       recipients = (body.customEmails || []).map(e => e.trim()).filter(Boolean);
     } else {
-      let q = supabase.from('profiles').select('email, is_verified');
-      if (body.recipients === 'verified') q = q.eq('is_verified', true);
-      const { data: profs, error } = await q;
-      if (error) throw error;
+      let q = supabase.from('profiles').select('email');
+      const { data: profs, error } = await q.limit(10000);
+      if (error) throw new Error('profiles query failed: ' + (error.message || JSON.stringify(error)));
       recipients = (profs || []).map((p: any) => p.email).filter(Boolean);
     }
 
