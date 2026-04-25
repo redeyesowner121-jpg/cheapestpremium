@@ -288,6 +288,21 @@ export async function handleMenuCallbacks(
   }
   if (data === "get_offers") { await handleGetOffers(BOT_TOKEN, supabase, chatId, lang); return true; }
   if (data === "website_login") { await handleLoginCode(BOT_TOKEN, supabase, chatId, userId, lang); return true; }
+  if (data === "set_email") {
+    const { handleSetEmailCommand } = await import("../email-handler.ts");
+    await handleSetEmailCommand(BOT_TOKEN, supabase, chatId, userId, lang);
+    return true;
+  }
+  if (data === "my_email") {
+    const { handleMyEmailCommand } = await import("../email-handler.ts");
+    await handleMyEmailCommand(BOT_TOKEN, supabase, chatId, userId, lang);
+    return true;
+  }
+  if (data === "remove_email") {
+    const { removeEmail } = await import("../email-handler.ts");
+    await removeEmail(BOT_TOKEN, supabase, chatId, userId, lang);
+    return true;
+  }
 
   // /send quick amount buttons
   if (data.startsWith("send_amt_")) {
