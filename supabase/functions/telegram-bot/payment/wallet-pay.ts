@@ -129,6 +129,28 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     await sendMessage(token, chatId,
       t("wallet_paid", lang).replace("{amount}", String(amount)).replace("{product}", productName)
     );
+    // Send "Order Confirmed" email for auto-delivered orders (in addition to the delivery email).
+    // The instant-delivery email contains login/access details — this confirms the purchase itself.
+    try {
+      const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
+      await sendBotUserEmail(supabase, userId,
+        `✅ Order Successful — ${productName}`,
+        {
+          title: "Your order is confirmed!",
+          preheader: `${productName} has been delivered. Check your Telegram for access details.`,
+          badge: { text: "Confirmed", color: "#10b981" },
+          intro: `Thanks for your purchase! Your order has been confirmed and the product has been delivered. Access/login details have been sent to you on Telegram${websiteAccessLink ? " and are also available on the website" : ""}.`,
+          blocks: [
+            { label: "Product", value: productName },
+            { label: "Order ID", value: order?.id || "—", mono: true },
+            { label: "Quantity", value: String(quantity) },
+            { label: "Amount Paid", value: `₹${amount} (Wallet)` },
+          ],
+          ctaButton: { label: "Open Telegram Bot", url: "https://t.me/Air1_Premium_bot" },
+        },
+        { template: "bot_order_confirmed", order_id: order?.id }
+      );
+    } catch (e) { console.error("[order-confirmed-email]", e); }
   }
 
   const mainToken = isChildBotOrder ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
