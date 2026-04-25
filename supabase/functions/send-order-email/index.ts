@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
 
     // 1) Try SMTP first
     if (smtpCfg) {
-      const r = await sendViaSmtp(smtpCfg, { to: payload.to, subject, html });
+      const r = await sendViaSmtp(smtpCfg, { to: payload.to, subject, html, text });
       if (r.ok) {
         await supabase.from('email_send_log').insert({
           template_name: `order_${payload.status}`,
