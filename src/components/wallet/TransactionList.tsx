@@ -30,6 +30,7 @@ interface TransactionListProps {
 const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
   const { settings } = useAppSettingsContext();
   const { formatPrice } = useCurrencyFormat();
+  const navigate = useNavigate();
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'deposit':
