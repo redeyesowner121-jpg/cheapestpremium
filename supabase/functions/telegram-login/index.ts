@@ -283,6 +283,7 @@ Deno.serve(async (req: Request) => {
       name,
       wallet_balance: mergedBalance,
       total_deposit: mergedTotalDeposit,
+      telegram_id: telegramId, // permanent bot↔website link
     };
 
     // Sync reseller status from bot to website
