@@ -12,6 +12,7 @@ import {
 } from '@/components/admin';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminNavigation from '@/components/admin/AdminNavigation';
+import SystemConfigTab from '@/components/admin/system-config/SystemConfigTab';
 import { FlashSaleModal, VariationsModal } from '@/components/admin/modals';
 import AdminUserModal from '@/components/admin/modals/AdminUserModal';
 import AdminOrderModal from '@/components/admin/modals/AdminOrderModal';
@@ -20,7 +21,7 @@ import AdminBannerModal from '@/components/admin/modals/AdminBannerModal';
 import AdminTempAdminModal from '@/components/admin/modals/AdminTempAdminModal';
 import AdminAnnouncementModal from '@/components/admin/modals/AdminAnnouncementModal';
 
-const VALID_TABS = ['overview', 'control'];
+const VALID_TABS = ['overview', 'control', 'config'];
 
 const AdminPage: React.FC = () => {
   const navigate = useNavigate();
