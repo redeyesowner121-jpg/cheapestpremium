@@ -7,7 +7,9 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const FROM_ADDRESS = 'Cheapest Premiums <onboarding@resend.dev>';
+// Falls back to Resend's shared sender if your domain isn't verified yet.
+const FROM_ADDRESS = Deno.env.get('EMAIL_FROM_ADDRESS') || 'Cheapest Premiums <support@cheapest-premiums.in>';
+const FALLBACK_FROM = 'Cheapest Premiums <onboarding@resend.dev>';
 
 interface Payload {
   to: string;
@@ -163,24 +165,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const res = await fetch(`${GATEWAY_URL}/emails`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'X-Connection-Api-Key': RESEND_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: FROM_ADDRESS,
-        to: [payload.to],
-        subject,
-        html,
-      }),
-    });
+    async function sendVia(from: string) {
+      const r = await fetch(`${GATEWAY_URL}/emails`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'X-Connection-Api-Key': RESEND_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ from, to: [payload!.to], subject, html }),
+      });
+      const t = await r.text();
+      let p: any = {};
+      try { p = JSON.parse(t); } catch { /* ignore */ }
+      return { ok: r.ok, status: r.status, text: t, parsed: p };
+    }
 
-    const respText = await res.text();
-    let parsed: any = {};
-    try { parsed = JSON.parse(respText); } catch { /* ignore */ }
+    let res = await sendVia(FROM_ADDRESS);
+    let usedFrom = FROM_ADDRESS;
+    // If domain not verified / forbidden, fall back to Resend's shared sender
+    if (!res.ok && (res.status === 403 || /domain|verify|not verified|from/i.test(res.text)) && FROM_ADDRESS !== FALLBACK_FROM) {
+      console.warn('Primary FROM failed, retrying with fallback:', res.status, res.text.slice(0, 200));
+      res = await sendVia(FALLBACK_FROM);
+      usedFrom = FALLBACK_FROM;
+    }
+    const respText = res.text;
+    const parsed = res.parsed;
 
     if (!res.ok) {
       console.error('Resend send failed', res.status, respText);
@@ -207,7 +217,7 @@ Deno.serve(async (req) => {
       provider: 'resend',
       status: 'sent',
       order_id: payload.orderId,
-      metadata: { product: payload.productName },
+      metadata: { product: payload.productName, from: usedFrom },
     });
 
     return new Response(JSON.stringify({ success: true, id: parsed.id }), {
