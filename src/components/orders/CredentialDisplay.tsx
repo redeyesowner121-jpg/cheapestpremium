@@ -150,7 +150,16 @@ const UnstructuredView: React.FC<{ parsed: ReturnType<typeof parseCredential> }>
           )}
         </div>
       </div>
-    );
+    </div>
+  );
+};
+
+const CredentialDisplay: React.FC<Props> = ({ rawCredential }) => {
+  const parsed = parseCredential(rawCredential);
+
+  // Unstructured: fall back to original "link" display
+  if (!parsed.hasStructured && !parsed.email && !parsed.password && !parsed.twoFASecret) {
+    return <UnstructuredView parsed={parsed} />;
   }
 
   return (
