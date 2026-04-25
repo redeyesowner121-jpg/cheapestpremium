@@ -284,6 +284,25 @@ Deno.serve(async (req) => {
         clearChildBotContext(); return jsonOk();
       }
 
+      // Apply (reseller/wholesaler) callbacks
+      if (data === "apply_type_reseller" || data === "apply_type_wholesaler") {
+        const { handleApplyTypeChoice } = await import("./apply-handler.ts");
+        const appType = data === "apply_type_wholesaler" ? "wholesaler" : "reseller";
+        await handleApplyTypeChoice(BOT_TOKEN, supabase, chatId, userId, appType, lang);
+        clearChildBotContext(); return jsonOk();
+      }
+      if (data.startsWith("apply_approve_") || data.startsWith("apply_reject_")) {
+        if (!await isAdminBot(supabase, userId)) {
+          clearChildBotContext(); return jsonOk();
+        }
+        const isApprove = data.startsWith("apply_approve_");
+        const appId = data.slice(isApprove ? 14 : 13);
+        const { handleApplyApprove, handleApplyReject } = await import("./apply-handler.ts");
+        if (isApprove) await handleApplyApprove(BOT_TOKEN, supabase, chatId, userId, appId);
+        else await handleApplyReject(BOT_TOKEN, supabase, chatId, userId, appId);
+        clearChildBotContext(); return jsonOk();
+      }
+
       if (await handleMenuCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
 
       clearChildBotContext();
@@ -482,6 +501,12 @@ Deno.serve(async (req) => {
             const { handleRedeemCommand } = await import("./redeem-handler.ts");
             const inlineCode = parts.slice(1).join(" ").trim();
             await handleRedeemCommand(BOT_TOKEN, supabase, chatId, userId, lang, inlineCode);
+            break;
+          }
+          case "/apply": {
+            if (isGiveaway || isChildMode) break;
+            const { handleApplyCommand } = await import("./apply-handler.ts");
+            await handleApplyCommand(BOT_TOKEN, supabase, chatId, userId, lang);
             break;
           }
           case "/send": {

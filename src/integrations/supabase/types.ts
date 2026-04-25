@@ -2270,6 +2270,57 @@ export type Database = {
           },
         ]
       }
+      reseller_applications: {
+        Row: {
+          admin_note: string | null
+          application_type: string
+          created_at: string
+          description: string
+          first_name: string | null
+          id: string
+          proof_image_url: string | null
+          proof_telegram_file_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          telegram_id: number
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          application_type: string
+          created_at?: string
+          description: string
+          first_name?: string | null
+          id?: string
+          proof_image_url?: string | null
+          proof_telegram_file_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          telegram_id: number
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          application_type?: string
+          created_at?: string
+          description?: string
+          first_name?: string | null
+          id?: string
+          proof_image_url?: string | null
+          proof_telegram_file_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          telegram_id?: number
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           created_at: string | null

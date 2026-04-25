@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Service role reseller applications" ON public.reseller_applications;
