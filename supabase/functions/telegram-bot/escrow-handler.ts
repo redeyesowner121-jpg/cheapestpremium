@@ -77,30 +77,34 @@ export async function handleEscrowCommand(token: string, supabase: any, chatId: 
 
 // =================== START CREATION ===================
 export async function escrowStartCreate(token: string, supabase: any, chatId: number, userId: number) {
-  await setConversationState(supabase, userId, "escrow_awaiting_email", {});
+  await setConversationState(supabase, userId, "escrow_awaiting_identifier", {});
   await sendMessage(token, chatId,
     `➕ <b>New Escrow — Step 1 of 3</b>\n\n` +
-    `Enter the <b>seller's email address</b> (their account email on our platform).\n\n` +
-    `<i>The seller must have an account on cheapest-premiums.in</i>\n\n` +
+    `Enter the seller's <b>email</b>, <b>@username</b>, or <b>numeric Telegram ID</b>.\n\n` +
+    `Examples:\n` +
+    `• <code>seller@gmail.com</code>\n` +
+    `• <code>@cool_seller</code>\n` +
+    `• <code>123456789</code>\n\n` +
+    `<i>The seller must have used this bot or have an account on cheapest-premiums.in</i>\n\n` +
     `/cancel to abort`,
     { reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "escrow_menu" }]] } }
   );
 }
 
 // =================== CONVERSATION STEPS ===================
-export async function escrowHandleEmailInput(token: string, supabase: any, chatId: number, userId: number, text: string) {
-  const email = text.trim().toLowerCase();
-  if (!email.includes("@") || email.length < 5) {
-    await sendMessage(token, chatId, "❌ Please send a valid email address.");
+export async function escrowHandleIdentifierInput(token: string, supabase: any, chatId: number, userId: number, text: string) {
+  const identifier = text.trim();
+  if (identifier.length < 3) {
+    await sendMessage(token, chatId, "❌ Please send a valid email, @username, or numeric Telegram ID.");
     return;
   }
 
-  // Verify seller exists
-  const { data: seller } = await supabase
-    .from("profiles").select("id,name,email").eq("email", email).maybeSingle();
-  if (!seller) {
+  // Resolve via DB
+  const { data: rows, error } = await supabase.rpc("find_profile_by_identifier", { _identifier: identifier });
+  const seller = Array.isArray(rows) ? rows[0] : null;
+  if (error || !seller?.profile_id) {
     await sendMessage(token, chatId,
-      "❌ No user found with that email.\n\nPlease check or ask seller to register on https://cheapest-premiums.in",
+      "❌ No user found with that identifier.\n\nMake sure they have used this bot at least once, or have a website account.",
       { reply_markup: { inline_keyboard: [[{ text: "🔄 Try Again", callback_data: "escrow_new" }, { text: "❌ Cancel", callback_data: "escrow_menu" }]] } }
     );
     await deleteConversationState(supabase, userId);
@@ -108,15 +112,21 @@ export async function escrowHandleEmailInput(token: string, supabase: any, chatI
   }
 
   const buyerProfileId = await resolveProfileUserId(supabase, userId);
-  if (seller.id === buyerProfileId) {
+  if (seller.profile_id === buyerProfileId) {
     await sendMessage(token, chatId, "❌ You cannot create an escrow with yourself.");
     await deleteConversationState(supabase, userId);
     return;
   }
 
-  await setConversationState(supabase, userId, "escrow_awaiting_amount", { sellerEmail: email, sellerName: seller.name });
+  const kindLabel = seller.identifier_kind === 'email' ? '📧 email'
+    : seller.identifier_kind === 'username' ? '🔗 @username' : '🆔 Telegram ID';
+
+  await setConversationState(supabase, userId, "escrow_awaiting_amount", {
+    sellerIdentifier: identifier,
+    sellerName: seller.name || seller.email || identifier,
+  });
   await sendMessage(token, chatId,
-    `✅ Seller found: <b>${seller.name || email}</b>\n\n` +
+    `✅ Seller found via ${kindLabel}: <b>${seller.name || seller.email || identifier}</b>\n\n` +
     `<b>Step 2 of 3 — Amount</b>\n\nEnter the amount in ₹ (just the number, e.g. <code>500</code>):`,
     { reply_markup: { inline_keyboard: [[{ text: "❌ Cancel", callback_data: "escrow_menu" }]] } }
   );
@@ -159,9 +169,11 @@ export async function escrowHandleDescriptionInput(token: string, supabase: any,
   if (desc.length < 5) { await sendMessage(token, chatId, "❌ Description must be at least 5 characters."); return; }
 
   const profileId = await resolveProfileUserId(supabase, userId);
-  const { data, error } = await supabase.rpc("create_escrow_deal", {
-    _buyer_id: profileId, _seller_email: stateData.sellerEmail,
-    _amount: stateData.amount, _description: desc,
+  const { data, error } = await supabase.rpc("create_escrow_deal_by_identifier", {
+    _buyer_id: profileId,
+    _identifier: stateData.sellerIdentifier ?? stateData.sellerEmail,
+    _amount: stateData.amount,
+    _description: desc,
   });
   await deleteConversationState(supabase, userId);
 
@@ -169,8 +181,8 @@ export async function escrowHandleDescriptionInput(token: string, supabase: any,
 
   await sendMessage(token, chatId,
     `🎉 <b>Escrow Request Sent!</b>\n\n` +
-    `📦 ${desc}\n💰 ₹${stateData.amount}\n👤 To: ${stateData.sellerName || stateData.sellerEmail}\n\n` +
-    `⏳ Waiting for seller to accept. They'll be notified via website & email.\n\n` +
+    `📦 ${desc}\n💰 ₹${stateData.amount}\n👤 To: ${stateData.sellerName || data?.seller_name || stateData.sellerIdentifier}\n\n` +
+    `⏳ Auto-cancels in <b>30 minutes</b> if seller doesn't accept. They'll be notified via Telegram & website.\n\n` +
     `💡 Funds are held only AFTER seller accepts. You can cancel anytime before that.`,
     {
       reply_markup: {
@@ -407,13 +419,45 @@ export async function escrowHandleDisputeReason(token: string, supabase: any, ch
 
 export async function escrowHandleChatMessage(token: string, supabase: any, chatId: number, userId: number, text: string, stateData: any) {
   const profileId = await resolveProfileUserId(supabase, userId);
+  const trimmed = text.trim();
+
+  // AI moderation — catches obfuscated contact-sharing the regex misses.
+  try {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey) {
+      const modResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content:
+              "You are a strict moderator for an escrow chat. Block ANY attempt to share contact info or move off-platform, even obfuscated (spaces, dots, words like 'at'/'dot', emojis, leet, foreign scripts). Includes: emails, phone/WA numbers, telegram/insta/fb/discord usernames or links, t.me/wa.me/discord.gg, http links, upi IDs (name@bank), crypto addresses, invitations to deal outside escrow. Allow normal trade chat. Reply ONLY JSON: {\"blocked\":bool,\"reason\":short string}." },
+            { role: "user", content: trimmed },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (modResp.ok) {
+        const j = await modResp.json();
+        const raw = j?.choices?.[0]?.message?.content || "{}";
+        let parsed: any = {}; try { parsed = JSON.parse(raw); } catch {}
+        if (parsed?.blocked) {
+          await sendMessage(token, chatId,
+            `🚫 <b>Message blocked by AI moderation</b>\n\n${parsed.reason || "Sharing contact info or off-platform deals is not allowed."}\n\nPlease keep all communication on the escrow chat.`);
+          return;
+        }
+      }
+    }
+  } catch (e) { console.warn("Bot escrow AI mod failed:", e); /* fail-open */ }
+
   const { error } = await supabase.rpc('send_escrow_message',
-    { _sender_id: profileId, _deal_id: stateData.dealId, _message: text.trim() });
+    { _sender_id: profileId, _deal_id: stateData.dealId, _message: trimmed });
   await deleteConversationState(supabase, userId);
   if (error) { await sendMessage(token, chatId, `❌ ${error.message}`); return; }
   await sendMessage(token, chatId, "✅ Message sent.");
   await notifyOther(token, supabase, stateData.dealId, profileId!,
-    `💬 New message in escrow deal:\n\n<i>${text.trim().slice(0, 500)}</i>`,
+    `💬 New message in escrow deal:\n\n<i>${trimmed.slice(0, 500)}</i>`,
     stateData.dealId);
 }
 
