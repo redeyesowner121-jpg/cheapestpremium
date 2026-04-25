@@ -420,7 +420,9 @@ const CartPage: React.FC = () => {
               const basePrice = item.variation?.price || item.product?.price || 0;
               const resellerPrice = item.variation?.reseller_price || item.product?.reseller_price || null;
               const { finalPrice } = calculateFinalPrice(basePrice, resellerPrice, userRank, isReseller);
-              const isOutOfStock = item.product?.stock !== null && item.product?.stock !== undefined && item.product.stock <= 0;
+              // Repeated-mode variations are infinite-supply; never out of stock
+              const variationIsRepeated = (item.variation as any)?.delivery_mode === 'repeated';
+              const isOutOfStock = !variationIsRepeated && item.product?.stock !== null && item.product?.stock !== undefined && item.product.stock <= 0;
 
               return (
                 <div key={item.id} className={`bg-card rounded-2xl p-4 shadow-card ${isOutOfStock ? 'opacity-60' : ''}`}>
@@ -595,7 +597,7 @@ const CartPage: React.FC = () => {
             <Button
               className="w-full h-12 btn-gradient rounded-xl text-base"
               onClick={handleCheckout}
-              disabled={checkingOut || productItems.some(i => i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
+              disabled={checkingOut || productItems.some(i => (i.variation as any)?.delivery_mode !== 'repeated' && i.product?.stock !== null && i.product?.stock !== undefined && i.product.stock <= 0)}
             >
               {checkingOut ? 'Processing...' : isAAX
                 ? `🔱 Checkout - ₹${(cartSummary.grandTotal - cartSummary.grandTotal * AAX_ACTUAL_DISCOUNT / 100).toFixed(2)}`
