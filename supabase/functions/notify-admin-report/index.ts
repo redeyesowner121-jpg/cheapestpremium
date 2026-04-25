@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
     // Send email via Outlook
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const OUTLOOK_KEY = Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_2') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY');
+    const OUTLOOK_KEY = Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_3') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_2') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_1') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY');
 
     let emailSent = false;
     let emailError: string | null = null;
