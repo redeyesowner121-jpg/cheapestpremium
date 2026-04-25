@@ -171,6 +171,7 @@ export async function sendBotUserEmail(
     return { ok: !!result.ok, reason: result.ok ? undefined : (result.error || "send_failed") };
   } catch (e) {
     console.error("[bot-email] send error:", e);
-    return { ok: false, reason: String(e?.message || e) };
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, reason: msg };
   }
 }
