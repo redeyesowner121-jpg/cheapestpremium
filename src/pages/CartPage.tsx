@@ -331,13 +331,14 @@ const CartPage: React.FC = () => {
         const recipientName = profile?.name || 'Customer';
         if (recipientEmail) {
           orders.forEach((o: any) => {
+            if (!o.id) return;
             supabase.functions.invoke('send-order-email', {
               body: {
                 to: recipientEmail,
                 customerName: recipientName,
                 productName: o.product_name,
-                orderId: o.id || crypto.randomUUID(),
-                status: o.status === 'confirmed' ? 'confirmed' : 'processing',
+                orderId: o.id,
+                status: o.status === 'confirmed' ? 'confirmed' : 'pending',
                 totalPrice: o.total_price,
                 accessLink: o.access_link || undefined,
               },
