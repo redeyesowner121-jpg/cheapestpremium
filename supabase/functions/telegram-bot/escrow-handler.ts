@@ -419,13 +419,45 @@ export async function escrowHandleDisputeReason(token: string, supabase: any, ch
 
 export async function escrowHandleChatMessage(token: string, supabase: any, chatId: number, userId: number, text: string, stateData: any) {
   const profileId = await resolveProfileUserId(supabase, userId);
+  const trimmed = text.trim();
+
+  // AI moderation — catches obfuscated contact-sharing the regex misses.
+  try {
+    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+    if (lovableKey) {
+      const modResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content:
+              "You are a strict moderator for an escrow chat. Block ANY attempt to share contact info or move off-platform, even obfuscated (spaces, dots, words like 'at'/'dot', emojis, leet, foreign scripts). Includes: emails, phone/WA numbers, telegram/insta/fb/discord usernames or links, t.me/wa.me/discord.gg, http links, upi IDs (name@bank), crypto addresses, invitations to deal outside escrow. Allow normal trade chat. Reply ONLY JSON: {\"blocked\":bool,\"reason\":short string}." },
+            { role: "user", content: trimmed },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (modResp.ok) {
+        const j = await modResp.json();
+        const raw = j?.choices?.[0]?.message?.content || "{}";
+        let parsed: any = {}; try { parsed = JSON.parse(raw); } catch {}
+        if (parsed?.blocked) {
+          await sendMessage(token, chatId,
+            `🚫 <b>Message blocked by AI moderation</b>\n\n${parsed.reason || "Sharing contact info or off-platform deals is not allowed."}\n\nPlease keep all communication on the escrow chat.`);
+          return;
+        }
+      }
+    }
+  } catch (e) { console.warn("Bot escrow AI mod failed:", e); /* fail-open */ }
+
   const { error } = await supabase.rpc('send_escrow_message',
-    { _sender_id: profileId, _deal_id: stateData.dealId, _message: text.trim() });
+    { _sender_id: profileId, _deal_id: stateData.dealId, _message: trimmed });
   await deleteConversationState(supabase, userId);
   if (error) { await sendMessage(token, chatId, `❌ ${error.message}`); return; }
   await sendMessage(token, chatId, "✅ Message sent.");
   await notifyOther(token, supabase, stateData.dealId, profileId!,
-    `💬 New message in escrow deal:\n\n<i>${text.trim().slice(0, 500)}</i>`,
+    `💬 New message in escrow deal:\n\n<i>${trimmed.slice(0, 500)}</i>`,
     stateData.dealId);
 }
 
