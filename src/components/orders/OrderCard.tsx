@@ -90,7 +90,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const navigate = useNavigate();
   const { formatPrice } = useCurrencyFormat();
   const isSellerOrder = !!order.seller_id;
-  const needsConfirmation = isSellerOrder && order.status === 'completed' && order.access_link && !order.buyer_confirmed;
+  const needsConfirmation = isSellerOrder && ['completed','confirmed','shipped','delivered'].includes(order.status) && order.access_link && !order.buyer_confirmed;
   
   const handleReorder = () => {
     if (order.product_id) {
