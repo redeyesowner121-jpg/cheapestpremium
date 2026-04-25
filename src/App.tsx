@@ -13,8 +13,26 @@ import SubdomainLanding, { getSubdomainConfig } from "@/components/SubdomainLand
 import { Construction, Settings } from "lucide-react";
 import Index from "./pages/Index";
 
-const AIChatWidget = lazy(() => import("@/components/AIChatWidget"));
-const RecentOrderNotification = lazy(() => import("@/components/RecentOrderNotification"));
+const AIChatWidget = lazy(() =>
+  new Promise<typeof import("@/components/AIChatWidget")>((resolve) => {
+    const load = () => resolve(import("@/components/AIChatWidget"));
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(load, { timeout: 3000 });
+    } else {
+      setTimeout(load, 2000);
+    }
+  })
+);
+const RecentOrderNotification = lazy(() =>
+  new Promise<typeof import("@/components/RecentOrderNotification")>((resolve) => {
+    const load = () => resolve(import("@/components/RecentOrderNotification"));
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(load, { timeout: 3000 });
+    } else {
+      setTimeout(load, 1500);
+    }
+  })
+);
 
 // Lazy load all pages except Index
 const AuthPage = lazy(() => import("./pages/AuthPage"));
