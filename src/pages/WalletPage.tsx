@@ -97,6 +97,7 @@ const WalletPage: React.FC = () => {
         transactionId={wallet.transactionId} onTransactionIdChange={wallet.setTransactionId}
         senderName={wallet.senderName} onSenderNameChange={wallet.setSenderName}
         initialTab={depositInitialTab}
+        initialMethod={depositInitialMethod}
       />
 
       <TransferDialog open={showTransferModal} onOpenChange={setShowTransferModal}
