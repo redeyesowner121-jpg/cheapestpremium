@@ -25,6 +25,7 @@ import {
 } from './sections';
 import AdminBotTabs from './AdminBotTabs';
 import AdminCartMessagesManager from './AdminCartMessagesManager';
+import AdminEmailBroadcast from './AdminEmailBroadcast';
 
 interface AdminControlTabProps {
   data: AdminData;
