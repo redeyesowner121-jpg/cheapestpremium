@@ -117,6 +117,12 @@ const ProductDetailPage: React.FC = () => {
         return;
       }
       
+      // If selected variation is 'repeated', it's an infinite-supply digital link — never out of stock
+      if (variation && varDeliveryMode === 'repeated') {
+        setCurrentStock(null);
+        return;
+      }
+      
       // For repeated/manual delivery: use admin-set stock or null (infinity)
       setCurrentStock(product.stock ?? null);
     };
