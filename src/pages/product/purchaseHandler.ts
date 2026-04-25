@@ -184,7 +184,7 @@ export const handleProductPurchase = async (
           customerName: recipientName,
           productName,
           orderId: insertedOrder.id,
-          status: isInstantDelivery ? 'confirmed' : 'processing',
+          status: isInstantDelivery ? 'confirmed' : 'pending',
           totalPrice: finalTotal,
           accessLink: accessLink || undefined,
         },
