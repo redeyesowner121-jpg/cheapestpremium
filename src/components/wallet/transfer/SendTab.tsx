@@ -24,13 +24,16 @@ interface SendTabProps {
   loading: boolean;
   /** amount string is in INR (the canonical currency for transfer_funds) */
   onTransfer: (recipient: UserProfile, amountInr: string, note: string) => void;
+  /** Called when we need to redirect away (e.g. to deposit page) — parent should close the dialog */
+  onClose?: () => void;
 }
 
 type Mode = 'choose' | 'scanner' | 'email';
 
 const INR: CurrencyInfo = { code: 'INR', symbol: '₹', rate_to_inr: 1 };
 
-const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTransfer }) => {
+const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTransfer, onClose }) => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const [mode, setMode] = useState<Mode>('choose');
   const [email, setEmail] = useState('');
