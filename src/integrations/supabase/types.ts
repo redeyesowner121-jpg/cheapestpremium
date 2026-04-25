@@ -2267,6 +2267,8 @@ export type Database = {
       telegram_bot_users: {
         Row: {
           created_at: string
+          email: string | null
+          email_verified: boolean
           first_name: string | null
           id: string
           is_banned: boolean
@@ -2278,6 +2280,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
+          email_verified?: boolean
           first_name?: string | null
           id?: string
           is_banned?: boolean
@@ -2289,6 +2293,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
+          email_verified?: boolean
           first_name?: string | null
           id?: string
           is_banned?: boolean
