@@ -71,14 +71,28 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScan, onError }) => {
       // Stop live camera scanner first to free the element
       await safeStop(scannerRef.current);
       const fileScanner = new Html5Qrcode(elRef.current!.id, false);
-      const decoded = await fileScanner.scanFile(file, true);
+      let decoded: string | null = null;
+      try {
+        decoded = await fileScanner.scanFile(file, true);
+      } catch {
+        // Retry without the helper crop — works better on tight QR images
+        try {
+          decoded = await fileScanner.scanFile(file, false);
+        } catch (err2) {
+          throw err2;
+        }
+      }
       try { await fileScanner.clear(); } catch { /* ignore */ }
+      if (!decoded) throw new Error('No QR code found in image');
       handledRef.current = true;
       onScan(decoded);
     } catch (err: any) {
-      const msg = err?.message || 'No QR code found in image';
-      toast.error(msg);
-      onError?.(msg);
+      const raw = err?.message || String(err) || '';
+      const friendly = /No MultiFormat Readers|No QR code found|not detect/i.test(raw)
+        ? 'Could not read QR. Try a clearer/cropped image or use the live camera.'
+        : raw;
+      toast.error(friendly);
+      onError?.(friendly);
     } finally {
       setScanning(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
