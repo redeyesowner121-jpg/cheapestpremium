@@ -490,10 +490,15 @@ async function notifyOther(token: string, supabase: any, dealId: string, senderP
     const { data: d } = await supabase.from("escrow_deals").select("buyer_id,seller_id").eq("id", dealId).single();
     if (!d) return;
     const otherProfileId = d.buyer_id === senderProfileId ? d.seller_id : d.buyer_id;
-    const { data: p } = await supabase.from("profiles").select("email").eq("id", otherProfileId).single();
-    const m = p?.email?.match(/^telegram_(\d+)@bot\.local$/);
-    if (!m) return;
-    const tgId = parseInt(m[1]);
+    const { data: p } = await supabase.from("profiles").select("email,telegram_id").eq("id", otherProfileId).single();
+    let tgId: number | null = null;
+    if (p?.telegram_id) {
+      tgId = Number(p.telegram_id);
+    } else {
+      const m = p?.email?.match(/^telegram_(\d+)@bot\.local$/);
+      if (m) tgId = parseInt(m[1]);
+    }
+    if (!tgId) return;
     await sendMessage(token, tgId, msg, {
       reply_markup: { inline_keyboard: [[{ text: "👀 View Deal", callback_data: `escrow_view_${viewDealId}` }]] }
     });
