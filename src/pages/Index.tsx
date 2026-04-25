@@ -222,7 +222,21 @@ const Index: React.FC = () => {
     <div className="min-h-screen pb-24 relative overflow-hidden bg-page-gradient">
       <SEOHead
         canonicalPath="/"
-        description="Buy cheapest premium subscriptions in India — Netflix, Spotify, YouTube, Canva, ChatGPT & more at lowest prices. Instant delivery, 100% genuine."
+        description="Buy cheapest premium subscriptions in India — Netflix, Spotify, YouTube Premium, Canva Pro, ChatGPT Plus & more at lowest prices. Instant delivery, 100% genuine accounts. Save up to 90%."
+        keywords="cheap netflix india, buy spotify premium cheap, youtube premium cheap, canva pro cheap, chatgpt plus india, cheapest premium subscription, ott cheap india, premium accounts wholesale"
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "Are these premium accounts genuine?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, 100% genuine accounts purchased from official sources. We provide instant delivery with replacement warranty." } },
+              { "@type": "Question", "name": "How fast is the delivery?", "acceptedAnswer": { "@type": "Answer", "text": "Instant delivery — credentials are sent within seconds of payment confirmation via website and Telegram bot." } },
+              { "@type": "Question", "name": "What payment methods are accepted?", "acceptedAnswer": { "@type": "Answer", "text": "We accept UPI, Razorpay, Binance Pay, and wallet balance for fast and secure checkout." } },
+              { "@type": "Question", "name": "Do you offer warranty?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — all premium subscriptions come with a replacement warranty for the validity period mentioned." } },
+              { "@type": "Question", "name": "Why is Cheapest Premiums the best?", "acceptedAnswer": { "@type": "Answer", "text": "We offer the lowest prices in India (up to 90% off), instant delivery, genuine accounts, and 24/7 support." } }
+            ]
+          }
+        ]}
       />
       {/* Decorative background orbs - use CSS only */}
       <div className="fixed top-20 -left-32 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none will-change-transform" />
