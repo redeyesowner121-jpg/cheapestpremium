@@ -303,6 +303,11 @@ export async function handleMenuCallbacks(
     await removeEmail(BOT_TOKEN, supabase, chatId, userId, lang);
     return true;
   }
+  if (data === "resend_email_otp") {
+    const { resendEmailOtp } = await import("../email-handler.ts");
+    await resendEmailOtp(BOT_TOKEN, supabase, chatId, userId, lang);
+    return true;
+  }
 
   // /send quick amount buttons
   if (data.startsWith("send_amt_")) {
