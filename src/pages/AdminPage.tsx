@@ -158,6 +158,12 @@ const AdminPage: React.FC = () => {
             />
           </motion.div>
         )}
+
+        {activeTab === 'config' && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <SystemConfigTab />
+          </motion.div>
+        )}
       </main>
 
       {/* Modals */}
