@@ -13,8 +13,26 @@ import SubdomainLanding, { getSubdomainConfig } from "@/components/SubdomainLand
 import { Construction, Settings } from "lucide-react";
 import Index from "./pages/Index";
 
-const AIChatWidget = lazy(() => import("@/components/AIChatWidget"));
-const RecentOrderNotification = lazy(() => import("@/components/RecentOrderNotification"));
+const AIChatWidget = lazy(() =>
+  new Promise<typeof import("@/components/AIChatWidget")>((resolve) => {
+    const load = () => resolve(import("@/components/AIChatWidget"));
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(load, { timeout: 3000 });
+    } else {
+      setTimeout(load, 2000);
+    }
+  })
+);
+const RecentOrderNotification = lazy(() =>
+  new Promise<typeof import("@/components/RecentOrderNotification")>((resolve) => {
+    const load = () => resolve(import("@/components/RecentOrderNotification"));
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      (window as any).requestIdleCallback(load, { timeout: 3000 });
+    } else {
+      setTimeout(load, 1500);
+    }
+  })
+);
 
 // Lazy load all pages except Index
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -91,6 +109,23 @@ const AppContent = () => {
       document.title = settings.app_name;
     }
   }, [settings.app_name]);
+
+  // Prefetch likely next routes during browser idle time for instant navigation
+  useEffect(() => {
+    const prefetch = () => {
+      import("./pages/ProductsPage");
+      import("./pages/ProductDetailPage");
+      import("./pages/CartPage");
+      import("./pages/WalletPage");
+      import("./pages/AuthPage");
+    };
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = (window as any).requestIdleCallback(prefetch, { timeout: 4000 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(prefetch, 2500);
+    return () => clearTimeout(t);
+  }, []);
 
   if (settings.maintenance_mode && !(isAdmin || isTempAdmin)) {
     return <MaintenanceScreen />;

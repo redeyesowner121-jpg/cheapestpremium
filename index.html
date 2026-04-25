@@ -22,9 +22,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://aeiqhaqwudhhdfsvnnja.supabase.co" />
+    <link rel="dns-prefetch" href="https://aeiqhaqwudhhdfsvnnja.supabase.co" />
+    <link rel="dns-prefetch" href="https://storage.googleapis.com" />
 
-    <!-- Preload critical font -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" as="style" />
+    <!-- Load font as stylesheet (non-blocking via media swap) -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" /></noscript>
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -100,7 +103,6 @@
 
   <body>
     <div id="root"></div>
-    <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
