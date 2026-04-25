@@ -5,7 +5,7 @@ import { sendMessage } from "../telegram-api.ts";
 import { getSettings, getWallet, notifyAllAdmins } from "../db-helpers.ts";
 import { syncPurchaseToProfile } from "./sync-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
-import { getChildBotContext } from "../child-context.ts";
+import { getChildBotContext, getChildBotLabel } from "../child-context.ts";
 
 export async function handleWalletPay(token: string, supabase: any, chatId: number, userId: number, amount: number, productName: string, lang: string, productId?: string, childBotId?: string, childBotRevenue?: number, quantity: number = 1) {
   const wallet = await getWallet(supabase, userId);
