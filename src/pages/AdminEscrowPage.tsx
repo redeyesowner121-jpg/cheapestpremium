@@ -173,6 +173,22 @@ const AdminEscrowPage: React.FC = () => {
                       </Button>
                     </div>
                   )}
+
+                  <Button size="sm" variant="outline" className="rounded-lg w-full"
+                    onClick={() => setChatDealId(chatDealId === d.id ? null : d.id)}>
+                    <MessageSquare className="w-4 h-4 mr-1" />
+                    {chatDealId === d.id ? 'Hide Chat' : 'View / Reply in Chat'}
+                  </Button>
+
+                  {chatDealId === d.id && user && (
+                    <AdminEscrowChatPanel
+                      dealId={d.id}
+                      adminId={user.id}
+                      buyerId={d.buyer_id}
+                      sellerId={d.seller_id}
+                      onClose={() => setChatDealId(null)}
+                    />
+                  )}
                 </div>
               );
             })}
