@@ -1,11 +1,34 @@
 User-agent: *
 Allow: /
+Allow: /products
+Allow: /product/
 
-# Disallow admin and auth pages
+# Disallow private/admin areas
 Disallow: /admin
 Disallow: /auth
+Disallow: /profile
 Disallow: /profile/edit
 Disallow: /transactions
+Disallow: /notifications
+Disallow: /chat
+Disallow: /cart
+Disallow: /orders
+Disallow: /wallet
+Disallow: /resale-purchase
+Disallow: /binance-test
+Disallow: /*?*utm_
+Disallow: /*?*fbclid
 
-# Sitemap (dynamic - includes all product pages)
+# Allow all major crawlers full speed
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+# Sitemap
 Sitemap: https://cheapest-premiums.in/sitemap.xml
