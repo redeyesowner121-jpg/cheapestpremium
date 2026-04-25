@@ -48,7 +48,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | null;
+type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | 'email_broadcast' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const {
