@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,6 +12,8 @@ interface EscrowTabProps {
   userId: string;
   walletBalance: number;
   onCompleted?: () => void;
+  /** Called when the escrow flow needs to redirect away (e.g. for top-up) */
+  onClose?: () => void;
 }
 
 type Deal = {
