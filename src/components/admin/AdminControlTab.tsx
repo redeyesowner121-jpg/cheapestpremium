@@ -136,6 +136,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminCartMessagesManager />;
       case 'telegram_bot':
         return <AdminBotTabs />;
+      case 'email_broadcast':
+        return <AdminEmailBroadcast />;
       default:
         return null;
     }
