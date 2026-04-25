@@ -132,14 +132,22 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
         </div>
 
         <Button
-          onClick={() => onTransfer(recipient, inrAmount.toFixed(2), note)}
+          onClick={() => {
+            if (insufficient) {
+              const need = Math.max(0, inrAmount - walletBalance).toFixed(2);
+              onClose?.();
+              navigate(`/wallet?deposit=1&reason=insufficient&amount=${need}`);
+              return;
+            }
+            onTransfer(recipient, inrAmount.toFixed(2), note);
+          }}
           className="w-full h-12 btn-gradient rounded-xl"
-          disabled={loading || senderAmt <= 0 || insufficient}
+          disabled={loading || senderAmt <= 0}
         >
           {loading
             ? 'Sending...'
             : insufficient
-              ? 'Insufficient balance'
+              ? '💳 Top Up Wallet'
               : `Send ${senderCur.symbol}${senderAmt > 0 ? senderAmt.toFixed(2) : '0'}`}
         </Button>
       </div>
