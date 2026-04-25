@@ -66,6 +66,30 @@ export async function handleScreenshotStep(token: string, supabase: any, chatId:
     await sendMessage(token, chatId, userConfirmMsg);
   } catch (e) { console.error("User confirm msg error:", e); }
 
+  // Send "Order Placed" email if user has linked email
+  try {
+    const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
+    await sendBotUserEmail(
+      supabase,
+      userId,
+      `🛒 Order Received — ${orderData.productName}`,
+      {
+        title: "Order received — verifying payment",
+        preheader: `${orderData.productName} order received. Admin is verifying your payment.`,
+        badge: { text: "Placed", color: "#3b82f6" },
+        intro: `Thanks! We've received your payment screenshot for ${orderData.productName}. Our team is verifying it now and you'll get an update on Telegram and email shortly.`,
+        blocks: [
+          { label: "Product", value: orderData.productName },
+          { label: "Order ID", value: orderId, mono: true },
+          { label: "Quantity", value: String(orderData.quantity || 1) },
+          { label: "Amount", value: `₹${orderData.price}` },
+        ],
+        ctaButton: { label: "Open Telegram Bot", url: "https://t.me/Air1_Premium_bot" },
+      },
+      { template: "bot_order_placed", order_id: orderId }
+    );
+  } catch (e) { console.error("[order-placed-email] failed:", e); }
+
   // Build admin message
   const qty = orderData.quantity || 1;
   const unitPrice = orderData.unitPrice || orderData.price;

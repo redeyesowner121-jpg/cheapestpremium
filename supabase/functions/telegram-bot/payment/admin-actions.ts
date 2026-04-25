@@ -152,8 +152,11 @@ export async function handleAdminAction(token: string, supabase: any, orderId: s
     } else if (resolvedDelivery?.deliveryMessage?.trim() && !isChildBotOrder) {
       // Even if no link, send the delivery message
       await sendToUser(tokensToTry, order.telegram_user_id, `📝 ${resolvedDelivery.deliveryMessage}`);
-    } else if (!isChildBotOrder && !order.product_name?.startsWith("Wallet Deposit")) {
-      // No instant delivery — send a confirmation email so the user knows order is confirmed
+    }
+
+    // Always send a confirmation email (skip if instant delivery already sent a delivered email)
+    const instantDeliverySent = !!(resolvedDelivery?.link && resolvedDelivery.showInBot);
+    if (!isChildBotOrder && !order.product_name?.startsWith("Wallet Deposit") && !instantDeliverySent) {
       try {
         const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
         await sendBotUserEmail(
