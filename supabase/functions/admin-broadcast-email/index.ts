@@ -116,38 +116,55 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (smtpCfg) {
-      const client = new SMTPClient({
-        connection: {
-          hostname: smtpCfg.host,
-          port: smtpCfg.port,
-          tls: smtpCfg.secure,
-          auth: { username: smtpCfg.username, password: smtpCfg.password },
-        },
-      });
-      let sent = 0, failed = 0, firstErr: string | null = null;
       const fromHeader = `${smtpCfg.from_name} <${smtpCfg.from_email}>`;
-      for (const to of recipients) {
-        try {
-          await client.send({ from: fromHeader, to, subject: body.subject, content: body.subject, html });
-          sent++;
-          await supabase.from('email_send_log').insert({
-            template_name: 'admin_broadcast', recipient_email: to, subject: body.subject,
-            provider: 'smtp', status: 'sent', metadata: { from: fromHeader, broadcast: true, host: smtpCfg.host },
-          });
-        } catch (e) {
-          failed++;
-          const msg = e instanceof Error ? e.message : String(e);
-          if (!firstErr) firstErr = msg;
-          await supabase.from('email_send_log').insert({
-            template_name: 'admin_broadcast', recipient_email: to, subject: body.subject,
-            provider: 'smtp', status: 'failed', error_message: msg, metadata: { from: fromHeader, broadcast: true },
-          });
+      const recipientsCopy = [...recipients];
+      const subjectCopy = body.subject;
+      const htmlCopy = html;
+
+      const sendAll = async () => {
+        const client = new SMTPClient({
+          connection: {
+            hostname: smtpCfg.host,
+            port: smtpCfg.port,
+            tls: smtpCfg.secure,
+            auth: { username: smtpCfg.username, password: smtpCfg.password },
+          },
+        });
+        let sent = 0, failed = 0;
+        for (const to of recipientsCopy) {
+          try {
+            await client.send({ from: fromHeader, to, subject: subjectCopy, content: subjectCopy, html: htmlCopy });
+            sent++;
+            await supabase.from('email_send_log').insert({
+              template_name: 'admin_broadcast', recipient_email: to, subject: subjectCopy,
+              provider: 'smtp', status: 'sent', metadata: { from: fromHeader, broadcast: true, host: smtpCfg.host },
+            });
+          } catch (e) {
+            failed++;
+            const msg = e instanceof Error ? e.message : String(e);
+            await supabase.from('email_send_log').insert({
+              template_name: 'admin_broadcast', recipient_email: to, subject: subjectCopy,
+              provider: 'smtp', status: 'failed', error_message: msg, metadata: { from: fromHeader, broadcast: true },
+            });
+          }
+          await new Promise(res => setTimeout(res, 150));
         }
-        await new Promise(res => setTimeout(res, 200));
+        try { await client.close(); } catch { /* noop */ }
+        console.log(`Broadcast complete: sent=${sent}, failed=${failed}, total=${recipientsCopy.length}`);
+      };
+
+      // Run in background — return response immediately so we don't hit the 60s wall clock
+      // @ts-ignore EdgeRuntime is provided by Supabase Functions runtime
+      if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+        // @ts-ignore
+        EdgeRuntime.waitUntil(sendAll());
+      } else {
+        sendAll().catch((err) => console.error('Background send error:', err));
       }
-      try { await client.close(); } catch { /* noop */ }
+
       return new Response(JSON.stringify({
-        success: true, total: recipients.length, sent, failed, from: fromHeader, provider: 'smtp', firstError: firstErr,
+        success: true, queued: recipients.length, from: fromHeader, provider: 'smtp',
+        message: 'Broadcast queued. Sending in background — check Email Logs for progress.',
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
