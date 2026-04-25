@@ -40,7 +40,7 @@ async function findProfileByTelegramId(supabase: any, telegramId: number) {
 }
 
 async function getTelegramDisplayName(supabase: any, telegramId: number) {
-  for (const table of ["telegram_bot_users", "mother_bot_users", "child_bot_users"]) {
+  for (const table of ["telegram_bot_users", "mother_bot_users", "child_bot_users", "netflix_bot_users"]) {
     try {
       const { data } = await supabase
         .from(table)
