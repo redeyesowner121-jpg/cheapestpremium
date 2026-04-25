@@ -26,6 +26,7 @@ import {
 import AdminBotTabs from './AdminBotTabs';
 import AdminCartMessagesManager from './AdminCartMessagesManager';
 import AdminEmailBroadcast from './AdminEmailBroadcast';
+import AdminSmtpSettings from './AdminSmtpSettings';
 
 interface AdminControlTabProps {
   data: AdminData;
@@ -49,7 +50,7 @@ interface AdminControlTabProps {
   onDataChange: () => void;
 }
 
-type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | 'email_broadcast' | null;
+type ControlSection = 'orders' | 'deposits' | 'withdrawals' | 'users' | 'products' | 'categories' | 'content' | 'coupons' | 'redeem' | 'payments' | 'chat' | 'bluetick' | 'telegram_bot' | 'cart_messages' | 'email_broadcast' | 'smtp_settings' | null;
 
 const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
   const {
@@ -91,6 +92,7 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
     { id: 'cart_messages' as ControlSection, icon: SmilePlus, label: 'Cart Messages', description: 'Empty cart fun messages', color: 'bg-gradient-to-br from-fuchsia-500 to-purple-500', badge: null },
     { id: 'chat' as ControlSection, icon: MessageCircle, label: 'Messages', description: 'Customer support', color: 'bg-gradient-to-br from-teal-500 to-cyan-500', badge: null },
     { id: 'telegram_bot' as ControlSection, icon: Bot, label: 'Telegram Bot', description: 'Manage selling bot', color: 'bg-gradient-to-br from-blue-500 to-sky-500', badge: null },
+    { id: 'smtp_settings' as ControlSection, icon: Mail, label: 'SMTP Email Setup', description: 'Direct email server (Hostinger etc)', color: 'bg-gradient-to-br from-cyan-500 to-blue-600', badge: null },
     { id: 'email_broadcast' as ControlSection, icon: Send, label: 'Email Broadcast', description: 'Send email to users', color: 'bg-gradient-to-br from-violet-500 to-fuchsia-600', badge: null },
     { id: 'email_logs' as any as ControlSection, icon: Mail, label: 'Email Logs', description: 'Delivery status & errors', color: 'bg-gradient-to-br from-rose-500 to-red-600', badge: null, link: '/admin/email-logs' },
   ];
@@ -138,6 +140,8 @@ const AdminControlTab: React.FC<AdminControlTabProps> = (props) => {
         return <AdminBotTabs />;
       case 'email_broadcast':
         return <AdminEmailBroadcast />;
+      case 'smtp_settings':
+        return <AdminSmtpSettings />;
       default:
         return null;
     }
