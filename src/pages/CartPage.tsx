@@ -196,12 +196,19 @@ const CartPage: React.FC = () => {
 
       const orders = orderRows.map(r => r.row);
 
+      let insertedOrderIds: string[] = [];
       if (orders.length > 0) {
         const { data: insertedOrders, error: orderError } = await supabase.from('orders').insert(orders).select('id');
         if (orderError) throw orderError;
 
-        // Trigger instant delivery RPC for eligible orders
+        // Attach DB ids to local orders array (used later for email send)
         if (insertedOrders) {
+          insertedOrders.forEach((ord, idx) => {
+            (orders[idx] as any).id = ord.id;
+          });
+          insertedOrderIds = insertedOrders.map(o => o.id);
+
+          // Trigger instant delivery RPC for eligible orders
           await Promise.all(insertedOrders.map(async (ord, idx) => {
             const meta = orderRows[idx];
             if (meta?.isInstant && meta.requiresDeliveryRpc && meta.productId) {
@@ -324,15 +331,18 @@ const CartPage: React.FC = () => {
         const recipientName = profile?.name || 'Customer';
         if (recipientEmail) {
           orders.forEach((o: any) => {
+            if (!o.id) return;
             supabase.functions.invoke('send-order-email', {
               body: {
                 to: recipientEmail,
                 customerName: recipientName,
                 productName: o.product_name,
-                orderId: o.id || crypto.randomUUID(),
-                status: o.status === 'confirmed' ? 'confirmed' : 'processing',
+                orderId: o.id,
+                status: o.status === 'confirmed' ? 'confirmed' : 'pending',
                 totalPrice: o.total_price,
                 accessLink: o.access_link || undefined,
+                currency: settings.currency_symbol || '₹',
+                quantity: o.quantity || 1,
               },
             }).catch((e) => console.error('send-order-email failed:', e));
           });

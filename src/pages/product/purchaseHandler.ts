@@ -187,6 +187,8 @@ export const handleProductPurchase = async (
           status: isInstantDelivery ? 'confirmed' : 'pending',
           totalPrice: finalTotal,
           accessLink: accessLink || undefined,
+          currency: '₹',
+          quantity,
         },
       }).catch((e) => console.error('send-order-email failed:', e));
     }
