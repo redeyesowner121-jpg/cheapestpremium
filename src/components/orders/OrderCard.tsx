@@ -189,7 +189,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
             </>
           )}
           
-          {order.product_id && (order.status === 'completed' || order.status === 'cancelled' || order.status === 'refunded') && (
+          {order.product_id && (['completed','confirmed','shipped','delivered','cancelled','refunded'].includes(order.status)) && (
             <Button
               size="sm"
               variant="outline"
