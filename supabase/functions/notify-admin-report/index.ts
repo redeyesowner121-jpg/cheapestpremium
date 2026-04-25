@@ -6,22 +6,8 @@ const corsHeaders = {
 };
 
 const ADMIN_EMAIL = 'red.eyes.owner121@gmail.com';
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_mail/gmail/v1';
-
-function buildRawEmail(to: string, subject: string, html: string): string {
-  const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
-  const message = [
-    `To: ${to}`,
-    `Subject: ${encodedSubject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    html,
-  ].join('\r\n');
-  const utf8 = unescape(encodeURIComponent(message));
-  return btoa(utf8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+const FROM_ADDRESS = 'Cheapest Premiums <onboarding@resend.dev>';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
