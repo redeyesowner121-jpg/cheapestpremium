@@ -6,22 +6,8 @@ const corsHeaders = {
 };
 
 const ADMIN_EMAIL = 'red.eyes.owner121@gmail.com';
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_mail/gmail/v1';
-
-function buildRawEmail(to: string, subject: string, html: string): string {
-  const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
-  const message = [
-    `To: ${to}`,
-    `Subject: ${encodedSubject}`,
-    'MIME-Version: 1.0',
-    'Content-Type: text/html; charset="UTF-8"',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    html,
-  ].join('\r\n');
-  const utf8 = unescape(encodeURIComponent(message));
-  return btoa(utf8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
+const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
+const FROM_ADDRESS = 'Cheapest Premiums <onboarding@resend.dev>';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -65,7 +51,7 @@ Deno.serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const GMAIL_KEY = Deno.env.get('GOOGLE_MAIL_API_KEY');
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
     let emailSent = false;
     let emailError: string | null = null;
@@ -83,16 +69,20 @@ Deno.serve(async (req) => {
       <p>Manage in Admin Panel → Orders → Reports.</p>
     `;
 
-    if (LOVABLE_API_KEY && GMAIL_KEY) {
-      const raw = buildRawEmail(ADMIN_EMAIL, subject, html);
-      const res = await fetch(`${GATEWAY_URL}/users/me/messages/send`, {
+    if (LOVABLE_API_KEY && RESEND_API_KEY) {
+      const res = await fetch(`${GATEWAY_URL}/emails`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'X-Connection-Api-Key': GMAIL_KEY,
+          'X-Connection-Api-Key': RESEND_API_KEY,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ raw }),
+        body: JSON.stringify({
+          from: FROM_ADDRESS,
+          to: [ADMIN_EMAIL],
+          subject,
+          html,
+        }),
       });
       const respText = await res.text();
       if (res.ok) {
@@ -100,7 +90,7 @@ Deno.serve(async (req) => {
         try { messageId = JSON.parse(respText).id || null; } catch {/*ignore*/}
       } else {
         emailError = `${res.status}: ${respText.slice(0, 500)}`;
-        console.error('Gmail send failed:', emailError);
+        console.error('Resend send failed:', emailError);
       }
     } else {
       emailError = 'Missing connector keys';
@@ -111,7 +101,7 @@ Deno.serve(async (req) => {
       template_name: 'admin_order_report',
       recipient_email: ADMIN_EMAIL,
       subject,
-      provider: 'gmail',
+      provider: 'resend',
       status: emailSent ? 'sent' : 'failed',
       error_message: emailError,
       order_id: order_id,
