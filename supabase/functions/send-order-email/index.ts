@@ -1,10 +1,12 @@
-// Send order status email via Microsoft Outlook (Graph API)
+// Send order status email via Gmail (Google Mail API) + log every attempt
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GATEWAY_URL = 'https://connector-gateway.lovable.dev/microsoft_outlook';
+const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_mail/gmail/v1';
 
 interface Payload {
   to: string;
@@ -25,11 +27,7 @@ function buildEmail(p: Payload): { subject: string; html: string } {
   const shortId = p.orderId.slice(0, 8).toUpperCase();
   const price = p.totalPrice ? `₹${p.totalPrice}` : '';
 
-  let subject = '';
-  let title = '';
-  let intro = '';
-  let body = '';
-  let accent = '#6366f1';
+  let subject = '', title = '', intro = '', body = '', accent = '#6366f1';
 
   switch (p.status) {
     case 'confirmed':
@@ -110,19 +108,37 @@ function buildEmail(p: Payload): { subject: string; html: string } {
   return { subject, html };
 }
 
+function buildRawEmail(to: string, subject: string, html: string): string {
+  // RFC 2822 with UTF-8 base64 subject for emoji safety
+  const encodedSubject = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+  const message = [
+    `To: ${to}`,
+    `Subject: ${encodedSubject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset="UTF-8"',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    html,
+  ].join('\r\n');
+  // base64url
+  const utf8 = unescape(encodeURIComponent(message));
+  return btoa(utf8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
+  let payload: Payload | null = null;
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const OUTLOOK_KEY = Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_3') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_2') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY_1') || Deno.env.get('MICROSOFT_OUTLOOK_API_KEY');
-    if (!LOVABLE_API_KEY || !OUTLOOK_KEY) {
-      return new Response(JSON.stringify({ error: 'Email not configured' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const GMAIL_KEY = Deno.env.get('GOOGLE_MAIL_API_KEY');
 
-    const payload = await req.json() as Payload;
+    payload = await req.json() as Payload;
     if (!payload.to || !payload.productName || !payload.orderId || !payload.status) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -131,36 +147,80 @@ Deno.serve(async (req) => {
 
     const { subject, html } = buildEmail(payload);
 
-    const res = await fetch(`${GATEWAY_URL}/me/sendMail`, {
+    if (!LOVABLE_API_KEY || !GMAIL_KEY) {
+      await supabase.from('email_send_log').insert({
+        template_name: `order_${payload.status}`,
+        recipient_email: payload.to,
+        subject,
+        provider: 'gmail',
+        status: 'failed',
+        error_message: 'Email not configured (missing API keys)',
+        order_id: payload.orderId,
+      });
+      return new Response(JSON.stringify({ error: 'Email not configured' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const raw = buildRawEmail(payload.to, subject, html);
+    const res = await fetch(`${GATEWAY_URL}/users/me/messages/send`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'X-Connection-Api-Key': OUTLOOK_KEY,
+        'X-Connection-Api-Key': GMAIL_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        message: {
-          subject,
-          body: { contentType: 'HTML', content: html },
-          toRecipients: [{ emailAddress: { address: payload.to } }],
-        },
-        saveToSentItems: true,
-      }),
+      body: JSON.stringify({ raw }),
     });
 
-    if (!res.ok && res.status !== 202) {
-      const errText = await res.text();
-      console.error('Outlook send failed', res.status, errText);
-      return new Response(JSON.stringify({ error: 'Send failed', detail: errText }), {
+    const respText = await res.text();
+    let parsed: any = {};
+    try { parsed = JSON.parse(respText); } catch { /* ignore */ }
+
+    if (!res.ok) {
+      console.error('Gmail send failed', res.status, respText);
+      await supabase.from('email_send_log').insert({
+        template_name: `order_${payload.status}`,
+        recipient_email: payload.to,
+        subject,
+        provider: 'gmail',
+        status: 'failed',
+        error_message: `${res.status}: ${respText.slice(0, 500)}`,
+        order_id: payload.orderId,
+        metadata: { product: payload.productName },
+      });
+      return new Response(JSON.stringify({ error: 'Send failed', detail: respText }), {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    await supabase.from('email_send_log').insert({
+      message_id: parsed.id || null,
+      template_name: `order_${payload.status}`,
+      recipient_email: payload.to,
+      subject,
+      provider: 'gmail',
+      status: 'sent',
+      order_id: payload.orderId,
+      metadata: { product: payload.productName, threadId: parsed.threadId || null },
+    });
+
+    return new Response(JSON.stringify({ success: true, id: parsed.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
     console.error('send-order-email error', e);
+    try {
+      await supabase.from('email_send_log').insert({
+        template_name: payload ? `order_${payload.status}` : 'order_unknown',
+        recipient_email: payload?.to || 'unknown',
+        subject: payload ? `Order ${payload.status}` : 'Unknown',
+        provider: 'gmail',
+        status: 'failed',
+        error_message: String(e).slice(0, 500),
+        order_id: payload?.orderId || null,
+      });
+    } catch {/* ignore */}
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
