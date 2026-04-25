@@ -123,7 +123,7 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
         <Input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} className="rounded-xl" />
 
         <div className="text-center text-xs text-muted-foreground">
-          Your balance: {senderCur.symbol}{(walletBalance / (senderCur.rate_to_inr || 1)).toFixed(2)}
+          Your balance: {senderCur.symbol}{(walletBalance * (senderCur.rate_to_inr || 1)).toFixed(2)}
           {senderCur.code !== 'INR' && <> · ₹{walletBalance.toFixed(2)}</>}
         </div>
 
