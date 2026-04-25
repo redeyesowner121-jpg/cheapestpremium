@@ -1,6 +1,7 @@
-// Admin email broadcast — sends from your business domain via Resend
-// Falls back to Resend's shared sender if your domain isn't verified yet.
+// Admin email broadcast — uses admin-configured SMTP first (e.g. Hostinger),
+// falls back to Resend connector if no SMTP config is saved.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -104,15 +105,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    const html = wrapHtml(body.subject, body.message, body.preheader);
+
+    // ========== Try admin-configured SMTP first ==========
+    const { data: smtpCfg } = await supabase
+      .from('smtp_settings')
+      .select('*')
+      .eq('is_active', true)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (smtpCfg) {
+      const client = new SMTPClient({
+        connection: {
+          hostname: smtpCfg.host,
+          port: smtpCfg.port,
+          tls: smtpCfg.secure,
+          auth: { username: smtpCfg.username, password: smtpCfg.password },
+        },
+      });
+      let sent = 0, failed = 0, firstErr: string | null = null;
+      const fromHeader = `${smtpCfg.from_name} <${smtpCfg.from_email}>`;
+      for (const to of recipients) {
+        try {
+          await client.send({ from: fromHeader, to, subject: body.subject, content: body.subject, html });
+          sent++;
+          await supabase.from('email_send_log').insert({
+            template_name: 'admin_broadcast', recipient_email: to, subject: body.subject,
+            provider: 'smtp', status: 'sent', metadata: { from: fromHeader, broadcast: true, host: smtpCfg.host },
+          });
+        } catch (e) {
+          failed++;
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!firstErr) firstErr = msg;
+          await supabase.from('email_send_log').insert({
+            template_name: 'admin_broadcast', recipient_email: to, subject: body.subject,
+            provider: 'smtp', status: 'failed', error_message: msg, metadata: { from: fromHeader, broadcast: true },
+          });
+        }
+        await new Promise(res => setTimeout(res, 200));
+      }
+      try { await client.close(); } catch { /* noop */ }
+      return new Response(JSON.stringify({
+        success: true, total: recipients.length, sent, failed, from: fromHeader, provider: 'smtp', firstError: firstErr,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    // ========== Fallback: Resend connector ==========
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
-      return new Response(JSON.stringify({ error: 'Email connector not configured' }), {
+      return new Response(JSON.stringify({ error: 'No SMTP saved and Resend not configured. Set up SMTP in admin panel.' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-
-    const html = wrapHtml(body.subject, body.message, body.preheader);
 
     async function sendOne(to: string, from: string) {
       const r = await fetch(`${GATEWAY_URL}/emails`, {
