@@ -1,16 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Smartphone, QrCode, CreditCard, Send } from 'lucide-react';
+import { Smartphone, QrCode, Bitcoin, Send } from 'lucide-react';
 
 interface QuickActionsProps {
   hasPendingRequest: boolean;
-  onDeposit: () => void;
+  onUpi: () => void;
+  onQr: () => void;
+  onCrypto: () => void;
   onTransfer: () => void;
 }
 
 const QuickActions: React.FC<QuickActionsProps> = ({
   hasPendingRequest,
-  onDeposit,
+  onUpi,
+  onQr,
+  onCrypto,
   onTransfer
 }) => {
   return (
