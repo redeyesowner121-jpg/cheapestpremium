@@ -67,7 +67,9 @@ const WalletPage: React.FC = () => {
 
         <QuickActions
           hasPendingRequest={wallet.hasPendingRequest}
-          onDeposit={() => { setDepositInitialTab('auto'); setShowDepositModal(true); }}
+          onUpi={() => { setDepositInitialTab('auto'); setDepositInitialMethod('upi_auto'); setShowDepositModal(true); }}
+          onQr={() => { setDepositInitialTab('manual'); setDepositInitialMethod('upi_manual'); setShowDepositModal(true); }}
+          onCrypto={() => { setDepositInitialTab('auto'); setDepositInitialMethod('crypto_menu'); setShowDepositModal(true); }}
           onTransfer={() => setShowTransferModal(true)}
         />
 
