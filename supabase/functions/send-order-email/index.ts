@@ -7,7 +7,9 @@ const corsHeaders = {
 };
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/resend';
-const FROM_ADDRESS = 'Cheapest Premiums <onboarding@resend.dev>';
+// Falls back to Resend's shared sender if your domain isn't verified yet.
+const FROM_ADDRESS = Deno.env.get('EMAIL_FROM_ADDRESS') || 'Cheapest Premiums <support@cheapest-premiums.in>';
+const FALLBACK_FROM = 'Cheapest Premiums <onboarding@resend.dev>';
 
 interface Payload {
   to: string;
