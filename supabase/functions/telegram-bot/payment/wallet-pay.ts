@@ -134,10 +134,11 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
   const mainToken = isChildBotOrder ? (Deno.env.get("TELEGRAM_BOT_TOKEN") || token) : token;
   const orderShortId = order?.id?.toString().slice(0, 8) || "N/A";
   const unitPrice = quantity > 0 ? (amount / quantity).toFixed(2) : amount;
+  const childBotLabel = isChildBotOrder ? await getChildBotLabel(supabase, effectiveChildBotId!) : "";
 
   if (isManualDelivery) {
     // Admin needs to manually deliver — send action buttons
-    const adminMsg = `🛒 <b>Manual Delivery Order (Wallet Pay)</b>${isChildBotOrder ? " <i>via Child Bot</i>" : ""}\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💲 Unit Price: <b>₹${unitPrice}</b>\n💰 Total Paid: <b>₹${amount}</b> (wallet)\n${isChildBotOrder ? `🤖 Child Bot: <code>${effectiveChildBotId}</code>\n` : ""}🆔 Order: <code>${orderShortId}</code>\n\n⚠️ <b>Admin action required — deliver manually.</b>`;
+    const adminMsg = `🛒 <b>Manual Delivery Order (Wallet Pay)</b>${isChildBotOrder ? ` <i>via ${childBotLabel}</i>` : ""}\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💲 Unit Price: <b>₹${unitPrice}</b>\n💰 Total Paid: <b>₹${amount}</b> (wallet)\n${isChildBotOrder ? `🤖 Source Bot: <b>${childBotLabel}</b>\n` : ""}🆔 Order: <code>${orderShortId}</code>\n\n⚠️ <b>Admin action required — deliver manually.</b>`;
     await notifyAllAdmins(mainToken, supabase, adminMsg, {
       reply_markup: {
         inline_keyboard: [
@@ -152,7 +153,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     });
   } else {
     await notifyAllAdmins(mainToken, supabase,
-      `💰 <b>Wallet Payment${isChildBotOrder ? " (Child Bot)" : ""}</b>\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${amount}\n✅ Auto-confirmed & delivered${isChildBotOrder ? `\n🤖 Child Bot: <code>${effectiveChildBotId}</code>` : ""}\n🆔 Order: <code>${orderShortId}</code>`
+      `💰 <b>Wallet Payment${isChildBotOrder ? ` (via ${childBotLabel})` : ""}</b>\n\n👤 User: <code>${userId}</code>\n📦 Product: <b>${productName}</b>\n🔢 Quantity: <b>${quantity}</b>\n💵 Amount: ₹${amount}\n✅ Auto-confirmed & delivered${isChildBotOrder ? `\n🤖 Source Bot: <b>${childBotLabel}</b>` : ""}\n🆔 Order: <code>${orderShortId}</code>`
     );
   }
 
