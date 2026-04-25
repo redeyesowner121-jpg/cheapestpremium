@@ -541,22 +541,48 @@ export async function escrowHandleChatMessage(token: string, supabase: any, chat
 }
 
 // =================== HELPERS ===================
+async function resolveTgIdForProfile(supabase: any, profileId: string): Promise<number | null> {
+  try {
+    const { data: p } = await supabase.from("profiles").select("email,telegram_id").eq("id", profileId).single();
+    if (p?.telegram_id) return Number(p.telegram_id);
+    const m = p?.email?.match(/^telegram_(\d+)@bot\.local$/);
+    if (m) return parseInt(m[1]);
+    // Fallback: lookup bot users table by email
+    if (p?.email) {
+      const { data: bu } = await supabase
+        .from("telegram_bot_users").select("telegram_id").eq("email", p.email).maybeSingle();
+      if (bu?.telegram_id) return Number(bu.telegram_id);
+    }
+  } catch (e) { console.error("resolveTgIdForProfile:", e); }
+  return null;
+}
+
 async function notifyOther(token: string, supabase: any, dealId: string, senderProfileId: string, msg: string, viewDealId: string) {
   try {
-    const { data: d } = await supabase.from("escrow_deals").select("buyer_id,seller_id").eq("id", dealId).single();
+    const { data: d } = await supabase.from("escrow_deals").select("buyer_id,seller_id,status").eq("id", dealId).single();
     if (!d) return;
     const otherProfileId = d.buyer_id === senderProfileId ? d.seller_id : d.buyer_id;
-    const { data: p } = await supabase.from("profiles").select("email,telegram_id").eq("id", otherProfileId).single();
-    let tgId: number | null = null;
-    if (p?.telegram_id) {
-      tgId = Number(p.telegram_id);
-    } else {
-      const m = p?.email?.match(/^telegram_(\d+)@bot\.local$/);
-      if (m) tgId = parseInt(m[1]);
+    const tgId = await resolveTgIdForProfile(supabase, otherProfileId);
+    if (!tgId) { console.log("notifyOther: no TG id for profile", otherProfileId); return; }
+
+    const isOtherBuyer = otherProfileId === d.buyer_id;
+    // Status-aware action buttons inside the notification
+    const rows: any[] = [];
+    if (d.status === 'delivered' && isOtherBuyer) {
+      rows.push([
+        { text: "💰 Release Funds", callback_data: `escrow_release_${viewDealId}` },
+        { text: "⚠️ Dispute", callback_data: `escrow_dispute_${viewDealId}` },
+      ]);
+    } else if (d.status === 'funded' && !isOtherBuyer) {
+      rows.push([{ text: "📦 Mark Delivered", callback_data: `escrow_deliver_${viewDealId}` }]);
+    } else if (d.status === 'pending_acceptance' && !isOtherBuyer) {
+      rows.push([
+        { text: "✅ Accept", callback_data: `escrow_accept_${viewDealId}` },
+        { text: "❌ Decline", callback_data: `escrow_decline_${viewDealId}` },
+      ]);
     }
-    if (!tgId) return;
-    await sendMessage(token, tgId, msg, {
-      reply_markup: { inline_keyboard: [[{ text: "👀 View Deal", callback_data: `escrow_view_${viewDealId}` }]] }
-    });
+    rows.push([{ text: "👀 View Deal", callback_data: `escrow_view_${viewDealId}` }]);
+
+    await sendMessage(token, tgId, msg, { reply_markup: { inline_keyboard: rows } });
   } catch (e) { console.error("notifyOther:", e); }
 }
