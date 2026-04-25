@@ -1,42 +1,68 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Camera, Mail, Search, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import QrScanner from './QrScanner';
 import { decodeQr } from './qrPayload';
+import CurrencyDualEntry, { CurrencyInfo } from './CurrencyDualEntry';
 
 interface UserProfile {
   id: string;
   name: string;
   email: string;
   referral_code: string;
+  display_currency?: string;
 }
 
 interface SendTabProps {
   userId: string;
-  walletBalance: number;
+  walletBalance: number; // in INR
   loading: boolean;
-  onTransfer: (recipient: UserProfile, amount: string, note: string) => void;
+  /** amount string is in INR (the canonical currency for transfer_funds) */
+  onTransfer: (recipient: UserProfile, amountInr: string, note: string) => void;
 }
 
 type Mode = 'choose' | 'scanner' | 'email';
 
+const INR: CurrencyInfo = { code: 'INR', symbol: '₹', rate_to_inr: 1 };
+
 const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTransfer }) => {
+  const { profile } = useAuth();
   const [mode, setMode] = useState<Mode>('choose');
   const [email, setEmail] = useState('');
   const [searching, setSearching] = useState(false);
   const [recipient, setRecipient] = useState<UserProfile | null>(null);
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(''); // typed in sender's currency
   const [note, setNote] = useState('');
+
+  const [senderCur, setSenderCur] = useState<CurrencyInfo>(INR);
+  const [receiverCur, setReceiverCur] = useState<CurrencyInfo>(INR);
+
+  // Load sender's currency from their own profile
+  useEffect(() => {
+    const code = profile?.display_currency || 'INR';
+    if (code === 'INR') { setSenderCur(INR); return; }
+    supabase.from('currencies').select('code, symbol, rate_to_inr').eq('code', code).maybeSingle()
+      .then(({ data }) => setSenderCur((data as CurrencyInfo) || INR));
+  }, [profile?.display_currency]);
+
+  // Load recipient's currency whenever recipient changes
+  useEffect(() => {
+    const code = recipient?.display_currency || 'INR';
+    if (code === 'INR') { setReceiverCur(INR); return; }
+    supabase.from('currencies').select('code, symbol, rate_to_inr').eq('code', code).maybeSingle()
+      .then(({ data }) => setReceiverCur((data as CurrencyInfo) || INR));
+  }, [recipient?.id, recipient?.display_currency]);
 
   const lookupByEmail = async () => {
     if (!email.includes('@')) { toast.error('Enter a valid email'); return; }
     setSearching(true);
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, email, referral_code')
+      .select('id, name, email, referral_code, display_currency')
       .ilike('email', email.trim())
       .neq('id', userId)
       .limit(1)
@@ -52,7 +78,7 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
     if (payload.uid === userId) { toast.error('Cannot send to yourself'); return; }
     const { data } = await supabase
       .from('profiles')
-      .select('id, name, email, referral_code')
+      .select('id, name, email, referral_code, display_currency')
       .eq('id', payload.uid)
       .maybeSingle();
     if (!data) { toast.error('User not found'); return; }
@@ -67,6 +93,10 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
 
   // Confirm screen (after recipient resolved)
   if (recipient) {
+    const senderAmt = parseFloat(amount) || 0;
+    const inrAmount = senderAmt / (senderCur.rate_to_inr || 1);
+    const insufficient = inrAmount > walletBalance;
+
     return (
       <div className="space-y-4">
         <button onClick={reset} className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -81,21 +111,31 @@ const SendTab: React.FC<SendTabProps> = ({ userId, walletBalance, loading, onTra
             <p className="text-xs text-muted-foreground truncate">{recipient.email}</p>
           </div>
         </div>
-        <Input
-          type="number" inputMode="decimal" placeholder="Enter amount" value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="h-14 text-2xl text-center font-bold rounded-xl"
+
+        <CurrencyDualEntry
+          amount={amount}
+          onAmountChange={setAmount}
+          sender={senderCur}
+          receiver={receiverCur}
         />
+
         <Input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} className="rounded-xl" />
-        <div className="text-center text-sm text-muted-foreground">
-          Your balance: ₹{walletBalance.toFixed(2)}
+
+        <div className="text-center text-xs text-muted-foreground">
+          Your balance: {senderCur.symbol}{(walletBalance * senderCur.rate_to_inr).toFixed(2)}
+          {senderCur.code !== 'INR' && <> · ₹{walletBalance.toFixed(2)}</>}
         </div>
+
         <Button
-          onClick={() => onTransfer(recipient, amount, note)}
+          onClick={() => onTransfer(recipient, inrAmount.toFixed(2), note)}
           className="w-full h-12 btn-gradient rounded-xl"
-          disabled={loading || !amount || parseFloat(amount) <= 0}
+          disabled={loading || senderAmt <= 0 || insufficient}
         >
-          {loading ? 'Sending...' : `Send ₹${amount || '0'}`}
+          {loading
+            ? 'Sending...'
+            : insufficient
+              ? 'Insufficient balance'
+              : `Send ${senderCur.symbol}${senderAmt > 0 ? senderAmt.toFixed(2) : '0'}`}
         </Button>
       </div>
     );
