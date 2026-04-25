@@ -94,7 +94,22 @@ const AdminCurrencyManager: React.FC = () => {
             <Input placeholder="Symbol ($)" value={newCurrency.symbol} onChange={e => setNewCurrency({ ...newCurrency, symbol: e.target.value })} />
             <Input placeholder="Flag emoji 🇺🇸" value={newCurrency.flag} onChange={e => setNewCurrency({ ...newCurrency, flag: e.target.value })} />
           </div>
-          <Input type="number" placeholder="Rate to INR (e.g. 95)" value={newCurrency.rate_to_inr} onChange={e => setNewCurrency({ ...newCurrency, rate_to_inr: e.target.value })} />
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-foreground">
+              Rate: <span className="text-primary">1 {newCurrency.code || 'CODE'} = ? INR</span>
+            </label>
+            <Input
+              type="number" step="0.0001"
+              placeholder="e.g. 1 USD = 95 INR → enter 95"
+              value={newCurrency.rate_to_inr}
+              onChange={e => setNewCurrency({ ...newCurrency, rate_to_inr: e.target.value })}
+            />
+            {newCurrency.rate_to_inr && parseFloat(newCurrency.rate_to_inr) > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Preview: ₹100 = {newCurrency.symbol || '?'}{(100 / parseFloat(newCurrency.rate_to_inr)).toFixed(2)}
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} className="flex-1">Add Currency</Button>
             <Button size="sm" variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -108,9 +123,22 @@ const AdminCurrencyManager: React.FC = () => {
             <span className="text-xl">{c.flag}</span>
             {editingId === c.id ? (
               <div className="flex-1 space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <Input value={editData.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })} placeholder="Name" />
-                  <Input type="number" value={editData.rate_to_inr || ''} onChange={e => setEditData({ ...editData, rate_to_inr: Number(e.target.value) })} placeholder="Rate" />
+                <Input value={editData.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })} placeholder="Name" />
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                    1 {c.code} = ? INR
+                  </label>
+                  <Input
+                    type="number" step="0.0001"
+                    value={editData.rate_to_inr ?? ''}
+                    onChange={e => setEditData({ ...editData, rate_to_inr: Number(e.target.value) })}
+                    placeholder={`e.g. 1 ${c.code} = X INR`}
+                  />
+                  {editData.rate_to_inr && Number(editData.rate_to_inr) > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Preview: ₹100 = {c.symbol}{(100 / Number(editData.rate_to_inr)).toFixed(2)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => handleUpdate(c.id)} className="p-1.5 bg-primary/10 rounded-lg"><Check className="w-4 h-4 text-primary" /></button>
