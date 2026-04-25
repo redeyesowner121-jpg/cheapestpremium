@@ -70,6 +70,7 @@ export const handleProductPurchase = async (
     // First check delivery mode to decide instant delivery
     let accessLink: string | null = null;
     let isInstantDelivery = false;
+    let requiresDeliveryRpc = false;
     
     if (displayProduct.id) {
       const { data: productData } = await supabase
@@ -79,18 +80,21 @@ export const handleProductPurchase = async (
         .single();
 
       if (productData?.show_link_in_website !== false) {
-        // Product-level instant delivery
-        if (productData?.delivery_mode === 'unique' || productData?.access_link) {
+        const variationAccess = selectedVariation?.access_link?.trim?.() || '';
+        const variationMessage = selectedVariation?.delivery_message?.trim?.() || '';
+        const productAccess = productData?.access_link?.trim?.() || '';
+
+        // Product/variation unique delivery needs the secure stock-claim RPC
+        if (productData?.delivery_mode === 'unique' || selectedVariation?.delivery_mode === 'unique') {
           isInstantDelivery = true;
+          requiresDeliveryRpc = true;
         }
-        // Variation-level instant delivery (credentials/link or unique stock per variation)
-        if (
-          selectedVariation &&
-          (selectedVariation.access_link ||
-            selectedVariation.delivery_message ||
-            selectedVariation.delivery_mode === 'unique')
-        ) {
+
+        // Repeated credentials can be attached at insert time, so delivery never depends on RPC matching
+        const repeatedAccessLink = variationAccess || variationMessage || productAccess;
+        if (repeatedAccessLink) {
           isInstantDelivery = true;
+          accessLink = repeatedAccessLink;
         }
       }
     }
@@ -104,7 +108,8 @@ export const handleProductPurchase = async (
       total_price: totalPrice,
       quantity,
       user_note: userNote + (donationAmount > 0 ? ` [Donation: ₹${donationAmount}]` : ''),
-      status: 'pending',
+      status: accessLink ? 'confirmed' : 'pending',
+      access_link: accessLink,
       discount_applied: discount,
     };
 
@@ -120,7 +125,7 @@ export const handleProductPurchase = async (
     if (orderError) throw orderError;
 
     // Finalize instant delivery via secure RPC (handles both unique & repeated)
-    if (isInstantDelivery && insertedOrder?.id) {
+    if (isInstantDelivery && requiresDeliveryRpc && insertedOrder?.id) {
       try {
         const { data: claimedLink, error: rpcError } = await supabase.rpc('finalize_instant_delivery', {
           p_product_id: displayProduct.id,
