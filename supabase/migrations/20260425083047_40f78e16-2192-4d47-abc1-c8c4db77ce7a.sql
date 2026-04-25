@@ -1,0 +1,1 @@
+UPDATE telegram_orders SET status='confirmed' WHERE id IN ('5d854825-ca2f-419d-9873-6c55702ec68d','476ad1f7-3818-4f6f-a34e-170ec991b628','d1dec043-5d6e-4a3b-8fe9-0f1f739009ab');
