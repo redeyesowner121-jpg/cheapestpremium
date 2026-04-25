@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
   let payload: Payload | null = null;
   try {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    const GMAIL_KEY = Deno.env.get('GOOGLE_MAIL_API_KEY');
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
     payload = await req.json() as Payload;
     if (!payload.to || !payload.productName || !payload.orderId || !payload.status) {
@@ -148,12 +148,12 @@ Deno.serve(async (req) => {
 
     const { subject, html } = buildEmail(payload);
 
-    if (!LOVABLE_API_KEY || !GMAIL_KEY) {
+    if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
       await supabase.from('email_send_log').insert({
         template_name: `order_${payload.status}`,
         recipient_email: payload.to,
         subject,
-        provider: 'gmail',
+        provider: 'resend',
         status: 'failed',
         error_message: 'Email not configured (missing API keys)',
         order_id: payload.orderId,
@@ -163,15 +163,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const raw = buildRawEmail(payload.to, subject, html);
-    const res = await fetch(`${GATEWAY_URL}/users/me/messages/send`, {
+    const res = await fetch(`${GATEWAY_URL}/emails`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'X-Connection-Api-Key': GMAIL_KEY,
+        'X-Connection-Api-Key': RESEND_API_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ raw }),
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: [payload.to],
+        subject,
+        html,
+      }),
     });
 
     const respText = await res.text();
@@ -179,12 +183,12 @@ Deno.serve(async (req) => {
     try { parsed = JSON.parse(respText); } catch { /* ignore */ }
 
     if (!res.ok) {
-      console.error('Gmail send failed', res.status, respText);
+      console.error('Resend send failed', res.status, respText);
       await supabase.from('email_send_log').insert({
         template_name: `order_${payload.status}`,
         recipient_email: payload.to,
         subject,
-        provider: 'gmail',
+        provider: 'resend',
         status: 'failed',
         error_message: `${res.status}: ${respText.slice(0, 500)}`,
         order_id: payload.orderId,
@@ -200,10 +204,10 @@ Deno.serve(async (req) => {
       template_name: `order_${payload.status}`,
       recipient_email: payload.to,
       subject,
-      provider: 'gmail',
+      provider: 'resend',
       status: 'sent',
       order_id: payload.orderId,
-      metadata: { product: payload.productName, threadId: parsed.threadId || null },
+      metadata: { product: payload.productName },
     });
 
     return new Response(JSON.stringify({ success: true, id: parsed.id }), {
@@ -216,7 +220,7 @@ Deno.serve(async (req) => {
         template_name: payload ? `order_${payload.status}` : 'order_unknown',
         recipient_email: payload?.to || 'unknown',
         subject: payload ? `Order ${payload.status}` : 'Unknown',
-        provider: 'gmail',
+        provider: 'resend',
         status: 'failed',
         error_message: String(e).slice(0, 500),
         order_id: payload?.orderId || null,
@@ -225,5 +229,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+});
   }
 });
