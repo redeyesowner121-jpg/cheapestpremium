@@ -27,6 +27,7 @@ import { Product, ProductVariation } from './products/types';
 import ProductCard from './products/ProductCard';
 import CategorySection from './products/CategorySection';
 import ProductsBuyModal from './products/ProductsBuyModal';
+import CourseDisclaimer from '@/components/CourseDisclaimer';
 
 const ProductsPage: React.FC = () => {
   const { profile, user, refreshProfile } = useAuth();
@@ -390,6 +391,9 @@ const ProductsPage: React.FC = () => {
             onCategorySelect={setSelectedCategory}
           />
         )}
+
+        {/* Course Disclaimer */}
+        {selectedCategory === 'courses' && <CourseDisclaimer />}
 
         {/* Products Grid */}
         <div className="grid grid-cols-2 gap-3">
