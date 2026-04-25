@@ -135,7 +135,7 @@ export async function handleApplyDescription(token: string, supabase: any, chatI
   const adminIds = await getAllAdminIds(supabase);
   for (const adminId of adminIds) {
     try {
-      await sendPhoto(token, adminId, proofFileId, caption, { reply_markup: replyMarkup });
+      await sendPhoto(token, adminId, proofFileId, caption, replyMarkup);
     } catch (e) {
       console.error("apply: notify admin failed", e);
     }
