@@ -193,7 +193,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     );
   }
 
-  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink);
+  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink, false, quantity, websiteAccessLinks);
 
   await processReferralBonus(supabase, userId, token, amount);
 
