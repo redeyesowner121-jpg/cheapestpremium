@@ -70,6 +70,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
 
   // Try auto-delivery
   let websiteAccessLink: string | undefined;
+  let websiteAccessLinks: string[] = [];
   let deliveredCount = 0;
   let isManualDelivery = false;
 
@@ -84,6 +85,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     }
     if (resolved.link && resolved.showInWebsite) {
       websiteAccessLink = resolved.link;
+      websiteAccessLinks = resolved.links;
     }
     // No links available = manual delivery needed (out of stock OR no access_link configured)
     if (deliveredCount === 0) {
@@ -191,7 +193,7 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     );
   }
 
-  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink);
+  await syncPurchaseToProfile(supabase, userId, amount, productName, productId, websiteAccessLink, false, quantity, websiteAccessLinks);
 
   await processReferralBonus(supabase, userId, token, amount);
 
