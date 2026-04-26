@@ -55,8 +55,6 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ activeTab, onTabChang
           </div>
         </div>
       </motion.button>
-
-      <motion.button
     </div>
   );
 };
