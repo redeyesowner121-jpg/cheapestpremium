@@ -78,10 +78,8 @@ export async function handleWalletPay(token: string, supabase: any, chatId: numb
     const { resolveAccessLink, sendInstantDeliveryWithLoginCode } = await import("./instant-delivery.ts");
     const resolved = await resolveAccessLink(supabase, productId, undefined, order?.id, quantity);
     if (resolved.links.length && resolved.showInBot) {
-      for (const lnk of resolved.links) {
-        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, lnk, productName, lang);
-        deliveredCount++;
-      }
+      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, resolved.links.join("\n\n"), productName, lang);
+      deliveredCount = resolved.links.length;
     }
     if (resolved.link && resolved.showInWebsite) {
       websiteAccessLink = resolved.link;
