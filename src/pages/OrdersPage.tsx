@@ -44,7 +44,7 @@ const OrdersPage: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, (profile as any)?.telegram_id]);
 
   const loadOrders = async () => {
     if (!user) return;
@@ -55,7 +55,13 @@ const OrdersPage: React.FC = () => {
     // on the synthetic telegram_<id>@bot.local profile) and later signs in from
     // "View on Website" with their real email — orders would otherwise be invisible.
     try {
+      const { data: freshProfile } = await supabase
+        .from('profiles')
+        .select('telegram_id')
+        .eq('id', user.id)
+        .maybeSingle();
       const tgId =
+        (freshProfile as any)?.telegram_id ??
         (profile as any)?.telegram_id ??
         (user as any)?.user_metadata?.telegram_id ??
         null;

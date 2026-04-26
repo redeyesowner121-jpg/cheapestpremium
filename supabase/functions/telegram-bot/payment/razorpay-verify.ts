@@ -88,9 +88,7 @@ export async function handleRazorpayVerify(
       await sendMessage(token, chatId, `<b>✅ Payment Verified!</b>\n\nProduct: <b>${productName}</b>\nQuantity: <b>${quantity}</b>\nAmount: <b>₹${finalAmount}</b>\n`);
 
       if (resolved.links.length && resolved.showInBot) {
-        for (const lnk of resolved.links) {
-          await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, lnk, productName, "en");
-        }
+        await sendInstantDeliveryWithLoginCode(token, supabase, chatId, telegramUser.id, resolved.links.join("\n\n"), productName, "en");
       }
       await setConversationState(supabase, telegramUser.id, "idle", {});
 
@@ -103,7 +101,8 @@ export async function handleRazorpayVerify(
 
       try {
         const websiteLink = resolved.link && resolved.showInWebsite ? resolved.link : undefined;
-        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
+        const websiteLinks = resolved.showInWebsite ? resolved.links : [];
+        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink, false, quantity, websiteLinks);
       } catch (e) { console.error("Sync error:", e); }
 
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.first_name || "User", productName, price, "Razorpay UPI")); } catch {}
