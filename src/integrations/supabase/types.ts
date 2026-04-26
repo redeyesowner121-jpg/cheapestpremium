@@ -2988,6 +2988,7 @@ export type Database = {
         }
         Returns: Json
       }
+      auto_merge_my_telegram_data: { Args: never; Returns: Json }
       buyer_cancel_funded_escrow: {
         Args: { _buyer_id: string; _deal_id: string }
         Returns: Json
