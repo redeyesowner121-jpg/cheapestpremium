@@ -137,7 +137,7 @@ export async function syncDepositToProfile(supabase: any, telegramId: number, am
 export async function syncPurchaseToProfile(
   supabase: any, telegramId: number, amount: number,
   productName: string, productId?: string, accessLink?: string,
-  skipWalletDeduct?: boolean
+  skipWalletDeduct?: boolean, quantity: number = 1, accessLinks?: string[]
 ) {
   const profile = await ensureLinkedProfile(supabase, telegramId);
   if (!profile) return;
@@ -170,17 +170,24 @@ export async function syncPurchaseToProfile(
     productImage = prod?.image_url || null;
   }
 
+  const qty = Math.max(1, Math.floor(quantity || 1));
+  const unitPrice = qty > 0 ? amount / qty : amount;
+  // Combine multiple unique links (one per unit) into a single newline-separated value
+  const finalAccessLink = accessLinks && accessLinks.length > 1
+    ? accessLinks.join("\n")
+    : (accessLink || accessLinks?.[0] || null);
+
   // Create website order
   await supabase.from("orders").insert({
     user_id: profile.id,
     product_id: productId || null,
     product_name: productName,
     product_image: productImage,
-    unit_price: amount,
+    unit_price: unitPrice,
     total_price: amount,
-    quantity: 1,
-    status: accessLink ? "completed" : "confirmed",
-    access_link: accessLink || null,
+    quantity: qty,
+    status: finalAccessLink ? "completed" : "confirmed",
+    access_link: finalAccessLink,
   });
 }
 
