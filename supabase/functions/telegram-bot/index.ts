@@ -252,9 +252,17 @@ Deno.serve(async (req) => {
       if (await handlePaymentCallbacks(BOT_TOKEN, supabase, chatId, userId, data, telegramUser, lang)) { clearChildBotContext(); return jsonOk(); }
 
       // Escrow callbacks
-      if (data === "escrow_menu") {
-        const { handleEscrowCommand } = await import("./escrow-handler.ts");
-        await handleEscrowCommand(BOT_TOKEN, supabase, chatId, userId);
+      if (data === "escrow_menu" || data === "escrow_new" || data === "escrow_list_active" || data === "escrow_list_closed") {
+        await sendMessage(BOT_TOKEN, chatId,
+          `🔒 <b>Escrow not available in bot</b>\n\nEscrow deals are available only on our website. Tap below to log in — your wallet balance, orders, and other data will sync automatically.`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "🌐 Website Login", callback_data: "website_login", style: "primary" }],
+              ],
+            },
+          }
+        );
         clearChildBotContext(); return jsonOk();
       }
       if (data === "escrow_new") {
