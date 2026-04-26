@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Bell, UserPlus, ShoppingBag, MessageCircle,
   Image, CreditCard, Users, Package, Shield, ChevronDown,
-  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus, Mail, Send
+  Zap, Wallet, Ticket, Gift, FolderOpen, Award, Bot, SmilePlus, Mail, Send, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AdminData, AdminStats } from '@/hooks/useAdminData';
