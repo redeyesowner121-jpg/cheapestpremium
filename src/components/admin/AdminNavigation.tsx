@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Shield, Settings } from 'lucide-react';
+import { TrendingUp, Shield } from 'lucide-react';
 
 interface AdminNavigationProps {
   activeTab: string;
