@@ -134,8 +134,8 @@ export async function proceedToPaymentWithQuantity(
   state: { productName: string; unitPrice: number; productId: string; variationId: string | null; stock: number | null; childBotId?: string; childBotRevenue?: number },
   quantity: number, lang: string,
 ) {
-  if (!Number.isFinite(quantity) || quantity < 1 || quantity > 1000) {
-    await sendMessage(token, chatId, lang === "bn" ? "❌ অবৈধ পরিমাণ। ১ থেকে ১০০০ এর মধ্যে দাও।" : "❌ Invalid quantity. Enter a number between 1 and 1000.");
+  if (!Number.isFinite(quantity) || quantity < 1 || quantity > 20) {
+    await sendMessage(token, chatId, lang === "bn" ? "❌ অবৈধ পরিমাণ। ১ থেকে ২০ এর মধ্যে দাও।" : "❌ Invalid quantity. Enter a number between 1 and 20.");
     return;
   }
   if (state.stock != null && quantity > state.stock) {
