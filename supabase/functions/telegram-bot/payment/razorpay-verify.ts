@@ -103,7 +103,8 @@ export async function handleRazorpayVerify(
 
       try {
         const websiteLink = resolved.link && resolved.showInWebsite ? resolved.link : undefined;
-        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink);
+        const websiteLinks = resolved.showInWebsite ? resolved.links : [];
+        await syncPurchaseToProfile(supabase, telegramUser.id, price, productName, productId, websiteLink, false, quantity, websiteLinks);
       } catch (e) { console.error("Sync error:", e); }
 
       try { await logProof(token, formatOrderPlaced(telegramUser.id, telegramUser.first_name || "User", productName, price, "Razorpay UPI")); } catch {}
