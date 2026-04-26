@@ -122,7 +122,7 @@ const ProductsBuyModal: React.FC<ProductsBuyModalProps> = ({
             <div className="flex items-center gap-3">
               <button onClick={() => onQuantityChange(Math.max(1, quantity - 1))} className="w-8 h-8 rounded-lg bg-card flex items-center justify-center font-bold">-</button>
               <span className="font-bold text-foreground w-8 text-center">{quantity}</span>
-              <button onClick={() => onQuantityChange(quantity + 1)} className="w-8 h-8 rounded-lg bg-card flex items-center justify-center font-bold">+</button>
+              <button onClick={() => onQuantityChange(Math.min(20, quantity + 1))} disabled={quantity >= 20} className="w-8 h-8 rounded-lg bg-card flex items-center justify-center font-bold disabled:opacity-50">+</button>
             </div>
           </div>
 

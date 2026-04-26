@@ -51,6 +51,12 @@ export function useCheckout(args: UseCheckoutArgs) {
       return;
     }
 
+    const overLimitItem = productItems.find((it: any) => (it.quantity || 0) > 20);
+    if (overLimitItem) {
+      toast.error(`Maximum 20 quantity allowed per product (${overLimitItem.product?.name || 'item'})`);
+      return;
+    }
+
     const walletBalance = profile.wallet_balance || 0;
 
     let neededAmount = cartSummary.grandTotal;

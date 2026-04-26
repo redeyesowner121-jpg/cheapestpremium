@@ -57,9 +57,9 @@ const CartItemRow: React.FC<Props> = ({ item, userRank, isReseller, formatPrice,
               </button>
               <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
               <button
-                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                onClick={() => updateQuantity(item.id, Math.min(20, item.quantity + 1))}
                 className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center active:scale-90"
-                disabled={item.product?.stock !== null && item.product?.stock !== undefined && item.quantity >= item.product.stock}
+                disabled={item.quantity >= 20 || (item.product?.stock !== null && item.product?.stock !== undefined && item.quantity >= item.product.stock)}
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>

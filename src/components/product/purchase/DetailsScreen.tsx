@@ -132,8 +132,8 @@ const DetailsScreen: React.FC<DetailsScreenProps> = ({
               <Button size="sm" variant="outline" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>-</Button>
               <span className="font-bold text-lg">{quantity}</span>
               <Button size="sm" variant="outline"
-                onClick={() => onQuantityChange(currentStock !== null ? Math.min(currentStock, quantity + 1) : quantity + 1)}
-                disabled={currentStock !== null && quantity >= currentStock}>+</Button>
+                onClick={() => onQuantityChange(currentStock !== null ? Math.min(currentStock, 20, quantity + 1) : Math.min(20, quantity + 1))}
+                disabled={quantity >= 20 || (currentStock !== null && quantity >= currentStock)}>+</Button>
             </div>
             {exceedsStock && <p className="text-xs text-destructive mt-1">Maximum {currentStock} items available</p>}
             {isBulkOrder && <p className="text-xs text-green-600 mt-1 font-medium">🎉 Bulk discount applied: 8% OFF!</p>}
