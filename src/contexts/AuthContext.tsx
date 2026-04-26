@@ -204,6 +204,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => {
             fetchProfile(session.user.id, session.user.user_metadata);
             checkAdminRole(session.user.id);
+            // Auto-merge any matching Telegram bot data (orders, wallet, etc.)
+            // for this email — safe & idempotent.
+            if (event === 'SIGNED_IN') {
+              (supabase.rpc('auto_merge_my_telegram_data') as unknown as Promise<any>)
+                .then(({ data }: any) => {
+                  if (data?.success) {
+                    fetchProfile(session.user.id, session.user.user_metadata);
+                  }
+                })
+                .catch(() => {});
+            }
           }, 0);
         } else {
           setProfile(null);
