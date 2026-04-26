@@ -44,7 +44,7 @@ const OrdersPage: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user, profile?.telegram_id]);
+  }, [user, (profile as any)?.telegram_id]);
 
   const loadOrders = async () => {
     if (!user) return;
