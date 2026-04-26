@@ -64,7 +64,33 @@ Deno.serve(async (req) => {
       if (data === "mother_help") { await sendMsg(MOTHER_TOKEN, chatId, "❓ <b>Help</b>\n\n• <b>Create a Bot</b> — Create your own selling bot using our product catalog\n• <b>My Bots</b> — View and manage your bots\n• <b>Earnings</b> — Track your commissions\n\nYour bot will sell products from our main store. When a customer orders through your bot, the order goes to our admin. After delivery, you earn your set commission percentage.\n\nMax 3 bots per user. Commission: 1%-60% per sale.\n✅ Bot creation is <b>FREE!</b>\n\nYour bot's referral & resale links will use your bot's @username.", { reply_markup: { inline_keyboard: [[{ text: "🏠 Main Menu", callback_data: "mother_main" }]] } }); return jsonOk(); }
       if (data === "mother_main") { await showMotherMenu(MOTHER_TOKEN, chatId); return jsonOk(); }
 
-      if (data === "mother_confirm_create") { const state = await getConvState(supabase, userId); if (state?.step === "mother_confirm" && state.data.bot_token) { await createChildBot(MOTHER_TOKEN, supabase, chatId, userId, state.data); await deleteConvState(supabase, userId); await notifyAdminsViaMainBot(MAIN_TOKEN, supabase, `🤖 <b>New Bot Created (Free)</b>\n\n👤 User: <code>${userId}</code>\n🤖 Bot: @${state.data.bot_username}\n📊 Revenue: ${state.data.revenue_percent}%`); } return jsonOk(); }
+      if (data === "mother_confirm_create") {
+        const state = await getConvState(supabase, userId);
+        if (state?.step === "mother_confirm" && state.data.bot_token) {
+          await createChildBot(MOTHER_TOKEN, supabase, chatId, userId, state.data);
+          await deleteConvState(supabase, userId);
+
+          const fromUser = cq.from || {};
+          const uname = fromUser.username ? `@${fromUser.username}` : (fromUser.first_name || `User`);
+          const note = (state.data.admin_note || "").toString().trim();
+          const noteLine = note ? `\n\n📝 <b>Note from creator:</b>\n<i>${note.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</i>` : "\n\n📝 <b>Note:</b> <i>(none)</i>";
+
+          const chatButtons: any[] = [];
+          if (fromUser.username) {
+            chatButtons.push({ text: "💬 Chat with User", url: `https://t.me/${fromUser.username}` });
+          } else {
+            chatButtons.push({ text: "💬 Open Chat", url: `tg://user?id=${userId}` });
+          }
+
+          await notifyAdminsViaMainBot(
+            MAIN_TOKEN,
+            supabase,
+            `🤖 <b>New Bot Creation Request</b>\n\n👤 Creator: ${uname} (<code>${userId}</code>)\n🤖 Bot: @${state.data.bot_username}\n👑 Owner ID: <code>${state.data.owner_telegram_id}</code>\n📊 Revenue: ${state.data.revenue_percent}%${noteLine}`,
+            { reply_markup: { inline_keyboard: [chatButtons] } }
+          );
+        }
+        return jsonOk();
+      }
       if (data === "mother_cancel_create") { await deleteConvState(supabase, userId); await sendMsg(MOTHER_TOKEN, chatId, "❌ Bot creation cancelled."); await showMotherMenu(MOTHER_TOKEN, chatId); return jsonOk(); }
 
       // Owner-only admin callbacks
