@@ -55,7 +55,6 @@ export function useCheckout(args: UseCheckoutArgs) {
     if (overLimitItem) {
       toast.error(`Maximum 20 quantity allowed per product (${overLimitItem.product?.name || 'item'})`);
       return;
-      return;
     }
 
     const walletBalance = profile.wallet_balance || 0;
