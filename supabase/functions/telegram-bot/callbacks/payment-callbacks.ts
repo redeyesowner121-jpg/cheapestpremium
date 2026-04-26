@@ -73,8 +73,8 @@ export async function handlePaymentCallbacks(
       await setConversationState(supabase, userId, "awaiting_custom_quantity", convState.data);
       await sendMessage(BOT_TOKEN, chatId,
         lang === "bn"
-          ? "✏️ পরিমাণ লিখে পাঠাও (উদাহরণ: <code>7</code>)। বাতিল করতে /cancel।"
-          : "✏️ Send the quantity as a number (e.g. <code>7</code>). Send /cancel to abort.",
+          ? "✏️ পরিমাণ লিখে পাঠাও (১-২০ এর মধ্যে, উদাহরণ: <code>7</code>)। বাতিল করতে /cancel।"
+          : "✏️ Send the quantity as a number (1-20, e.g. <code>7</code>). Send /cancel to abort.",
       );
     } else {
       await restartFlow(BOT_TOKEN, supabase, chatId, lang);
