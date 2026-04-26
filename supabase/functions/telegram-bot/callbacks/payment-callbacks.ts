@@ -13,7 +13,7 @@ import { showMainMenu } from "../menu/menu-navigation.ts";
 // Old inline buttons can be tapped multiple times (or Telegram can retry callbacks),
 // so repeating the delivery here causes spam for one completed order.
 async function resendLastDelivery(_token: string, _supabase: any, chatId: number, _userId: number, lang: string) {
-  await sendMessage(token, chatId, lang === "bn" ? "✅ পেমেন্ট/অর্ডার ইতিমধ্যে প্রসেস হয়েছে। ডেলিভারি আবার পাঠানো হবে না।" : "✅ Payment/order already processed. Delivery will not be sent again.");
+  await sendMessage(_token, chatId, lang === "bn" ? "✅ পেমেন্ট/অর্ডার ইতিমধ্যে প্রসেস হয়েছে। ডেলিভারি আবার পাঠানো হবে না।" : "✅ Payment/order already processed. Delivery will not be sent again.");
 }
 
 // Silent no-op: never show "session expired" or "start again" — just ignore stale callbacks
@@ -76,10 +76,8 @@ export async function handlePaymentCallbacks(
     if (claimedState?.data) {
       const payData = claimedState.data;
       await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, payData.price, payData.productName, lang, payData.productId, payData.childBotId, payData.childBotRevenue, payData.quantity || 1);
-    } else if (!convState || convState.step === "idle") {
-      await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else {
-      await restartFlow(BOT_TOKEN, supabase, chatId, lang);
+      await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     }
     return true;
   }
