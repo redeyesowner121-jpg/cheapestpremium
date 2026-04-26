@@ -22,11 +22,11 @@ export async function handleConversationStep(token: string, supabase: any, chatI
     const { getUserLang } = await import("./db-helpers.ts");
     const lang = (await getUserLang(supabase, userId)) || "en";
     const qty = parseInt(text.trim(), 10);
-    if (!Number.isFinite(qty) || qty < 1 || qty > 1000) {
+    if (!Number.isFinite(qty) || qty < 1 || qty > 20) {
       await sendMessage(token, chatId,
         lang === "bn"
-          ? "❌ অবৈধ পরিমাণ। ১ থেকে ১০০০ এর মধ্যে একটি সংখ্যা পাঠাও।"
-          : "❌ Invalid quantity. Please send a number between 1 and 1000.",
+          ? "❌ অবৈধ পরিমাণ। ১ থেকে ২০ এর মধ্যে একটি সংখ্যা পাঠাও।"
+          : "❌ Invalid quantity. Please send a number between 1 and 20.",
       );
       return;
     }
