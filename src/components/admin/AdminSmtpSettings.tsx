@@ -71,6 +71,14 @@ export default function AdminSmtpSettings() {
     setLoading(false);
   }
 
+  const provider = detectProvider(form.host);
+
+  function applyPreset(key: ProviderKey) {
+    if (key === 'custom') return;
+    const p = PROVIDER_PRESETS[key];
+    setForm(f => ({ ...f, host: p.host, port: p.port, secure: p.secure }));
+  }
+
   async function save() {
     if (!form.host || !form.username || !form.from_email) {
       toast.error('Host, username, from email required');
