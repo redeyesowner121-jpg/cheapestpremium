@@ -12,7 +12,7 @@ import { showMainMenu } from "../menu/menu-navigation.ts";
 // Helper: never re-send delivery from stale payment buttons.
 // Old inline buttons can be tapped multiple times (or Telegram can retry callbacks),
 // so repeating the delivery here causes spam for one completed order.
-async function resendLastDelivery(token: string, supabase: any, chatId: number, userId: number, lang: string) {
+async function resendLastDelivery(_token: string, _supabase: any, chatId: number, _userId: number, lang: string) {
   await sendMessage(token, chatId, lang === "bn" ? "✅ পেমেন্ট/অর্ডার ইতিমধ্যে প্রসেস হয়েছে। ডেলিভারি আবার পাঠানো হবে না।" : "✅ Payment/order already processed. Delivery will not be sent again.");
 }
 
@@ -66,10 +66,16 @@ export async function handlePaymentCallbacks(
 
   // Wallet pay confirm
   if (data === "walletpay_confirm") {
-    const convState = await getConversationState(supabase, userId);
-    if (convState?.step === "wallet_pay_confirm") {
-      await deleteConversationState(supabase, userId);
-      await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, convState.data.price, convState.data.productName, lang, convState.data.productId, convState.data.childBotId, convState.data.childBotRevenue, convState.data.quantity || 1);
+    const { data: claimedState } = await supabase
+      .from("telegram_conversation_state")
+      .delete()
+      .eq("telegram_id", userId)
+      .eq("step", "wallet_pay_confirm")
+      .select("data")
+      .maybeSingle();
+    if (claimedState?.data) {
+      const payData = claimedState.data;
+      await handleWalletPay(BOT_TOKEN, supabase, chatId, userId, payData.price, payData.productName, lang, payData.productId, payData.childBotId, payData.childBotRevenue, payData.quantity || 1);
     } else if (!convState || convState.step === "idle") {
       await resendLastDelivery(BOT_TOKEN, supabase, chatId, userId, lang);
     } else {
