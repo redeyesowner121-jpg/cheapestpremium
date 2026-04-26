@@ -48,7 +48,30 @@ export async function handleRazorpayVerify(
     if (matchingPayment) {
       const { processReferralBonus } = await import("./wallet-pay.ts");
       const { syncPurchaseToProfile } = await import("./sync-helpers.ts");
-      if (paymentId) await supabase.from("payments").update({ status: "success" }).eq("id", paymentId);
+      if (paymentId) {
+        const { data: paymentRow } = await supabase
+          .from("payments")
+          .select("status")
+          .eq("id", paymentId)
+          .maybeSingle();
+        if (paymentRow?.status === "success") {
+          await sendMessage(token, chatId, "✅ Payment already processed. Delivery will not be sent again.");
+          await setConversationState(supabase, telegramUser.id, "idle", {});
+          return;
+        }
+        const { data: updatedPayment } = await supabase
+          .from("payments")
+          .update({ status: "success" })
+          .eq("id", paymentId)
+          .neq("status", "success")
+          .select("id")
+          .maybeSingle();
+        if (!updatedPayment?.id) {
+          await sendMessage(token, chatId, "✅ Payment already processed. Delivery will not be sent again.");
+          await setConversationState(supabase, telegramUser.id, "idle", {});
+          return;
+        }
+      }
 
       if (walletDeduction > 0) {
         const wallet = await supabase.from("telegram_wallets").select("balance").eq("telegram_id", telegramUser.id).single();
