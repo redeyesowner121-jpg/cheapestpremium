@@ -31,6 +31,24 @@ const DEFAULTS: SmtpForm = {
   is_active: true,
 };
 
+type ProviderKey = 'hostinger' | 'outlook' | 'gmail' | 'zoho' | 'custom';
+
+const PROVIDER_PRESETS: Record<Exclude<ProviderKey, 'custom'>, { host: string; port: number; secure: boolean; label: string; note: string }> = {
+  hostinger: { host: 'smtp.hostinger.com', port: 465, secure: true, label: 'Hostinger', note: 'Webmail password ব্যবহার করুন' },
+  outlook:   { host: 'smtp-mail.outlook.com', port: 587, secure: false, label: 'Outlook / Office 365', note: 'App password লাগতে পারে (2FA on থাকলে)' },
+  gmail:     { host: 'smtp.gmail.com', port: 465, secure: true, label: 'Gmail', note: '2FA on করে App Password generate করুন' },
+  zoho:      { host: 'smtp.zoho.com', port: 465, secure: true, label: 'Zoho Mail', note: 'Account password বা App password' },
+};
+
+function detectProvider(host: string): ProviderKey {
+  const h = (host || '').toLowerCase();
+  if (h.includes('hostinger')) return 'hostinger';
+  if (h.includes('outlook') || h.includes('office365') || h.includes('hotmail')) return 'outlook';
+  if (h.includes('gmail') || h.includes('google')) return 'gmail';
+  if (h.includes('zoho')) return 'zoho';
+  return 'custom';
+}
+
 export default function AdminSmtpSettings() {
   const [form, setForm] = useState<SmtpForm>(DEFAULTS);
   const [loading, setLoading] = useState(true);
@@ -51,6 +69,14 @@ export default function AdminSmtpSettings() {
       .maybeSingle();
     if (data) setForm({ ...DEFAULTS, ...(data as any), password: '' });
     setLoading(false);
+  }
+
+  const provider = detectProvider(form.host);
+
+  function applyPreset(key: ProviderKey) {
+    if (key === 'custom') return;
+    const p = PROVIDER_PRESETS[key];
+    setForm(f => ({ ...f, host: p.host, port: p.port, secure: p.secure }));
   }
 
   async function save() {
@@ -119,6 +145,31 @@ export default function AdminSmtpSettings() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+        <div>
+          <Label className="mb-2 block">Email Provider</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {(Object.keys(PROVIDER_PRESETS) as Array<Exclude<ProviderKey, 'custom'>>).map(key => {
+              const active = provider === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/40 border-border hover:bg-muted'}`}
+                >
+                  {PROVIDER_PRESETS[key].label}
+                </button>
+              );
+            })}
+            <div className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-center ${provider === 'custom' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/40 border-border text-muted-foreground'}`}>
+              Custom
+            </div>
+          </div>
+          {provider !== 'custom' && (
+            <p className="text-xs text-muted-foreground mt-2">💡 {PROVIDER_PRESETS[provider].note}</p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label>SMTP Host</Label>
@@ -195,12 +246,16 @@ export default function AdminSmtpSettings() {
         </div>
       </div>
 
-      <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl p-3 space-y-1">
-        <p className="font-semibold text-foreground">📌 Hostinger Setup:</p>
-        <p>• Host: <code>smtp.hostinger.com</code></p>
-        <p>• Port: <code>465</code> (SSL on) বা <code>587</code> (SSL off)</p>
-        <p>• Username: আপনার পুরো email address</p>
-        <p>• Password: <a href="https://mail.hostinger.com" target="_blank" rel="noopener" className="text-primary underline">Hostinger webmail</a> এর login password</p>
+      <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl p-3 space-y-2">
+        <p className="font-semibold text-foreground">📌 Provider Quick Reference:</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div><span className="font-medium text-foreground">Hostinger:</span> smtp.hostinger.com · 465 (SSL)</div>
+          <div><span className="font-medium text-foreground">Outlook:</span> smtp-mail.outlook.com · 587 (STARTTLS)</div>
+          <div><span className="font-medium text-foreground">Gmail:</span> smtp.gmail.com · 465 (SSL) · App Password</div>
+          <div><span className="font-medium text-foreground">Zoho:</span> smtp.zoho.com · 465 (SSL)</div>
+        </div>
+        <p className="pt-1">• Username = আপনার পুরো email address</p>
+        <p>• Outlook 2FA on থাকলে <a href="https://account.microsoft.com/security" target="_blank" rel="noopener" className="text-primary underline">App Password</a> generate করুন</p>
       </div>
     </motion.div>
   );
