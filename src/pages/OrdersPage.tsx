@@ -49,7 +49,28 @@ const OrdersPage: React.FC = () => {
   const loadOrders = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from('orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+
+    // Auto-claim any orphaned bot orders that belong to this user's telegram account.
+    // This handles the case where a Telegram user purchased via the bot (orders saved
+    // on the synthetic telegram_<id>@bot.local profile) and later signs in from
+    // "View on Website" with their real email — orders would otherwise be invisible.
+    try {
+      const tgId =
+        (profile as any)?.telegram_id ??
+        (user as any)?.user_metadata?.telegram_id ??
+        null;
+      if (tgId) {
+        await supabase.rpc('claim_telegram_orders', { _telegram_id: Number(tgId) });
+      }
+    } catch (e) {
+      console.warn('claim_telegram_orders failed (non-fatal):', e);
+    }
+
+    const { data } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
     if (data) setOrders(data);
     setLoading(false);
   };

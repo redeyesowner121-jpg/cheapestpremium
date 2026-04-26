@@ -3005,6 +3005,7 @@ export type Database = {
         Args: { _order_id: string; _user_id: string }
         Returns: Json
       }
+      claim_telegram_orders: { Args: { _telegram_id: number }; Returns: Json }
       confirm_seller_receipt: {
         Args: { _buyer_id: string; _order_id: string }
         Returns: Json
