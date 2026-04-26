@@ -246,12 +246,16 @@ export default function AdminSmtpSettings() {
         </div>
       </div>
 
-      <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl p-3 space-y-1">
-        <p className="font-semibold text-foreground">📌 Hostinger Setup:</p>
-        <p>• Host: <code>smtp.hostinger.com</code></p>
-        <p>• Port: <code>465</code> (SSL on) বা <code>587</code> (SSL off)</p>
-        <p>• Username: আপনার পুরো email address</p>
-        <p>• Password: <a href="https://mail.hostinger.com" target="_blank" rel="noopener" className="text-primary underline">Hostinger webmail</a> এর login password</p>
+      <div className="text-xs text-muted-foreground bg-muted/40 rounded-xl p-3 space-y-2">
+        <p className="font-semibold text-foreground">📌 Provider Quick Reference:</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div><span className="font-medium text-foreground">Hostinger:</span> smtp.hostinger.com · 465 (SSL)</div>
+          <div><span className="font-medium text-foreground">Outlook:</span> smtp-mail.outlook.com · 587 (STARTTLS)</div>
+          <div><span className="font-medium text-foreground">Gmail:</span> smtp.gmail.com · 465 (SSL) · App Password</div>
+          <div><span className="font-medium text-foreground">Zoho:</span> smtp.zoho.com · 465 (SSL)</div>
+        </div>
+        <p className="pt-1">• Username = আপনার পুরো email address</p>
+        <p>• Outlook 2FA on থাকলে <a href="https://account.microsoft.com/security" target="_blank" rel="noopener" className="text-primary underline">App Password</a> generate করুন</p>
       </div>
     </motion.div>
   );
