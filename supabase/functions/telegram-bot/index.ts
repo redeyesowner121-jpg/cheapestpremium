@@ -265,16 +265,6 @@ Deno.serve(async (req) => {
         );
         clearChildBotContext(); return jsonOk();
       }
-      if (data === "escrow_new") {
-        const { escrowStartCreate } = await import("./escrow-handler.ts");
-        await escrowStartCreate(BOT_TOKEN, supabase, chatId, userId);
-        clearChildBotContext(); return jsonOk();
-      }
-      if (data === "escrow_list_active" || data === "escrow_list_closed") {
-        const { escrowListDeals } = await import("./escrow-handler.ts");
-        await escrowListDeals(BOT_TOKEN, supabase, chatId, userId, data === "escrow_list_active" ? "active" : "closed", cq.message.message_id);
-        clearChildBotContext(); return jsonOk();
-      }
       if (data.startsWith("escrow_view_")) {
         const { escrowViewDeal } = await import("./escrow-handler.ts");
         await escrowViewDeal(BOT_TOKEN, supabase, chatId, userId, data.slice(12), cq.message.message_id);
