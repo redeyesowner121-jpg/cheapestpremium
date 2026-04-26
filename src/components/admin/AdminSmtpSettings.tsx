@@ -31,6 +31,24 @@ const DEFAULTS: SmtpForm = {
   is_active: true,
 };
 
+type ProviderKey = 'hostinger' | 'outlook' | 'gmail' | 'zoho' | 'custom';
+
+const PROVIDER_PRESETS: Record<Exclude<ProviderKey, 'custom'>, { host: string; port: number; secure: boolean; label: string; note: string }> = {
+  hostinger: { host: 'smtp.hostinger.com', port: 465, secure: true, label: 'Hostinger', note: 'Webmail password ব্যবহার করুন' },
+  outlook:   { host: 'smtp-mail.outlook.com', port: 587, secure: false, label: 'Outlook / Office 365', note: 'App password লাগতে পারে (2FA on থাকলে)' },
+  gmail:     { host: 'smtp.gmail.com', port: 465, secure: true, label: 'Gmail', note: '2FA on করে App Password generate করুন' },
+  zoho:      { host: 'smtp.zoho.com', port: 465, secure: true, label: 'Zoho Mail', note: 'Account password বা App password' },
+};
+
+function detectProvider(host: string): ProviderKey {
+  const h = (host || '').toLowerCase();
+  if (h.includes('hostinger')) return 'hostinger';
+  if (h.includes('outlook') || h.includes('office365') || h.includes('hotmail')) return 'outlook';
+  if (h.includes('gmail') || h.includes('google')) return 'gmail';
+  if (h.includes('zoho')) return 'zoho';
+  return 'custom';
+}
+
 export default function AdminSmtpSettings() {
   const [form, setForm] = useState<SmtpForm>(DEFAULTS);
   const [loading, setLoading] = useState(true);
