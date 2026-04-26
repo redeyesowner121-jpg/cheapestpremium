@@ -148,8 +148,9 @@ export async function resolveAccessLink(
   }
 
   // repeated mode: prefer variation's access_link, fallback to product's
+  // Send the link only ONCE regardless of quantity (same link for all units)
   const link = variationAccessLink || product.access_link || null;
-  return { link, links: link ? Array(qty).fill(link) : [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
+  return { link, links: link ? [link] : [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
 }
 
 /**
