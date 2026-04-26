@@ -9,7 +9,7 @@ interface AdminNavigationProps {
 
 const AdminNavigation: React.FC<AdminNavigationProps> = ({ activeTab, onTabChange }) => {
   return (
-    <div className="grid grid-cols-3 gap-4 mb-8">
+    <div className="grid grid-cols-2 gap-4 mb-8">
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
