@@ -9,43 +9,11 @@ import {
 import { handleMyWallet } from "../menu-handlers.ts";
 import { showMainMenu } from "../menu/menu-navigation.ts";
 
-// Helper: resend access link + login code for the user's last confirmed order
+// Helper: never re-send delivery from stale payment buttons.
+// Old inline buttons can be tapped multiple times (or Telegram can retry callbacks),
+// so repeating the delivery here causes spam for one completed order.
 async function resendLastDelivery(token: string, supabase: any, chatId: number, userId: number, lang: string) {
-  const { data: lastTelegramOrder } = await supabase
-    .from("telegram_orders")
-    .select("product_name, product_id")
-    .eq("telegram_user_id", userId)
-    .eq("status", "confirmed")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const email = `telegram_${userId}@bot.local`;
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (profile?.id && lastTelegramOrder?.product_id) {
-    const { data: deliveredOrder } = await supabase
-      .from("orders")
-      .select("access_link, product_name")
-      .eq("user_id", profile.id)
-      .eq("product_id", lastTelegramOrder.product_id)
-      .not("access_link", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (deliveredOrder?.access_link) {
-      const { sendInstantDeliveryWithLoginCode } = await import("../payment/instant-delivery.ts");
-      await sendInstantDeliveryWithLoginCode(token, supabase, chatId, userId, deliveredOrder.access_link, deliveredOrder.product_name || lastTelegramOrder.product_name || "Product", lang);
-      return;
-    }
-  }
-
-  await sendMessage(token, chatId, "✅ Payment already processed.");
+  await sendMessage(token, chatId, lang === "bn" ? "✅ পেমেন্ট/অর্ডার ইতিমধ্যে প্রসেস হয়েছে। ডেলিভারি আবার পাঠানো হবে না।" : "✅ Payment/order already processed. Delivery will not be sent again.");
 }
 
 // Silent no-op: never show "session expired" or "start again" — just ignore stale callbacks
