@@ -2,7 +2,7 @@
 
 import { t } from "../constants.ts";
 import { sendMessage, getTelegramApiUrl } from "../telegram-api.ts";
-import { getSettings, ensureWallet, getWallet, setConversationState } from "../db-helpers.ts";
+import { getSettings, ensureWallet, getWallet, setConversationState, deleteConversationState } from "../db-helpers.ts";
 import { logProof, formatOrderPlaced } from "../proof-logger.ts";
 import { getChildBotContext, childBotPrice } from "../child-context.ts";
 import { generatePayUrl, generateUpiQrUrl, generateFallbackQrUrl, inrToUsd, getDynamicUsdRate } from "./payment-utils.ts";
@@ -194,6 +194,7 @@ async function showPaymentMethodChoice(
   if (finalAmount === 0) {
     // Free product (₹0) → execute purchase directly without confirm prompt
     if (price === 0) {
+      await deleteConversationState(supabase, userId);
       const { handleWalletPay } = await import("./wallet-pay.ts");
       await handleWalletPay(
         token, supabase, chatId, userId, 0, productName, lang,
