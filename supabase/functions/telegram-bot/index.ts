@@ -517,8 +517,18 @@ Deno.serve(async (req) => {
           }
           case "/escrow": {
             if (isGiveaway || isChildMode) break;
-            const { handleEscrowCommand } = await import("./escrow-handler.ts");
-            await handleEscrowCommand(BOT_TOKEN, supabase, chatId, userId);
+            await sendMessage(BOT_TOKEN, chatId,
+              lang === "bn"
+                ? `🔒 <b>Escrow বটে এভেইলেবল নয়</b>\n\nএস্ক্রো ডিল এখন শুধুমাত্র আমাদের ওয়েবসাইটে পাওয়া যাচ্ছে। নিচের বাটনে ক্লিক করে ওয়েবসাইটে লগইন করুন — আপনার সমস্ত ডাটা (ওয়ালেট ব্যালেন্স, অর্ডার, ইত্যাদি) স্বয়ংক্রিয়ভাবে সিঙ্ক হয়ে যাবে।`
+                : `🔒 <b>Escrow not available in bot</b>\n\nEscrow deals are available only on our website. Tap the button below to log in — all your data (wallet balance, orders, etc.) will sync automatically.`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: lang === "bn" ? "🌐 Website Login" : "🌐 Website Login", callback_data: "website_login", style: "primary" }],
+                  ],
+                },
+              }
+            );
             break;
           }
           case "/users": {
