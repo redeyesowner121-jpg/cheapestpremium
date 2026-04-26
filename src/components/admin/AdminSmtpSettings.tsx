@@ -145,6 +145,31 @@ export default function AdminSmtpSettings() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 space-y-4">
+        <div>
+          <Label className="mb-2 block">Email Provider</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {(Object.keys(PROVIDER_PRESETS) as Array<Exclude<ProviderKey, 'custom'>>).map(key => {
+              const active = provider === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className={`px-3 py-2 rounded-xl text-xs font-medium border transition ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/40 border-border hover:bg-muted'}`}
+                >
+                  {PROVIDER_PRESETS[key].label}
+                </button>
+              );
+            })}
+            <div className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-center ${provider === 'custom' ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted/40 border-border text-muted-foreground'}`}>
+              Custom
+            </div>
+          </div>
+          {provider !== 'custom' && (
+            <p className="text-xs text-muted-foreground mt-2">💡 {PROVIDER_PRESETS[provider].note}</p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label>SMTP Host</Label>
