@@ -71,7 +71,7 @@ export async function handleMotherConversation(
     return;
   }
 
-  // Step 4: Enter revenue percentage → Show confirmation
+  // Step 4: Enter revenue percentage → Ask for note
   if (state.step === "mother_enter_percent") {
     const percent = parseFloat(text.trim());
     if (isNaN(percent) || percent < 1 || percent > 60) {
@@ -79,9 +79,21 @@ export async function handleMotherConversation(
       return;
     }
 
-    await setConvState(supabase, userId, "mother_confirm", { ...state.data, revenue_percent: percent });
+    await setConvState(supabase, userId, "mother_enter_note", { ...state.data, revenue_percent: percent });
     await sendMsg(motherToken, chatId,
-      `📋 <b>Confirm Bot Creation</b>\n\n🤖 Bot: @${state.data.bot_username}\n👤 Owner ID: <code>${state.data.owner_telegram_id}</code>\n💰 Revenue: ${percent}% per sale\n📎 Referral/Resale links will use: @${state.data.bot_username}\n\n✅ <b>FREE — No payment required!</b>\n\nConfirm?`,
+      `✅ Revenue: ${percent}%\n\nStep 5/5: ✍️ <b>Write a short note for the admin</b>\n\nTell the admin why you want to create this bot, what you'll sell, or anything else they should know.\n\nSend the note as a single message (or send <code>skip</code> to leave it blank).\n\nSend /cancel to abort.`
+    );
+    return;
+  }
+
+  // Step 5: Enter note → Show confirmation
+  if (state.step === "mother_enter_note") {
+    const raw = text.trim();
+    const note = raw.toLowerCase() === "skip" ? "" : raw.slice(0, 1000);
+
+    await setConvState(supabase, userId, "mother_confirm", { ...state.data, admin_note: note });
+    await sendMsg(motherToken, chatId,
+      `📋 <b>Confirm Bot Creation Request</b>\n\n🤖 Bot: @${state.data.bot_username}\n👤 Owner ID: <code>${state.data.owner_telegram_id}</code>\n💰 Revenue: ${state.data.revenue_percent}% per sale\n📎 Referral/Resale links will use: @${state.data.bot_username}\n📝 Note: ${note ? note : "<i>(none)</i>"}\n\n✅ <b>FREE — No payment required!</b>\n\nYour request (with this note) will be sent to the admin.\n\nConfirm?`,
       {
         reply_markup: {
           inline_keyboard: [
