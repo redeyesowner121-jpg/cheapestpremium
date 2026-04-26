@@ -57,27 +57,6 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ activeTab, onTabChang
       </motion.button>
 
       <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={() => onTabChange('config')}
-        className={`relative overflow-hidden rounded-3xl p-6 transition-all ${
-          activeTab === 'config'
-            ? 'bg-gradient-to-br from-accent via-accent/90 to-primary shadow-lg shadow-accent/25'
-            : 'bg-card border border-border hover:border-accent/50 hover:shadow-md'
-        }`}
-      >
-        <div className={`flex flex-col items-center gap-3 ${activeTab === 'config' ? 'text-accent-foreground' : 'text-foreground'}`}>
-          <div className={`p-4 rounded-2xl ${activeTab === 'config' ? 'bg-white/20' : 'bg-accent/10'}`}>
-            <Settings className="w-8 h-8" />
-          </div>
-          <div className="text-center">
-            <h3 className="text-xl font-bold">System Config</h3>
-            <p className={`text-sm mt-1 ${activeTab === 'config' ? 'text-accent-foreground/70' : 'text-muted-foreground'}`}>
-              Branding • Fees • Texts
-            </p>
-          </div>
-        </div>
-      </motion.button>
     </div>
   );
 };
