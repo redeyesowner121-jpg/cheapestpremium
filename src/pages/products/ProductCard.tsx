@@ -70,6 +70,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           alt={product.name}
           className="w-full h-28 object-cover"
           loading="lazy"
+          decoding="async"
+          width={200}
+          height={112}
         />
         {(() => {
           const newLabel = getNewTagLabel(product.created_at);
