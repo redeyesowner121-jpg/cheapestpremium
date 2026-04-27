@@ -84,7 +84,7 @@ export function useHomeData() {
             setMethodsProducts(finalMethods);
           }
         }
-        writeCache({
+        writeCache(CACHE_KEY, {
           banners: nextBanners, products: nextProducts, categories: nextCategories,
           methodsProducts: finalMethods, flashSales: nextFlash,
         });
