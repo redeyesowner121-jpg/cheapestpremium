@@ -31,11 +31,14 @@ export async function sendViaSmtp(
   cfg: SmtpConfig,
   opts: { to: string; subject: string; html: string; text?: string }
 ): Promise<{ ok: boolean; error?: string }> {
+  // Port 465 = implicit TLS, port 587/25 = STARTTLS upgrade.
+  // Using cfg.secure on 587 causes "InvalidContentType" handshake errors.
+  const useImplicitTls = cfg.port === 465;
   const client = new SMTPClient({
     connection: {
       hostname: cfg.host,
       port: cfg.port,
-      tls: cfg.secure,
+      tls: useImplicitTls,
       auth: { username: cfg.username, password: cfg.password },
     },
   });
