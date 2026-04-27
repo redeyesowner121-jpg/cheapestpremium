@@ -264,14 +264,11 @@ export async function sendInstantDeliveryWithLoginCode(
 ) {
   const childMode = isChildBotMode();
 
-  // For child bots, deliver credentials directly without website link
-  if (childMode) {
-    await sendChildBotDelivery(token, chatId, accessLink, productName, lang);
-    return;
+  // Generate 6-digit login code (skip for child bots — no website access)
+  let code: string | null = null;
+  if (!childMode) {
+    code = String(Math.floor(100000 + Math.random() * 900000));
   }
-
-  // Generate 6-digit login code
-  const code = String(Math.floor(100000 + Math.random() * 900000));
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry
 
   // Get user info for login code
