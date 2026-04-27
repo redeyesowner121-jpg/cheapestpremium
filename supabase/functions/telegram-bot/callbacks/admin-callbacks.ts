@@ -1,272 +1,90 @@
-// ===== ADMIN CALLBACK ROUTING =====
+// ===== Admin-related callbacks: chat, AI training, knowledge approval, order actions =====
 import { sendMessage } from "../telegram-api.ts";
-import { isSuperAdmin, isAdminBot, setConversationState } from "../db-helpers.ts";
-import { logProof, formatWithdrawalUpdate } from "../proof-logger.ts";
-import { isChildBotMode } from "../child-context.ts";
+import { isAdminBot, setConversationState, getConversationState } from "../db-helpers.ts";
 import {
-  handleAdminMenu, handleReport,
-  handleAdminProductsMenu, handleAdminUsersMenu, handleAdminWalletMenu,
-  handleAdminChannelsMenu, handleAdminOwnerMenu,
-  handleAdminSettingsMenu, handleSettingsCategory, promptSettingEdit, saveSetting,
-  handleAITrainingMenu, startTrainingCategory, handleViewKnowledge,
-  startDeleteKnowledge, executeDeleteKnowledge,
-  handleUsersCommand, handleAllUsers, handleListChannels, handleListAdmins,
-  // Child bot admin
-  isChildBotOwner, handleChildBotAdminMenu, handleChildBotSettingsMenu,
-  promptChildBotSettingEdit, handleChildBotAnalytics, handleChildBotUsers, handleChildBotOrders,
+  executeDeleteKnowledge, handleViewKnowledge,
+  startDeleteKnowledge, startTrainingCategory, handleAllUsers,
+  handlePendingKnowledge,
 } from "../admin-handlers.ts";
+import { handleAdminAction } from "../payment-handlers.ts";
 
 export async function handleAdminCallbacks(
   BOT_TOKEN: string, supabase: any, chatId: number, userId: number, data: string
 ): Promise<boolean> {
-
-  // ===== WITHDRAWAL ACTION BUTTONS =====
-  if (data.startsWith("wd_accept_") || data.startsWith("wd_reject_") || data.startsWith("wd_delivered_")) {
+  if (data.startsWith("admin_chat_")) {
     if (!await isAdminBot(supabase, userId)) return true;
-    const action = data.startsWith("wd_accept_") ? "accepted" : data.startsWith("wd_reject_") ? "rejected" : "delivered";
-    const wdId = data.replace(/^wd_(accept|reject|delivered)_/, "");
+    const targetUserId = parseInt(data.replace("admin_chat_", ""));
+    await setConversationState(supabase, userId, "admin_reply", { targetUserId });
+    await sendMessage(BOT_TOKEN, chatId, `💬 <b>Chat mode with user <code>${targetUserId}</code></b>\n\nType messages to send. Each message will be delivered to the user.\n\nSend /endchat to end the conversation.`);
+    return true;
+  }
 
-    const { data: wd } = await supabase.from("withdrawal_requests").select("*").eq("id", wdId).single();
-    if (!wd) { await sendMessage(BOT_TOKEN, chatId, "❌ Withdrawal request not found."); return true; }
+  if (data.startsWith("ai_teach_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const targetUserId = parseInt(data.replace("ai_teach_", ""));
+    const userState = await getConversationState(supabase, targetUserId);
+    const originalQuestion = userState?.step === "awaiting_admin_answer" ? userState.data.originalQuestion : null;
+    const questionLang = userState?.data?.questionLang || "en";
+    await setConversationState(supabase, userId, "admin_teaching_ai", { targetUserId, originalQuestion: originalQuestion || "Unknown question", questionLang });
+    await sendMessage(BOT_TOKEN, chatId, `📝 <b>Teach AI Mode</b>\n\n❓ User's Question: <b>${originalQuestion || "Unknown"}</b>\n\n✍️ Type your answer. This will:\n1. Be sent to the user\n2. Be saved so AI can answer similar questions in future\n\nSend /cancel to cancel.`);
+    return true;
+  }
 
-    if (wd.status !== "pending" && action !== "delivered") {
-      await sendMessage(BOT_TOKEN, chatId, `⚠️ Already ${wd.status}.`);
-      return true;
-    }
-    if (action === "delivered" && wd.status !== "accepted") {
-      if (wd.status === "pending") {
-        await sendMessage(BOT_TOKEN, chatId, "⚠️ Please Accept first before marking Delivered.");
-        return true;
-      }
-      await sendMessage(BOT_TOKEN, chatId, `⚠️ Already ${wd.status}.`);
-      return true;
-    }
-
-    if (action === "accepted") {
-      // Deduct wallet balance from telegram wallet
-      const { data: wallet } = await supabase.from("telegram_wallets").select("balance").eq("telegram_id", wd.telegram_id).single();
-      if (!wallet || wallet.balance < wd.amount) {
-        await sendMessage(BOT_TOKEN, chatId, `⚠️ User has insufficient wallet balance (₹${wallet?.balance || 0}).`);
-        return true;
-      }
-      await supabase.from("telegram_wallets").update({
-        balance: Math.max(0, wallet.balance - wd.amount),
-        updated_at: new Date().toISOString(),
-      }).eq("telegram_id", wd.telegram_id);
-
-      await supabase.from("telegram_wallet_transactions").insert({
-        telegram_id: wd.telegram_id,
-        type: "withdrawal",
-        amount: -wd.amount,
-        description: `Withdrawal via ${wd.method.toUpperCase()} to ${wd.account_details}`,
-      });
-
-      await supabase.from("withdrawal_requests").update({ status: "accepted", updated_at: new Date().toISOString() }).eq("id", wdId);
-
-      // Notify user
-      await sendMessage(BOT_TOKEN, wd.telegram_id,
-        `✅ <b>Withdrawal Accepted!</b>\n\n💰 Amount: <b>₹${wd.amount}</b>\n💳 ${wd.method.toUpperCase()}: <code>${wd.account_details}</code>\n\n⏳ Payment will be sent shortly.`
-      );
-
+  if (data.startsWith("knowledge_approve_") || data.startsWith("knowledge_reject_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const isApprove = data.startsWith("knowledge_approve_");
+    const knowledgeId = data.replace(/^knowledge_(approve|reject)_/, "");
+    if (isApprove) {
+      await supabase.from("telegram_ai_knowledge").update({ status: "approved" }).eq("id", knowledgeId);
       await sendMessage(BOT_TOKEN, chatId,
-        `✅ <b>Withdrawal Accepted</b>\n\n👤 <code>${wd.telegram_id}</code>\n💰 ₹${wd.amount} deducted\n💳 ${wd.method.toUpperCase()}: <code>${wd.account_details}</code>`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "📦 Mark Delivered", callback_data: `wd_delivered_${wdId}` }],
-            ],
-          },
-        }
+        `✅ <b>Knowledge Approved!</b>\n\n🧠 AI will now use this answer.`,
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back", color: "red" }]] } }
       );
-
-      let wName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", wd.telegram_id).single(); if (bu?.first_name) wName = bu.first_name; } catch {}
-      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "accepted", wd.account_details, wName)); } catch {}
-
-      // Notify other admins
-      const { notifyAllAdmins } = await import("../db-helpers.ts");
-      try {
-        await notifyAllAdmins(BOT_TOKEN, supabase,
-          `💸 Withdrawal <b>Accepted</b> by admin <code>${userId}</code>\n👤 User: <code>${wd.telegram_id}</code> | ₹${wd.amount}`,
-          undefined, userId
-        );
-      } catch {}
-    } else if (action === "rejected") {
-      await supabase.from("withdrawal_requests").update({ status: "rejected", updated_at: new Date().toISOString() }).eq("id", wdId);
-
-      await sendMessage(BOT_TOKEN, wd.telegram_id,
-        `❌ <b>Withdrawal Rejected</b>\n\n💰 Amount: <b>₹${wd.amount}</b>\n💳 ${wd.method.toUpperCase()}: <code>${wd.account_details}</code>\n\nPlease contact support if you have questions.`
+    } else {
+      await supabase.from("telegram_ai_knowledge").delete().eq("id", knowledgeId);
+      await sendMessage(BOT_TOKEN, chatId,
+        `❌ <b>Knowledge Rejected & Deleted</b>\n\nThis answer will not be added to AI knowledge.`,
+        { reply_markup: { inline_keyboard: [[{ text: "🧠 AI Training", callback_data: "adm_ai_training" }], [{ text: "⬅️ Back", callback_data: "adm_back", color: "red" }]] } }
       );
-
-      await sendMessage(BOT_TOKEN, chatId, `❌ Withdrawal ₹${wd.amount} for user <code>${wd.telegram_id}</code> rejected.`);
-    } else if (action === "delivered") {
-      await supabase.from("withdrawal_requests").update({ status: "delivered", updated_at: new Date().toISOString() }).eq("id", wdId);
-
-      await sendMessage(BOT_TOKEN, wd.telegram_id,
-        `📦 <b>Withdrawal Delivered!</b>\n\n💰 Amount: <b>₹${wd.amount}</b>\n💳 Sent to: <code>${wd.account_details}</code> (${wd.method.toUpperCase()})\n\n✅ Payment has been completed!`
-      );
-
-      await sendMessage(BOT_TOKEN, chatId, `📦 Withdrawal ₹${wd.amount} for user <code>${wd.telegram_id}</code> marked as delivered.`);
-
-      let wdName = "User"; try { const { data: bu } = await supabase.from("telegram_bot_users").select("first_name").eq("telegram_id", wd.telegram_id).single(); if (bu?.first_name) wdName = bu.first_name; } catch {}
-      try { await logProof(BOT_TOKEN, formatWithdrawalUpdate(wd.telegram_id, wd.amount, wd.method, "delivered", wd.account_details, wdName)); } catch {}
     }
     return true;
   }
 
-  // ===== CHILD BOT ADMIN CALLBACKS =====
-  if (data.startsWith("cadm_")) {
-    if (!isChildBotMode() || !isChildBotOwner(userId)) return true;
-
-    if (data === "cadm_back") { await handleChildBotAdminMenu(BOT_TOKEN, supabase, chatId, userId); return true; }
-    if (data === "cadm_settings") { await handleChildBotSettingsMenu(BOT_TOKEN, supabase, chatId); return true; }
-    if (data === "cadm_analytics") { await handleChildBotAnalytics(BOT_TOKEN, supabase, chatId); return true; }
-    if (data === "cadm_users") { await handleChildBotUsers(BOT_TOKEN, supabase, chatId); return true; }
-    if (data === "cadm_orders") { await handleChildBotOrders(BOT_TOKEN, supabase, chatId); return true; }
-
-    if (data.startsWith("cadm_edit_")) {
-      const settingKey = data.replace("cadm_edit_", "");
-      await setConversationState(supabase, userId, "child_bot_edit_setting", { settingKey });
-      await promptChildBotSettingEdit(BOT_TOKEN, supabase, chatId, settingKey);
-      return true;
-    }
-
-    if (data === "cadm_reset_settings") {
-      const { getChildBotContext } = await import("../child-context.ts");
-      const ctx = getChildBotContext()!;
-      await supabase.from("child_bot_settings").delete().eq("child_bot_id", ctx.id);
-      await sendMessage(BOT_TOKEN, chatId, "✅ All custom settings have been reset to defaults.",
-        { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Settings", callback_data: "cadm_settings", color: "red" }]] } });
-      return true;
-    }
-
+  if (data.startsWith("aitrain_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    if (data.startsWith("aitrain_del_")) { await executeDeleteKnowledge(BOT_TOKEN, supabase, chatId, data.replace("aitrain_del_", "")); return true; }
+    if (data.startsWith("aitrain_view_")) { await handleViewKnowledge(BOT_TOKEN, supabase, chatId, parseInt(data.replace("aitrain_view_", "")) || 0); return true; }
+    if (data === "aitrain_view") { await handleViewKnowledge(BOT_TOKEN, supabase, chatId, 0); return true; }
+    if (data === "aitrain_delete") { await startDeleteKnowledge(BOT_TOKEN, supabase, chatId, userId); return true; }
+    if (data === "aitrain_pending") { await handlePendingKnowledge(BOT_TOKEN, supabase, chatId); return true; }
+    const category = data.replace("aitrain_", "");
+    await startTrainingCategory(BOT_TOKEN, supabase, chatId, userId, category);
     return true;
   }
 
-  if (!data.startsWith("adm_")) return false;
-
-  // Block child bot owners from accessing main admin functions
-  if (isChildBotMode() && isChildBotOwner(userId) && !isSuperAdmin(userId)) {
-    await sendMessage(BOT_TOKEN, chatId, "❌ Access denied. Use your Child Bot admin panel.");
+  if (data.startsWith("admin_confirm_") || data.startsWith("admin_reject_") || data.startsWith("admin_ship_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const parts = data.split("_");
+    const action = parts[1];
+    const orderId = data.substring(data.indexOf("_", data.indexOf("_") + 1) + 1);
+    const statusMap: Record<string, string> = { confirm: "confirmed", reject: "rejected", ship: "shipped" };
+    await handleAdminAction(BOT_TOKEN, supabase, orderId, statusMap[action] || "confirmed", chatId);
     return true;
   }
 
-  if (!await isAdminBot(supabase, userId)) return true;
-
-  if (data === "adm_back") { await handleAdminMenu(BOT_TOKEN, supabase, chatId, userId); return true; }
-  if (data === "adm_products") { await handleAdminProductsMenu(BOT_TOKEN, chatId); return true; }
-  if (data === "adm_users") { await handleAdminUsersMenu(BOT_TOKEN, chatId); return true; }
-  if (data === "adm_wallet") { await handleAdminWalletMenu(BOT_TOKEN, chatId); return true; }
-  if (data === "adm_analytics") { await handleReport(BOT_TOKEN, supabase, chatId); return true; }
-  if (data === "adm_channels") { await handleAdminChannelsMenu(BOT_TOKEN, chatId); return true; }
-  if (data === "adm_settings") { await handleAdminSettingsMenu(BOT_TOKEN, chatId); return true; }
-  if (data === "adm_owner") {
-    if (!isSuperAdmin(userId)) return true;
-    await handleAdminOwnerMenu(BOT_TOKEN, chatId);
+  if (data.startsWith("admin_resend_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    const orderId = data.replace("admin_resend_", "");
+    const { handleAdminResend } = await import("../payment/admin-actions.ts");
+    await handleAdminResend(BOT_TOKEN, supabase, orderId, chatId);
     return true;
   }
 
-  if (data === "adm_broadcast") {
-    await setConversationState(supabase, userId, "broadcast_message", {});
-    await sendMessage(BOT_TOKEN, chatId, "📢 <b>Broadcast Mode</b>\n\nSend the message (text/photo) to broadcast.\nSend /cancel to cancel.");
+  if (data.startsWith("allusers_page_")) {
+    if (!await isAdminBot(supabase, userId)) return true;
+    await handleAllUsers(BOT_TOKEN, supabase, chatId, parseInt(data.replace("allusers_page_", "")));
     return true;
   }
 
-  // Product sub-actions
-  if (data === "adm_add_product") {
-    await setConversationState(supabase, userId, "add_photo", {});
-    await sendMessage(BOT_TOKEN, chatId, "📸 <b>Add Product (Step 1/4)</b>\n\nSend the product photo.\n/cancel to cancel.");
-    return true;
-  }
-  if (data === "adm_edit_price") {
-    await setConversationState(supabase, userId, "admin_edit_price", {});
-    await sendMessage(BOT_TOKEN, chatId, "✏️ <b>Edit Price</b>\n\nEnter product name and new price:\n<code>Netflix 199</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_out_stock") {
-    await setConversationState(supabase, userId, "admin_out_stock", {});
-    await sendMessage(BOT_TOKEN, chatId, "❌ <b>Out of Stock</b>\n\nEnter product name:\n<code>Netflix</code>\n\n/cancel to abort.");
-    return true;
-  }
-
-  // User sub-actions
-  if (data === "adm_recent_users") { await handleUsersCommand(BOT_TOKEN, supabase, chatId); return true; }
-  if (data === "adm_all_users") { await handleAllUsers(BOT_TOKEN, supabase, chatId, 0); return true; }
-  if (data === "adm_history") {
-    await setConversationState(supabase, userId, "admin_history", {});
-    await sendMessage(BOT_TOKEN, chatId, "📜 <b>Order History</b>\n\nEnter User ID:\n<code>123456789</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_make_reseller") {
-    await setConversationState(supabase, userId, "admin_make_reseller", {});
-    await sendMessage(BOT_TOKEN, chatId, "🔄 <b>Make Reseller</b>\n\nEnter User ID:\n<code>123456789</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_ban") {
-    await setConversationState(supabase, userId, "admin_ban_user", {});
-    await sendMessage(BOT_TOKEN, chatId, "🚫 <b>Ban User</b>\n\nEnter User ID:\n<code>123456789</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_unban") {
-    await setConversationState(supabase, userId, "admin_unban_user", {});
-    await sendMessage(BOT_TOKEN, chatId, "✅ <b>Unban User</b>\n\nEnter User ID:\n<code>123456789</code>\n\n/cancel to abort.");
-    return true;
-  }
-
-  // Wallet sub-actions
-  if (data === "adm_add_balance") {
-    await setConversationState(supabase, userId, "admin_add_balance", {});
-    await sendMessage(BOT_TOKEN, chatId, "➕ <b>Add Balance</b>\n\nEnter User ID and Amount:\n<code>123456789 500</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_deduct_balance") {
-    await setConversationState(supabase, userId, "admin_deduct_balance", {});
-    await sendMessage(BOT_TOKEN, chatId, "➖ <b>Deduct Balance</b>\n\nEnter User ID and Amount:\n<code>123456789 500</code>\n\n/cancel to abort.");
-    return true;
-  }
-
-  // Channel sub-actions
-  if (data === "adm_list_channels") { await handleListChannels(BOT_TOKEN, supabase, chatId); return true; }
-  if (data === "adm_add_channel") {
-    await setConversationState(supabase, userId, "admin_add_channel", {});
-    await sendMessage(BOT_TOKEN, chatId, "➕ <b>Add Channel</b>\n\nEnter channel username:\n<code>@channel_name</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_remove_channel") {
-    await setConversationState(supabase, userId, "admin_remove_channel", {});
-    await sendMessage(BOT_TOKEN, chatId, "➖ <b>Remove Channel</b>\n\nEnter channel username:\n<code>@channel_name</code>\n\n/cancel to abort.");
-    return true;
-  }
-
-  // Owner sub-actions
-  if (data === "adm_add_admin") {
-    await setConversationState(supabase, userId, "admin_add_admin", {});
-    await sendMessage(BOT_TOKEN, chatId, "➕ <b>Add Admin</b>\n\nEnter User ID:\n<code>123456789</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_remove_admin") {
-    await setConversationState(supabase, userId, "admin_remove_admin", {});
-    await sendMessage(BOT_TOKEN, chatId, "➖ <b>Remove Admin</b>\n\nEnter User ID:\n<code>123456789</code>\n\n/cancel to abort.");
-    return true;
-  }
-  if (data === "adm_list_admins") { await handleListAdmins(BOT_TOKEN, supabase, chatId); return true; }
-
-  // Settings categories
-  if (data === "adm_set_payment") { await handleSettingsCategory(BOT_TOKEN, supabase, chatId, "payment"); return true; }
-  if (data === "adm_set_bonus") { await handleSettingsCategory(BOT_TOKEN, supabase, chatId, "bonus"); return true; }
-  if (data === "adm_set_store") { await handleSettingsCategory(BOT_TOKEN, supabase, chatId, "store"); return true; }
-  if (data === "adm_set_bot") { await handleSettingsCategory(BOT_TOKEN, supabase, chatId, "bot"); return true; }
-  if (data === "adm_set_security") { await handleSettingsCategory(BOT_TOKEN, supabase, chatId, "security"); return true; }
-
-  // Individual setting edit
-  if (data.startsWith("adm_edit_set_")) {
-    const settingKey = data.replace("adm_edit_set_", "");
-    await setConversationState(supabase, userId, "admin_edit_setting", { settingKey });
-    await promptSettingEdit(BOT_TOKEN, supabase, chatId, settingKey);
-    return true;
-  }
-
-  // AI Training
-  if (data === "adm_ai_training") { await handleAITrainingMenu(BOT_TOKEN, supabase, chatId); return true; }
-
-  return true;
+  return false;
 }
