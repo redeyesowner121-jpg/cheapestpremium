@@ -2,7 +2,7 @@
 
 import { sendMessage } from "../telegram-api.ts";
 import { setConversationState, deleteConversationState } from "../db-helpers.ts";
-import { resolveProfileUserId } from "../_shared/profile-id-resolver.ts";
+import { resolveProfileUserId } from "../../_shared/profile-id-resolver.ts";
 import { resolveEscrowCounterparty } from "./shared.ts";
 
 export async function handleEscrowCommand(token: string, supabase: any, chatId: number, userId: number) {

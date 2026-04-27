@@ -2,7 +2,7 @@
 
 import { sendMessage, answerCallbackQuery } from "../telegram-api.ts";
 import { setConversationState, deleteConversationState } from "../db-helpers.ts";
-import { resolveProfileUserId } from "../_shared/profile-id-resolver.ts";
+import { resolveProfileUserId } from "../../_shared/profile-id-resolver.ts";
 import { notifyOther } from "./shared.ts";
 import { escrowViewDeal } from "./list-view.ts";
 

@@ -1,6 +1,6 @@
 // ===== ESCROW SHARED CONSTANTS, TYPES & HELPERS =====
 
-import { resolveProfileUserId } from "../_shared/profile-id-resolver.ts";
+import { resolveProfileUserId } from "../../_shared/profile-id-resolver.ts";
 
 export const STATUS_EMOJI: Record<string, string> = {
   pending_acceptance: "⏳",

@@ -1,7 +1,7 @@
 // ===== ESCROW LIST & VIEW DEAL =====
 
 import { sendMessage, editMessageText } from "../telegram-api.ts";
-import { resolveProfileUserId } from "../_shared/profile-id-resolver.ts";
+import { resolveProfileUserId } from "../../_shared/profile-id-resolver.ts";
 import { STATUS_EMOJI, STATUS_LABEL } from "./shared.ts";
 
 export async function escrowListDeals(token: string, supabase: any, chatId: number, userId: number, scope: 'active' | 'closed', messageId?: number) {
