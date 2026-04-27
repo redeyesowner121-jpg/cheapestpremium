@@ -622,7 +622,7 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
       if (photoFileId) { method = "sendPhoto"; fileField = "photo"; }
       else if (videoFileId) { method = "sendVideo"; fileField = "video"; }
       else if (animationFileId) { method = "sendAnimation"; fileField = "animation"; }
-      const blob = new Blob([buf]);
+      const blob = new Blob([buf as BlobPart]);
       fd.append(fileField, blob, mediaFilename);
       if (caption) fd.append("caption", caption);
       if (captionEntities) fd.append("caption_entities", JSON.stringify(captionEntities));
