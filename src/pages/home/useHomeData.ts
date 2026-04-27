@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const PRODUCT_COLS = 'id,name,price,original_price,reseller_price,image_url,sold_count,rating,slug,category,created_at,product_variations(id,price,reseller_price,is_active,created_at)';
+const CACHE_KEY = 'home_data_v1';
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 const mapProduct = (p: any) => {
   const vars = (p.product_variations || [])
@@ -19,12 +21,27 @@ const mapProduct = (p: any) => {
   };
 };
 
+const readCache = () => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.t > CACHE_TTL) return null;
+    return parsed.d;
+  } catch { return null; }
+};
+
+const writeCache = (d: any) => {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), d })); } catch {}
+};
+
 export function useHomeData() {
-  const [banners, setBanners] = useState<any[]>([]);
-  const [flashSales, setFlashSales] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [methodsProducts, setMethodsProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const cached = typeof window !== 'undefined' ? readCache() : null;
+  const [banners, setBanners] = useState<any[]>(cached?.banners || []);
+  const [flashSales, setFlashSales] = useState<any[]>(cached?.flashSales || []);
+  const [products, setProducts] = useState<any[]>(cached?.products || []);
+  const [methodsProducts, setMethodsProducts] = useState<any[]>(cached?.methodsProducts || []);
+  const [categories, setCategories] = useState<any[]>(cached?.categories || []);
   const dataLoadedRef = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -35,16 +52,23 @@ export function useHomeData() {
         supabase.from('categories').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
 
-      if (categoriesRes.data) setCategories(categoriesRes.data);
-      if (bannersRes.data?.length) {
-        setBanners(bannersRes.data.map(b => ({ id: b.id, image: b.image_url, title: b.title, link: b.link })));
-      }
+      const nextCategories = categoriesRes.data || [];
+      const nextBanners = bannersRes.data?.length
+        ? bannersRes.data.map(b => ({ id: b.id, image: b.image_url, title: b.title, link: b.link }))
+        : [];
+      let nextProducts: any[] = [];
+      let nextMethods: any[] = [];
       if (productsRes.data) {
         const all = productsRes.data;
-        setProducts(all.slice(0, 8).map(mapProduct));
+        nextProducts = all.slice(0, 8).map(mapProduct);
         const methods = all.filter((p: any) => /methods/i.test(p.category || '')).slice(0, 6);
-        if (methods.length) setMethodsProducts(methods.map(mapProduct));
+        if (methods.length) nextMethods = methods.map(mapProduct);
       }
+
+      setCategories(nextCategories);
+      setBanners(nextBanners);
+      setProducts(nextProducts);
+      if (nextMethods.length) setMethodsProducts(nextMethods);
 
       // Deferred non-critical fetches
       setTimeout(async () => {
@@ -53,23 +77,30 @@ export function useHomeData() {
           .select('id,product_id,sale_price,end_time,variation_name,products(id,name,price,image_url)')
           .eq('is_active', true)
           .gt('end_time', new Date().toISOString());
-        if (flashRes) {
-          setFlashSales(flashRes.map((fs: any) => ({
-            id: fs.id, productId: fs.product_id,
-            name: fs.products?.name || 'Product',
-            originalPrice: fs.products?.price || 0,
-            salePrice: fs.sale_price,
-            image: fs.products?.image_url || 'https://via.placeholder.com/200',
-            endTime: new Date(fs.end_time).getTime(),
-            productData: fs.products,
-            variationName: fs.variation_name || null,
-          })));
+        const nextFlash = flashRes ? flashRes.map((fs: any) => ({
+          id: fs.id, productId: fs.product_id,
+          name: fs.products?.name || 'Product',
+          originalPrice: fs.products?.price || 0,
+          salePrice: fs.sale_price,
+          image: fs.products?.image_url || 'https://via.placeholder.com/200',
+          endTime: new Date(fs.end_time).getTime(),
+          productData: fs.products,
+          variationName: fs.variation_name || null,
+        })) : [];
+        setFlashSales(nextFlash);
+
+        let finalMethods = nextMethods;
+        if (!nextMethods.length) {
+          const { data } = await supabase.from('products').select(PRODUCT_COLS)
+            .eq('is_active', true).ilike('category', '%methods%').limit(6);
+          if (data) {
+            finalMethods = data.map(mapProduct);
+            setMethodsProducts(finalMethods);
+          }
         }
-        setMethodsProducts((prev) => {
-          if (prev.length) return prev;
-          supabase.from('products').select(PRODUCT_COLS).eq('is_active', true).ilike('category', '%methods%').limit(6)
-            .then(({ data }) => data && setMethodsProducts(data.map(mapProduct)));
-          return prev;
+        writeCache({
+          banners: nextBanners, products: nextProducts, categories: nextCategories,
+          methodsProducts: finalMethods, flashSales: nextFlash,
         });
       }, 300);
     } catch (error) {
