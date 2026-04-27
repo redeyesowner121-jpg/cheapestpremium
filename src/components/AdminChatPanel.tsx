@@ -1,197 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Send, User, Search, ArrowLeft, Reply, X } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, ArrowLeft, Reply, X, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-
-interface ChatUser {
-  id: string;
-  name: string;
-  email: string;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount?: number;
-}
-
-interface Message {
-  id: string;
-  message: string;
-  user_id: string;
-  is_admin: boolean;
-  created_at: string;
-  image_url?: string;
-  reply_to_id?: string | null;
-}
+import { useAdminChat, Message } from './admin-chat/useAdminChat';
+import UsersList from './admin-chat/UsersList';
+import MessageBubble from './admin-chat/MessageBubble';
 
 const AdminChatPanel: React.FC = () => {
-  const [chatUsers, setChatUsers] = useState<ChatUser[]>([]);
-  const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { chatUsers, selectedUser, setSelectedUser, messages, loading, sendMessage, selectUser } = useAdminChat();
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const adminInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    loadChatUsers();
-    
-    // Subscribe to new messages
-    const channel = supabase
-      .channel('admin-chat')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages'
-        },
-        () => {
-          loadChatUsers();
-          if (selectedUser) {
-            loadMessages(selectedUser.id);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedUser]);
-
-  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [messages]);
 
-  const loadChatUsers = async () => {
-    setLoading(true);
-    
-    // Get all unique users who have sent messages
-    const { data: messagesData } = await supabase
-      .from('chat_messages')
-      .select('user_id, message, created_at, is_admin')
-      .order('created_at', { ascending: false });
-
-    if (messagesData) {
-      const userMap = new Map<string, { lastMessage: string; lastTime: string; unread: number }>();
-      
-      messagesData.forEach(msg => {
-        if (!userMap.has(msg.user_id)) {
-          userMap.set(msg.user_id, {
-            lastMessage: msg.message,
-            lastTime: msg.created_at,
-            unread: msg.is_admin ? 0 : 1
-          });
-        } else if (!msg.is_admin) {
-          const current = userMap.get(msg.user_id)!;
-          userMap.set(msg.user_id, { ...current, unread: current.unread + 1 });
-        }
-      });
-
-      const userIds = Array.from(userMap.keys());
-      
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .in('id', userIds);
-
-        if (profiles) {
-          const users: ChatUser[] = profiles.map(p => ({
-            id: p.id,
-            name: p.name,
-            email: p.email,
-            lastMessage: userMap.get(p.id)?.lastMessage,
-            lastMessageTime: userMap.get(p.id)?.lastTime,
-            unreadCount: userMap.get(p.id)?.unread || 0
-          }));
-
-          // Sort by last message time
-          users.sort((a, b) => {
-            const timeA = new Date(a.lastMessageTime || 0).getTime();
-            const timeB = new Date(b.lastMessageTime || 0).getTime();
-            return timeB - timeA;
-          });
-
-          setChatUsers(users);
-        }
-      }
-    }
-    setLoading(false);
+  const handleSend = async () => {
+    const ok = await sendMessage(newMessage, replyTo?.id || null);
+    if (ok) { setNewMessage(''); setReplyTo(null); }
   };
-
-  const loadMessages = async (userId: string) => {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true });
-
-    if (data) {
-      setMessages(data);
-    }
-  };
-
-  const handleSelectUser = (user: ChatUser) => {
-    setSelectedUser(user);
-    loadMessages(user.id);
-  };
-
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedUser) return;
-
-    const insertData: any = {
-      user_id: selectedUser.id,
-      message: newMessage.trim(),
-      is_admin: true
-    };
-    if (replyTo) insertData.reply_to_id = replyTo.id;
-
-    const { error } = await supabase.from('chat_messages').insert(insertData);
-
-    if (error) {
-      toast.error('Failed to send message');
-      return;
-    }
-
-    // Send notification to user
-    await supabase.from('notifications').insert({
-      user_id: selectedUser.id,
-      title: 'New Message from Admin',
-      message: newMessage.trim().substring(0, 100),
-      type: 'chat'
-    });
-
-    setNewMessage('');
-    setReplyTo(null);
-    loadMessages(selectedUser.id);
-    loadChatUsers();
-    toast.success('Message sent!');
-  };
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    
-    if (isToday) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  };
-
-  const filteredUsers = chatUsers.filter(u => 
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   if (loading) {
     return (
@@ -204,68 +34,21 @@ const AdminChatPanel: React.FC = () => {
   return (
     <div className="bg-card rounded-2xl shadow-card overflow-hidden" style={{ height: '500px' }}>
       <div className="flex h-full">
-        {/* Users List */}
         <div className={`${selectedUser ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-1/3 border-r border-border`}>
-          <div className="p-3 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9"
-              />
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            {filteredUsers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <User className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No chats yet</p>
-              </div>
-            ) : (
-              filteredUsers.map(user => (
-                <div
-                  key={user.id}
-                  onClick={() => handleSelectUser(user)}
-                  className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted transition-colors ${
-                    selectedUser?.id === user.id ? 'bg-muted' : ''
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                    {user.name?.charAt(0) || 'U'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-sm truncate">{user.name}</p>
-                      <span className="text-[10px] text-muted-foreground">
-                        {user.lastMessageTime && formatTime(user.lastMessageTime)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{user.lastMessage}</p>
-                  </div>
-                  {user.unreadCount && user.unreadCount > 0 && (
-                    <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
-                      {user.unreadCount}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+          <UsersList
+            users={chatUsers}
+            selectedId={selectedUser?.id}
+            searchQuery={searchQuery}
+            onSearch={setSearchQuery}
+            onSelect={selectUser}
+          />
         </div>
 
-        {/* Chat Area */}
         <div className={`${selectedUser ? 'flex' : 'hidden md:flex'} flex-col flex-1`}>
           {selectedUser ? (
             <>
-              {/* Chat Header */}
               <div className="flex items-center gap-3 p-3 border-b border-border">
-                <button 
-                  onClick={() => setSelectedUser(null)}
-                  className="md:hidden p-1"
-                >
+                <button onClick={() => setSelectedUser(null)} className="md:hidden p-1">
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-primary-foreground font-bold">
@@ -277,71 +60,23 @@ const AdminChatPanel: React.FC = () => {
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3">
                 {messages.map((message, index) => {
-                  const repliedMsg = message.reply_to_id ? messages.find(m => m.id === message.reply_to_id) : null;
+                  const repliedMsg = message.reply_to_id ? messages.find(m => m.id === message.reply_to_id) || null : null;
                   return (
-                    <motion.div
+                    <MessageBubble
                       key={message.id}
-                      id={`admin-msg-${message.id}`}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.02 }}
-                      className={`flex ${message.is_admin ? 'justify-end' : 'justify-start'} group transition-colors duration-500 rounded-xl`}
-                    >
-                      <div className="max-w-[75%] relative">
-                        {/* Reply button */}
-                        <button
-                          onClick={() => { setReplyTo(message); adminInputRef.current?.focus(); }}
-                          className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full bg-muted hover:bg-muted/80 z-10 ${
-                            message.is_admin ? '-left-7' : '-right-7'
-                          }`}
-                        >
-                          <Reply className="w-3 h-3 text-muted-foreground" />
-                        </button>
-
-                        {/* Replied message preview */}
-                        {repliedMsg && (
-                          <div
-                            onClick={() => {
-                              const el = document.getElementById(`admin-msg-${repliedMsg.id}`);
-                              if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('bg-primary/10'); setTimeout(() => el.classList.remove('bg-primary/10'), 1500); }
-                            }}
-                            className={`text-[10px] mb-0.5 px-2 py-1 rounded-t-lg cursor-pointer border-l-2 ${
-                              message.is_admin ? 'bg-primary/20 border-primary-foreground/40 text-primary-foreground/80' : 'bg-muted/60 border-primary/50 text-muted-foreground'
-                            }`}
-                          >
-                            <span className="font-semibold">{repliedMsg.is_admin ? 'You' : selectedUser?.name || 'User'}</span>
-                            <p className="truncate">{repliedMsg.message || '📷 Photo'}</p>
-                          </div>
-                        )}
-
-                        <div
-                          className={`rounded-2xl px-3 py-2 ${repliedMsg ? 'rounded-t-sm' : ''} ${
-                            message.is_admin
-                              ? 'gradient-primary text-primary-foreground rounded-tr-none'
-                              : 'bg-muted rounded-tl-none'
-                          }`}
-                        >
-                          {message.image_url && (
-                            <img src={message.image_url} alt="Shared" className="rounded-lg mb-2 max-w-full cursor-pointer" onClick={() => window.open(message.image_url, '_blank')} />
-                          )}
-                          {message.message && message.message !== '📷 Photo' && (
-                            <p className="text-sm">{message.message}</p>
-                          )}
-                          <p className={`text-[10px] mt-1 text-right ${message.is_admin ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                            {formatTime(message.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                    </motion.div>
+                      message={message}
+                      index={index}
+                      repliedMsg={repliedMsg}
+                      selectedUserName={selectedUser.name}
+                      onReply={(m) => { setReplyTo(m); adminInputRef.current?.focus(); }}
+                    />
                   );
                 })}
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Reply preview */}
               {replyTo && (
                 <div className="px-3 pt-2 border-t border-border flex items-center gap-2 bg-card">
                   <Reply className="w-4 h-4 text-primary shrink-0" />
@@ -355,21 +90,16 @@ const AdminChatPanel: React.FC = () => {
                 </div>
               )}
 
-              {/* Input */}
               <div className="p-3 border-t border-border flex gap-2">
                 <Input
                   ref={adminInputRef}
                   placeholder="Type a reply..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                   className="flex-1"
                 />
-                <Button 
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                  className="btn-gradient"
-                >
+                <Button onClick={handleSend} disabled={!newMessage.trim()} className="btn-gradient">
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
