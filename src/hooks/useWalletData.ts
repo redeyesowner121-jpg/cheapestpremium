@@ -39,7 +39,9 @@ export const useWalletData = () => {
   })();
 
   const [transactions, setTransactions] = useState<Transaction[]>(initialTx);
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(
+    readCache<PaymentSettings>('wallet_payment_settings_v1', 30 * 60 * 1000)
+  );
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [loading, setLoading] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
@@ -76,6 +78,7 @@ export const useWalletData = () => {
       const s: any = {};
       data.forEach(item => { s[item.setting_key] = { setting_value: item.setting_value, is_enabled: item.is_enabled }; });
       setPaymentSettings(s);
+      writeCache('wallet_payment_settings_v1', s);
     }
   };
 
