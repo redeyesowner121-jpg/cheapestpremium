@@ -104,54 +104,78 @@ const WalletPage: React.FC = () => {
           <Gift className="w-6 h-6 text-accent" /><span className="font-semibold text-accent">Redeem Gift Code</span>
         </button>
 
-        <CurrencyConverter
-          open={showConvertModal}
-          onOpenChange={setShowConvertModal}
-          walletBalance={profile?.wallet_balance || 0}
-          onConverted={() => window.location.reload()}
-        />
+        {showConvertModal && (
+          <Suspense fallback={null}>
+            <CurrencyConverter
+              open={showConvertModal}
+              onOpenChange={setShowConvertModal}
+              walletBalance={profile?.wallet_balance || 0}
+              onConverted={() => window.location.reload()}
+            />
+          </Suspense>
+        )}
 
         <TransactionList transactions={wallet.transactions} />
       </main>
 
-      <DepositModal open={showDepositModal} onOpenChange={setShowDepositModal}
-        depositAmount={wallet.depositAmount} onDepositAmountChange={wallet.setDepositAmount}
-        paymentSettings={wallet.paymentSettings} loading={wallet.loading}
-        onAutoDeposit={() => { wallet.handleDeposit(); }}
-        onManualDeposit={() => { wallet.handleManualDeposit(); }}
-        submittingManual={wallet.submittingManual}
-        transactionId={wallet.transactionId} onTransactionIdChange={wallet.setTransactionId}
-        senderName={wallet.senderName} onSenderNameChange={wallet.setSenderName}
-        initialTab={depositInitialTab}
-        initialMethod={depositInitialMethod}
-      />
+      {showDepositModal && (
+        <Suspense fallback={null}>
+          <DepositModal open={showDepositModal} onOpenChange={setShowDepositModal}
+            depositAmount={wallet.depositAmount} onDepositAmountChange={wallet.setDepositAmount}
+            paymentSettings={wallet.paymentSettings} loading={wallet.loading}
+            onAutoDeposit={() => { wallet.handleDeposit(); }}
+            onManualDeposit={() => { wallet.handleManualDeposit(); }}
+            submittingManual={wallet.submittingManual}
+            transactionId={wallet.transactionId} onTransactionIdChange={wallet.setTransactionId}
+            senderName={wallet.senderName} onSenderNameChange={wallet.setSenderName}
+            initialTab={depositInitialTab}
+            initialMethod={depositInitialMethod}
+          />
+        </Suspense>
+      )}
 
-      <TransferDialog open={showTransferModal} onOpenChange={setShowTransferModal}
-        userId={user.id}
-        userEmail={profile?.email}
-        userName={profile?.name}
-        walletBalance={profile?.wallet_balance || 0}
-        loading={wallet.loading}
-        onTransfer={(r, a, n) => { wallet.handleTransfer(r, a, n); }}
-      />
+      {showTransferModal && (
+        <Suspense fallback={null}>
+          <TransferDialog open={showTransferModal} onOpenChange={setShowTransferModal}
+            userId={user.id}
+            userEmail={profile?.email}
+            userName={profile?.name}
+            walletBalance={profile?.wallet_balance || 0}
+            loading={wallet.loading}
+            onTransfer={(r, a, n) => { wallet.handleTransfer(r, a, n); }}
+          />
+        </Suspense>
+      )}
 
-      <RedeemModal open={showRedeemModal} onOpenChange={setShowRedeemModal}
-        redeemCode={wallet.redeemCode} onRedeemCodeChange={wallet.setRedeemCode}
-        redeeming={wallet.redeemingCode} onRedeem={() => { wallet.handleRedeemCode(); setShowRedeemModal(false); }}
-      />
+      {showRedeemModal && (
+        <Suspense fallback={null}>
+          <RedeemModal open={showRedeemModal} onOpenChange={setShowRedeemModal}
+            redeemCode={wallet.redeemCode} onRedeemCodeChange={wallet.setRedeemCode}
+            redeeming={wallet.redeemingCode} onRedeem={() => { wallet.handleRedeemCode(); setShowRedeemModal(false); }}
+          />
+        </Suspense>
+      )}
 
-      <WithdrawModal
-        open={showWithdrawModal}
-        onOpenChange={setShowWithdrawModal}
-        userId={user.id}
-        walletBalance={profile?.wallet_balance || 0}
-        onSuccess={() => { wallet.loadTransactions(); }}
-      />
+      {showWithdrawModal && (
+        <Suspense fallback={null}>
+          <WithdrawModal
+            open={showWithdrawModal}
+            onOpenChange={setShowWithdrawModal}
+            userId={user.id}
+            walletBalance={profile?.wallet_balance || 0}
+            onSuccess={() => { wallet.loadTransactions(); }}
+          />
+        </Suspense>
+      )}
 
-      <SuccessModal isOpen={wallet.showSuccessModal} onClose={() => wallet.setShowSuccessModal(false)}
-        type={wallet.successData.type} title={wallet.successData.title} message={wallet.successData.message}
-        details={wallet.successData.details} actionLabel="View Wallet" autoCloseDelay={4000}
-      />
+      {wallet.showSuccessModal && (
+        <Suspense fallback={null}>
+          <SuccessModal isOpen={wallet.showSuccessModal} onClose={() => wallet.setShowSuccessModal(false)}
+            type={wallet.successData.type} title={wallet.successData.title} message={wallet.successData.message}
+            details={wallet.successData.details} actionLabel="View Wallet" autoCloseDelay={4000}
+          />
+        </Suspense>
+      )}
 
       <BottomNav />
     </div>
