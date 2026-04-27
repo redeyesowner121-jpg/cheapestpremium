@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
+import { readCache, writeCache } from '@/lib/persistentCache';
 
 export interface Transaction {
   id: string; type: string; amount: number; status: string; description: string; created_at: string;
