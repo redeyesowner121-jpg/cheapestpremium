@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { readCache, writeCache } from '@/lib/persistentCache';
 
 const PRODUCT_COLS = 'id,name,price,original_price,reseller_price,image_url,sold_count,rating,slug,category,created_at,product_variations(id,price,reseller_price,is_active,created_at)';
 const CACHE_KEY = 'home_data_v1';
-const CACHE_TTL = 5 * 60 * 1000; // 5 min
 
 const mapProduct = (p: any) => {
   const vars = (p.product_variations || [])
@@ -21,22 +21,8 @@ const mapProduct = (p: any) => {
   };
 };
 
-const readCache = () => {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (Date.now() - parsed.t > CACHE_TTL) return null;
-    return parsed.d;
-  } catch { return null; }
-};
-
-const writeCache = (d: any) => {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), d })); } catch {}
-};
-
 export function useHomeData() {
-  const cached = typeof window !== 'undefined' ? readCache() : null;
+  const cached = readCache<any>(CACHE_KEY);
   const [banners, setBanners] = useState<any[]>(cached?.banners || []);
   const [flashSales, setFlashSales] = useState<any[]>(cached?.flashSales || []);
   const [products, setProducts] = useState<any[]>(cached?.products || []);
