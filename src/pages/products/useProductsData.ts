@@ -3,17 +3,26 @@ import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Product, CategoryItem } from './types';
+import { readCache, writeCache } from '@/lib/persistentCache';
+
+const PRODUCTS_CACHE_KEY = 'products_page_v1';
+const CATEGORIES_CACHE_KEY = 'categories_page_v1';
 
 export function useProductsData() {
   const { user } = useAuth();
   const location = useLocation();
   const initialCategory = location.state?.category?.toLowerCase() || 'all';
 
+  const cachedProducts = readCache<Product[]>(PRODUCTS_CACHE_KEY) || [];
+  const cachedCategories = readCache<CategoryItem[]>(CATEGORIES_CACHE_KEY);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([{ id: 'all', name: 'All' }]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(cachedProducts);
+  const [categories, setCategories] = useState<CategoryItem[]>(
+    cachedCategories || [{ id: 'all', name: 'All' }]
+  );
+  const [loading, setLoading] = useState(cachedProducts.length === 0);
   const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -53,7 +62,7 @@ export function useProductsData() {
   }, [searchQuery, products, user]);
 
   const loadProducts = async () => {
-    setLoading(true);
+    if (products.length === 0) setLoading(true);
     const { data } = await supabase
       .from('products')
       .select('id,name,description,price,original_price,reseller_price,image_url,sold_count,rating,slug,category,seo_tags,created_at,is_active,access_link,product_variations(id,name,price,reseller_price,is_active,created_at)')
@@ -73,7 +82,8 @@ export function useProductsData() {
           product_variations: undefined
         };
       });
-      setProducts(enriched);
+      setProducts(enriched as Product[]);
+      writeCache(PRODUCTS_CACHE_KEY, enriched);
     }
     setLoading(false);
   };
@@ -86,10 +96,12 @@ export function useProductsData() {
       .order('sort_order', { ascending: true });
 
     if (data) {
-      setCategories([
+      const next: CategoryItem[] = [
         { id: 'all', name: 'All' },
         ...data.map(c => ({ id: c.name.toLowerCase(), name: c.name }))
-      ]);
+      ];
+      setCategories(next);
+      writeCache(CATEGORIES_CACHE_KEY, next);
     }
   };
 
