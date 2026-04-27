@@ -46,9 +46,21 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Hydrate profile instantly from localStorage so dependent pages render with no flicker
+  const cachedProfile: UserProfile | null = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('auth_profile_v1');
+      if (!raw) return null;
+      const p = JSON.parse(raw);
+      if (!p || Date.now() - p.t > 24 * 60 * 60 * 1000) return null;
+      return p.d as UserProfile;
+    } catch { return null; }
+  })();
+
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(cachedProfile);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isTempAdmin, setIsTempAdmin] = useState(false);
@@ -57,6 +69,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadProfile = async (userId: string, userMeta?: Record<string, any>) => {
     const p = await fetchUserProfile(userId, userMeta);
     setProfile(p);
+    if (p && typeof window !== 'undefined') {
+      try { localStorage.setItem('auth_profile_v1', JSON.stringify({ t: Date.now(), d: p })); } catch {}
+    }
     return p;
   };
 
@@ -141,6 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
     setIsAdmin(false);
     setIsTempAdmin(false);
+    try { localStorage.removeItem('auth_profile_v1'); } catch {}
     await logoutUser();
   };
 
