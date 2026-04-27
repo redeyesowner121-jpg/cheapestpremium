@@ -271,45 +271,57 @@ export async function sendInstantDeliveryWithLoginCode(
   }
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry
 
-  // Get user info for login code
+  // Get user info for login code (skip for child bots)
   let username: string | null = null;
   let firstName: string | null = null;
-  try {
-    const { data: botUser } = await supabase
-      .from("telegram_bot_users")
-      .select("username, first_name")
-      .eq("telegram_id", telegramId)
-      .maybeSingle();
-    username = botUser?.username || null;
-    firstName = botUser?.first_name || null;
-  } catch {}
+  if (!childMode) {
+    try {
+      const { data: botUser } = await supabase
+        .from("telegram_bot_users")
+        .select("username, first_name")
+        .eq("telegram_id", telegramId)
+        .maybeSingle();
+      username = botUser?.username || null;
+      firstName = botUser?.first_name || null;
+    } catch {}
 
-  // Save login code
-  try {
-    await supabase.from("telegram_login_codes").insert({
-      telegram_id: telegramId,
-      code,
-      expires_at: expiresAt,
-      username,
-      first_name: firstName,
-    });
-  } catch (e) {
-    console.error("Login code insert error:", e);
+    // Save login code
+    try {
+      await supabase.from("telegram_login_codes").insert({
+        telegram_id: telegramId,
+        code,
+        expires_at: expiresAt,
+        username,
+        first_name: firstName,
+      });
+    } catch (e) {
+      console.error("Login code insert error:", e);
+    }
   }
 
-  const websiteUrl = `https://cheapest-premiums.in/telegram/auth?code=${code}`;
+  const websiteUrl = childMode ? null : `https://cheapest-premiums.in/telegram/auth?code=${code}`;
 
   if (isDriveLink(accessLink)) {
     // Drive link → only show website button, don't send link directly
-    const driveMsg = lang === "bn"
-      ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n` +
-        `📁 আপনার ফাইল/লিঙ্ক ওয়েবসাইটে আপনার অর্ডার হিস্ট্রিতে পাবেন।\n\n` +
-        `🔑 লগইন কোড: <code>${code}</code>\n` +
-        `⏳ কোড ৩০ মিনিট পর্যন্ত কার্যকর।`
-      : `✅ <b>${productName} Delivered!</b>\n\n` +
-        `📁 Your file/link is available in your order history on the website.\n\n` +
-        `🔑 Login Code: <code>${code}</code>\n` +
-        `⏳ Code valid for 30 minutes.`;
+    // For child bots: no website link available — show generic delivered notice
+    let driveMsg: string;
+    const inlineKeyboard: any[][] = [];
+    if (childMode) {
+      driveMsg = lang === "bn"
+        ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n📁 আপনার ফাইল/লিঙ্ক প্রস্তুত। বিস্তারিত জানতে সাপোর্টে যোগাযোগ করুন।`
+        : `✅ <b>${productName} Delivered!</b>\n\n📁 Your file/link is ready. Contact support for assistance.`;
+    } else {
+      driveMsg = lang === "bn"
+        ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n` +
+          `📁 আপনার ফাইল/লিঙ্ক ওয়েবসাইটে আপনার অর্ডার হিস্ট্রিতে পাবেন।\n\n` +
+          `🔑 লগইন কোড: <code>${code}</code>\n` +
+          `⏳ কোড ৩০ মিনিট পর্যন্ত কার্যকর।`
+        : `✅ <b>${productName} Delivered!</b>\n\n` +
+          `📁 Your file/link is available in your order history on the website.\n\n` +
+          `🔑 Login Code: <code>${code}</code>\n` +
+          `⏳ Code valid for 30 minutes.`;
+      inlineKeyboard.push([{ text: "🌐 View on Website", url: websiteUrl! }]);
+    }
 
     const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
     await fetch(apiUrl, {
@@ -319,11 +331,7 @@ export async function sendInstantDeliveryWithLoginCode(
         chat_id: chatId,
         text: driveMsg,
         parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [[
-            { text: "🌐 View on Website", url: websiteUrl }
-          ]]
-        }
+        ...(inlineKeyboard.length ? { reply_markup: { inline_keyboard: inlineKeyboard } } : {}),
       }),
     });
   } else {
@@ -344,12 +352,27 @@ export async function sendInstantDeliveryWithLoginCode(
     const escapeHtml = (s: string) =>
       s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!));
 
+    // Build body — when we have parsed Email + Password, render each as its own
+    // <code> tag so each can be tap-to-copied INDEPENDENTLY (not joined together).
     let body: string;
-    if (isMultiline) {
-      // Wrap in <pre> so Telegram renders as tap-to-copy block (only ID/Password/Link)
+    if (parsed.email && parsed.password) {
+      const emailLabel = lang === 'bn' ? '📧 ইমেইল/আইডি' : '📧 Email / ID';
+      const passLabel = lang === 'bn' ? '🔒 পাসওয়ার্ড' : '🔒 Password';
+      body = `${emailLabel}:\n<code>${escapeHtml(parsed.email)}</code>\n\n${passLabel}:\n<code>${escapeHtml(parsed.password)}</code>`;
+      if (parsed.link) {
+        const linkLabel = lang === 'bn' ? '🔗 লিঙ্ক' : '🔗 Link';
+        body += `\n\n${linkLabel}:\n<code>${escapeHtml(parsed.link)}</code>`;
+      }
+      if (parsed.extras?.length) {
+        for (const ex of parsed.extras) {
+          body += `\n\n${escapeHtml(ex.label)}:\n<code>${escapeHtml(ex.value)}</code>`;
+        }
+      }
+    } else if (isMultiline) {
+      // Fallback: tap-to-copy block for unstructured multi-line content
       body = `<pre>${escapeHtml(visibleAccess)}</pre>`;
     } else {
-      body = `<code>${visibleAccess}</code>`;
+      body = `<code>${escapeHtml(visibleAccess)}</code>`;
     }
 
     const twoFANote = has2FA
@@ -358,13 +381,17 @@ export async function sendInstantDeliveryWithLoginCode(
           : `\n\n💡 Tap <b>"🔐 Get OTP"</b> below to get a live 6-digit 2FA code.`)
       : '';
 
+    const loginCodeLine = childMode
+      ? ''
+      : (lang === 'bn'
+          ? `\n\n🔑 লগইন কোড: <code>${code}</code>`
+          : `\n\n🔑 Login Code: <code>${code}</code>`);
+
     const directMsg = lang === "bn"
       ? `✅ <b>${productName} ডেলিভারি সম্পন্ন!</b>\n\n` +
-        `🔗 <b>আপনার অ্যাক্সেস:</b>\n${body}\n\n` +
-        `🔑 লগইন কোড: <code>${code}</code>${twoFANote}`
+        `🔗 <b>আপনার অ্যাক্সেস:</b>\n${body}${loginCodeLine}${twoFANote}`
       : `✅ <b>${productName} Delivered!</b>\n\n` +
-        `🔗 <b>Your Access:</b>\n${body}\n\n` +
-        `🔑 Login Code: <code>${code}</code>${twoFANote}`;
+        `🔗 <b>Your Access:</b>\n${body}${loginCodeLine}${twoFANote}`;
 
     // Build inline keyboard
     const keyboardRows: any[][] = [];
@@ -377,7 +404,9 @@ export async function sendInstantDeliveryWithLoginCode(
         { text: lang === 'bn' ? '🔐 OTP নিন' : '🔐 Get OTP', callback_data: cbData },
       ]);
     }
-    keyboardRows.push([{ text: '🌐 View on Website', url: websiteUrl }]);
+    if (!childMode) {
+      keyboardRows.push([{ text: '🌐 View on Website', url: websiteUrl! }]);
+    }
 
     const apiUrl = `https://api.telegram.org/bot${token}/sendMessage`;
     await fetch(apiUrl, {
@@ -387,7 +416,7 @@ export async function sendInstantDeliveryWithLoginCode(
         chat_id: chatId,
         text: directMsg,
         parse_mode: "HTML",
-        reply_markup: { inline_keyboard: keyboardRows },
+        ...(keyboardRows.length ? { reply_markup: { inline_keyboard: keyboardRows } } : {}),
       }),
     });
   }
