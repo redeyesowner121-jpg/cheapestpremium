@@ -363,11 +363,6 @@ export async function sendInstantDeliveryWithLoginCode(
         const linkLabel = lang === 'bn' ? '🔗 লিঙ্ক' : '🔗 Link';
         body += `\n\n${linkLabel}:\n<code>${escapeHtml(parsed.link)}</code>`;
       }
-      if (parsed.extras?.length) {
-        for (const ex of parsed.extras) {
-          body += `\n\n${escapeHtml(ex.label)}:\n<code>${escapeHtml(ex.value)}</code>`;
-        }
-      }
     } else if (isMultiline) {
       // Fallback: tap-to-copy block for unstructured multi-line content
       body = `<pre>${escapeHtml(visibleAccess)}</pre>`;
