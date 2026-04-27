@@ -1,15 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Wallet, LogIn, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import SuccessModal from '@/components/SuccessModal';
-import DepositModal from '@/components/wallet/DepositModal';
-import TransferDialog from '@/components/wallet/TransferDialog';
-import RedeemModal from '@/components/wallet/RedeemModal';
-import WithdrawModal from '@/components/wallet/WithdrawModal';
-import CurrencyConverter from '@/components/wallet/CurrencyConverter';
 import WalletBalanceCard from '@/components/wallet/WalletBalanceCard';
 import QuickActions from '@/components/wallet/QuickActions';
 import TransactionList from '@/components/wallet/TransactionList';
@@ -17,6 +11,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useWalletData } from '@/hooks/useWalletData';
+
+// Lazy load heavy modals — only load when opened
+const DepositModal = lazy(() => import('@/components/wallet/DepositModal'));
+const TransferDialog = lazy(() => import('@/components/wallet/TransferDialog'));
+const RedeemModal = lazy(() => import('@/components/wallet/RedeemModal'));
+const WithdrawModal = lazy(() => import('@/components/wallet/WithdrawModal'));
+const CurrencyConverter = lazy(() => import('@/components/wallet/CurrencyConverter'));
+const SuccessModal = lazy(() => import('@/components/SuccessModal'));
 
 const WalletPage: React.FC = () => {
   const navigate = useNavigate();
