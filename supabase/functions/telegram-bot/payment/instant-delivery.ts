@@ -1,249 +1,16 @@
 // ===== INSTANT DELIVERY HELPER =====
-// Generates a login code and sends website link + access link to user after instant delivery
+// Refactored: split into ./delivery-resolve.ts, ./delivery-stock.ts, ./delivery-email.ts
+// This file holds the main send-to-user logic + barrel re-exports of the helpers.
 
 import { sendMessage } from "../telegram-api.ts";
 import { isChildBotMode } from "../child-context.ts";
+import { sendDeliveryEmail } from "./delivery-email.ts";
+
+// Re-export resolver for backward compatibility
+export { resolveAccessLink } from "./delivery-resolve.ts";
 
 function isDriveLink(url: string): boolean {
   return /drive\.google\.com|docs\.google\.com|googleapis\.com/i.test(url);
-}
-
-/**
- * Resolve access link for a product:
- * - If delivery_mode === 'unique': atomically consume the oldest unused stock item and delete it
- * - If delivery_mode === 'repeated' (default): use product.access_link directly
- * Returns the access link string or null if unavailable
- */
-export async function resolveAccessLink(
-  supabase: any,
-  productId: string,
-  orderId?: string,
-  telegramOrderId?: string,
-  quantity: number = 1,
-): Promise<{ link: string | null; links: string[]; showInBot: boolean; showInWebsite: boolean; deliveryMessage?: string | null }> {
-  const { data: product } = await supabase
-    .from("products")
-    .select("access_link, delivery_mode, show_link_in_bot, show_link_in_website, name")
-    .eq("id", productId)
-    .single();
-
-  if (!product) return { link: null, links: [], showInBot: true, showInWebsite: true };
-
-  const showInBot = product.show_link_in_bot !== false;
-  const showInWebsite = product.show_link_in_website !== false;
-  const qty = Math.max(1, Math.min(1000, Math.floor(quantity || 1)));
-
-  // Try to resolve variation from order's product_name (e.g. "Netflix - 1 Month")
-  let variationId: string | null = null;
-  let variationDeliveryMode: string | null = null;
-  let variationDeliveryMessage: string | null = null;
-  let variationAccessLink: string | null = null;
-  try {
-    let orderProductName: string | null = null;
-    if (orderId) {
-      const { data: o } = await supabase.from("orders").select("product_name").eq("id", orderId).single();
-      orderProductName = o?.product_name || null;
-    } else if (telegramOrderId) {
-      const { data: o } = await supabase.from("telegram_orders").select("product_name").eq("id", telegramOrderId).single();
-      orderProductName = o?.product_name || null;
-    }
-    if (orderProductName) {
-      const { data: vars } = await supabase
-        .from("product_variations")
-        .select("id, name, delivery_mode, delivery_message, access_link")
-        .eq("product_id", productId)
-        .eq("is_active", true);
-      if (vars?.length) {
-        // Match longest variation name found in order_product_name
-        const matched = vars
-          .filter((v: any) => orderProductName!.toLowerCase().includes(v.name.toLowerCase().trim()))
-          .sort((a: any, b: any) => b.name.length - a.name.length)[0];
-        if (matched) {
-          variationId = matched.id;
-          variationDeliveryMode = matched.delivery_mode;
-          variationDeliveryMessage = matched.delivery_message || null;
-          variationAccessLink = matched.access_link || null;
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("[DELIVERY] variation resolve skipped:", e);
-  }
-
-  const useVariationStock = variationId && variationDeliveryMode === "unique";
-  const useProductStock = !useVariationStock && product.delivery_mode === "unique";
-
-  if (useVariationStock || useProductStock) {
-    console.log("[UNIQUE-DELIVERY] Product", productId, "variation", variationId, "qty=", qty);
-    const consumedLinks: string[] = [];
-
-    for (let i = 0; i < qty; i++) {
-      let consumedThis: string | null = null;
-
-      // Try variation stock first, then fall back to product-level stock
-      const stockStrategies: Array<{ type: string; filter: (q: any) => any }> = [];
-      if (useVariationStock) {
-        stockStrategies.push({
-          type: "variation",
-          filter: (q: any) => q.eq("variation_id", variationId),
-        });
-        // Fallback: try product-level stock (variation_id IS NULL) if variation stock is empty
-        stockStrategies.push({
-          type: "product-fallback",
-          filter: (q: any) => q.eq("product_id", productId).is("variation_id", null),
-        });
-      } else {
-        stockStrategies.push({
-          type: "product",
-          filter: (q: any) => q.eq("product_id", productId).is("variation_id", null),
-        });
-      }
-
-      for (const strategy of stockStrategies) {
-        for (let attempt = 0; attempt < 3; attempt++) {
-          let q = supabase
-            .from("product_stock_items")
-            .select("id, access_link")
-            .eq("is_used", false)
-            .order("created_at", { ascending: true })
-            .limit(1);
-          q = strategy.filter(q);
-          const { data: stockItems, error: fetchErr } = await q;
-          if (fetchErr || !stockItems?.length) break;
-
-          const stockItem = stockItems[0];
-          const { data: consumedRows, error: consumeError } = await supabase
-            .from("product_stock_items")
-            .delete()
-            .eq("id", stockItem.id)
-            .eq("is_used", false)
-            .select("access_link");
-
-          if (consumeError) {
-            console.error("[UNIQUE-DELIVERY] consume failed:", consumeError);
-            break;
-          }
-
-          const link = consumedRows?.[0]?.access_link;
-          if (link) { consumedThis = link; break; }
-        }
-        if (consumedThis) {
-          if (strategy.type === "product-fallback") {
-            console.log("[UNIQUE-DELIVERY] Used product-level fallback stock for variation", variationId);
-          }
-          break;
-        }
-      }
-      if (!consumedThis) break;
-      consumedLinks.push(consumedThis);
-    }
-
-    // Check remaining stock after consumption
-    if (consumedLinks.length > 0) {
-      await checkAndSwitchIfStockEmpty(supabase, productId, variationId, Boolean(useVariationStock), product.name);
-    }
-
-    if (!consumedLinks.length) return { link: null, links: [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
-    return { link: consumedLinks[0], links: consumedLinks, showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
-  }
-
-  // repeated mode: prefer variation's access_link, fallback to product's
-  // Send the link only ONCE regardless of quantity (same link for all units)
-  const link = variationAccessLink || product.access_link || null;
-  return { link, links: link ? [link] : [], showInBot, showInWebsite, deliveryMessage: variationDeliveryMessage };
-}
-
-/**
- * Check if stock is empty after consumption. If so, switch delivery_mode to 'repeated'
- * and notify admin via Telegram.
- */
-async function checkAndSwitchIfStockEmpty(
-  supabase: any,
-  productId: string,
-  variationId: string | null,
-  isVariationStock: boolean,
-  productName: string,
-) {
-  try {
-    let q = supabase
-      .from("product_stock_items")
-      .select("id", { count: "exact", head: true })
-      .eq("is_used", false);
-
-    if (isVariationStock && variationId) {
-      q = q.eq("variation_id", variationId);
-    } else {
-      q = q.eq("product_id", productId).is("variation_id", null);
-    }
-
-    const { count } = await q;
-    if (count !== null && count > 0) return; // still has stock
-
-    // Switch to manual (repeated) mode
-    if (isVariationStock && variationId) {
-      // Get variation name before switching
-      const { data: varData } = await supabase
-        .from("product_variations")
-        .select("name")
-        .eq("id", variationId)
-        .single();
-
-      await supabase
-        .from("product_variations")
-        .update({ delivery_mode: "repeated" })
-        .eq("id", variationId);
-
-      console.log("[STOCK-EMPTY] Variation", variationId, "switched to manual mode");
-      await notifyAdminStockEmpty(supabase, productName, varData?.name || "Unknown");
-    } else {
-      await supabase
-        .from("products")
-        .update({ delivery_mode: "repeated" })
-        .eq("id", productId);
-
-      console.log("[STOCK-EMPTY] Product", productId, "switched to manual mode");
-      await notifyAdminStockEmpty(supabase, productName, null);
-    }
-  } catch (e) {
-    console.error("[STOCK-CHECK] Error:", e);
-  }
-}
-
-/**
- * Send admin notification via Telegram when stock runs out
- */
-async function notifyAdminStockEmpty(supabase: any, productName: string, variationName: string | null) {
-  try {
-    const token = Deno.env.get("TELEGRAM_BOT_TOKEN");
-    if (!token) return;
-
-    // Get admin chat ID from app_settings
-    const { data: setting } = await supabase
-      .from("app_settings")
-      .select("value")
-      .eq("key", "admin_telegram_id")
-      .single();
-
-    const adminChatId = setting?.value;
-    if (!adminChatId) return;
-
-    const label = variationName
-      ? `<b>${productName}</b> — <b>${variationName}</b>`
-      : `<b>${productName}</b>`;
-
-    const msg = `⚠️ <b>Auto Delivery Stock Empty!</b>\n\n` +
-      `📦 Product: ${label}\n` +
-      `🔄 Switched to <b>Manual Delivery</b> mode.\n\n` +
-      `Please add new stock or deliver orders manually.`;
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: adminChatId, text: msg, parse_mode: "HTML" }),
-    });
-  } catch (e) {
-    console.error("[ADMIN-NOTIFY] Stock empty notification failed:", e);
-  }
 }
 
 /**
@@ -269,9 +36,8 @@ export async function sendInstantDeliveryWithLoginCode(
   if (!childMode) {
     code = String(Math.floor(100000 + Math.random() * 900000));
   }
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
-  // Get user info for login code (skip for child bots)
   let username: string | null = null;
   let firstName: string | null = null;
   if (!childMode) {
@@ -285,7 +51,6 @@ export async function sendInstantDeliveryWithLoginCode(
       firstName = botUser?.first_name || null;
     } catch {}
 
-    // Save login code
     try {
       await supabase.from("telegram_login_codes").insert({
         telegram_id: telegramId,
@@ -302,8 +67,6 @@ export async function sendInstantDeliveryWithLoginCode(
   const websiteUrl = childMode ? null : `https://cheapest-premiums.in/telegram/auth?code=${code}`;
 
   if (isDriveLink(accessLink)) {
-    // Drive link → only show website button, don't send link directly
-    // For child bots: no website link available — show generic delivered notice
     let driveMsg: string;
     const inlineKeyboard: any[][] = [];
     if (childMode) {
@@ -335,14 +98,11 @@ export async function sendInstantDeliveryWithLoginCode(
       }),
     });
   } else {
-    // Detect multi-line credentials (Email/Password/2FA)
     const isMultiline = accessLink.includes('\n');
     const { parseCredential } = await import('./credential-otp.ts');
     const parsed = parseCredential(accessLink);
     const has2FA = !!parsed.twoFASecret;
 
-    // Strip any 2FA secret lines from the visible body — secret must NOT be shared.
-    // Users get the live OTP via the "🔐 Get OTP" button instead.
     const visibleAccess = accessLink
       .split('\n')
       .filter((line) => !/^\s*(2fa|two[-\s]?fa|totp|otp\s*secret|secret)\s*[:=]/i.test(line))
@@ -352,8 +112,6 @@ export async function sendInstantDeliveryWithLoginCode(
     const escapeHtml = (s: string) =>
       s.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!));
 
-    // Build body — when we have parsed Email + Password, render each as its own
-    // <code> tag so each can be tap-to-copied INDEPENDENTLY (not joined together).
     let body: string;
     if (parsed.email && parsed.password) {
       const emailLabel = lang === 'bn' ? '📧 ইমেইল/আইডি' : '📧 Email / ID';
@@ -364,7 +122,6 @@ export async function sendInstantDeliveryWithLoginCode(
         body += `\n\n${linkLabel}:\n<code>${escapeHtml(parsed.link)}</code>`;
       }
     } else if (isMultiline) {
-      // Fallback: tap-to-copy block for unstructured multi-line content
       body = `<pre>${escapeHtml(visibleAccess)}</pre>`;
     } else {
       body = `<code>${escapeHtml(visibleAccess)}</code>`;
@@ -388,11 +145,8 @@ export async function sendInstantDeliveryWithLoginCode(
       : `✅ <b>${productName} Delivered!</b>\n\n` +
         `🔗 <b>Your Access:</b>\n${body}${loginCodeLine}${twoFANote}`;
 
-    // Build inline keyboard
     const keyboardRows: any[][] = [];
     if (has2FA) {
-      // Encode 2FA secret directly in callback_data (≤64 bytes; Base32 secrets fit)
-      // Prefix `otp_` so the router can detect it.
       const secret = parsed.twoFASecret!.toUpperCase().replace(/\s+/g, '');
       const cbData = `otp_${secret}`.slice(0, 64);
       keyboardRows.push([
@@ -416,46 +170,10 @@ export async function sendInstantDeliveryWithLoginCode(
     });
   }
 
-  // Send custom delivery message if available
   if (deliveryMessage?.trim()) {
     await sendMessage(token, chatId, `📝 ${deliveryMessage}`);
   }
 
-  // ===== Email copy of the delivery (best-effort, only if user set an email) =====
-  try {
-    const { sendBotUserEmail } = await import("../../_shared/bot-email.ts");
-    const isCreds = accessLink.includes("\n") || accessLink.includes("|");
-    const blocks: Array<{ label: string; value: string; mono?: boolean; link?: string }> = [
-      { label: "Product", value: productName },
-    ];
-    // Hide 2FA secret in email too
-    const visibleAccess = accessLink
-      .split("\n")
-      .filter((line) => !/^\s*(2fa|two[-\s]?fa|totp|otp\s*secret|secret)\s*[:=]/i.test(line))
-      .join("\n")
-      .trim();
-    if (isCreds || visibleAccess.includes("\n") || visibleAccess.includes("|")) {
-      blocks.push({ label: "Your Credentials", value: visibleAccess.replace(/\|/g, "\n"), mono: true });
-    } else if (/^https?:\/\//i.test(visibleAccess)) {
-      blocks.push({ label: "Access Link", value: "Open Access", link: visibleAccess });
-    } else {
-      blocks.push({ label: "Access", value: visibleAccess, mono: true });
-    }
-    await sendBotUserEmail(
-      supabase,
-      telegramId,
-      `🚀 ${productName} — Delivery from Cheapest-Premium.in`,
-      {
-        title: `${productName} delivered!`,
-        preheader: `Your ${productName} is ready — full access details inside.`,
-        badge: { text: "Delivered", color: "#10b981" },
-        intro: `Your order has been delivered successfully. Your access details are below — keep them safe.`,
-        blocks,
-        warning: "Do not share these details with anyone. If you face any problem, reply on Telegram or contact our support.",
-      },
-      { template: "bot_instant_delivery" }
-    );
-  } catch (e) {
-    console.error("[delivery-email] failed:", e);
-  }
+  // Email copy of the delivery (best-effort)
+  await sendDeliveryEmail(supabase, telegramId, productName, accessLink);
 }
