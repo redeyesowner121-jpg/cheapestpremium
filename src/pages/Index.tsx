@@ -63,18 +63,15 @@ const Index: React.FC = () => {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  // Prefetch critical pages only, after idle
+  // Prefetch ProductDetail after long idle (it's the most likely next nav)
   useEffect(() => {
     const timer = setTimeout(() => {
       if ('requestIdleCallback' in window) {
         (window as any).requestIdleCallback(() => {
-          import('@/pages/ProductsPage').catch(() => {});
-          setTimeout(() => import('@/pages/ProductDetailPage').catch(() => {}), 500);
-        });
-      } else {
-        import('@/pages/ProductsPage').catch(() => {});
+          import('@/pages/ProductDetailPage').catch(() => {});
+        }, { timeout: 8000 });
       }
-    }, 4000);
+    }, 6000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -152,32 +149,56 @@ const Index: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [bannersRes, flashSalesRes, productsRes, methodsRes, categoriesRes] = await Promise.all([
-        supabase.from('banners').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
-        supabase.from('flash_sales').select('*, products(*)').eq('is_active', true).gt('end_time', new Date().toISOString()),
-        supabase.from('products').select('*, product_variations(*)').eq('is_active', true).limit(8),
-        supabase.from('products').select('*, product_variations(*)').eq('is_active', true).ilike('category', '%methods%').limit(6),
-        supabase.from('categories').select('*').eq('is_active', true).order('sort_order', { ascending: true })
+      // Critical above-the-fold first: banners + categories + products in parallel.
+      // Flash sales and methods are deferred (below-the-fold) to keep TTI fast.
+      const productCols = 'id,name,price,original_price,reseller_price,image_url,sold_count,rating,slug,category,created_at,product_variations(id,price,reseller_price,is_active,created_at)';
+
+      const [bannersRes, productsRes, categoriesRes] = await Promise.all([
+        supabase.from('banners').select('id,image_url,title,link').eq('is_active', true).order('sort_order', { ascending: true }),
+        supabase.from('products').select(productCols).eq('is_active', true).order('sold_count', { ascending: false }).limit(14),
+        supabase.from('categories').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       ]);
 
       if (categoriesRes.data) setCategories(categoriesRes.data);
       if (bannersRes.data?.length) {
         setBanners(bannersRes.data.map(b => ({ id: b.id, image: b.image_url, title: b.title, link: b.link })));
       }
-      if (flashSalesRes.data) {
-        setFlashSales(flashSalesRes.data.map(fs => ({
-          id: fs.id, productId: fs.product_id,
-          name: fs.products?.name || 'Product',
-          originalPrice: fs.products?.price || 0,
-          salePrice: fs.sale_price,
-          image: fs.products?.image_url || 'https://via.placeholder.com/200',
-          endTime: new Date(fs.end_time).getTime(),
-          productData: fs.products,
-          variationName: (fs as any).variation_name || null,
-        })));
+      if (productsRes.data) {
+        const all = productsRes.data;
+        setProducts(all.slice(0, 8).map(mapProduct));
+        // Derive Methods locally to avoid a 2nd identical query
+        const methods = all.filter((p: any) => /methods/i.test(p.category || '')).slice(0, 6);
+        if (methods.length) setMethodsProducts(methods.map(mapProduct));
       }
-      if (productsRes.data) setProducts(productsRes.data.map(mapProduct));
-      if (methodsRes.data) setMethodsProducts(methodsRes.data.map(mapProduct));
+
+      // Deferred: flash sales (only 1 small query, runs after main paint)
+      setTimeout(async () => {
+        const { data: flashRes } = await supabase
+          .from('flash_sales')
+          .select('id,product_id,sale_price,end_time,variation_name,products(id,name,price,image_url)')
+          .eq('is_active', true)
+          .gt('end_time', new Date().toISOString());
+        if (flashRes) {
+          setFlashSales(flashRes.map((fs: any) => ({
+            id: fs.id, productId: fs.product_id,
+            name: fs.products?.name || 'Product',
+            originalPrice: fs.products?.price || 0,
+            salePrice: fs.sale_price,
+            image: fs.products?.image_url || 'https://via.placeholder.com/200',
+            endTime: new Date(fs.end_time).getTime(),
+            productData: fs.products,
+            variationName: fs.variation_name || null,
+          })));
+        }
+
+        // If methods empty from initial 14 products, fetch them lazily
+        setMethodsProducts((prev) => {
+          if (prev.length) return prev;
+          supabase.from('products').select(productCols).eq('is_active', true).ilike('category', '%methods%').limit(6)
+            .then(({ data }) => data && setMethodsProducts(data.map(mapProduct)));
+          return prev;
+        });
+      }, 300);
     } catch (error) {
       console.error('Error loading data:', error);
     }

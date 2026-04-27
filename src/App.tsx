@@ -111,20 +111,18 @@ const AppContent = () => {
     }
   }, [settings.app_name]);
 
-  // Prefetch likely next routes during browser idle time for instant navigation
+  // Prefetch likely next routes during browser idle time for instant navigation.
+  // Keep this list small — too many concurrent imports compete with critical data fetches.
   useEffect(() => {
     const prefetch = () => {
       import("./pages/ProductsPage");
-      import("./pages/ProductDetailPage");
       import("./pages/CartPage");
-      import("./pages/WalletPage");
-      import("./pages/AuthPage");
     };
     if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const id = (window as any).requestIdleCallback(prefetch, { timeout: 4000 });
+      const id = (window as any).requestIdleCallback(prefetch, { timeout: 6000 });
       return () => (window as any).cancelIdleCallback?.(id);
     }
-    const t = setTimeout(prefetch, 2500);
+    const t = setTimeout(prefetch, 4000);
     return () => clearTimeout(t);
   }, []);
 
