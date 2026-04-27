@@ -56,9 +56,10 @@ export function useProductsData() {
     setLoading(true);
     const { data } = await supabase
       .from('products')
-      .select('*, product_variations(*)')
+      .select('id,name,description,price,original_price,reseller_price,image_url,sold_count,rating,slug,category,seo_tags,created_at,is_active,access_link,product_variations(id,name,price,reseller_price,is_active,created_at)')
       .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (data) {
       const enriched = data.map(p => {
