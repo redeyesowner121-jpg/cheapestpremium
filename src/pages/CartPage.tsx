@@ -181,25 +181,28 @@ const CartPage: React.FC = () => {
         />
       )}
 
-      <IndiaPaymentScreen
-        open={showAddMoney}
-        onOpenChange={(v) => { setShowAddMoney(v); if (!v) refreshProfile(); }}
-        depositAmount={addMoneyAmount}
-        onDepositAmountChange={setAddMoneyAmount}
-        paymentSettings={paymentSettings}
-        loading={false}
-        onAutoDeposit={() => {}}
-        onManualDeposit={() => {}}
-        submittingManual={false}
-        transactionId=""
-        onTransactionIdChange={() => {}}
-        senderName={profile?.name || ''}
-        onSenderNameChange={() => {}}
-        depositTab={depositTab}
-        onTabChange={setDepositTab}
-        onChangeCountry={() => {}}
-      />
-
+      {showAddMoney && (
+        <Suspense fallback={null}>
+          <IndiaPaymentScreen
+            open={showAddMoney}
+            onOpenChange={(v) => { setShowAddMoney(v); if (!v) refreshProfile(); }}
+            depositAmount={addMoneyAmount}
+            onDepositAmountChange={setAddMoneyAmount}
+            paymentSettings={paymentSettings}
+            loading={false}
+            onAutoDeposit={() => {}}
+            onManualDeposit={() => {}}
+            submittingManual={false}
+            transactionId=""
+            onTransactionIdChange={() => {}}
+            senderName={profile?.name || ''}
+            onSenderNameChange={() => {}}
+            depositTab={depositTab}
+            onTabChange={setDepositTab}
+            onChangeCountry={() => {}}
+          />
+        </Suspense>
+      )}
       <BottomNav />
     </div>
   );
