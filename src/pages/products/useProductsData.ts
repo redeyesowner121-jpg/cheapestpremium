@@ -62,7 +62,7 @@ export function useProductsData() {
   }, [searchQuery, products, user]);
 
   const loadProducts = async () => {
-    setLoading(true);
+    if (products.length === 0) setLoading(true);
     const { data } = await supabase
       .from('products')
       .select('id,name,description,price,original_price,reseller_price,image_url,sold_count,rating,slug,category,seo_tags,created_at,is_active,access_link,product_variations(id,name,price,reseller_price,is_active,created_at)')
@@ -82,7 +82,8 @@ export function useProductsData() {
           product_variations: undefined
         };
       });
-      setProducts(enriched);
+      setProducts(enriched as Product[]);
+      writeCache(PRODUCTS_CACHE_KEY, enriched);
     }
     setLoading(false);
   };
@@ -95,10 +96,12 @@ export function useProductsData() {
       .order('sort_order', { ascending: true });
 
     if (data) {
-      setCategories([
+      const next: CategoryItem[] = [
         { id: 'all', name: 'All' },
         ...data.map(c => ({ id: c.name.toLowerCase(), name: c.name }))
-      ]);
+      ];
+      setCategories(next);
+      writeCache(CATEGORIES_CACHE_KEY, next);
     }
   };
 
