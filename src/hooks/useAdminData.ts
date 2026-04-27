@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { readCache, writeCache } from '@/lib/persistentCache';
 
 export interface AdminData {
   users: any[];
@@ -27,153 +28,97 @@ export interface AdminStats {
   outOfStockProducts: any[];
 }
 
+const EMPTY_DATA: AdminData = {
+  users: [], orders: [], products: [], banners: [], flashSales: [],
+  announcements: [], tempAdmins: [], categories: [], settings: {},
+  transactions: [], depositRequests: []
+};
+
+const ADMIN_CACHE_KEY = 'admin_data_v1';
+
 export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
-  const [data, setData] = useState<AdminData>({
-    users: [],
-    orders: [],
-    products: [],
-    banners: [],
-    flashSales: [],
-    announcements: [],
-    tempAdmins: [],
-    categories: [],
-    settings: {},
-    transactions: [],
-    depositRequests: []
-  });
-  const [loading, setLoading] = useState(true);
+  // Hydrate instantly from cache so admin UI renders without a spinner on revisits
+  const cached = readCache<AdminData>(ADMIN_CACHE_KEY, 5 * 60 * 1000);
+  const [data, setData] = useState<AdminData>(cached || EMPTY_DATA);
+  const [loading, setLoading] = useState(!cached);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
-    
-    // Load users
-    const { data: usersData } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    if (!cached) setLoading(true);
 
-    // Load orders with profile info
-    const { data: ordersData } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    let ordersWithProfiles: any[] = [];
-    if (ordersData) {
-      const userIds = [...new Set(ordersData.map(o => o.user_id).filter(Boolean))];
-      const { data: profiles } = await supabase
+    // Run all top-level queries IN PARALLEL — was sequential before (8 awaits = slow)
+    const [
+      usersRes, ordersRes, productsRes, bannersRes, flashSalesRes,
+      announcementsRes, tempAdminsRes, categoriesRes, settingsRes,
+      transactionsRes, depositRequestsRes
+    ] = await Promise.all([
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('products').select('*').order('created_at', { ascending: false }),
+      supabase.from('banners').select('*').order('sort_order', { ascending: true }),
+      supabase.from('flash_sales').select('*, products(name, image_url)').order('created_at', { ascending: false }),
+      supabase.from('announcements').select('*').order('created_at', { ascending: false }),
+      isAdmin
+        ? supabase.from('user_roles').select('*').eq('role', 'temp_admin')
+        : Promise.resolve({ data: [] as any[] }),
+      supabase.from('categories').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
+      supabase.from('app_settings').select('*'),
+      supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('manual_deposit_requests').select('*').order('created_at', { ascending: false }),
+    ]);
+
+    const ordersData = ordersRes.data || [];
+    const tempAdminsData = (tempAdminsRes as any).data || [];
+    const depositRequestsData = depositRequestsRes.data || [];
+
+    // Collect all profile-id lookups into ONE query
+    const lookupIds = new Set<string>();
+    ordersData.forEach((o: any) => o.user_id && lookupIds.add(o.user_id));
+    tempAdminsData.forEach((ta: any) => ta.user_id && lookupIds.add(ta.user_id));
+    depositRequestsData.forEach((r: any) => r.user_id && lookupIds.add(r.user_id));
+
+    let profilesMap = new Map<string, any>();
+    if (lookupIds.size > 0) {
+      const { data: lookupProfiles } = await supabase
         .from('profiles')
         .select('id, name, email, phone')
-        .in('id', userIds);
-      
-      ordersWithProfiles = ordersData.map(order => ({
-        ...order,
-        profiles: order.user_id ? profiles?.find(p => p.id === order.user_id) : null
-      }));
+        .in('id', Array.from(lookupIds));
+      lookupProfiles?.forEach((p: any) => profilesMap.set(p.id, p));
     }
 
-    // Load products
-    const { data: productsData } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const ordersWithProfiles = ordersData.map((order: any) => ({
+      ...order,
+      profiles: order.user_id ? profilesMap.get(order.user_id) || null : null
+    }));
 
-    // Load banners
-    const { data: bannersData } = await supabase
-      .from('banners')
-      .select('*')
-      .order('sort_order', { ascending: true });
-    
-    // Load flash sales
-    const { data: flashSalesData } = await supabase
-      .from('flash_sales')
-      .select('*, products(name, image_url)')
-      .order('created_at', { ascending: false });
+    const tempAdminsWithProfiles = tempAdminsData.map((ta: any) => ({
+      ...ta,
+      profiles: profilesMap.get(ta.user_id)
+    }));
 
-    // Load announcements
-    const { data: announcementsData } = await supabase
-      .from('announcements')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const depositRequestsWithProfiles = depositRequestsData.map((req: any) => ({
+      ...req,
+      profiles: profilesMap.get(req.user_id)
+    }));
 
-    // Load temp admins (only for main admin)
-    let tempAdminsWithProfiles: any[] = [];
-    if (isAdmin) {
-      const { data: tempAdminsData } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('role', 'temp_admin');
-      
-      if (tempAdminsData) {
-        const userIds = tempAdminsData.map(ta => ta.user_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, email')
-          .in('id', userIds);
-        
-        tempAdminsWithProfiles = tempAdminsData.map(ta => ({
-          ...ta,
-          profiles: profiles?.find(p => p.id === ta.user_id)
-        }));
-      }
-    }
-
-    // Load categories
-    const { data: categoriesData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true });
-
-    // Load settings
-    const { data: settingsData } = await supabase
-      .from('app_settings')
-      .select('*');
     const settingsObj: Record<string, string> = {};
-    settingsData?.forEach(s => {
-      settingsObj[s.key] = s.value || '';
-    });
+    settingsRes.data?.forEach((s: any) => { settingsObj[s.key] = s.value || ''; });
 
-    // Load transactions for analytics
-    const { data: transactionsData } = await supabase
-      .from('transactions')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    // Load deposit requests
-    const { data: depositRequestsData } = await supabase
-      .from('manual_deposit_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    let depositRequestsWithProfiles: any[] = [];
-    if (depositRequestsData && depositRequestsData.length > 0) {
-      const userIds = [...new Set(depositRequestsData.map(r => r.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name, email')
-        .in('id', userIds);
-      
-      depositRequestsWithProfiles = depositRequestsData.map(req => ({
-        ...req,
-        profiles: profiles?.find(p => p.id === req.user_id)
-      }));
-    }
-
-    setData({
-      users: usersData || [],
+    const next: AdminData = {
+      users: usersRes.data || [],
       orders: ordersWithProfiles,
-      products: productsData || [],
-      banners: bannersData || [],
-      flashSales: flashSalesData || [],
-      announcements: announcementsData || [],
+      products: productsRes.data || [],
+      banners: bannersRes.data || [],
+      flashSales: flashSalesRes.data || [],
+      announcements: announcementsRes.data || [],
       tempAdmins: tempAdminsWithProfiles,
-      categories: categoriesData || [],
+      categories: categoriesRes.data || [],
       settings: settingsObj,
-      transactions: transactionsData || [],
+      transactions: transactionsRes.data || [],
       depositRequests: depositRequestsWithProfiles
-    });
+    };
 
+    setData(next);
+    writeCache(ADMIN_CACHE_KEY, next);
     setLoading(false);
   }, [isAdmin]);
 
@@ -196,10 +141,10 @@ export const useAdminData = (isAdmin: boolean, isTempAdmin: boolean) => {
       const today = new Date();
       return orderDate.toDateString() === today.toDateString();
     }).length,
-    lowStockProducts: data.products.filter(p => 
+    lowStockProducts: data.products.filter(p =>
       p.stock !== null && p.stock <= 5 && p.stock > 0
     ),
-    outOfStockProducts: data.products.filter(p => 
+    outOfStockProducts: data.products.filter(p =>
       p.stock !== null && p.stock <= 0
     )
   };
