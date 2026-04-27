@@ -38,12 +38,6 @@ export const handleProductPurchase = async (
   const isOutOfStock = currentStock !== null && currentStock <= 0;
   const exceedsStock = currentStock !== null && quantity > currentStock;
 
-  if (user && profile && !profile.phone) {
-    toast.error('Please add your phone number to place an order');
-    navigate('/profile/edit');
-    return;
-  }
-
   if (isOutOfStock) { toast.error('This product is out of stock'); return; }
   if (exceedsStock) { toast.error(`Only ${currentStock} items available in stock`); return; }
 
