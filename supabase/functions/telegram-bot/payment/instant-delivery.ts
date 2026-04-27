@@ -459,38 +459,3 @@ export async function sendInstantDeliveryWithLoginCode(
     console.error("[delivery-email] failed:", e);
   }
 }
-
-/**
- * Child bot delivery: Send credentials only, NO website link, NO login code
- */
-async function sendChildBotDelivery(
-  token: string,
-  chatId: number,
-  accessLink: string,
-  productName: string,
-  lang: string
-) {
-  // Check if it's credentials (contains | separator)
-  const isCredentials = accessLink.includes("|");
-
-  if (isCredentials) {
-    const parts = accessLink.split("|").map((p: string) => p.trim());
-    let credText = `✅ <b>${productName} Delivered!</b>\n\n🔑 <b>Your Credentials</b>\n\n`;
-    if (parts.length >= 2) {
-      credText += `📧 ID: <code>${parts[0]}</code>\n🔒 Password: <code>${parts[1]}</code>`;
-    } else {
-      credText += `<code>${accessLink}</code>`;
-    }
-    await sendMessage(token, chatId, credText);
-  } else if (isDriveLink(accessLink)) {
-    // Drive links are NOT shared via child bot
-    await sendMessage(token, chatId,
-      `✅ <b>${productName} Delivered!</b>\n\n📁 Your product has been delivered. Please contact support if you need assistance.`
-    );
-  } else {
-    // Non-drive links: send directly
-    await sendMessage(token, chatId,
-      `✅ <b>${productName} Delivered!</b>\n\n🔗 <b>Your Access:</b>\n<code>${accessLink}</code>`
-    );
-  }
-}
