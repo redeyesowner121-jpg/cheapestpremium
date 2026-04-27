@@ -469,18 +469,34 @@ export async function handleReport(token: string, supabase: any, chatId: number)
 }
 
 export async function executeBroadcast(token: string, supabase: any, adminChatId: number, msg: any) {
-  // Gather users from ALL bots: Main, Resale, Giveaway, Mother, and every active Child bot.
+  // Broadcast to ALL bots (Main, Resale, Giveaway, every active Child bot) — EXCLUDING mother bot.
+  // We re-send the actual content per bot (text/photo/video/document) instead of copyMessage,
+  // because copyMessage only works for the same bot that originally received the message.
   const mainToken = token;
   const resaleToken = Deno.env.get("RESALE_BOT_TOKEN");
   const giveawayToken = Deno.env.get("GIVEAWAY_BOT_TOKEN");
-  const motherToken = Deno.env.get("MOTHER_BOT_TOKEN");
 
-  // Track (telegram_id, botToken) pairs we've already queued so the same person on the same bot
-  // never gets the message twice. Different bots = independent chats, so the user *should* get one
-  // message per bot they use.
+  // ---- Extract content from the source message ----
+  // Pick highest-resolution photo if any
+  const photoFileId: string | undefined = Array.isArray(msg.photo) && msg.photo.length
+    ? msg.photo[msg.photo.length - 1].file_id : undefined;
+  const videoFileId: string | undefined = msg.video?.file_id;
+  const documentFileId: string | undefined = msg.document?.file_id;
+  const animationFileId: string | undefined = msg.animation?.file_id;
+  const caption: string | undefined = msg.caption;
+  const captionEntities = msg.caption_entities;
+  const text: string | undefined = msg.text;
+  const entities = msg.entities;
+
+  if (!photoFileId && !videoFileId && !documentFileId && !animationFileId && !text) {
+    await sendMessage(token, adminChatId, "❌ Unsupported message type for broadcast. Send text, photo, video, animation, or document.");
+    return;
+  }
+
+  // ---- Gather targets ----
   const seen = new Set<string>(); // key = `${botToken}:${telegram_id}`
   const allTargets: { telegram_id: number; botToken: string; source: string }[] = [];
-  const counts: Record<string, number> = { main: 0, resale: 0, giveaway: 0, mother: 0, child: 0 };
+  const counts: Record<string, number> = { main: 0, resale: 0, giveaway: 0, child: 0 };
 
   const addTarget = (tid: number, botToken: string | undefined, source: string) => {
     if (!botToken || !tid) return;
@@ -498,35 +514,25 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
     (mainUsers || []).forEach((u: any) => addTarget(u.telegram_id, mainToken, "main"));
   } catch (e) { console.error("[broadcast] main users error:", e); }
 
-  // 2. Resale bot users (table may or may not exist)
+  // 2. Resale bot users
   if (resaleToken) {
     try {
       const { data: rUsers } = await supabase
         .from("resale_bot_users").select("telegram_id").eq("is_banned", false);
       (rUsers || []).forEach((u: any) => addTarget(u.telegram_id, resaleToken, "resale"));
-    } catch (e) { /* table may not exist; ignore */ }
+    } catch { /* table may not exist; ignore */ }
   }
 
   // 3. Giveaway bot users
   if (giveawayToken) {
     try {
-      // Try a dedicated table first, then fall back to giveaway_points (which has telegram_id)
       const { data: gUsers } = await supabase
         .from("giveaway_points").select("telegram_id");
       (gUsers || []).forEach((u: any) => addTarget(u.telegram_id, giveawayToken, "giveaway"));
     } catch (e) { console.error("[broadcast] giveaway users error:", e); }
   }
 
-  // 4. Mother bot users
-  if (motherToken) {
-    try {
-      const { data: mUsers } = await supabase
-        .from("mother_bot_users").select("telegram_id");
-      (mUsers || []).forEach((u: any) => addTarget(u.telegram_id, motherToken, "mother"));
-    } catch (e) { console.error("[broadcast] mother users error:", e); }
-  }
-
-  // 5. Every active Child bot
+  // 4. Every active Child bot (mother bot intentionally excluded)
   try {
     const { data: childBots } = await supabase
       .from("child_bots").select("id, bot_token").eq("is_active", true);
@@ -543,8 +549,97 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
 
   await sendMessage(token, adminChatId,
     `📢 <b>Broadcasting to ${allTargets.length} chats…</b>\n\n` +
-    `• Main: ${counts.main}\n• Resale: ${counts.resale}\n• Giveaway: ${counts.giveaway}\n• Mother: ${counts.mother}\n• Child bots: ${counts.child}`
+    `• Main: ${counts.main}\n• Resale: ${counts.resale}\n• Giveaway: ${counts.giveaway}\n• Child bots: ${counts.child}\n\n` +
+    `<i>(Mother bot excluded)</i>`
   );
+
+  // ---- For NON-main bots that need to send a photo/video/document, file_id is bot-scoped.
+  // We must download once from the main bot and re-upload per target bot.
+  // To keep this efficient, we cache a single download buffer and reuse it.
+  let mediaBuffer: Uint8Array | null = null;
+  let mediaFilename = "file";
+  const mediaFileId = photoFileId || videoFileId || animationFileId || documentFileId;
+
+  async function ensureMediaBuffer(): Promise<Uint8Array | null> {
+    if (mediaBuffer || !mediaFileId) return mediaBuffer;
+    try {
+      const fileRes = await fetch(`https://api.telegram.org/bot${mainToken}/getFile`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_id: mediaFileId }),
+      });
+      const fileJson = await fileRes.json();
+      if (!fileJson.ok) { console.error("[broadcast] getFile failed:", fileJson); return null; }
+      const filePath = fileJson.result.file_path;
+      mediaFilename = filePath.split("/").pop() || "file";
+      const dl = await fetch(`https://api.telegram.org/file/bot${mainToken}/${filePath}`);
+      if (!dl.ok) { console.error("[broadcast] download failed:", dl.status); return null; }
+      mediaBuffer = new Uint8Array(await dl.arrayBuffer());
+      return mediaBuffer;
+    } catch (e) {
+      console.error("[broadcast] ensureMediaBuffer error:", e);
+      return null;
+    }
+  }
+
+  async function sendOne(t: { telegram_id: number; botToken: string; source: string }): Promise<"sent" | "blocked" | "failed"> {
+    const isMain = t.botToken === mainToken;
+    try {
+      // Text-only message
+      if (!mediaFileId && text) {
+        const r = await fetch(`https://api.telegram.org/bot${t.botToken}/sendMessage`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chat_id: t.telegram_id, text, entities }),
+        });
+        const j = await r.json();
+        if (j.ok) return "sent";
+        if (/blocked|deactivated|chat not found|user is deactivated/i.test(j.description || "")) return "blocked";
+        return "failed";
+      }
+
+      // Media message
+      // For the MAIN bot we can reuse the file_id (fastest, no re-upload).
+      if (isMain && mediaFileId) {
+        let method = "sendMessage", body: any = {};
+        if (photoFileId) { method = "sendPhoto"; body = { chat_id: t.telegram_id, photo: photoFileId, caption, caption_entities: captionEntities }; }
+        else if (videoFileId) { method = "sendVideo"; body = { chat_id: t.telegram_id, video: videoFileId, caption, caption_entities: captionEntities }; }
+        else if (animationFileId) { method = "sendAnimation"; body = { chat_id: t.telegram_id, animation: animationFileId, caption, caption_entities: captionEntities }; }
+        else if (documentFileId) { method = "sendDocument"; body = { chat_id: t.telegram_id, document: documentFileId, caption, caption_entities: captionEntities }; }
+        const r = await fetch(`https://api.telegram.org/bot${t.botToken}/${method}`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+        });
+        const j = await r.json();
+        if (j.ok) return "sent";
+        if (/blocked|deactivated|chat not found/i.test(j.description || "")) return "blocked";
+        return "failed";
+      }
+
+      // Other bots: must re-upload via multipart
+      const buf = await ensureMediaBuffer();
+      if (!buf) return "failed";
+      const fd = new FormData();
+      fd.append("chat_id", String(t.telegram_id));
+      let method = "sendDocument", fileField = "document";
+      if (photoFileId) { method = "sendPhoto"; fileField = "photo"; }
+      else if (videoFileId) { method = "sendVideo"; fileField = "video"; }
+      else if (animationFileId) { method = "sendAnimation"; fileField = "animation"; }
+      const blob = new Blob([buf]);
+      fd.append(fileField, blob, mediaFilename);
+      if (caption) fd.append("caption", caption);
+      if (captionEntities) fd.append("caption_entities", JSON.stringify(captionEntities));
+      const r = await fetch(`https://api.telegram.org/bot${t.botToken}/${method}`, { method: "POST", body: fd });
+      const j = await r.json();
+      if (j.ok) return "sent";
+      if (/blocked|deactivated|chat not found/i.test(j.description || "")) return "blocked";
+      console.error("[broadcast] send failed:", t.source, j.description);
+      return "failed";
+    } catch (e) {
+      console.error("[broadcast] sendOne exception:", e);
+      return "failed";
+    }
+  }
+
+  // Pre-fetch media buffer once if needed
+  if (mediaFileId) await ensureMediaBuffer();
 
   let sent = 0, failed = 0, skipped = 0;
   const batchSize = 10;
@@ -552,28 +647,19 @@ export async function executeBroadcast(token: string, supabase: any, adminChatId
 
   for (let i = 0; i < allTargets.length; i += batchSize) {
     const batch = allTargets.slice(i, i + batchSize);
-    const promises = batch.map(async (t) => {
-      try {
-        const copyRes = await fetch(`https://api.telegram.org/bot${t.botToken}/copyMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: t.telegram_id, from_chat_id: adminChatId, message_id: msg.message_id }),
-        });
-        const result = await copyRes.json();
-        if (result.ok) sent++;
-        else if (result.description?.includes("blocked")) skipped++;
-        else failed++;
-      } catch { failed++; }
-    });
-    await Promise.all(promises);
+    const results = await Promise.all(batch.map(sendOne));
+    for (const r of results) {
+      if (r === "sent") sent++;
+      else if (r === "blocked") skipped++;
+      else failed++;
+    }
     if (i + batchSize < allTargets.length) await new Promise(r => setTimeout(r, delayBetweenBatches));
   }
 
   await sendMessage(token, adminChatId,
     `📢 <b>Broadcast Complete!</b>\n\n` +
     `📊 Main: ${counts.main} · Resale: ${counts.resale}\n` +
-    `📊 Giveaway: ${counts.giveaway} · Mother: ${counts.mother}\n` +
-    `📊 Child Bots: ${counts.child}\n\n` +
+    `📊 Giveaway: ${counts.giveaway} · Child Bots: ${counts.child}\n\n` +
     `✅ Sent: ${sent}\n❌ Failed: ${failed}\n🚫 Blocked: ${skipped}\n📊 Total: ${allTargets.length}`
   );
 }
