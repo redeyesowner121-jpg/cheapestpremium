@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import { useAppSettingsContext } from '@/contexts/AppSettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { getUserRank, calculateFinalPrice } from '@/lib/ranks';
 import { useCurrencyFormat } from '@/hooks/useCurrencyFormat';
-import IndiaPaymentScreen from '@/components/wallet/deposit/IndiaPaymentScreen';
 import EmptyCartFun from '@/components/EmptyCartFun';
 import DonationCard from '@/components/DonationCard';
 import { AAX_CODE } from './cart/constants';
@@ -17,6 +16,9 @@ import { useCheckout } from './cart/useCheckout';
 import CartItemRow from './cart/CartItemRow';
 import DonationItemRow from './cart/DonationItemRow';
 import CheckoutBar from './cart/CheckoutBar';
+
+// Lazy: only load when user clicks "Add Money"
+const IndiaPaymentScreen = lazy(() => import('@/components/wallet/deposit/IndiaPaymentScreen'));
 
 const CartPage: React.FC = () => {
   const navigate = useNavigate();
@@ -179,25 +181,28 @@ const CartPage: React.FC = () => {
         />
       )}
 
-      <IndiaPaymentScreen
-        open={showAddMoney}
-        onOpenChange={(v) => { setShowAddMoney(v); if (!v) refreshProfile(); }}
-        depositAmount={addMoneyAmount}
-        onDepositAmountChange={setAddMoneyAmount}
-        paymentSettings={paymentSettings}
-        loading={false}
-        onAutoDeposit={() => {}}
-        onManualDeposit={() => {}}
-        submittingManual={false}
-        transactionId=""
-        onTransactionIdChange={() => {}}
-        senderName={profile?.name || ''}
-        onSenderNameChange={() => {}}
-        depositTab={depositTab}
-        onTabChange={setDepositTab}
-        onChangeCountry={() => {}}
-      />
-
+      {showAddMoney && (
+        <Suspense fallback={null}>
+          <IndiaPaymentScreen
+            open={showAddMoney}
+            onOpenChange={(v) => { setShowAddMoney(v); if (!v) refreshProfile(); }}
+            depositAmount={addMoneyAmount}
+            onDepositAmountChange={setAddMoneyAmount}
+            paymentSettings={paymentSettings}
+            loading={false}
+            onAutoDeposit={() => {}}
+            onManualDeposit={() => {}}
+            submittingManual={false}
+            transactionId=""
+            onTransactionIdChange={() => {}}
+            senderName={profile?.name || ''}
+            onSenderNameChange={() => {}}
+            depositTab={depositTab}
+            onTabChange={setDepositTab}
+            onChangeCountry={() => {}}
+          />
+        </Suspense>
+      )}
       <BottomNav />
     </div>
   );

@@ -25,7 +25,19 @@ export const useWalletData = () => {
   const { profile, user, refreshProfile } = useAuth();
   const { settings } = useAppSettingsContext();
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const txCacheKey = user ? `wallet_tx_${user.id}` : null;
+  const initialTx = (() => {
+    if (!txCacheKey) return [];
+    try {
+      const raw = localStorage.getItem(txCacheKey);
+      if (!raw) return [];
+      const p = JSON.parse(raw);
+      if (Date.now() - p.t > 5 * 60 * 1000) return [];
+      return p.d as Transaction[];
+    } catch { return []; }
+  })();
+
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTx);
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,8 +58,15 @@ export const useWalletData = () => {
 
   const loadTransactions = async () => {
     if (!user) return;
-    const { data } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
-    if (data) setTransactions(data);
+    const { data } = await supabase.from('transactions')
+      .select('id,user_id,type,amount,status,description,created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) {
+      setTransactions(data as any);
+      try { localStorage.setItem(`wallet_tx_${user.id}`, JSON.stringify({ t: Date.now(), d: data })); } catch {}
+    }
   };
 
   const loadPaymentSettings = async () => {
