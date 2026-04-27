@@ -156,6 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
     setIsAdmin(false);
     setIsTempAdmin(false);
+    try { localStorage.removeItem('auth_profile_v1'); } catch {}
     await logoutUser();
   };
 
