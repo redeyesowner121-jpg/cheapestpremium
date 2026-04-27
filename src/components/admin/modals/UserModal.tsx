@@ -1,9 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, MessageCircle, Gift, Shield, Wallet, Crown } from 'lucide-react';
+import { Award, MessageCircle, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -13,7 +11,17 @@ import {
 } from '@/components/ui/dialog';
 import BlueTick from '@/components/BlueTick';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import AdminEditSections from './user-modal/AdminEditSections';
+import {
+  giftBlueTick,
+  giftMoney,
+  updateWalletBalance,
+  updateRankBalance,
+  setUserRank,
+  toggleReseller,
+  toggleSeller,
+  deleteUser,
+} from './user-modal/user-actions';
 
 interface UserModalProps {
   open: boolean;
@@ -25,12 +33,7 @@ interface UserModalProps {
 }
 
 const UserModal: React.FC<UserModalProps> = ({
-  open,
-  onOpenChange,
-  user,
-  setUser,
-  isAdmin,
-  onRefresh,
+  open, onOpenChange, user, setUser, isAdmin, onRefresh,
 }) => {
   const navigate = useNavigate();
   const [giftAmount, setGiftAmount] = React.useState('');
@@ -56,173 +59,63 @@ const UserModal: React.FC<UserModalProps> = ({
   const handleSetRank = async (rankId: string) => {
     const rank = ranks.find(r => r.id === rankId);
     if (!rank || !user) return;
-    const { error } = await supabase.from('profiles')
-      .update({ rank_balance: rank.min_balance })
-      .eq('id', user.id);
-    if (error) { toast.error('Failed to set rank'); return; }
-    toast.success(`Rank set to ${rank.icon} ${rank.name}!`);
-    setUser({ ...user, rank_balance: rank.min_balance });
-    onRefresh();
+    if (await setUserRank(user, rank)) {
+      setUser({ ...user, rank_balance: rank.min_balance });
+      onRefresh();
+    }
   };
 
   const handleGiftBlueTick = async (userId: string) => {
-    const { error } = await supabase.from('profiles').update({ has_blue_check: true }).eq('id', userId);
-    if (error) {
-      toast.error('Failed to gift blue tick');
-      return;
+    if (await giftBlueTick(userId)) {
+      onOpenChange(false);
+      onRefresh();
     }
-    toast.success('Blue Tick gifted successfully!');
-    onOpenChange(false);
-    onRefresh();
   };
 
   const handleGiftMoney = async () => {
-    if (!user || !giftAmount) return;
-    const amount = parseFloat(giftAmount);
-    if (isNaN(amount) || amount === 0) {
-      toast.error('Invalid amount');
-      return;
+    const newBalance = await giftMoney(user, giftAmount);
+    if (newBalance !== null) {
+      setGiftAmount('');
+      onOpenChange(false);
+      onRefresh();
     }
-
-    const newBalance = (user.wallet_balance || 0) + amount;
-    
-    // Prevent balance from going negative
-    if (newBalance < 0) {
-      toast.error(`Cannot deduct more than current balance (₹${user.wallet_balance || 0})`);
-      return;
-    }
-    
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({ wallet_balance: newBalance })
-      .eq('id', user.id);
-    
-    if (updateError) {
-      toast.error('Failed to update balance');
-      return;
-    }
-
-    const isDeduction = amount < 0;
-    await supabase.from('transactions').insert({
-      user_id: user.id,
-      type: isDeduction ? 'gift_deduct' : 'gift',
-      amount: Math.abs(amount),
-      status: 'completed',
-      description: isDeduction 
-        ? `Admin deducted - ₹${Math.abs(amount)}` 
-        : `Admin gift - ₹${amount}`
-    });
-
-    toast.success(isDeduction 
-      ? `₹${Math.abs(amount)} deducted from ${user.name}` 
-      : `₹${amount} gifted to ${user.name}`
-    );
-    setGiftAmount('');
-    onOpenChange(false);
-    onRefresh();
   };
 
   const handleToggleReseller = async (checked: boolean) => {
-    await supabase.from('profiles').update({ is_reseller: checked }).eq('id', user.id);
-    toast.success(checked ? 'User is now a Reseller!' : 'Reseller status removed');
+    await toggleReseller(user, checked);
     setUser({ ...user, is_reseller: checked });
     onRefresh();
   };
 
   const handleUpdateWalletBalance = async () => {
-    if (!user || walletBalanceInput === '') return;
-    const newBalance = parseFloat(walletBalanceInput);
-    if (isNaN(newBalance) || newBalance < 0) {
-      toast.error('Invalid balance amount');
-      return;
+    const newBalance = await updateWalletBalance(user, walletBalanceInput);
+    if (newBalance !== null) {
+      setWalletBalanceInput('');
+      setUser({ ...user, wallet_balance: newBalance });
+      onRefresh();
     }
-
-    const oldBalance = user.wallet_balance || 0;
-    const difference = newBalance - oldBalance;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ wallet_balance: newBalance })
-      .eq('id', user.id);
-
-    if (error) {
-      toast.error('Failed to update wallet balance');
-      return;
-    }
-
-    // Log the balance change as a transaction for audit trail
-    // Amount should always be positive, type indicates credit/debit
-    if (difference !== 0) {
-      await supabase.from('transactions').insert({
-        user_id: user.id,
-        type: difference > 0 ? 'admin_credit' : 'admin_debit',
-        amount: Math.abs(difference), // Always store positive amount
-        status: 'completed',
-        description: `Admin balance adjustment: ₹${oldBalance} → ₹${newBalance}`
-      });
-    }
-
-    toast.success(`Wallet balance updated to ₹${newBalance}`);
-    setWalletBalanceInput('');
-    setUser({ ...user, wallet_balance: newBalance });
-    onRefresh();
   };
 
   const handleToggleSeller = async () => {
-    const { data: existingRole } = await supabase
-      .from('user_roles')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('role', 'seller')
-      .maybeSingle();
-
-    if (existingRole) {
-      await supabase.from('user_roles').delete().eq('id', existingRole.id);
-      toast.success('Seller role removed');
-    } else {
-      await supabase.from('user_roles').insert({ user_id: user.id, role: 'seller' });
-      toast.success('User is now a seller!');
-    }
+    await toggleSeller(user);
     onOpenChange(false);
     onRefresh();
   };
 
   const handleUpdateRankBalance = async () => {
-    if (!user || !rankBalanceInput) return;
-    const newRankBalance = parseFloat(rankBalanceInput);
-    if (isNaN(newRankBalance) || newRankBalance < 0) {
-      toast.error('Invalid rank balance');
-      return;
+    const newRankBalance = await updateRankBalance(user, rankBalanceInput);
+    if (newRankBalance !== null) {
+      setRankBalanceInput('');
+      setUser({ ...user, rank_balance: newRankBalance });
+      onRefresh();
     }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ rank_balance: newRankBalance })
-      .eq('id', user.id);
-
-    if (error) {
-      toast.error('Failed to update rank balance');
-      return;
-    }
-
-    toast.success(`Rank balance updated to ₹${newRankBalance}`);
-    setRankBalanceInput('');
-    setUser({ ...user, rank_balance: newRankBalance });
-    onRefresh();
   };
 
   const handleDeleteUser = async () => {
-    if (!confirm(`Are you sure you want to delete ${user.name}?`)) return;
-    
-    await supabase.from('user_roles').delete().eq('user_id', user.id);
-    await supabase.from('notifications').delete().eq('user_id', user.id);
-    await supabase.from('transactions').delete().eq('user_id', user.id);
-    await supabase.from('orders').delete().eq('user_id', user.id);
-    await supabase.from('profiles').delete().eq('id', user.id);
-    
-    toast.success('User deleted');
-    onOpenChange(false);
-    onRefresh();
+    if (await deleteUser(user)) {
+      onOpenChange(false);
+      onRefresh();
+    }
   };
 
   if (!user) return null;
@@ -260,7 +153,7 @@ const UserModal: React.FC<UserModalProps> = ({
               <p className="text-xs text-muted-foreground">Orders</p>
             </div>
           </div>
-          
+
           <div className="bg-muted rounded-xl p-3 text-sm">
             <p><strong>Referral Code:</strong> {user.referral_code}</p>
             <p><strong>Referred By:</strong> {user.referred_by || 'None'}</p>
@@ -268,94 +161,21 @@ const UserModal: React.FC<UserModalProps> = ({
             <p><strong>Rank Balance:</strong> ₹{user.rank_balance || 0}</p>
           </div>
 
-          {/* Admin Wallet Balance Edit */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/50 dark:to-emerald-950/50 rounded-xl p-3 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-green-600" />
-              Edit Wallet Balance
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder={`Current: ₹${user.wallet_balance || 0}`}
-                value={walletBalanceInput}
-                onChange={(e) => setWalletBalanceInput(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={handleUpdateWalletBalance} size="sm" className="bg-green-600 hover:bg-green-700">
-                Set
-              </Button>
-            </div>
-          </div>
-
-          {/* Gift/Deduct Money */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 rounded-xl p-3 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Gift className="w-4 h-4 text-amber-600" />
-              Gift / Deduct Money
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Positive = Add | Negative = Deduct (e.g. -50)
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="e.g. 100 or -50"
-                value={giftAmount}
-                onChange={(e) => setGiftAmount(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={handleGiftMoney} size="sm" className="bg-amber-600 hover:bg-amber-700">
-                <Gift className="w-4 h-4 mr-1" />
-                Apply
-              </Button>
-            </div>
-          </div>
-
-          {/* Admin Rank Balance Update */}
-          <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/50 dark:to-indigo-950/50 rounded-xl p-3 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Award className="w-4 h-4 text-purple-600" />
-              Update Rank Balance
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder={`Current: ₹${user.rank_balance || 0}`}
-                value={rankBalanceInput}
-                onChange={(e) => setRankBalanceInput(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={handleUpdateRankBalance} size="sm" className="bg-purple-600 hover:bg-purple-700">
-                Update
-              </Button>
-            </div>
-          </div>
-
-          {/* Set Rank Directly */}
-          <div className="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50 rounded-xl p-3 space-y-2">
-            <p className="text-sm font-medium flex items-center gap-2">
-              <Crown className="w-4 h-4 text-yellow-600" />
-              Set Rank
-              {getCurrentRank() && (
-                <span className="text-xs px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300 rounded-full">
-                  Current: {getCurrentRank()?.icon} {getCurrentRank()?.name}
-                </span>
-              )}
-            </p>
-            <Select onValueChange={handleSetRank} value={getCurrentRank()?.id || ''}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select rank..." />
-              </SelectTrigger>
-              <SelectContent>
-                {ranks.map((rank) => (
-                  <SelectItem key={rank.id} value={rank.id}>
-                    {rank.icon} {rank.name} (Min: ₹{rank.min_balance})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <AdminEditSections
+            user={user}
+            ranks={ranks}
+            walletBalanceInput={walletBalanceInput}
+            setWalletBalanceInput={setWalletBalanceInput}
+            giftAmount={giftAmount}
+            setGiftAmount={setGiftAmount}
+            rankBalanceInput={rankBalanceInput}
+            setRankBalanceInput={setRankBalanceInput}
+            onUpdateWalletBalance={handleUpdateWalletBalance}
+            onGiftMoney={handleGiftMoney}
+            onUpdateRankBalance={handleUpdateRankBalance}
+            onSetRank={handleSetRank}
+            getCurrentRank={getCurrentRank}
+          />
 
           <div className="flex gap-2">
             {!user.has_blue_check && (
@@ -377,7 +197,7 @@ const UserModal: React.FC<UserModalProps> = ({
                 <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">Active</span>
               )}
             </div>
-            <Switch 
+            <Switch
               checked={user.is_reseller || false}
               onCheckedChange={handleToggleReseller}
             />
