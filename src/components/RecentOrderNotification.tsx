@@ -14,13 +14,13 @@ const RecentOrderNotification: React.FC = () => {
     if (!user) return;
 
     const checkRecentOrders = async () => {
-      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
       const { data: orders } = await supabase
         .from('orders')
         .select('id, product_name, total_price, status, access_link, created_at')
         .eq('user_id', user.id)
-        .gte('created_at', twoDaysAgo)
+        .gte('created_at', tenMinutesAgo)
         .order('created_at', { ascending: false })
         .limit(1);
 
