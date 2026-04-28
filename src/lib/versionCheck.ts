@@ -42,9 +42,6 @@ export function startVersionCheck() {
   if (started || typeof window === 'undefined') return;
   started = true;
 
-  // Capture initial bundle id
-  fetchBundleId().then((id) => { currentBundle = id; });
-
   const check = async () => {
     const next = await fetchBundleId();
     if (next && currentBundle && next !== currentBundle) {
@@ -52,6 +49,12 @@ export function startVersionCheck() {
       await reloadFresh();
     }
   };
+
+  // Capture initial bundle id, then quick re-check after 5s to catch fresh deploys
+  fetchBundleId().then((id) => {
+    currentBundle = id;
+    setTimeout(check, 5000);
+  });
 
   setInterval(check, POLL_INTERVAL_MS);
   // Also check when tab becomes visible again
