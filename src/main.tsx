@@ -109,14 +109,6 @@ const renderBootstrapFallback = (error: unknown) => {
   });
 };
 
-const renderBootScreen = (rootElement: HTMLElement) => {
-  rootElement.innerHTML = `
-    <div class="min-h-screen bg-background flex items-center justify-center p-4">
-      <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" aria-label="Loading app"></div>
-    </div>
-  `;
-};
-
 const bootstrap = () => {
   ensureLocalStorageAccess();
 
