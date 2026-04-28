@@ -107,5 +107,43 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Blank-screen failsafe: if React hasn't mounted within 10s,
+      // unregister service workers, clear caches, and hard-reload bypassing browser cache.
+      (function () {
+        var KEY = '__lov_blank_recovered__';
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          if (!root || root.children.length > 0) return; // App rendered → fine
+          try {
+            // Avoid infinite reload loop — only auto-recover once per minute
+            var last = parseInt(sessionStorage.getItem(KEY) || '0', 10);
+            if (Date.now() - last < 60000) return;
+            sessionStorage.setItem(KEY, String(Date.now()));
+          } catch (e) {}
+
+          var done = function () {
+            var url = location.href.split('#')[0];
+            url += (url.indexOf('?') > -1 ? '&' : '?') + '_r=' + Date.now();
+            location.replace(url);
+          };
+
+          var p = [];
+          try {
+            if ('serviceWorker' in navigator) {
+              p.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+                return Promise.all(rs.map(function (r) { return r.unregister(); }));
+              }).catch(function () {}));
+            }
+            if ('caches' in window) {
+              p.push(caches.keys().then(function (ks) {
+                return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+              }).catch(function () {}));
+            }
+          } catch (e) {}
+          Promise.all(p).then(done, done);
+        }, 10000);
+      })();
+    </script>
   </body>
 </html>
