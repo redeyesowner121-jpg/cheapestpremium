@@ -16,8 +16,8 @@ class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundary
     recoveredOnce: false,
   };
 
-  static getDerivedStateFromError(): AppErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(state: AppErrorBoundaryState): AppErrorBoundaryState {
+    return { ...state, hasError: true };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
