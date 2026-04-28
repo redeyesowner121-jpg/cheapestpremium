@@ -214,25 +214,27 @@ const App = () => {
   // Check subdomain BEFORE rendering the full app
   const subdomainConfig = getSubdomainConfig();
   if (subdomainConfig) {
-    return <SubdomainLanding config={subdomainConfig} />;
+    return <div data-app-ready="true"><SubdomainLanding config={subdomainConfig} /></div>;
   }
 
   return (
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <AppErrorBoundary>
-          <AuthProvider>
-            <AppSettingsProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
-                <AppContent />
-              </TooltipProvider>
-            </AppSettingsProvider>
-          </AuthProvider>
-        </AppErrorBoundary>
-      </QueryClientProvider>
-    </HelmetProvider>
+    <div data-app-ready="true">
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <AppErrorBoundary>
+            <AuthProvider>
+              <AppSettingsProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
+                  <AppContent />
+                </TooltipProvider>
+              </AppSettingsProvider>
+            </AuthProvider>
+          </AppErrorBoundary>
+        </QueryClientProvider>
+      </HelmetProvider>
+    </div>
   );
 };
 
