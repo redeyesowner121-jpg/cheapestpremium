@@ -1,6 +1,7 @@
 import "./index.css";
 import { createRoot } from "react-dom/client";
-import App from "./App";
+
+type AppModule = typeof import("./App");
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
@@ -109,8 +110,23 @@ const renderBootstrapFallback = (error: unknown) => {
   });
 };
 
-const bootstrap = () => {
+const renderBootstrapScreen = () => {
+  const rootElement = document.getElementById("root");
+  if (!rootElement) return;
+
+  rootElement.innerHTML = `
+    <div class="min-h-screen bg-background flex items-center justify-center p-4" data-app-booting="true">
+      <div class="flex flex-col items-center gap-4 text-center">
+        <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-sm font-medium text-muted-foreground">Loading store…</p>
+      </div>
+    </div>
+  `;
+};
+
+const bootstrap = async () => {
   ensureLocalStorageAccess();
+  renderBootstrapScreen();
 
   try {
     const rootElement = document.getElementById("root");
@@ -118,6 +134,8 @@ const bootstrap = () => {
     if (!rootElement) {
       throw new Error("Root element not found");
     }
+
+    const { default: App }: AppModule = await import("./App");
 
     rootElement.innerHTML = "";
 
