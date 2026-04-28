@@ -105,7 +105,15 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f5fa;color:#5b5b70;font-family:Inter,system-ui,sans-serif;padding:16px;text-align:center;">
+        <div>
+          <div style="width:48px;height:48px;border:4px solid #7c3aed;border-top-color:transparent;border-radius:9999px;margin:0 auto 16px;animation:spin 1s linear infinite;"></div>
+          <div style="font-size:14px;font-weight:700;">Loading store…</div>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Blank-screen failsafe: if React hasn't mounted within 10s,
@@ -114,7 +122,8 @@
         var KEY = '__lov_blank_recovered__';
         setTimeout(function () {
           var root = document.getElementById('root');
-          if (!root || root.children.length > 0) return; // App rendered → fine
+          if (!root) return;
+          if (root.querySelector('[data-app-ready="true"], [data-app-bootstrap-fallback="true"]')) return;
           try {
             // Avoid infinite reload loop — only auto-recover once per minute
             var last = parseInt(sessionStorage.getItem(KEY) || '0', 10);
@@ -142,7 +151,7 @@
             }
           } catch (e) {}
           Promise.all(p).then(done, done);
-        }, 10000);
+        }, 12000);
       })();
     </script>
   </body>
