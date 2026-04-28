@@ -1,5 +1,23 @@
 import "./index.css";
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const loadCriticalModule = async <T,>(loader: () => Promise<T>, label: string): Promise<T> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await loader();
+    } catch (error) {
+      lastError = error;
+      console.warn(`Retrying ${label} load (${attempt}/3)`, error);
+      await wait(attempt * 600);
+    }
+  }
+
+  throw lastError;
+};
+
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
 
@@ -53,6 +71,26 @@ const ensureLocalStorageAccess = () => {
   }
 };
 
+const clearStaleBrowserCaches = async () => {
+  try {
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.unregister()));
+    }
+  } catch (error) {
+    console.warn("Service worker cleanup failed:", error);
+  }
+
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch (error) {
+    console.warn("Cache cleanup failed:", error);
+  }
+};
+
 const renderBootstrapFallback = (error: unknown) => {
   console.error("App bootstrap failed:", error);
 
@@ -75,8 +113,11 @@ const renderBootstrapFallback = (error: unknown) => {
     </div>
   `;
 
-  document.getElementById("app-reload-button")?.addEventListener("click", () => {
-    window.location.reload();
+  document.getElementById("app-reload-button")?.addEventListener("click", async () => {
+    await clearStaleBrowserCaches();
+    const url = new URL(window.location.href);
+    url.searchParams.set("_r", String(Date.now()));
+    window.location.replace(url.toString());
   });
 
   document.getElementById("app-home-button")?.addEventListener("click", () => {
@@ -95,9 +136,11 @@ const bootstrap = async () => {
     }
 
     const [{ createRoot }, { default: App }] = await Promise.all([
-      import("react-dom/client"),
-      import("./App.tsx"),
+      loadCriticalModule(() => import("react-dom/client"), "React renderer"),
+      loadCriticalModule(() => import("./App.tsx"), "app shell"),
     ]);
+
+    rootElement.innerHTML = "";
 
     createRoot(rootElement).render(<App />);
 
