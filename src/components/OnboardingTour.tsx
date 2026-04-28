@@ -69,10 +69,10 @@ const OnboardingTour: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    // Only show for logged-in users who haven't completed the tour
+    // Only show for logged-in users who haven't completed the tour.
+    // Wait long enough for the home page to fully paint so users never see a "blank" overlay.
     if (user && profile && !hasCompletedTour()) {
-      // Small delay to let the page load first
-      const timer = setTimeout(() => setIsVisible(true), 1000);
+      const timer = setTimeout(() => setIsVisible(true), 3500);
       return () => clearTimeout(timer);
     }
   }, [user, profile]);
@@ -112,7 +112,7 @@ const OnboardingTour: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-[2px] flex items-center justify-center p-4"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
