@@ -7,17 +7,15 @@ interface AppErrorBoundaryProps {
 
 interface AppErrorBoundaryState {
   hasError: boolean;
-  recoveredOnce: boolean;
 }
 
 class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorBoundaryState> {
   state: AppErrorBoundaryState = {
     hasError: false,
-    recoveredOnce: false,
   };
 
-  static getDerivedStateFromError(state: AppErrorBoundaryState): AppErrorBoundaryState {
-    return { ...state, hasError: true };
+  static getDerivedStateFromError(): AppErrorBoundaryState {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
