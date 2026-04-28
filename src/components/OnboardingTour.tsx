@@ -69,10 +69,10 @@ const OnboardingTour: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    // Only show for logged-in users who haven't completed the tour
+    // Only show for logged-in users who haven't completed the tour.
+    // Wait long enough for the home page to fully paint so users never see a "blank" overlay.
     if (user && profile && !hasCompletedTour()) {
-      // Small delay to let the page load first
-      const timer = setTimeout(() => setIsVisible(true), 1000);
+      const timer = setTimeout(() => setIsVisible(true), 3500);
       return () => clearTimeout(timer);
     }
   }, [user, profile]);
