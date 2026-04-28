@@ -69,12 +69,13 @@ const OnboardingTour: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    // Only show for logged-in users who haven't completed the tour.
-    // Wait long enough for the home page to fully paint so users never see a "blank" overlay.
-    if (user && profile && !hasCompletedTour()) {
-      const timer = setTimeout(() => setIsVisible(true), 3500);
-      return () => clearTimeout(timer);
+    // Never block the storefront automatically. The tour state is still kept,
+    // but customers should always see products first instead of a full-screen overlay.
+    if (!user || !profile || hasCompletedTour()) {
+      return;
     }
+
+    markTourCompleted();
   }, [user, profile]);
 
   const handleNext = () => {
