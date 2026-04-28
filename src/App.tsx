@@ -13,6 +13,42 @@ import SubdomainLanding, { getSubdomainConfig } from "@/components/SubdomainLand
 import { Construction, Settings } from "lucide-react";
 import Index from "./pages/Index";
 
+const recoverFromChunkFailure = async () => {
+  const key = "__lov_chunk_recovered__";
+  const now = Date.now();
+
+  try {
+    const last = Number(sessionStorage.getItem(key) || "0");
+    if (now - last < 60_000) return;
+    sessionStorage.setItem(key, String(now));
+  } catch {}
+
+  try {
+    const registrations = await navigator.serviceWorker?.getRegistrations?.();
+    await Promise.all((registrations || []).map((registration) => registration.unregister()));
+  } catch {}
+
+  try {
+    const keys = await caches?.keys?.();
+    await Promise.all((keys || []).map((cacheKey) => caches.delete(cacheKey)));
+  } catch {}
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("_r", String(now));
+  window.location.replace(url.toString());
+};
+
+const lazyWithRecovery = <T extends { default: React.ComponentType<any> }>(loader: () => Promise<T>) =>
+  lazy(async () => {
+    try {
+      return await loader();
+    } catch (error) {
+      console.error("Lazy page failed to load, refreshing stale client cache:", error);
+      await recoverFromChunkFailure();
+      throw error;
+    }
+  });
+
 const AIChatWidget = lazy(() =>
   new Promise<typeof import("@/components/AIChatWidget")>((resolve) => {
     const load = () => resolve(import("@/components/AIChatWidget"));
@@ -35,30 +71,30 @@ const RecentOrderNotification = lazy(() =>
 );
 
 // Lazy load all pages except Index
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const TelegramAuthPage = lazy(() => import("./pages/TelegramAuthPage"));
-const WalletPage = lazy(() => import("./pages/WalletPage"));
-const OrdersPage = lazy(() => import("./pages/OrdersPage"));
-const ProfilePage = lazy(() => import("./pages/ProfilePage"));
-const ProfileEditPage = lazy(() => import("./pages/ProfileEditPage"));
-const ProductsPage = lazy(() => import("./pages/ProductsPage"));
-const ProductDetailPage = lazy(() => import("./pages/ProductDetailPage"));
-const ChatPage = lazy(() => import("./pages/ChatPage"));
-const UsersPage = lazy(() => import("./pages/UsersPage"));
-const NotificationHistoryPage = lazy(() => import("./pages/NotificationHistoryPage"));
-const TransactionsPage = lazy(() => import("./pages/TransactionsPage"));
-const AdminPage = lazy(() => import("./pages/AdminPage"));
-const AdminEmailLogsPage = lazy(() => import("./pages/AdminEmailLogsPage"));
-const AdminEscrowPage = lazy(() => import("./pages/AdminEscrowPage"));
-const EscrowPage = lazy(() => import("./pages/EscrowPage"));
-const CartPage = lazy(() => import("./pages/CartPage"));
-const ResalePurchasePage = lazy(() => import("./pages/ResalePurchasePage"));
-const TermsPage = lazy(() => import("./pages/TermsPage"));
-const ProductEditPage = lazy(() => import("./pages/ProductEditPage"));
-const ProductEditListPage = lazy(() => import("./pages/ProductEditListPage"));
-const AIPage = lazy(() => import("./pages/AIPage"));
-const BinanceTestPage = lazy(() => import("./pages/BinanceTestPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+const AuthPage = lazyWithRecovery(() => import("./pages/AuthPage"));
+const TelegramAuthPage = lazyWithRecovery(() => import("./pages/TelegramAuthPage"));
+const WalletPage = lazyWithRecovery(() => import("./pages/WalletPage"));
+const OrdersPage = lazyWithRecovery(() => import("./pages/OrdersPage"));
+const ProfilePage = lazyWithRecovery(() => import("./pages/ProfilePage"));
+const ProfileEditPage = lazyWithRecovery(() => import("./pages/ProfileEditPage"));
+const ProductsPage = lazyWithRecovery(() => import("./pages/ProductsPage"));
+const ProductDetailPage = lazyWithRecovery(() => import("./pages/ProductDetailPage"));
+const ChatPage = lazyWithRecovery(() => import("./pages/ChatPage"));
+const UsersPage = lazyWithRecovery(() => import("./pages/UsersPage"));
+const NotificationHistoryPage = lazyWithRecovery(() => import("./pages/NotificationHistoryPage"));
+const TransactionsPage = lazyWithRecovery(() => import("./pages/TransactionsPage"));
+const AdminPage = lazyWithRecovery(() => import("./pages/AdminPage"));
+const AdminEmailLogsPage = lazyWithRecovery(() => import("./pages/AdminEmailLogsPage"));
+const AdminEscrowPage = lazyWithRecovery(() => import("./pages/AdminEscrowPage"));
+const EscrowPage = lazyWithRecovery(() => import("./pages/EscrowPage"));
+const CartPage = lazyWithRecovery(() => import("./pages/CartPage"));
+const ResalePurchasePage = lazyWithRecovery(() => import("./pages/ResalePurchasePage"));
+const TermsPage = lazyWithRecovery(() => import("./pages/TermsPage"));
+const ProductEditPage = lazyWithRecovery(() => import("./pages/ProductEditPage"));
+const ProductEditListPage = lazyWithRecovery(() => import("./pages/ProductEditListPage"));
+const AIPage = lazyWithRecovery(() => import("./pages/AIPage"));
+const BinanceTestPage = lazyWithRecovery(() => import("./pages/BinanceTestPage"));
+const NotFound = lazyWithRecovery(() => import("./pages/NotFound"));
 
 // Optimized QueryClient with aggressive caching
 const queryClient = new QueryClient({
