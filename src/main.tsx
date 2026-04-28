@@ -1,17 +1,23 @@
 import "./index.css";
+import { createRoot } from "react-dom/client";
+
+type AppModule = typeof import("./App");
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const loadCriticalModule = async <T,>(loader: () => Promise<T>, label: string): Promise<T> => {
+const loadAppModule = async (): Promise<AppModule> => {
   let lastError: unknown;
 
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
     try {
-      return await loader();
+      if (import.meta.env.DEV) {
+        return await import(/* @vite-ignore */ `./App.tsx?retry=${Date.now()}-${attempt}`);
+      }
+      return await import("./App");
     } catch (error) {
       lastError = error;
-      console.warn(`Retrying ${label} load (${attempt}/3)`, error);
-      await wait(attempt * 600);
+      console.warn(`Retrying app shell load (${attempt}/6)`, error);
+      await wait(700 * attempt);
     }
   }
 
@@ -125,6 +131,14 @@ const renderBootstrapFallback = (error: unknown) => {
   });
 };
 
+const renderBootScreen = (rootElement: HTMLElement) => {
+  rootElement.innerHTML = `
+    <div class="min-h-screen bg-background flex items-center justify-center p-4">
+      <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" aria-label="Loading app"></div>
+    </div>
+  `;
+};
+
 const bootstrap = async () => {
   ensureLocalStorageAccess();
 
@@ -135,10 +149,9 @@ const bootstrap = async () => {
       throw new Error("Root element not found");
     }
 
-    const [{ createRoot }, { default: App }] = await Promise.all([
-      loadCriticalModule(() => import("react-dom/client"), "React renderer"),
-      loadCriticalModule(() => import("./App.tsx"), "app shell"),
-    ]);
+    renderBootScreen(rootElement);
+
+    const { default: App } = await loadAppModule();
 
     rootElement.innerHTML = "";
 
