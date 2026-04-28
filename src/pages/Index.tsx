@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav';
 import BannerSlider from '@/components/BannerSlider';
 import CategoryGrid from '@/components/CategoryGrid';
 import ProductGrid from '@/components/ProductGrid';
+import QuickStats from '@/components/QuickStats';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useHomeData } from './home/useHomeData';
@@ -17,7 +18,6 @@ import { homeFaqJsonLd } from './home/homeJsonLd';
 const FlashSaleSlider = lazy(() => import('@/components/FlashSaleSlider'));
 const FlashSaleDetailModal = lazy(() => import('@/components/FlashSaleDetailModal'));
 const CategorySection = lazy(() => import('@/components/CategorySection'));
-const QuickStats = lazy(() => import('@/components/QuickStats'));
 const DailyBonusBanner = lazy(() => import('@/components/DailyBonusBanner'));
 const OnboardingTour = lazy(() => import('@/components/OnboardingTour'));
 const PersonalizedRecommendations = lazy(() => import('@/components/PersonalizedRecommendations'));
@@ -125,11 +125,7 @@ const Index: React.FC = () => {
           onProductClick={handleProductClick}
         />
 
-        {user && (
-          <Suspense fallback={<div className="h-48 rounded-2xl bg-muted animate-pulse" />}>
-            <QuickStats />
-          </Suspense>
-        )}
+        {user && <QuickStats />}
 
         {deferredReady && (
           <Suspense fallback={<LazyFallback />}>
