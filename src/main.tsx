@@ -1,22 +1,6 @@
 import "./index.css";
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const loadCriticalModule = async <T,>(loader: () => Promise<T>, label: string): Promise<T> => {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    try {
-      return await loader();
-    } catch (error) {
-      lastError = error;
-      console.warn(`Retrying ${label} load (${attempt}/3)`, error);
-      await wait(attempt * 600);
-    }
-  }
-
-  throw lastError;
-};
+import { createRoot } from "react-dom/client";
+import App from "./App";
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
@@ -125,7 +109,7 @@ const renderBootstrapFallback = (error: unknown) => {
   });
 };
 
-const bootstrap = async () => {
+const bootstrap = () => {
   ensureLocalStorageAccess();
 
   try {
@@ -134,11 +118,6 @@ const bootstrap = async () => {
     if (!rootElement) {
       throw new Error("Root element not found");
     }
-
-    const [{ createRoot }, { default: App }] = await Promise.all([
-      loadCriticalModule(() => import("react-dom/client"), "React renderer"),
-      loadCriticalModule(() => import("./App.tsx"), "app shell"),
-    ]);
 
     rootElement.innerHTML = "";
 
@@ -151,4 +130,4 @@ const bootstrap = async () => {
   }
 };
 
-void bootstrap();
+bootstrap();
