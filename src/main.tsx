@@ -1,28 +1,6 @@
 import "./index.css";
 import { createRoot } from "react-dom/client";
-
-type AppModule = typeof import("./App");
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const loadAppModule = async (): Promise<AppModule> => {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= 6; attempt += 1) {
-    try {
-      if (import.meta.env.DEV) {
-        return await import(/* @vite-ignore */ `./App.tsx?retry=${Date.now()}-${attempt}`);
-      }
-      return await import("./App");
-    } catch (error) {
-      lastError = error;
-      console.warn(`Retrying app shell load (${attempt}/6)`, error);
-      await wait(700 * attempt);
-    }
-  }
-
-  throw lastError;
-};
+import App from "./App";
 
 const createMemoryStorage = (): Storage => {
   const store = new Map<string, string>();
@@ -139,7 +117,7 @@ const renderBootScreen = (rootElement: HTMLElement) => {
   `;
 };
 
-const bootstrap = async () => {
+const bootstrap = () => {
   ensureLocalStorageAccess();
 
   try {
@@ -148,10 +126,6 @@ const bootstrap = async () => {
     if (!rootElement) {
       throw new Error("Root element not found");
     }
-
-    renderBootScreen(rootElement);
-
-    const { default: App } = await loadAppModule();
 
     rootElement.innerHTML = "";
 
@@ -164,4 +138,4 @@ const bootstrap = async () => {
   }
 };
 
-void bootstrap();
+bootstrap();
