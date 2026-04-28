@@ -124,6 +124,14 @@ const renderBootstrapScreen = () => {
   `;
 };
 
+const loadApp = async (): Promise<AppModule> => {
+  const timeout = new Promise<never>((_, reject) => {
+    window.setTimeout(() => reject(new Error("App module load timed out")), 8000);
+  });
+
+  return Promise.race([import("./App"), timeout]);
+};
+
 const bootstrap = async () => {
   ensureLocalStorageAccess();
   renderBootstrapScreen();
@@ -135,7 +143,7 @@ const bootstrap = async () => {
       throw new Error("Root element not found");
     }
 
-    const { default: App }: AppModule = await import("./App");
+    const { default: App }: AppModule = await loadApp();
 
     rootElement.innerHTML = "";
 
